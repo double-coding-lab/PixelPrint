@@ -102,6 +102,40 @@ function input(label, defaultVal) {
   })
 }
 
+// ─── 已配置时跳过询问的辅助函数 ─────────────────────────────
+
+function hasValue(v) {
+  return v !== undefined && v !== null && v !== ''
+}
+
+function logUseExisting(label, value) {
+  process.stdout.write(`  ${label}: \x1b[36m${value}\x1b[0m \x1b[90m(沿用现有配置)\x1b[0m\n`)
+}
+
+async function pickOrUse(label, currentVal, choices, defaultVal) {
+  if (hasValue(currentVal) && choices.includes(currentVal)) {
+    logUseExisting(label, currentVal)
+    return currentVal
+  }
+  return await select(label, choices, defaultVal)
+}
+
+async function inputOrUse(label, currentVal, defaultVal) {
+  if (hasValue(currentVal)) {
+    logUseExisting(label, currentVal)
+    return currentVal
+  }
+  return await input(label, defaultVal)
+}
+
+async function inputIntOrUse(label, currentVal, defaultVal) {
+  if (hasValue(currentVal) && Number.isFinite(Number(currentVal))) {
+    logUseExisting(label, currentVal)
+    return Number(currentVal)
+  }
+  return parseInt(await input(label, String(defaultVal))) || defaultVal
+}
+
 // ─── 交互式配置 ──────────────────────────────────────────────
 
 async function runInit() {
@@ -129,48 +163,46 @@ async function runInit() {
 
   console.log('─── 阶段二：交互式配置 ──────────────────────────────\n')
 
-  const framework = await select('[1/6] 项目框架', ['react', 'rn'], p.framework || 'react')
+  const framework = await pickOrUse('[1/6] 项目框架', p.framework, ['react', 'rn'], 'react')
 
   const styleChoices = framework === 'rn'
     ? ['stylesheet', 'styled-components', 'nativewind']
     : ['scss', 'css-modules', 'tailwind', 'inline']
-  const styleDefault = framework === 'rn'
-    ? (styleChoices.includes(p.styleFormat) ? p.styleFormat : 'stylesheet')
-    : (styleChoices.includes(p.styleFormat) ? p.styleFormat : 'scss')
-  const styleFormat = await select('[2/6] 样式方案', styleChoices, styleDefault)
+  const styleDefault = framework === 'rn' ? 'stylesheet' : 'scss'
+  const styleFormat = await pickOrUse('[2/6] 样式方案', p.styleFormat, styleChoices, styleDefault)
 
-  const mergeMode = await select('[3/6] 合并模式', ['component', 'flat'], m.mode || 'component')
+  const mergeMode = await pickOrUse('[3/6] 合并模式', m.mode, ['component', 'flat'], 'component')
 
-  const assetsDir = await input('[4/6] 图片输出目录', img.assetsDir || '')
+  const assetsDir = await inputOrUse('[4/6] 图片输出目录', img.assetsDir, '')
 
-  const imageBaseUrl = await input('[5/6] 图片 base URL', img.imageBaseUrl || 'http://127.0.0.1:8080/')
+  const imageBaseUrl = await inputOrUse('[5/6] 图片 base URL', img.imageBaseUrl, 'http://127.0.0.1:8080/')
 
-  const outputDir = await input('[6/6] 代码输出目录', out.dir || '')
+  const outputDir = await inputOrUse('[6/6] 代码输出目录', out.dir, '')
 
   console.log('\n─── 阶段三：单位换算规则 ────────────────────────────\n')
   console.log('  使用 ← → 方向键选择，输入题直接回车使用默认值\n')
 
-  const figmaBase = parseInt(await input('[单位1/4] 设计稿基准宽度 (px)', String(u.figmaBase || 375))) || 375
+  const figmaBase = await inputIntOrUse('[单位1/4] 设计稿基准宽度 (px)', u.figmaBase, 375)
 
-  const outputUnit = await select('[单位2/4] 代码使用的单位', ['px', 'vw', 'rem'], u.outputUnit || 'px')
+  const outputUnit = await pickOrUse('[单位2/4] 代码使用的单位', u.outputUnit, ['px', 'vw', 'rem'], 'px')
 
   let outputBase = figmaBase
   let scale = 1
   if (outputUnit === 'px') {
-    outputBase = parseInt(await input('[单位3/4] 代码 px 基准宽度（如 postcss px2vw 基于 750 则填 750）', String(u.outputBase || figmaBase * 2))) || figmaBase * 2
+    outputBase = await inputIntOrUse('[单位3/4] 代码 px 基准宽度（如 postcss px2vw 基于 750 则填 750）', u.outputBase, figmaBase * 2)
     scale = outputBase / figmaBase
     console.log(`  → 换算倍数：×${scale}（Figma ${figmaBase}px → 代码 ${figmaBase * scale}px）`)
   } else if (outputUnit === 'vw') {
-    outputBase = parseInt(await input('[单位3/4] vw 基准宽度（100vw 对应多少 px）', String(u.outputBase || figmaBase))) || figmaBase
+    outputBase = await inputIntOrUse('[单位3/4] vw 基准宽度（100vw 对应多少 px）', u.outputBase, figmaBase)
     scale = outputBase / figmaBase
     console.log(`  → 换算：Figma ${figmaBase}px → ${(figmaBase * scale / outputBase * 100).toFixed(3)}vw`)
   } else {
-    outputBase = parseInt(await input('[单位3/4] rem 基准（1rem = 多少 px）', String(u.outputBase || 16))) || 16
+    outputBase = await inputIntOrUse('[单位3/4] rem 基准（1rem = 多少 px）', u.outputBase, 16)
     scale = 1
     console.log(`  → 换算：Figma 值 / ${outputBase} rem`)
   }
 
-  const figmaToken = await input('[单位4/4] Figma Personal Access Token（用于导出透明图片，回车跳过）', fig.token || '')
+  const figmaToken = await inputOrUse('[单位4/4] Figma Personal Access Token（用于导出透明图片，回车跳过）', fig.token, '')
 
   const config = {
     version: '2.0.0',
@@ -205,12 +237,14 @@ async function runInit() {
 
   console.log('\n─── 阶段四：mappings.json ───────────────────────────\n')
   if (fs.existsSync(MAPPINGS_PATH)) {
-    const reset = await confirm('code-connect/mappings.json 已存在，是否重置为空模板？')
-    if (reset) {
-      fs.writeFileSync(MAPPINGS_PATH, JSON.stringify({ components: [] }, null, 2))
-      console.log('  ✓ mappings.json 已重置')
+    let existingMappings = null
+    try { existingMappings = JSON.parse(fs.readFileSync(MAPPINGS_PATH, 'utf8')) } catch {}
+    const hasComponents = existingMappings && Array.isArray(existingMappings.components) && existingMappings.components.length > 0
+    if (hasComponents) {
+      console.log(`  skip  mappings.json (已有 ${existingMappings.components.length} 条映射，沿用现有配置)`)
     } else {
-      console.log('  skip  mappings.json (kept)')
+      fs.writeFileSync(MAPPINGS_PATH, JSON.stringify({ components: [] }, null, 2))
+      console.log('  ✓ mappings.json 已重置为空模板（原文件无有效映射）')
     }
   } else {
     fs.mkdirSync(path.dirname(MAPPINGS_PATH), { recursive: true })

@@ -54,6 +54,34 @@ Read("ctrip-train-d2c.config.json")
 | `layers.but` | 可点击区域前缀，默认 `btn-` |
 | `layers.ignore` | 忽略前缀，默认 `x-` |
 | `output.dir` | 代码输出根目录 |
+| `health.enabled` | 是否启用前置体检（默认 true） |
+| `health.blockOnError` | 体检 grade=F 时是否阻塞生成（默认 true） |
+
+---
+
+### 步骤 0.5：调用设计稿体检（health 启用时）
+
+`health.enabled === true` 时，**在解析 URL 前**先调用 `ctrip-train-d2c-doctor` 做体检。
+
+```
+doctor.run({
+  fileKey, nodeId,        // 同主流程
+  config,                 // 步骤 0 的完整配置
+  mode: 'integrated'      // 集成模式，不写文件，return JSON
+})
+```
+
+**根据返回的 `{ passed, score, issues, summary }` 决策**：
+
+| 条件 | 处理 |
+|------|------|
+| `passed === false && config.health.blockOnError === true` | 输出阻塞提示，**等待用户输入「强制继续」/「跳过体检」/「先去修设计稿」**；用户不明确同意则终止流程 |
+| `passed === false && config.health.blockOnError === false` | 输出警告但继续生成 |
+| `passed === true && summary.error > 0` | 输出 error 数量提示并继续（罕见，通常 error 会让 grade=F） |
+| `passed === true && summary.warn > 0` | 输出一句简短提示并继续，例如：`⚠️ 体检发现 N 个警告，详情见对话上方报告，继续生成。` |
+| `passed === true && summary.error === 0 && summary.warn === 0` | 静默继续 |
+
+**用户主动跳过**：用户在调用主 SKILL 时明确说"跳过体检/不要 doctor"，可跳过本步骤。
 
 ---
 
@@ -119,6 +147,129 @@ img-*   → 主 agent 处理，生成 <img>
 - sub-agent 完成自己的 block 后，将对应清单项标为 `[x]`
 
 产出：block 列表 + `.d2c-tasks.md` 文件。
+
+---
+
+### 步骤 2.5：采集页面级背景（必做，不可跳过）
+
+设计稿的**顶层 frame**（即用户传入的 `nodeId` 对应节点）代表整张活动页，其 `backgroundColor` / `fills` 表示**整屏页面背景**。
+
+这层背景必须设到 **`body`** 上，不能设到组件根容器上——组件根容器一般有固定宽度（如 750px），超出部分在真机上会露白底。
+
+#### 2.5.1 采集
+
+调用 `get_design_context(fileKey, nodeId)` 取顶层节点的 `fills` / `backgroundColor`，判定类型：
+
+| 顶层节点情况 | 类型 tag | 值 |
+|---|---|---|
+| `fills` 含 SOLID color | `bgColor` | HEX 值，如 `#dcd7ff` |
+| `fills` 含 GRADIENT_LINEAR/RADIAL | `bgGradient` | CSS gradient 字符串 |
+| `fills` 含 IMAGE | `bgImage` | 通过 REST API 导出为 `body-bg.{ext}`，记录 URL |
+| `fills` 为空 / 透明 / 缺失 | `none` | 显式记录"无页面级背景"，**仍要执行后续步骤的"显式确认"动作**，但不写入任何 body 样式 |
+
+#### 2.5.2 项目特征探测
+
+执行写入前**必须先探测项目类型**，决定写入策略。按以下顺序检查（**逐项 Read 文件，不要凭印象判定**）：
+
+1. **检查 `output.dir` 同级（或父级 1-2 层内）**有几个 page 入口：
+   - 看是否有 `pages/` 目录 + 多个 `*.jsx` / `*.tsx`（Next.js / nfes 多页面）
+   - 看是否有 react-router / SPA 入口（单 entry 多 route）
+   - 看是否只有一个入口（单页活动）
+2. **检查全局样式入口**：
+   - `pages/style/base.scss`、`src/styles/global.scss`、`app.scss`、`_app.js` 引入的全局 css
+   - 是否已有 `body { background: ... }` 规则（用 grep 实证，**禁止猜**）
+3. **检查样式方案**：根据 config 的 `project.styleFormat`（scss / css-modules / tailwind / inline / styled-components 等）确定是否能写全局选择器
+
+把探测结果写入 `.d2c-tasks.md` 的"页面级背景"段，作为后续步骤的事实依据。
+
+#### 2.5.3 写入策略（按探测结果自动选档）
+
+| 项目特征 | 策略 | 实现 |
+|---|---|---|
+| **A. 多页面 / 多稿共存**（pages/ 下 ≥ 2 个 page，或 SPA 多 route，或预期会加更多稿） | **scope 隔离 class** | 见下方「策略 A」 |
+| **B. 单页活动 + 已有全局 body 规则**（output.dir 下只有 1 个 page，全局 base.scss 已有 body 背景） | **页面 scss 顶部局部覆盖** | 见下方「策略 B」 |
+| **C. 单页活动 + 无全局 body 规则** | **直接写页面 scss 的 `body` 选择器** | 见下方「策略 C」 |
+| **D. CSS Modules / styled-components 严格隔离方案** | **useEffect 操作 inline style** | 见下方「策略 D」 |
+
+**`bgImage` 时**：无论哪一档，URL 都使用 `$asset-prefix` / `ASSET_PREFIX`（见步骤 4.3 的图片 URL 规则），**不允许在 body 样式中硬编码完整 URL**。
+
+##### 策略 A：scope class（多页面默认推荐）
+
+**`.scss`**：
+```scss
+// 页面级背景：本页面挂载时通过 .<page-class>-page-bg 类应用到 body
+:global(body.<page-class>-page-bg) {
+  background: <值>;
+}
+```
+
+**`.tsx`**：
+```tsx
+import { useEffect } from 'react';
+
+useEffect(() => {
+  const cls = '<page-class>-page-bg';
+  document.body.classList.add(cls);
+  return () => document.body.classList.remove(cls);
+}, []);
+```
+
+`<page-class>` = 当前组件根 className（如 `fan-ticket-unlocked`），保证全项目唯一。**离开页面会自动还原**，多张稿共存不会互相污染。
+
+##### 策略 B：页面 scss 顶部局部覆盖
+
+```scss
+// 页面级背景：覆盖项目全局 body 兜底色
+body {
+  background: <值>;
+}
+```
+
+写在页面根 scss 文件顶部。**禁止改全局 base.scss / global.css**。
+
+##### 策略 C：直接写 body 选择器
+
+同策略 B 写法，但因为没有全局兜底冲突，是最干净的形态。
+
+##### 策略 D：useEffect inline style
+
+```tsx
+useEffect(() => {
+  const prev = document.body.style.background;
+  document.body.style.background = '<值>';
+  return () => { document.body.style.background = prev; };
+}, []);
+```
+
+不写 css，直接操作 DOM。仅在样式方案不允许全局选择器时使用。
+
+#### 2.5.4 SSR 首屏闪白处理（可选）
+
+若项目是 SSR（Next.js / nfes 的服务端渲染），策略 A / D 在客户端 hydrate 后才生效，可能出现首屏从全局兜底色 → 稿色的一帧闪烁。
+
+如需消除：在该页面对应的 `getInitialProps` / `getServerSideProps` 返回的 props 里加 body class 字段，或在 `_document` 的 body 元素上根据路由 pathname 加 class。**默认不做这项优化**，除非用户明确说"避免首屏闪烁"。
+
+#### 2.5.5 写入清单（必须勾完才进步骤 5）
+
+`.d2c-tasks.md` 的"页面级背景"段：
+
+```markdown
+## 页面级背景（写入 body）
+- [ ] 已采集顶层 frame 背景：类型 = <bgColor/bgGradient/bgImage/none>，值 = <值或 "none">
+- [ ] 已探测项目特征：多/单页 = <多/单>，全局 body 规则 = <存在/不存在>，样式方案 = <scss/...>
+- [ ] 已选定策略：<A / B / C / D>
+- [ ] 已按策略写入对应文件（路径：<file>）
+- [ ] 未改动任何项目全局样式文件
+```
+
+#### 2.5.6 禁止项
+
+- 禁止把页面级背景设到组件根容器（如 `.fan-ticket-unlocked`）
+- 禁止跳过本步骤；即使顶层 frame 是 `none`，也必须在清单里**显式记录** `none`，不允许沉默
+- 禁止改动项目已有的全局样式文件（`base.scss` / `global.css` / `_app` 引入的全局 css）
+- 禁止凭印象判定项目特征（必须 Read / Grep 文件实证后再选档）
+- 禁止在 body 背景里硬编码完整图片 URL（`bgImage` 时必须用 `$asset-prefix` / `ASSET_PREFIX`）
+- 禁止多页面项目使用策略 B / C（会互相污染）
 
 ---
 
@@ -260,7 +411,44 @@ curl -H "X-Figma-Token: {figma.token}" \
 - **禁止**使用 Figma node ID 作为文件名
 - **禁止**使用 `101`、`201` 等数字序号作为文件名
 
-**代码中 src**：`{imageBaseUrl}{filename}`
+**代码中图片可访问地址（铁律）**：
+
+唯一公式：
+
+```
+最终 URL = images.imageBaseUrl + images.assetsDir + filename
+```
+
+- **原样字符串拼接**，不要修剪 / 不要补 / 不要"规整化"末尾斜杠
+- `imageBaseUrl` 和 `assetsDir` 由项目自己配置，配置者已经决定了斜杠位置
+- 不允许根据"看起来对不对"调整任何一段
+- 不允许在 SCSS / CSS 里手写完整 URL；必须用 SCSS 变量统一定义后引用，**且变量值即上述公式的字面拼接结果**
+
+**TSX/JSX 写法**：
+
+```tsx
+const ASSET_PREFIX = `${imageBaseUrl}${assetsDir}`;  // ← 直接字面拼接两个 config 字符串
+// ...
+<img src={`${ASSET_PREFIX}${filename}`} />
+```
+
+**SCSS 写法（强制）**：
+
+```scss
+$asset-prefix: '<imageBaseUrl 字面值><assetsDir 字面值>';  // ← 把 config 两段字符串原样首尾拼接，不动任何字符
+
+.foo {
+  background-image: url('#{$asset-prefix}filename.png');
+}
+```
+
+> 反例（绝对禁止）：
+> - `url('http://.../static_xxx.png')`（漏 `/`）
+> - `url('http://.../static//xxx.png')`（自作主张补 `/`）
+> - `url('http://.../xxx.png')`（自作主张省略 `assetsDir`）
+> - 在 SCSS 中直接硬编码完整 URL，每个图各写一遍 → 容易写错且改 config 改不动
+
+**自检**：写完任何引用图片的代码后，**逐个 URL 在大脑中重新拼一遍**：取 config 里的 `imageBaseUrl`（连带末尾字符）+ `assetsDir`（连带末尾字符）+ 文件名，三段字符串按字面值连起来，与生成出来的 URL 字符串**逐字符比对**，不一致就改。
 
 #### 4.4 单位换算
 
@@ -387,6 +575,17 @@ export default function ComponentName() {
 4. 可自动修正的整体差异（对齐偏差、间距）直接修正
 5. 不可自动修正的差异输出到交付清单
 
+#### 6.1 图片 URL 自检（强制）
+
+合并完成后，对生成的所有 `.tsx` / `.jsx` / `.scss` / `.css` / `.module.css` 文件做一次 URL 自检：
+
+1. 用 grep 扫描所有 `url(` 和 `src=` 出现位置，提取完整 URL 字符串
+2. 对每个 URL，按字面公式 `imageBaseUrl + assetsDir + filename` 重新拼接预期值
+3. 与实际 URL **逐字符比对**，不一致即修复
+4. 检查 SCSS：是否每个 URL 都通过 `$asset-prefix` 变量引用？散落的硬编码完整 URL 必须改为变量引用
+
+> 这一步不依赖视觉对比，是纯字符串校验，**不允许跳过**。
+
 如需跳过，用户可明确说「跳过 QA」。
 
 ---
@@ -411,3 +610,5 @@ export default function ComponentName() {
 - 禁止把 `sub-` 前缀当作图层解析规则处理，sub- 仅用于分块判断
 - 禁止把 `block-` 块内的元素与其他块的元素合并到同一 HTML 容器或共享 CSS 类名
 - 禁止只匹配第一个前缀就停止，必须扫描完整图层名提取所有已知前缀
+- 禁止脱离 `images.imageBaseUrl + images.assetsDir + filename` 公式拼接图片 URL；禁止补/删任何字符（包括末尾 `/`）；禁止在 SCSS 中分散硬编码完整 URL，必须先定义 `$asset-prefix` 变量再引用
+- 禁止跳过步骤 2.5 页面级背景采集；禁止把顶层 frame 的页面级背景写到组件根容器；禁止改动项目已有的全局样式文件（base.scss / global.css）；禁止凭印象判定项目特征（必须 Read/Grep 实证后选 A/B/C/D 策略）；禁止多页面项目使用 B/C 策略（会互相污染）

@@ -33,6 +33,27 @@
   },
   "output": {
     "dir": "src/components/generated"
+  },
+  "health": {
+    "enabled": true,
+    "blockOnError": true,
+    "report": {
+      "markdown": true,
+      "json": true,
+      "dir": ""
+    },
+    "thresholds": {
+      "maxDepth": 6,
+      "subBlockMin": 3,
+      "subBlockMax": 20,
+      "totalNodesMax": 1500,
+      "hiddenRatioMax": 0.2,
+      "paddingAsymmetryMax": 32,
+      "bgSizeMin": 0.8,
+      "bgSizeMax": 1.2,
+      "colorDeltaEMin": 3
+    },
+    "rules": {}
   }
 }
 
