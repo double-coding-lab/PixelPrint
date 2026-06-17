@@ -1,0 +1,238 @@
+#!/usr/bin/env node
+
+const fs = require('fs')
+const path = require('path')
+const readline = require('readline')
+
+const TEMPLATES_DIR = path.join(__dirname, '../templates')
+const CWD = process.cwd()
+const CONFIG_PATH = path.join(CWD, 'ctrip-train-d2c.config.json')
+const MAPPINGS_PATH = path.join(CWD, 'code-connect/mappings.json')
+
+// ─── 文件操作 ────────────────────────────────────────────────
+
+function copyFile(src, dest) {
+  const destDir = path.dirname(dest)
+  if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true })
+  if (fs.existsSync(dest)) {
+    console.log(`  skip  ${path.relative(CWD, dest)} (already exists)`)
+    return
+  }
+  fs.copyFileSync(src, dest)
+  console.log(`  copy  ${path.relative(CWD, dest)}`)
+}
+
+function copyFileForce(src, dest) {
+  const destDir = path.dirname(dest)
+  if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true })
+  fs.copyFileSync(src, dest)
+  console.log(`  overwrite  ${path.relative(CWD, dest)}`)
+}
+
+function copyDir(srcDir, destDir, force = false) {
+  for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+    const src = path.join(srcDir, entry.name)
+    const dest = path.join(destDir, entry.name)
+    if (entry.isDirectory()) {
+      copyDir(src, dest, force)
+    } else {
+      force ? copyFileForce(src, dest) : copyFile(src, dest)
+    }
+  }
+}
+
+function installFiles(forceSkills = false) {
+  console.log('\nctrip-train-d2c: installing files...\n')
+  copyDir(path.join(TEMPLATES_DIR, 'skills'), path.join(CWD, '.claude/skills'), forceSkills)
+  copyFile(path.join(TEMPLATES_DIR, 'ctrip-train-d2c.config.json'), CONFIG_PATH)
+  copyFile(path.join(TEMPLATES_DIR, 'code-connect/mappings.json'), MAPPINGS_PATH)
+  console.log('')
+}
+
+// ─── 选择器（方向键 + 回车） ─────────────────────────────────
+
+function select(label, choices, defaultVal) {
+  return new Promise(resolve => {
+    let idx = Math.max(0, choices.indexOf(defaultVal))
+
+    function render() {
+      // 清除已渲染的行
+      process.stdout.write(`\r\x1b[K`)
+      const parts = choices.map((c, i) => i === idx ? `\x1b[36m● ${c}\x1b[0m` : `  ${c}`)
+      process.stdout.write(`  ${label}: ${parts.join('  ')}\x1b[0K`)
+    }
+
+    render()
+
+    const onData = buf => {
+      const key = buf.toString()
+      if (key === '\x1b[D' || key === '\x1b[A') {       // ← ↑
+        idx = (idx - 1 + choices.length) % choices.length
+        render()
+      } else if (key === '\x1b[C' || key === '\x1b[B') { // → ↓
+        idx = (idx + 1) % choices.length
+        render()
+      } else if (key === '\r' || key === '\n') {
+        process.stdin.setRawMode(false)
+        process.stdin.removeListener('data', onData)
+        process.stdin.pause()
+        process.stdout.write(`\r\x1b[K  ${label}: \x1b[36m${choices[idx]}\x1b[0m\n`)
+        resolve(choices[idx])
+      }
+    }
+
+    process.stdin.setRawMode(true)
+    process.stdin.resume()
+    process.stdin.on('data', onData)
+  })
+}
+
+function confirm(label, defaultNo = true) {
+  const choices = defaultNo ? ['No', 'Yes'] : ['Yes', 'No']
+  return select(label, choices, choices[0]).then(v => v === 'Yes')
+}
+
+function input(label, defaultVal) {
+  return new Promise(resolve => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+    rl.question(`  ${label} [${defaultVal}]: `, answer => {
+      rl.close()
+      resolve(answer.trim() || defaultVal)
+    })
+  })
+}
+
+// ─── 交互式配置 ──────────────────────────────────────────────
+
+async function runInit() {
+  installFiles(true)  // init 时强制覆盖 skill 文件
+
+  // 读取现有 config
+  let existing = {}
+  if (fs.existsSync(CONFIG_PATH)) {
+    try { existing = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) } catch {}
+  }
+  const p = existing.project || {}
+  const m = existing.merge || {}
+  const img = existing.images || {}
+  const u = existing.unit || {}
+  const fig = existing.figma || {}
+  const out = existing.output || {}
+
+  console.log('─── 阶段一：Figma MCP 检测 ──────────────────────────\n')
+  console.log('  Figma 官方 MCP 需要在 Claude Code 中手动安装插件，无法通过命令行自动配置。\n')
+  console.log('  如果尚未安装，请按以下步骤操作：')
+  console.log('  1. 打开 Claude Code')
+  console.log('  2. 进入 Settings → Extensions（或直接搜索 Figma）')
+  console.log('  3. 找到 Figma 官方插件，点击安装')
+  console.log('  4. 按提示完成浏览器 OAuth 认证\n')
+
+  console.log('─── 阶段二：交互式配置 ──────────────────────────────\n')
+
+  const framework = await select('[1/6] 项目框架', ['react', 'rn'], p.framework || 'react')
+
+  const styleChoices = framework === 'rn'
+    ? ['stylesheet', 'styled-components', 'nativewind']
+    : ['scss', 'css-modules', 'tailwind', 'inline']
+  const styleDefault = framework === 'rn'
+    ? (styleChoices.includes(p.styleFormat) ? p.styleFormat : 'stylesheet')
+    : (styleChoices.includes(p.styleFormat) ? p.styleFormat : 'scss')
+  const styleFormat = await select('[2/6] 样式方案', styleChoices, styleDefault)
+
+  const mergeMode = await select('[3/6] 合并模式', ['component', 'flat'], m.mode || 'component')
+
+  const assetsDir = await input('[4/6] 图片输出目录', img.assetsDir || '')
+
+  const imageBaseUrl = await input('[5/6] 图片 base URL', img.imageBaseUrl || 'http://127.0.0.1:8080/')
+
+  const outputDir = await input('[6/6] 代码输出目录', out.dir || '')
+
+  console.log('\n─── 阶段三：单位换算规则 ────────────────────────────\n')
+  console.log('  使用 ← → 方向键选择，输入题直接回车使用默认值\n')
+
+  const figmaBase = parseInt(await input('[单位1/4] 设计稿基准宽度 (px)', String(u.figmaBase || 375))) || 375
+
+  const outputUnit = await select('[单位2/4] 代码使用的单位', ['px', 'vw', 'rem'], u.outputUnit || 'px')
+
+  let outputBase = figmaBase
+  let scale = 1
+  if (outputUnit === 'px') {
+    outputBase = parseInt(await input('[单位3/4] 代码 px 基准宽度（如 postcss px2vw 基于 750 则填 750）', String(u.outputBase || figmaBase * 2))) || figmaBase * 2
+    scale = outputBase / figmaBase
+    console.log(`  → 换算倍数：×${scale}（Figma ${figmaBase}px → 代码 ${figmaBase * scale}px）`)
+  } else if (outputUnit === 'vw') {
+    outputBase = parseInt(await input('[单位3/4] vw 基准宽度（100vw 对应多少 px）', String(u.outputBase || figmaBase))) || figmaBase
+    scale = outputBase / figmaBase
+    console.log(`  → 换算：Figma ${figmaBase}px → ${(figmaBase * scale / outputBase * 100).toFixed(3)}vw`)
+  } else {
+    outputBase = parseInt(await input('[单位3/4] rem 基准（1rem = 多少 px）', String(u.outputBase || 16))) || 16
+    scale = 1
+    console.log(`  → 换算：Figma 值 / ${outputBase} rem`)
+  }
+
+  const figmaToken = await input('[单位4/4] Figma Personal Access Token（用于导出透明图片，回车跳过）', fig.token || '')
+
+  const config = {
+    version: '2.0.0',
+    project: { name: path.basename(CWD), framework, styleFormat },
+    figma: { token: figmaToken },
+    merge: { mode: mergeMode },
+    unit: { figmaBase, outputUnit, outputBase, scale },
+    images: { assetsDir, imageBaseUrl },
+    output: { dir: outputDir }
+  }
+
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2))
+  console.log('\n  ✓ ctrip-train-d2c.config.json 已写入')
+
+  // 将单位规则注入主 Skill
+  const skillPath = path.join(CWD, '.claude/skills/ctrip-train-d2c/SKILL.md')
+  if (fs.existsSync(skillPath)) {
+    let skillContent = fs.readFileSync(skillPath, 'utf8')
+    const unitExample = outputUnit === 'px'
+      ? `Figma \`16px\` → 代码写 \`${16 * scale}px\``
+      : outputUnit === 'vw'
+      ? `Figma \`${outputBase}px\` → 代码写 \`${(outputBase * scale / outputBase * 100).toFixed(3)}vw\``
+      : `Figma \`${outputBase}px\` → 代码写 \`1rem\``
+    const section = `\n## 项目个性化规则\n> 由 npx @ctrip/train-d2c init 生成，重新执行可更新。\n\n### 单位换算\n- 设计稿基准：${figmaBase}px\n- 代码单位：${outputUnit}，基准：${outputBase}\n- 换算倍数：×${scale}\n- 示例：${unitExample}\n`
+    const marker = '\n## 项目个性化规则'
+    skillContent = skillContent.includes(marker)
+      ? skillContent.slice(0, skillContent.indexOf(marker)) + section
+      : skillContent + section
+    fs.writeFileSync(skillPath, skillContent)
+    console.log('  ✓ 单位换算规则已注入 .claude/skills/ctrip-train-d2c/SKILL.md')
+  }
+
+  console.log('\n─── 阶段四：mappings.json ───────────────────────────\n')
+  if (fs.existsSync(MAPPINGS_PATH)) {
+    const reset = await confirm('code-connect/mappings.json 已存在，是否重置为空模板？')
+    if (reset) {
+      fs.writeFileSync(MAPPINGS_PATH, JSON.stringify({ components: [] }, null, 2))
+      console.log('  ✓ mappings.json 已重置')
+    } else {
+      console.log('  skip  mappings.json (kept)')
+    }
+  } else {
+    fs.mkdirSync(path.dirname(MAPPINGS_PATH), { recursive: true })
+    fs.writeFileSync(MAPPINGS_PATH, JSON.stringify({ components: [] }, null, 2))
+    console.log('  ✓ mappings.json 已初始化')
+  }
+
+  console.log('\n─────────────────────────────────────────────────────')
+  console.log('  ⚠️  Figma MCP 需在 Claude Code 中手动安装（见阶段一引导）')
+  console.log('  ✓ ctrip-train-d2c.config.json 已配置')
+  console.log('  ✓ code-connect/mappings.json 已就绪')
+  console.log('\n  Figma MCP 安装完成后，把设计稿链接发给 Claude：')
+  console.log('  把这份设计稿转成代码：https://figma.com/design/xxx?node-id=1-2\n')
+}
+
+// ─── 入口 ────────────────────────────────────────────────────
+
+const cmd = process.argv[2]
+
+if (cmd === 'init') {
+  runInit().catch(err => { console.error(err); process.exit(1) })
+} else {
+  installFiles()
+  console.log('done. 运行 npx @ctrip/train-d2c init 完成环境配置。\n')
+}

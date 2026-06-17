@@ -1,0 +1,39 @@
+{
+  "components": [
+    {
+      "figmaPrefix": "sub-",
+      "figmaName": "Button/Primary",
+      "figmaNodeId": "",
+      "codeComponent": "ActivityButton",
+      "importPath": "@ctrip/trn-growth-activity-components",
+      "propsMapping": {
+        "Label": "children",
+        "State": "disabled",
+        "Size": "size"
+      }
+    },
+    {
+      "figmaPrefix": "sub-",
+      "figmaName": "Card/Prize",
+      "figmaNodeId": "",
+      "codeComponent": "PrizeCard",
+      "importPath": "@ctrip/trn-growth-activity-components",
+      "propsMapping": {
+        "Title": "title",
+        "Cover": "cover",
+        "Tag": "tag"
+      }
+    },
+    {
+      "figmaPrefix": "sub-",
+      "figmaName": "Countdown",
+      "figmaNodeId": "",
+      "codeComponent": "ActivityCountdown",
+      "importPath": "@ctrip/trn-growth-activity-components",
+      "propsMapping": {
+        "EndTime": "endTime",
+        "Format": "format"
+      }
+    }
+  ]
+}
