@@ -50,9 +50,9 @@ Read("ctrip-train-d2c.config.json")
 | `layers.ignore` | `x-` | 忽略前缀 |
 | `health.enabled` | `true` | 总开关，false 时直接退出 |
 | `health.blockOnError` | `true` | 集成模式下 error 是否阻塞生成 |
-| `health.report.markdown` | `true` | 是否输出 .d2c-health.md |
-| `health.report.json` | `true` | 是否输出 .d2c-health.json |
-| `health.report.dir` | `output.dir` | 报告输出目录 |
+| `health.report.markdown` | `true` | 是否输出 `.d2c-health-{slug}-{timestamp}.md`（同时刷新 `.d2c-health-latest.md`） |
+| `health.report.json` | `true` | 是否输出 `.d2c-health-{slug}-{timestamp}.json`（同时刷新 `.d2c-health-latest.json`） |
+| `health.report.dir` | `output.dir` | 报告输出目录（命名规则见步骤 5.1） |
 | `health.thresholds.maxDepth` | `6` | STR001 嵌套深度上限 |
 | `health.thresholds.subBlockMin` | `3` | NAM009 sub- 内最少子层 |
 | `health.thresholds.subBlockMax` | `20` | FEA004 sub- 块最多数量 |
@@ -85,7 +85,50 @@ Read("ctrip-train-d2c.config.json")
 
 ### 步骤 2：扫描图层结构
 
+> 设计原则：把"一次性同步拉全树"拆成 **2.0 进度提示 → 2.1 拉取 → 2.2 规模快检 → 2.3 属性打标** 四个子步骤。每步前输出一行可见进度，**避免外部表现为"长时间无响应"**；规模阈值判断必须紧跟在 2.1 返回之后，先于任何遍历。
+
+#### 步骤 2.0：宣告即将进入网络调用
+
+在调用 `get_metadata` 之前，**必须**在对话里输出（仅独立模式输出；集成模式由主 SKILL 自行决定提示形式）：
+
+```
+📥 正在拉取图层树（子树越大耗时越长，预计 5s ~ 2min）...
+   · 若超过 2 分钟仍无响应，请按 ESC 中断，并改选更小的 nodeId 后重试
+   · 常见原因：选中了整页（page）或一个包含多张设计稿的大容器
+```
+
+> **不可省略**：这是用户能区分"程序卡死 / 程序在干活"的唯一信号。
+
+#### 步骤 2.1：拉取图层树
+
 调用 `get_metadata(fileKey, nodeId)` 获取目标节点的完整子孙图层树。
+
+**调用失败时**：直接输出错误信息并终止 doctor 流程，**不重试**（避免叠加等待）：
+
+```
+⛔ 拉取图层树失败：{原始错误信息}
+   · 请确认 fileKey / nodeId 正确，且当前账号对该设计稿有访问权限
+```
+
+#### 步骤 2.2：规模快检（先于任何遍历）
+
+`get_metadata` 返回后**第一件事**：仅统计 `节点总数 nodeCount` 与 `最大深度 depthMax`，不打任何标。
+
+输出可见进度：
+
+```
+📊 图层树拉取完成：{nodeCount} 个节点（最大深度 {depthMax}）
+```
+
+**立即按规模分流**：
+
+| 条件 | 处理 |
+|------|------|
+| `nodeCount > 5000` | **终止**：输出 `图层数过多 ({nodeCount} > 5000)，建议拆分设计稿后再体检：在 Figma 里挑一个具体的需求 frame，重新复制带 node-id 的链接` 并退出，**不进入步骤 2.3** |
+| `nodeCount > 1500` | 记录 `oversizeWarning = true`，继续 2.3；后续在步骤 3 命中 FEA003（仍按原规则） |
+| 其他 | 直接进入 2.3 |
+
+#### 步骤 2.3：属性打标
 
 **遍历整棵树，给每个节点打上以下属性，存入扫描上下文 `ctx`**：
 
@@ -109,9 +152,28 @@ Read("ctrip-train-d2c.config.json")
 - `sub-img-qa` → `[sub, img]`，nameClean = `qa`
 - `sub-btn-img-banner` → `[sub, btn, img]`，nameClean = `banner`
 
-**性能上限**：
-- 子树节点数 > 1500 → 命中 FEA003，但仍继续扫描（仅警告）
-- 子树节点数 > 5000 → 终止扫描，输出 `图层数过多 (>5000)，建议拆分设计稿后再体检` 并退出
+**额外打一个标：`inNonRecursiveSubtree`**（布尔，在打标完成后第二轮算，O(n)）：
+
+主 SKILL 约定 `img-` / `bg-` / `bgc-` / `x-` 命中即"整体导出 / 忽略，**不再向内递归**"——这些前缀节点**本身**仍然受所有规则约束，但它们的**子孙节点**因为不会被生成代码，对这些子孙报"容器无前缀 / 缺 Auto Layout / 嵌套过深 / 子层重叠"等问题是无意义的（让设计师改一个永远不会被读到的图层）。
+
+判定规则：
+
+```
+inNonRecursiveSubtree(node) =
+  存在祖先节点 a（不含 node 自身），a.prefixes 含 'img' / 'bg' / 'bgc' / 'x' 中任一
+```
+
+> 注意：**不**包含 `sub-` 和 `btn-`。
+> - `sub-` 内部仍然要继续解析（sub-agent 要生成代码）
+> - `btn-` 仅"包一层可点击区域"，内部仍按其他前缀继续解析
+
+打标完成后输出可见进度：
+
+```
+🏷  属性打标完成，进入规则扫描
+```
+
+> **节点数阈值之所以放在 2.2**：避免大稿用户必须等"打标 + 规则扫描"全部跑完才被告知"图层数过多"。原 SKILL 把阈值判断埋在打标之后，等于让用户多等一次无意义的 CPU 消耗。
 
 ---
 
@@ -134,6 +196,20 @@ Read("ctrip-train-d2c.config.json")
 > **写作约束**：`problem` 只描述事实（"X 节点没有前缀"），`fix` 只给动作（"加 sub-"），`consequence` 给后果（"AI 会拍平到上一级"）。**禁止**把建议、事实、后果混写在 `problem` 字段里。
 
 **等级取值优先级**：`config.health.rules[ruleId]` > 本文档默认值。`'off'` 时跳过该规则。
+
+**全局过滤（先于所有规则执行）**：
+
+对每个候选节点，在执行任何规则前先判断：
+
+| 节点条件 | 处理 |
+|---------|------|
+| `inNonRecursiveSubtree === true` 且节点本身**不**带 `img-` / `bg-` / `bgc-` / `x-` 前缀 | **整批跳过**所有"形态/容器"类规则（NAM001 / NAM002 / LAY001 / LAY009 / STR001 / STR002 / AST002）。这些子孙不会被生成代码，问题报了也是无效噪音 |
+| `inNonRecursiveSubtree === true` 且节点本身**带** `img-` / `bg-` / `bgc-` / `x-` 前缀 | 仍照常执行所有规则（嵌套的 `bg-` / `img-` 等本身就是 NAM004 / NAM003 要捕获的问题） |
+| 其他 | 照常执行所有规则 |
+
+> **聚合提示**：报告生成时统计"被自动忽略的子孙节点数"，在每条相关规则下方注明：`> 已自动忽略 N 项位于 img-/bg-/bgc-/x- 不递归子树内的命中`，让设计师知道 doctor 没有视而不见，只是按主 SKILL 的递归规则做了过滤。
+
+> **资产/导出类规则不在此列**：AST004（应导出但内容为空）即使在不递归子树内也要报——子树为空会导致**导出图本身**是空白，是有效问题。
 
 #### 3.0 规则元信息表（决定报告里每条规则的"谁来修 / 多紧迫"）
 
@@ -170,32 +246,53 @@ Read("ctrip-train-d2c.config.json")
 - 节点 `type` ∈ {FRAME, GROUP, COMPONENT, INSTANCE}
 - 子节点（仅可见）数 ≥ 2
 - `prefixes` 不含任何已知前缀
-- 且当前节点的祖先链上**没有**任何 `sub-` 前缀节点（避免 sub- 内部容器误报）
+- 且当前节点的祖先链上**没有**任何 `sub-` 前缀节点（避免 sub- 内部一级容器误报）
+- **`inNonRecursiveSubtree === false`**（由步骤 3 全局过滤兜底，此处仅冗余声明，便于单条阅读）
+- **父节点不是 `scrollx-` / `scrolly-` 列表容器**（即父 `prefixes` 不含 `'scrollx'` / `'scrolly'`，**或**父的可见子节点数 = 1 时仍报）。理由见下方"为什么要排除 scroll- 列表项"
 
-→ message: `容器无 sub- / block- 前缀，AI 无法识别为独立模块`
-→ fix: `加 sub- 或 block- 前缀`
+→ message: `容器无 sub- 前缀，AI 无法识别为独立模块`
+→ fix: `加 sub- 前缀（不要加 block-，block- 是顶层独立块，嵌套使用没有语义）`
+
+> **为什么要排除 `scroll-` 列表项**：`scrollx-` / `scrolly-` 容器的直接子节点天然是**同构列表项**（典型场景：车票列表、推荐位、横向卡片流）。它们被 `.map()` 渲染，每一项加 `sub-` = N 个 sub-agent 重复干同一件事。如果列表项需要差异化，把它们做成 Figma Component/Instance，doctor 不会报；如果只有一个子节点（不是列表，是 wrapper），NAM001 仍然会报。
+>
+> **为什么 fix 不再建议 `block-`**：`block-` 是"顶层独立布局块"（主 SKILL §409），表示"和其他块完全独立、命名空间隔离"。容器内部继续嵌 `block-` 没有定义过的语义，应该只用 `sub-`。
 
 #### 3.2 NAM002 前缀拼写错误（默认 error）
 
 逐节点扫描 `name`，匹配以下任一变体（大小写不敏感、含下划线/全角短横/多余空格）：
 
 ```
-^(?:bg|img|font|btn|sub|block|bgc|x)[ _—–]
-^(?:Bg|BG|Img|IMG|Font|FONT|Btn|BTN|Sub|SUB|Block|BLOCK|Bgc|BGC|X)-
+^(?:bg|img|font|btn|sub|block|bgc|x|scrollx|scrolly)[ _—–]
+^(?:Bg|BG|Img|IMG|Font|FONT|Btn|BTN|Sub|SUB|Block|BLOCK|Bgc|BGC|X|ScrollX|SCROLLX|Scrollx|ScrollY|SCROLLY|Scrolly)-
 ```
 
+**额外补丁**（覆盖 scroll 前缀的常见拼写错位）：
+
+| 错误形式 | 应该的形式 |
+|---------|----------|
+| `scroll-x-` / `scroll_x-` / `scroll x-` | `scrollx-` |
+| `scroll-y-` / `scroll_y-` / `scroll y-` | `scrolly-` |
+| `Scroll-X-` / `Scroll-Y-` 等含 `-`/`_`/空格 的大小写变体 | 同上小写连字符形式 |
+
 且该 name 不已经命中标准前缀。→ message: `前缀拼写不规范：{matched}`
-→ fix: `改为标准小写连字符前缀（bg-/img-/font-/btn-/sub-/block-/bgc-/x-）`
+→ fix: `改为标准小写连字符前缀（bg-/img-/font-/btn-/sub-/block-/bgc-/x-/scrollx-/scrolly-）`
 
 #### 3.3 NAM003 前缀语义冲突（默认 error）
 
-`prefixes` 命中以下任一组合：
-- 同时含 `img` 和 `bg`
-- 同时含 `img` 和 `font`
-- 含 `x` 且还含其他任一前缀
+`prefixes` 命中以下任一组合即报错。**冲突表**与主 SKILL `templates/skills/ctrip-train-d2c/SKILL.md` §428-432 / §448 / §712 完全对齐：
+
+| 冲突组合 | 根因（来自主 SKILL） |
+|---------|--------|
+| `img` + `bg` | 一个生成 `<img>`、一个写父级 `background-image`，互斥 |
+| `img` + `font` | 一个整体导出图、一个生成文字节点，互斥 |
+| `bg` + `bgc` | 都写父级 background，但一个是 `background-image`、一个是 `background-color`，主 SKILL 没定义谁先谁后 |
+| `x` + 任意其他前缀 | `x-` 直接跳过，其他前缀全部失效，组合无意义 |
+| `scrollx` + `img` / `bg` / `bgc` / `x` / `btn` | scroll 容器不能是图片 / 背景 / 忽略节点 / 可点击区域（主 SKILL §448 / §712 禁止） |
+| `scrolly` + `img` / `bg` / `bgc` / `x` / `btn` | 同上 |
+| `scrollx` + `scrolly` | 一个元素只能一个滚动方向（主 SKILL §447 / §712），由 LAY012 单独覆盖；NAM003 此处只标"前缀冲突"，等级与 LAY012 保持一致 |
 
 → message: `前缀语义冲突：{冲突的前缀对}`
-→ fix: `参考组合优先级，二选一`
+→ fix: `参考主 SKILL 组合优先级，二选一；scroll 容器内部用单独子节点表达图片/背景/可点击区域`
 
 #### 3.4 NAM004 bg- 唯一性违反（默认 error）
 
@@ -241,7 +338,7 @@ Read("ctrip-train-d2c.config.json")
 - 节点 `type === 'FRAME'` 或 `'GROUP'`
 - 可见子节点数 ≥ 2
 - 子节点之间存在 bbox 重叠（重叠面积 > 任一参与方面积的 10%）
-- 且当前节点不在 `sub-img-` / 单 `img-` 的子树内
+- **`inNonRecursiveSubtree === false`**（已由步骤 3 全局过滤兜底；自身带 `img-` / `bg-` / `bgc-` / `x-` 的不算"嫌疑"，是设计意图）
 
 → message: `子元素 bbox 重叠，可能用了绝对定位思路`
 → fix: `改用 Auto Layout 的 absoluteBoundingBox 或拆分为独立 sub-`
@@ -258,18 +355,20 @@ Read("ctrip-train-d2c.config.json")
 
 #### 3.9c LAY011 scroll 容器尺寸不固定（默认 warn）
 
-- 节点 `prefixes` 含 `scrollX` 或 `scrollY`
-- 滚动方向上的尺寸不固定：
-  - `scrollX`：宽度模式 = "Hug Contents" 或 fill 100% 父宽（且祖先链上没有任何节点是固定宽度）
-  - `scrollY`：高度模式 = "Hug Contents" 或 fill 100% 父高（且祖先链上没有任何节点是固定高度）
+> **命名约定**：`prefixes` 数组里存放的是从图层 `name` 提取的**小写前缀字符串**（`'scrollx'` / `'scrolly'`），不是 config 字段名（`layers.scrollX` / `layers.scrollY`）。下面所有规则的判断都以 `prefixes` 内容（小写）为准。
 
-→ problem: `scroll{X|Y}- 容器在滚动方向上没有固定尺寸`
+- 节点 `prefixes` 含 `'scrollx'` 或 `'scrolly'`
+- 滚动方向上的尺寸不固定：
+  - `'scrollx'`：宽度模式 = "Hug Contents" 或 fill 100% 父宽（且祖先链上没有任何节点是固定宽度）
+  - `'scrolly'`：高度模式 = "Hug Contents" 或 fill 100% 父高（且祖先链上没有任何节点是固定高度）
+
+→ problem: `scroll{x|y}- 容器在滚动方向上没有固定尺寸`
 → consequence: `运行时浏览器不会触发 overflow，滚动不生效`
 → fix: `在 Figma 中把容器对应方向的尺寸改为固定值；或确保父容器有限宽/限高`
 
 #### 3.9d LAY012 scroll 方向冲突（默认 error）
 
-- 节点 `prefixes` 同时含 `scrollX` 和 `scrolly`
+- 节点 `prefixes` 同时含 `'scrollx'` 和 `'scrolly'`
 
 → problem: `同一节点同时含 scrollx- 和 scrolly-`
 → consequence: `生成代码按 scrollx- 处理，scrolly- 失效；运行时滚动行为不可预期`
@@ -391,10 +490,41 @@ passed = (grade !== 'F')
 
 写入两个文件（依据 `health.report.markdown` / `health.report.json`）：
 
-- `{health.report.dir}/.d2c-health.md`
-- `{health.report.dir}/.d2c-health.json`
+- `{health.report.dir}/.d2c-health-{slug}-{timestamp}.md`
+- `{health.report.dir}/.d2c-health-{slug}-{timestamp}.json`
 
-`health.report.dir` 默认 = `output.dir`。
+并同时维护一个**指向最近一次报告的软链/复制**（始终覆盖，方便用户/集成方读"最新"）：
+
+- `{health.report.dir}/.d2c-health-latest.md`
+- `{health.report.dir}/.d2c-health-latest.json`
+
+> 不能用环境内置的 symlink 时（Windows / 工具不支持），改为**复制覆盖**同名文件。
+
+**字段约定**：
+
+| 字段 | 取值 | 说明 |
+|------|------|------|
+| `{slug}` | `nodeId` 把 `:` 替换为 `-`；超过 32 字符截断后追加 `-` 和 nodeId 的 8 位 hash 前缀 | 区分同一项目下的不同设计稿 |
+| `{timestamp}` | 本地时间 `YYYYMMDD-HHmmss`（如 `20260618-143052`） | 区分同一稿的多次体检 |
+| `{health.report.dir}` | 默认 = `output.dir` | 报告输出目录 |
+
+**为什么不用固定文件名**：同一项目内会对多张稿、或同一张稿在改图前后多次体检，固定 `.d2c-health.md` 会被后一次覆盖、丢失对比信息。带 `slug + timestamp` 既保证不冲突，又让 `ls` 排序天然按时间倒序。`-latest` 只是指针，不参与归档。
+
+**示例**（`nodeId = 1234:5678`、`output.dir = ./out`）：
+
+```
+out/
+├── .d2c-health-1234-5678-20260618-143052.md
+├── .d2c-health-1234-5678-20260618-143052.json
+├── .d2c-health-1234-5678-20260618-150811.md         ← 同稿第二次体检
+├── .d2c-health-1234-5678-20260618-150811.json
+├── .d2c-health-9876-5432-20260618-160230.md         ← 另一张稿
+├── .d2c-health-9876-5432-20260618-160230.json
+├── .d2c-health-latest.md                             ← 指向最近一次
+└── .d2c-health-latest.json
+```
+
+**清理建议（不在 doctor 里做）**：建议在 `.gitignore` 添加 `.d2c-health-*.md` / `.d2c-health-*.json`（这俩报告不应该入库）。
 
 #### 5.2 报告写作总则（强制）
 
@@ -405,7 +535,7 @@ passed = (grade !== 'F')
 3. **表格上方加一段 `📌 这是什么 / ⚠️ 不修会怎样 / 🛠 谁来修` 三行小卡片**，让读者 5 秒内决定要不要看下面的表。
 4. **超过 5 行的表格折叠**：用 `<details>` 包起来，标题写"查看 N 个命中详情"。
 5. **末尾分两个待办清单**：`👤 设计师待办` 和 `👨‍💻 开发待办`，按规则元信息表的角色字段聚合。
-6. **NAM001 等批量规则**：自动剔除"已在 `x-` 子树内"的命中（这些是装饰/状态栏，本来就不会生成代码）。剔除后单列说明：`> 已自动忽略 N 项位于 x- 忽略子树内的命中`。
+6. **NAM001 等"形态/容器"类规则**：自动剔除"位于 `img-` / `bg-` / `bgc-` / `x-` 不递归子树内的子孙节点"的命中（这些子孙不会被生成代码）。剔除后单列说明：`> 已自动忽略 N 项位于不递归子树（img-/bg-/bgc-/x-）内的命中`。
 
 #### 5.3 报告 Markdown 模板
 
@@ -468,7 +598,7 @@ passed = (grade !== 'F')
 |---|---|---|---|---|
 | {nodeName} | `{nodeId}` | {abbreviatedPath} | {problem} | {fix} |
 
-> {若有"x- 子树自动忽略"的}：已自动忽略 {N} 项位于 `x-` 忽略子树内的命中（这些是装饰/状态栏，原本就不会生成代码）
+> {若有"不递归子树自动忽略"的}：已自动忽略 {N} 项位于 `img-` / `bg-` / `bgc-` / `x-` 不递归子树内的命中（这些子孙节点本来就不会生成代码）
 
 {若超过 5 行 → 用 <details> 包前 5 行之后的部分}
 
@@ -542,7 +672,8 @@ passed = (grade !== 'F')
    2. ...
    3. ...
 
-  详细报告：{health.report.dir}/.d2c-health.md
+  详细报告：{health.report.dir}/.d2c-health-{slug}-{timestamp}.md
+            （或始终读最新：{health.report.dir}/.d2c-health-latest.md）
 ```
 
 
@@ -551,6 +682,20 @@ passed = (grade !== 'F')
 ## 步骤 6：返回值（仅集成模式）
 
 向主 SKILL return 步骤 5.4 的结构。主 SKILL 自行处理阻塞逻辑。
+
+---
+
+## 步骤 2 卡住排查清单
+
+doctor 在外部表现"长时间无响应"时，**99% 卡在步骤 2.1**（`get_metadata` 同步拉全树）。Figma MCP 没有 depth/limit 参数，无法做真正的"浅扫"，只能从输入侧规避。按下面顺序自查：
+
+| 现象 | 多半原因 | 怎么办 |
+|------|---------|--------|
+| 输出"📥 正在拉取..."后超过 1min 无新输出 | nodeId 选中了整页（page）或包含多张稿的大容器 | 在 Figma 里点一个**具体需求 frame**，右键 → Copy link to selection 重新拿 URL 重试 |
+| 同一稿之前能跑、现在卡住 | Figma 服务端波动 / 网络抖动 | 等 30s 重试一次；仍失败按 ESC 中断后换更小的 nodeId |
+| 输出"📊 图层树拉取完成：N 个节点"后立刻终止 | 命中 `nodeCount > 5000` 硬上限 | 按提示拆稿；或在主 SKILL 里**只**对某个 sub- 子节点单独跑 doctor |
+| 步骤 -1 就失败 | Figma MCP 未装 / 未认证 | 按步骤 -1 失败提示安装并认证 |
+| 步骤 2.3 长时间不返回（已看到 "📊 图层树拉取完成"） | 极少见，理论上属性打标不会卡 | 中断后把 fileKey + nodeId 反馈给维护者 |
 
 ---
 

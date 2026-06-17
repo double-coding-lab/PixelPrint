@@ -17,7 +17,7 @@
 | A | 规则范围 | **完整版**（6 个维度共 ~30 条规则），但每条标 P0/P1/P2，**首期只实现 P0**（命名 + AL + 结构核心 ~12 条） | 仅基础版 / 全量首期上 |
 | B | 集成方式 | **独立 SKILL，协议向 D2C 主流程兼容**（独立可跑，主流程也能调用并阻塞致命错误） | 仅独立 / 仅集成 |
 | C | 阈值与开关 | **全部走 `ctrip-train-d2c.config.json` 的 `health` 段**，每条规则三态 `off / warn / error`，阈值可调；规则 ID 写死 | 阈值写死 / 单独 health.config.json |
-| D | 报告归档 | **同时输出** `.d2c-health.md`（人读）+ `.d2c-health.json`（机器读，供未来仪表盘） | 仅 md / 仅 json |
+| D | 报告归档 | **同时输出** `.d2c-health-{slug}-{timestamp}.md`（人读）+ `.d2c-health-{slug}-{timestamp}.json`（机器读，供未来仪表盘），同步刷新 `.d2c-health-latest.*` 指针 | 仅 md / 仅 json |
 
 > 下文按 A=完整版/首期 P0、B=独立可集成、C=config 化、D=md+json 写。如有调整，spec 主体相应章节会改。
 
@@ -69,11 +69,15 @@
 步骤 -1：Figma MCP 预检（同主 SKILL）
 步骤 0 ：读取 config（含 layers 段 + health 段）
 步骤 1 ：解析 URL → fileKey, nodeId
-步骤 2 ：调用 get_metadata 获取完整子树（含 visible / autoLayout / paddings / itemSpacing 等）
+步骤 2 ：扫描图层结构（拆为 4 个子步骤，避免大稿"长时间无响应"）
+        2.0 输出可见进度提示
+        2.1 调用 get_metadata 拉取完整子树
+        2.2 规模快检（先于任何遍历，nodeCount > 5000 直接终止）
+        2.3 属性打标（visible / autoLayout / paddings / itemSpacing 等）
 步骤 3 ：按 health.rules 逐条扫描 → 收集 issues[]
 步骤 4 ：评分 → 生成 score
 步骤 5 ：输出报告
-        - 独立模式：写 .d2c-health.md + .d2c-health.json，并在对话里打印摘要
+        - 独立模式：写 `.d2c-health-{slug}-{timestamp}.md` + `.d2c-health-{slug}-{timestamp}.json`（同步刷新 `-latest.*`），并在对话里打印摘要
         - 集成模式：return { score, issues } 给调用方
 ```
 
@@ -92,6 +96,84 @@
 - 单次扫描限 1000 个图层节点，超过则**对每个 sub- 块独立扫描**，最后汇总
 - 单次执行预计 < 30 秒（不含 MCP 网络延迟）
 
+### 2.3 步骤 2 卡顿与拆分（v0.2 新增）
+
+**现象**：原步骤 2 是"一次性同步拉全树 + 遍历打标 + 后置阈值判断"，超过 2000 节点的稿子在外部表现为"卡住数十秒到几分钟"，且 5000 阈值的提前止损被埋在打标之后才生效。
+
+**对策**（已落地到 `templates/skills/ctrip-train-d2c-doctor/SKILL.md`）：
+
+1. **步骤 2.0**：进入 `get_metadata` 之前必须输出可见进度提示（`📥 正在拉取图层树 ...`），让用户能区分"程序卡死 / 程序在干活"。
+2. **步骤 2.1**：`get_metadata` 不重试，失败直接终止（重试会让用户多等一倍）。
+3. **步骤 2.2**：metadata 返回后**第一件事**就是统计 `nodeCount` 与 `depthMax`，按 `> 5000 终止 / > 1500 标记 oversizeWarning / 其他放行` 三档分流，**先于任何打标**。
+4. **步骤 2.3**：原有打标逻辑保持不变，只在打标完成后追加一行进度（`🏷  属性打标完成`）。
+
+**为什么不做"先浅扫再全量"**：Figma MCP 的 `get_metadata` 没有 depth/limit 参数，无法做真正的浅扫；多调用一次 `get_screenshot` 做规模预估反而双倍延迟。从输入侧（用户改选更小的 nodeId）规避是更便宜的解。
+
+**对应排查清单**：见 SKILL.md 末尾"步骤 2 卡住排查清单"。
+
+### 2.4 不递归子树前置过滤（v0.2 修订）
+
+**现象**：原 NAM001 / LAY001 / LAY009 / STR001 等"形态/容器"类规则只显式排除了 `sub-` 祖先，对 `img-` / `bg-` / `bgc-` / `x-` 子树内的子孙节点照报不误。但主 SKILL（`templates/skills/ctrip-train-d2c/SKILL.md` §412/429/705）已经明文约定：这四类前缀命中即"整体导出 / 忽略"、**不再向内递归**。给这些子孙报"加 sub-"等于让设计师改一个永远不会被读到的图层。
+
+典型 false positive：`img-kv` 里有个 `step` 容器 → doctor 报"NAM001：建议改 `sub-step`"。这是错的，整个 `img-kv` 子树会作为单张 PNG 导出，里面叫什么都无所谓。
+
+**对策**（已落地到 `templates/skills/ctrip-train-d2c-doctor/SKILL.md`）：
+
+1. **步骤 2.3**：每个节点新增一个布尔标 `inNonRecursiveSubtree`，定义为"祖先链上存在 `img` / `bg` / `bgc` / `x` 前缀节点"。`sub-` 和 `btn-` 不算（这两类内部仍然要继续解析）。
+2. **步骤 3 全局过滤**：执行任何规则前先看这个标。`true` 且节点本身不带不递归前缀 → 整批跳过 NAM001 / NAM002 / LAY001 / LAY009 / STR001 / STR002 / AST002。
+3. **保留例外**：AST004（应导出但内容为空）即使在不递归子树内也要报——子树为空会让导出图本身是空白，是有效问题。
+4. **报告聚合**：每条相关规则下方注明"已自动忽略 N 项位于不递归子树内的命中"，让设计师知道 doctor 没有视而不见，只是按主 SKILL 递归规则做了过滤。
+
+**为什么用全局标而不是逐条加判断**：每条规则各自写"且不在 X 子树内"容易漏（旧 LAY009 已经只排了 `sub-img-` / `img-`，漏了 `bg-` / `bgc-` / `x-`）。一处定义、全局过滤更不易出错。
+
+### 2.5 NAM001 列表项与 block- 误导修订（v0.2 修订）
+
+**现象 1：`scrolly-车票列表` 内部的 `编组` 被报"加 sub-trip-item"**。但 `scrollx-` / `scrolly-` 容器的直接子节点天然是**同构列表项**（被 `.map()` 渲染），每一项加 `sub-` = N 个 sub-agent 干同一件事。
+
+**现象 2：NAM001 fix 写"加 `sub-` 或 `block-`"**。但 `block-` 是主 SKILL §409 定义的"顶层独立布局块（命名空间隔离）"，没有"嵌套使用"的定义；在 `block-banner` 里再加 `block-` 没有任何语义。
+
+**对策**（已落地到 `templates/skills/ctrip-train-d2c-doctor/SKILL.md` §3.1）：
+
+1. NAM001 触发条件追加："**父节点不是 `scrollx-` / `scrolly-` 列表容器**"。如果父就是滚动容器、且子节点数 ≥ 2，跳过本规则。如果只有 1 个子节点（不是列表，是 wrapper），仍然报。
+2. NAM001 fix 改为"加 `sub-` 前缀"，不再提 `block-`。
+3. 报告里在 NAM001 表格上方加一行说明：`> scrolly-/scrollx- 容器内的列表项已自动忽略，列表项请用 Figma Component/Instance 表达差异化`。
+
+**为什么不直接放进 `inNonRecursiveSubtree`**：`scrollx-` / `scrolly-` 子层**仍要生成代码**（主 SKILL §416-417 明确"继续递归子层"），不属于"不递归子树"族。它只是"NAM001 不适用"，不是"所有规则不适用"。所以这是 NAM001 自己的局部排除，不进全局过滤。
+
+### 2.6 NAM/LAY 规则补全（v0.2 修订）
+
+补全 doctor 与主 SKILL（`templates/skills/ctrip-train-d2c/SKILL.md`）约定不一致的几条规则：
+
+#### NAM003 冲突表补全
+
+旧规则只列了 `img×bg` / `img×font` / `x×any` 三组冲突，遗漏了：
+
+- **`bg×bgc` 共存**：两者都写父级 background（一个 image、一个 color），主 SKILL §430-431 没定义谁先谁后
+- **`scrollx`/`scrolly` 与 `img`/`bg`/`bgc`/`x`/`btn` 共存**：主 SKILL §448 / §712 明确禁止
+- **`scrollx` + `scrolly` 共存**：与 LAY012 重叠，但 NAM003 也应捕获（前缀冲突视角）
+
+→ 修订后冲突表与主 SKILL §428-432 / §448 / §712 完全对齐。
+
+#### NAM002 拼写正则补 scroll 前缀
+
+旧正则只覆盖 `bg|img|font|btn|sub|block|bgc|x`，遗漏 `scrollx` / `scrolly`。设计师写成 `Scroll-X-` / `scroll_y-` doctor 抓不到。
+
+→ 修订后正则增加 `scrollx|scrolly` 及其大小写变体；额外补 `scroll-x-` / `scroll_x-` / `scroll x-` 等拼写错位的覆盖。
+
+#### LAY011 / LAY012 字段大小写歧义
+
+旧表述混用了 config 字段名（驼峰 `scrollX`）和图层前缀值（小写连字符 `scrollx-`），易在实现时做错匹配。
+
+→ 修订后明确：`prefixes` 数组里只存**小写前缀字符串**（`'scrollx'` / `'scrolly'`），与 config 字段名（`layers.scrollX`）严格区分。
+
+#### LAY011 / LAY012 补入 spec §3.2 LAY 表
+
+SKILL.md 已实现这两条规则，但 spec §3.2 LAY 表只列到 LAY010，文档与实现脱节。
+
+→ 修订后在 spec §3.2 表格补入 LAY011 / LAY012 条目，并附 scroll 字段命名约定提示。
+
+---
+
 ---
 
 ## 3. 规则清单
@@ -105,9 +187,9 @@
 
 | ID | 名称 | 默认 | P | 触发条件 | 修复建议 |
 |---|---|---|---|---|---|
-| `NAM001` | 容器无前缀 | 🟡 | P0 | 节点为 FRAME/GROUP/COMPONENT，子层 ≥ 2，名称不含任何已知前缀，且非 `sub-` 内部一级容器 | 加 `sub-` 或 `block-` |
-| `NAM002` | 前缀拼写错误 | 🔴 | P0 | 名称含 `bg_` / `Bg-` / `IMG-` / `img -` 等已知前缀的拼写变体 | 改为标准小写连字符 |
-| `NAM003` | 前缀语义冲突 | 🔴 | P0 | 同时含 `img-` 和 `bg-`；含 `x-` 又含其他前缀 | 二选一 |
+| `NAM001` | 容器无前缀 | 🟡 | P0 | 节点为 FRAME/GROUP/COMPONENT，子层 ≥ 2，名称不含任何已知前缀，**且不在 `img-` / `bg-` / `bgc-` / `x-` 不递归子树内**，**且父节点不是 `scrollx-` / `scrolly-` 列表容器**，且非 `sub-` 内部一级容器 | 加 `sub-`（不再建议 `block-`，避免嵌套语义混乱） |
+| `NAM002` | 前缀拼写错误 | 🔴 | P0 | 名称含 `bg_` / `Bg-` / `IMG-` / `img -` / `Scroll-X-` / `scroll_y-` 等已知前缀（含 `scrollx` / `scrolly`）的拼写变体 | 改为标准小写连字符 |
+| `NAM003` | 前缀语义冲突 | 🔴 | P0 | `img×bg`、`img×font`、`bg×bgc`、`x` 与任意其他前缀；以及 `scrollx`/`scrolly` 与 `img`/`bg`/`bgc`/`x`/`btn`/对方滚动方向 共存（参见主 SKILL §428-432 / §448 / §712） | 参考主 SKILL 组合优先级，二选一；scroll 容器内部用单独子节点表达图片/背景/可点击区域 |
 | `NAM004` | bg- 唯一性违反 | 🔴 | P0 | 同一父级下出现 ≥ 2 个 `bg-` 子层 | 仅保留一个 |
 | `NAM005` | 同级重名 | 🟡 | P0 | 同父级两个图层去前缀后 kebab-case 相同（如 `img-hero` 与 `bg-hero`） | 加业务后缀区分 |
 | `NAM006` | 命名质量差 | 🔵 | P1 | 去前缀后为：纯数字 / `Group \d+` / `Frame \d+` / `编组\d+` / 仅含 node-id | 改为语义化命名（kebab-case，英文优先） |
@@ -130,6 +212,10 @@
 | `LAY008` | 旋转 / 倾斜 | 🔵 | P1 | 节点 rotation ≠ 0 | D2C 不还原旋转，需手动确认 |
 | `LAY009` | 绝对定位嫌疑 | 🟡 | P0 | 容器多子且子之间有重叠（且不在 sub- 内） | 检查是否用了 absolute 思路 |
 | `LAY010` | 顶层 frame 背景缺失 | 🔵 | P0 | 检查目标根节点 fills 为空/全透明 | Figma 顶层 frame 加 fill；否则确认走项目兜底色 |
+| `LAY011` | scroll 容器尺寸不固定 | 🟡 | P0 | `prefixes` 含 `'scrollx'` / `'scrolly'`，对应方向尺寸为 Hug Contents 或 fill 100% 父容器（且祖先链上没有固定值） | 把容器对应方向尺寸改为固定值；或确保父容器有限宽/限高 |
+| `LAY012` | scroll 方向冲突 | 🔴 | P0 | `prefixes` 同时含 `'scrollx'` 和 `'scrolly'` | 只保留一个滚动方向；二维滚动用两层嵌套 |
+
+> **scroll 字段命名约定**：`prefixes` 数组里存放从 `name` 提取的**小写前缀字符串**（`'scrollx'` / `'scrolly'`），不是 config 字段名（`layers.scrollX` / `layers.scrollY`）。规则判断以 `prefixes` 内容为准。
 
 ### 3.3 图层结构合理性（STR）
 
@@ -221,8 +307,8 @@
     "enabled": true,                     // 总开关
     "blockOnError": true,                // 集成模式下，命中 error 是否阻塞生成
     "report": {
-      "markdown": true,                  // 输出 .d2c-health.md
-      "json": true,                      // 输出 .d2c-health.json
+      "markdown": true,                  // 输出 .d2c-health-{slug}-{timestamp}.md（每次新建文件，避免覆盖）
+      "json": true,                      // 输出 .d2c-health-{slug}-{timestamp}.json（同上）
       "dir": "{output.dir}"              // 报告输出目录，默认与 output.dir 同
     },
     "thresholds": {
@@ -252,9 +338,34 @@
 
 ## 6. 报告输出
 
+### 6.0 文件命名规则（v0.2 修订）
+
+报告文件名格式：
+
+```
+{health.report.dir}/.d2c-health-{slug}-{timestamp}.md
+{health.report.dir}/.d2c-health-{slug}-{timestamp}.json
+```
+
+并同时维护"最近一次"指针（软链或复制覆盖）：
+
+```
+{health.report.dir}/.d2c-health-latest.md
+{health.report.dir}/.d2c-health-latest.json
+```
+
+| 字段 | 取值 |
+|------|------|
+| `{slug}` | `nodeId` 把 `:` 替换为 `-`；超过 32 字符截断后追加 `-` 和 nodeId 8 位 hash 前缀 |
+| `{timestamp}` | 本地时间 `YYYYMMDD-HHmmss`（如 `20260618-143052`） |
+
+**为什么不用固定 `.d2c-health.md`**：同一项目会跑多张稿、同一稿会在改图前后多次体检，固定文件名会被后一次覆盖，丢失对比信息。带 `slug + timestamp` 后多次执行不冲突，`-latest` 仅作为"读最新"的入口，不参与归档。
+
+> 配套建议：在 `.gitignore` 添加 `.d2c-health-*.md` / `.d2c-health-*.json`（不入库）。
+
 ### 6.1 Markdown（人读）
 
-文件：`{health.report.dir}/.d2c-health.md`
+文件：`{health.report.dir}/.d2c-health-{slug}-{timestamp}.md`（同步刷新 `-latest.md`）
 
 ```markdown
 # D2C 设计稿健康度报告
@@ -293,7 +404,7 @@
 
 ### 6.2 JSON（机器读）
 
-文件：`{health.report.dir}/.d2c-health.json`
+文件：`{health.report.dir}/.d2c-health-{slug}-{timestamp}.json`（同步刷新 `-latest.json`）
 
 ```jsonc
 {
@@ -365,7 +476,7 @@ if (!passed && config.health.blockOnError) {
   return  // 等待用户确认
 }
 if (warn > 0) {
-  print '设计稿体检发现 N 个警告，详见 .d2c-health.md，已继续生成。'
+  print '设计稿体检发现 N 个警告，详见 .d2c-health-latest.md，已继续生成。'
 }
 ```
 
@@ -395,7 +506,7 @@ if (warn > 0) {
 - [ ] **A** 范围：首期 P0 ~13 条 是否合适？需要加/减哪些？
 - [ ] **B** 集成方式：是否同意"独立 SKILL + 协议兼容主流程"双模式？
 - [ ] **C** config 化：`health` 段 schema 是否可接受？阈值默认值是否合理？
-- [ ] **D** 输出：md + json 双输出，文件名 `.d2c-health.md` / `.d2c-health.json` 是否 OK？
+- [ ] **D** 输出：md + json 双输出，文件名 `.d2c-health-{slug}-{timestamp}.md` / `.d2c-health-{slug}-{timestamp}.json` + `.d2c-health-latest.*` 指针，是否 OK？
 - [ ] **E** 评分权重：30/25/15/10/10/10 是否需要调整？
 - [ ] **F** SKILL 名称：`ctrip-train-d2c-doctor` 还是另起一个？
 - [ ] **G** 报告输出目录：默认与 `output.dir` 同，还是放项目根 `.d2c/`？

@@ -1,0 +1,21 @@
+{
+  "id": "m-ctrip-train-d2c-doctor",
+  "includeAny": [
+    "doctor",
+    "d2c-doctor",
+    "ctrip-train-d2c-doctor",
+    "设计稿体检",
+    "健康检测",
+    "图层检测",
+    "体检",
+    "卡住",
+    "卡很久",
+    "无响应",
+    "get_metadata",
+    "图层树",
+    "FEA003",
+    "NAM001",
+    "health.enabled",
+    "blockOnError"
+  ]
+}

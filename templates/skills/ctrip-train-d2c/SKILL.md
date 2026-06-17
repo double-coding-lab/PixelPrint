@@ -42,6 +42,7 @@ Read("ctrip-train-d2c.config.json")
 | `merge.mode` | 合并模式（flat / component） |
 | `images.assetsDir` | 图片下载目录 |
 | `images.imageBaseUrl` | 代码中图片 src 前缀 |
+| `images.preserveEffectIds` | 数组，可选；列出"导出时**保留** Figma effect / 父背景"的 nodeId（即不带 `use_absolute_bounds`）。默认空数组 = 所有图都按 bbox 严格导出 |
 | `unit.figmaBase` | 设计稿基准宽度，默认 `375` |
 | `unit.outputUnit` | 输出单位，`px` / `vw` / `rem`，默认 `px` |
 | `unit.outputBase` | 输出基准宽度（px 模式有效），默认 `750` |
@@ -459,6 +460,14 @@ get_design_context(fileKey, nodeId)
   }
   ```
 - **前置条件**：容器必须有"被限定的宽度"（横向）或"被限定的高度"（纵向），否则 overflow 不会触发。Figma 中宽/高模式 = "Hug Contents" 或 fill 100% 父宽（且父也未限宽）时**仍生成代码**，但在 QA / doctor 中标注：「`scrollx-` 容器宽度不固定，运行时滚动可能不触发」。
+- **强制递归生成 DOM 列表项**（不允许整体导出走 `background-image` 偷懒）：sub-agent 在生成 `scrollx-` / `scrolly-` 容器代码前，必须先输出**自检 4 行**：
+  ```
+  · 子层数：{N} 个可见子节点
+  · 同构判断：{是否存在 ≥ 2 个同名 / 同结构子层} → {是 = 列表项需 .map() 渲染 / 否 = 异构内容逐个生成}
+  · 背景层来源：{bgc- 子节点 / bg- 子节点 / 父层 fills / 无} → 不允许"无来源时 fallback 整体导出"
+  · 内部 DOM 节点数（不含背景）：{M}（M 必须 ≥ N，否则说明把列表项压平了，回头重写）
+  ```
+  自检中任意一项无法明确填写时，**先停下问主 agent**，不允许猜测后整体导出。这是质量保证，不是性能优化——错误的整体导出会让"列表渲染"退化为"一张静态图片背景"，运行时无法绑定数据。
 
 **布局规则：禁止使用绝对定位**
 
@@ -474,16 +483,22 @@ get_design_context(fileKey, nodeId)
 所有图片（`img-` / `bg-` / 无前缀兜底）通过 **Figma REST API** 导出，保留透明通道：
 
 ```bash
-# PNG 2倍图，保留透明
+# PNG 2倍图，保留透明，严格按图层 bbox 导出（不含 effect / 父背景色）
 curl -H "X-Figma-Token: {figma.token}" \
-  "https://api.figma.com/v1/images/{fileKey}?ids={nodeId}&format=png&scale=2" \
+  "https://api.figma.com/v1/images/{fileKey}?ids={nodeId}&format=png&scale=2&use_absolute_bounds=true" \
   -o {assetsDir}/{filename}.png
 
 # SVG（矢量图层优先）
 curl -H "X-Figma-Token: {figma.token}" \
-  "https://api.figma.com/v1/images/{fileKey}?ids={nodeId}&format=svg" \
+  "https://api.figma.com/v1/images/{fileKey}?ids={nodeId}&format=svg&use_absolute_bounds=true" \
   -o {assetsDir}/{filename}.svg
 ```
+
+> **`use_absolute_bounds=true` 是必须的**（v0.2 修订）：
+> - 默认导出会包含**图层 effect（drop-shadow / outer-stroke / blur）的可见范围**，PNG 会比 bbox 大一圈（多出来的部分是半透明阴影），导致 DOM 里对齐用的 `gap` / `margin` 算不准。例如设计稿 `gap: -25px`，因 PNG 多了 25px 视觉外扩，CSS 必须写 `gap: -50px` 才能视觉贴合——不可接受。
+> - 默认导出在节点位于**带背景色父容器**内时，会把父背景一起 render 进 PNG（哪怕图层本身是透明的）。这就是"切出来的图都带画板背景色"的根因。
+> - 加上此参数后，Figma 严格按节点 `absoluteBoundingBox` 导出，effect 和父背景被裁掉。**代价**：图层用 Figma effect 实现的阴影/光晕**不会**烤进 PNG——但这本来就是要的（阴影应该用 CSS `filter: drop-shadow()` 实现，不该烤进位图）。
+> - 若某张图**就是要把 effect 烤进位图**（极少见，例如复杂渐变蒙版），单独在 config `images.preserveEffectIds` 数组里列出该 nodeId，那一张图省略此参数。
 
 **格式选择**：
 - 图层为矢量（Vector / Icon / 无栅格内容）→ **SVG**
@@ -710,3 +725,5 @@ export default function ComponentName() {
 - 禁止跳过步骤 2.5 页面级背景采集；禁止把顶层 frame 的页面级背景写到组件根容器；禁止改动项目已有的全局样式文件（base.scss / global.css）；禁止凭印象判定项目特征（必须 Read/Grep 实证后选 P-A / P-B / M-A / M-B / J 策略）；禁止多页面项目使用 P-B / M-B（单页策略，会互相污染）；**禁止在普通 scss 里写 `:global(...)`、禁止在 `*.module.scss` 里直接写 `body { ... }`（写错则 body 背景百分百不生效）**
 - 禁止"sub- 只有 1 个就退化为主 agent 处理"；任何 `sub-` 节点都必须分发独立 sub-agent，**单 sub 也必须拆**（分块是质量保证而非性能优化）
 - 禁止 `scrollx-` / `scrolly-` 与 `img-` / `bg-` / `bgc-` / `x-` / `btn-` 共存（语义冲突）；禁止同一节点同时含 `scrollx-` 和 `scrolly-`（一个元素只能一个滚动方向）；禁止省略隐藏滚动条样式（`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`）
+- 禁止把 `sub-scrollx-` / `sub-scrolly-` 节点**整体导出为单张背景图**作为容器 `background-image`：scroll 容器必须**继续递归子层**（§416-417），子层是同构列表项；只有标了 `bgc-` / `bg-` 的子节点才作为背景。即便子层结构复杂、识别困难，也不允许"省事 fallback 到整体导出"——需要时把识别失败的子树标 `x-` 或拆分稿子，不能用整体导出绕过。
+- 禁止调用 Figma `/v1/images` 时省略 `use_absolute_bounds=true`：不带此参数会把图层 effect（drop-shadow / outer-stroke / blur）和父背景色一起 render 进 PNG，导致"图都带画板背景色"+"对齐用的 gap / margin 算不准（视觉外扩）"两个 bug 同时发生。仅当某张图明确要把 effect 烤进位图（在 config `images.preserveEffectIds` 列出 nodeId）时才省略。
