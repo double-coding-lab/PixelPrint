@@ -124,13 +124,46 @@ Read("ctrip-train-d2c.config.json")
   id: 'NAM001',
   level: 'error' | 'warn' | 'info',
   nodeId, nodeName, nodePath,
-  message: '...',
-  fix: '...',
+  problem: '...',          // 客观事实，描述"出了什么"
+  consequence: '...',       // 不修会怎样
+  fix: '...',               // 怎么修
   figmaUrl: 'https://figma.com/design/{fileKey}/?node-id={nodeId 替换 : 为 -}'
 }
 ```
 
+> **写作约束**：`problem` 只描述事实（"X 节点没有前缀"），`fix` 只给动作（"加 sub-"），`consequence` 给后果（"AI 会拍平到上一级"）。**禁止**把建议、事实、后果混写在 `problem` 字段里。
+
 **等级取值优先级**：`config.health.rules[ruleId]` > 本文档默认值。`'off'` 时跳过该规则。
+
+#### 3.0 规则元信息表（决定报告里每条规则的"谁来修 / 多紧迫"）
+
+| 规则 ID | 角色 | 修复成本 | 忽略后果（一句话） |
+|---|---|---|---|
+| NAM001 | 👤 设计师 | 低（5 分钟改图层名） | AI 无法识别独立模块，生成出来的 JSX 会拍平嵌套，少 sub-agent 拆分 |
+| NAM002 | 👤 设计师 | 低（改拼写） | 前缀不被识别，按"无前缀"处理 |
+| NAM003 | 👤 设计师 | 低（删一个前缀） | 多前缀冲突时按优先级裁掉，行为可能违反设计意图 |
+| NAM004 | 👤 设计师 | 低（合并/改名） | 同父级多个 bg- 时只保留第一个，其余被丢弃 |
+| NAM005 | 👤 设计师 | 低（重命名） | 资产文件名冲突，后导出的图覆盖前一张 |
+| NAM008 | 👤 设计师 | 中（重新组织 sub- 层级） | sub- 嵌套 sub-，分块逻辑异常 |
+| LAY001 | 👤 设计师 | 中（启用 Auto Layout） | AI 靠坐标推断方向，间距/对齐易偏 |
+| LAY002 | 👤 设计师 | 低（padding 改非负） | 生成代码 padding 错乱 |
+| LAY009 | 👤 设计师 | 中（拆分叠层 / 改前缀） | AI 分不清叠层顺序，常猜错谁在上 |
+| LAY010 | 👤 设计师 | 低（加 fill）/ 可忽略 | 顶层无背景，整屏由项目兜底色（通常是白底） |
+| LAY011 | 👤 设计师 | 低（固定宽/高） | scroll 容器宽/高不固定，运行时滚动不触发 |
+| LAY012 | 👤 设计师 | 低（删一个方向） | 双向滚动冲突，生成代码 scrolly 失效 |
+| STR001 | 👤 设计师 | 中（拍平 wrapper） | 生成的 DOM 多余嵌套，调试不便（不影响视觉） |
+| STR002 | 👤 设计师 | 低（删壳） | 同上 |
+| AST002 | 👤 设计师 | 低（调 bg- 尺寸） | bg- 露白，背景图未铺满父容器 |
+| AST004 | 👤 设计师 | 低（删空节点） | 导出空白图，视觉缺失 |
+| FEA002 | 👤 设计师 | 高（恢复可见图层） | 生成完全失败 |
+| FEA003 | 🤝 共同 | 中（拆稿 / 调整范围） | 生成耗时和出错率高 |
+
+**角色含义**：
+- 👤 **设计师**：必须由设计师在 Figma 中改图层 / 调结构，开发改不了
+- 👨‍💻 **开发**：开发侧自行处理（如调整 config）
+- 🤝 **共同**：双方协商决定如何处理
+
+**修复成本**：低 = 5 分钟内 / 中 = 半小时内 / 高 = 需要重新设计
 
 #### 3.1 NAM001 容器无前缀（默认 warn）
 
@@ -222,6 +255,25 @@ Read("ctrip-train-d2c.config.json")
 → fix: `若设计意图就是用项目兜底色，可忽略；否则在 Figma 中给顶层 frame 加 fill`
 
 > **配套提醒**（不在规则清单里，是主流程行为）：当顶层 frame **有**背景色/图时，主 SKILL 会按"步骤 2.5 页面级背景采集"将其写入 body，doctor 不重复报告。
+
+#### 3.9c LAY011 scroll 容器尺寸不固定（默认 warn）
+
+- 节点 `prefixes` 含 `scrollX` 或 `scrollY`
+- 滚动方向上的尺寸不固定：
+  - `scrollX`：宽度模式 = "Hug Contents" 或 fill 100% 父宽（且祖先链上没有任何节点是固定宽度）
+  - `scrollY`：高度模式 = "Hug Contents" 或 fill 100% 父高（且祖先链上没有任何节点是固定高度）
+
+→ problem: `scroll{X|Y}- 容器在滚动方向上没有固定尺寸`
+→ consequence: `运行时浏览器不会触发 overflow，滚动不生效`
+→ fix: `在 Figma 中把容器对应方向的尺寸改为固定值；或确保父容器有限宽/限高`
+
+#### 3.9d LAY012 scroll 方向冲突（默认 error）
+
+- 节点 `prefixes` 同时含 `scrollX` 和 `scrolly`
+
+→ problem: `同一节点同时含 scrollx- 和 scrolly-`
+→ consequence: `生成代码按 scrollx- 处理，scrolly- 失效；运行时滚动行为不可预期`
+→ fix: `在 Figma 中只保留一个滚动方向；如确实需要二维滚动，请拆成两层嵌套（外层 scrolly + 内层 scrollx）`
 
 #### 3.10 STR001 嵌套深度过深（默认 warn）
 
@@ -344,62 +396,118 @@ passed = (grade !== 'F')
 
 `health.report.dir` 默认 = `output.dir`。
 
-**Markdown 模板**：
+#### 5.2 报告写作总则（强制）
 
-```markdown
+1. **每条规则下方表格的每一列都要明确目的**，列名用人话不用术语：
+   - ❌ `path 末段`、`bbox`、`overflow`
+   - ✅ `图层位置`、`所在路径`、`重叠面积`
+2. **同一规则的所有命中合并到一张表里**，不要把"事实 + 建议 + 后果"塞进一个 `message` 列；分别用 `问题` / `修复` 两列展示。
+3. **表格上方加一段 `📌 这是什么 / ⚠️ 不修会怎样 / 🛠 谁来修` 三行小卡片**，让读者 5 秒内决定要不要看下面的表。
+4. **超过 5 行的表格折叠**：用 `<details>` 包起来，标题写"查看 N 个命中详情"。
+5. **末尾分两个待办清单**：`👤 设计师待办` 和 `👨‍💻 开发待办`，按规则元信息表的角色字段聚合。
+6. **NAM001 等批量规则**：自动剔除"已在 `x-` 子树内"的命中（这些是装饰/状态栏，本来就不会生成代码）。剔除后单列说明：`> 已自动忽略 N 项位于 x- 忽略子树内的命中`。
+
+#### 5.3 报告 Markdown 模板
+
+````markdown
 # D2C 设计稿健康度报告
 
-- 设计稿：{fileKey} / {nodeId}（{rootName}）
+- 设计稿：{rootName}（{fileKey} / {nodeId}）
 - 检测时间：{ISO 时间}
 - 总分：**{total} / 100** （{grade} 级 · {gradeDesc}）
+- 是否阻塞生成：{passed ? '✅ 不阻塞，可继续生成' : '⛔ 阻塞，请先处理 error'}
+
+---
+
+## 一句话结论
+
+{自动生成的一句话，例如：
+- 「整体良好（B 级），有 N 项设计稿命名建议优化，开发侧无需操作。」
+- 「阻塞（F 级），FEA002 命中，目标节点子树没有任何可见图层。」
+}
+
+---
 
 ## 维度得分
 
-| 维度 | 得分 | 权重 | error | warn | info |
+| 维度 | 得分 | 权重 | 🔴 error | 🟡 warn | 🔵 info |
 |---|---|---|---|---|---|
-| 命名规范 | {NAM.score} | 30% | {n} | {n} | {n} |
-| 布局合理性 | {LAY.score} | 25% | ... |
-| 结构合理性 | {STR.score} | 15% | ... |
-| 样式一致性 | {STY.score} | 10% | （首期未实现）|
-| 资产可导性 | {AST.score} | 10% | ... |
-| 生成可行性 | {FEA.score} | 10% | ... |
+| 命名规范 (NAM) | {NAM.score} | 30% | {n} | {n} | {n} |
+| 布局合理性 (LAY) | {LAY.score} | 25% | {n} | {n} | {n} |
+| 结构合理性 (STR) | {STR.score} | 15% | {n} | {n} | {n} |
+| 样式一致性 (STY) | {STY.score} | 10% | {n} | {n} | {n} |
+| 资产可导性 (AST) | {AST.score} | 10% | {n} | {n} | {n} |
+| 生成可行性 (FEA) | {FEA.score} | 10% | {n} | {n} | {n} |
 
-## 覆盖率
+## 覆盖率（仅供参考，不参与扣分）
 
-- 命名前缀覆盖率：{namedPrefixCoverage * 100}%
+- 命名前缀覆盖率：{namedPrefixCoverage * 100}%（{命中前缀的节点数} / {可计入分母的节点数}）
 - Auto Layout 覆盖率：{autoLayoutCoverage * 100}%
 - 嵌套深度：平均 {depthAvg} / 最大 {depthMax}
 - 隐藏图层占比：{hiddenRatio * 100}%
 
+---
+
 ## 问题清单
+
+> 每条规则按"是什么 / 不修后果 / 谁来修"三栏说明；表格列只放可执行信息。
 
 ### 🔴 错误（必须修复，{errorCount} 项）
 
-1. **[{id}] {ruleName}** — `{nodeName}` ({nodeId})
-   {message}
-   修复：{fix}
-   [在 Figma 中打开]({figmaUrl})
+{若 errorCount === 0：输出 "无。"}
 
-...
+{对每个命中规则输出一段：}
+
+#### {ruleId} {ruleName}（{命中数} 项）
+
+> 📌 **是什么**：{一句话定义此规则}
+> ⚠️ **不修会怎样**：{规则元信息表的"忽略后果"}
+> 🛠 **谁来修**：{角色 emoji} {角色名}（修复成本：{cost}）
+
+| 图层名 | Figma ID | 所在路径 | 问题 | 修复 |
+|---|---|---|---|---|
+| {nodeName} | `{nodeId}` | {abbreviatedPath} | {problem} | {fix} |
+
+> {若有"x- 子树自动忽略"的}：已自动忽略 {N} 项位于 `x-` 忽略子树内的命中（这些是装饰/状态栏，原本就不会生成代码）
+
+{若超过 5 行 → 用 <details> 包前 5 行之后的部分}
 
 ### 🟡 警告（建议修复，{warnCount} 项）
 
-...
+{同上结构}
 
 ### 🔵 信息（可选优化，{infoCount} 项）
 
-...
+{同上结构}
 
-## 修复建议（聚合 Top 3）
+---
 
-1. ...
-2. ...
-3. ...
-```
+## 待办清单
 
-**JSON 输出**：见 `docs/d2c-health-check-spec.md` §6.2 schema。
+### 👤 设计师待办（请在 Figma 中处理后重跑体检）
 
-#### 5.2 集成模式（integrated）
+{聚合所有角色 = 👤 设计师 的命中，按规则分组，给一个最小可执行清单：}
+
+- **{ruleId}**：{命中数} 项 → {一句话动作}（详见上方表格）
+  - 重点：{Top 3 nodeName}
+
+> ⏱ 预估总耗时：{累加各规则修复成本}
+
+### 👨‍💻 开发待办
+
+{若有开发侧动作（一般是 FEA003 的"调整 config"或 grade=F 的"暂缓生成"），列在此处；否则输出："无，等设计稿处理完后重跑体检即可。"}
+
+---
+
+## 是否可继续生成
+
+{passed ? '✅' : '⛔'} **{passed ? '可以' : '不建议'}继续生成**（grade = {grade}）
+
+{若 passed && warn > 0：'⚠️ 但建议至少处理「设计师待办」中的 Top 3 后再生成，否则生成质量会下降。'}
+{若 !passed：'⛔ 必须先处理 error 项，否则 ctrip-train-d2c 主流程将拒绝执行。'}
+````
+
+#### 5.4 集成模式（integrated）
 
 不写文件，直接 return：
 
@@ -407,32 +515,42 @@ passed = (grade !== 'F')
 {
   passed: boolean,
   score: { total, grade, dimensions, coverage },
-  issues: [...],
-  summary: { error, warn, info }
+  issues: [...],          // 含 problem / consequence / fix 三字段
+  summary: { error, warn, info },
+  todoByRole: {
+    designer: [...],       // 设计师待办（聚合后的精简清单）
+    developer: [...]       // 开发待办
+  }
 }
 ```
 
-#### 5.3 对话内摘要（两种模式都打印）
+#### 5.5 对话内摘要（两种模式都打印）
 
 ```
 🩺 D2C 设计稿体检完成
 
   总分：{total} / 100  ({grade} 级)
   问题：🔴 {error} · 🟡 {warn} · 🔵 {info}
+  阻塞：{passed ? '否，可继续生成' : '是，请先处理 error'}
 
-  Top 3 问题：
-   1. [{id}] {message}（{nodeName}）
+  待办：
+   👤 设计师：{N} 项（预估 {耗时}）
+   👨‍💻 开发：{若无 → '无'；若有 → 列出'}
+
+  Top 3 问题（按重要度）：
+   1. [{id}] {problem}（{nodeName}）→ {fix}
    2. ...
    3. ...
 
   详细报告：{health.report.dir}/.d2c-health.md
 ```
 
+
 ---
 
 ## 步骤 6：返回值（仅集成模式）
 
-向主 SKILL return 步骤 5.2 的结构。主 SKILL 自行处理阻塞逻辑。
+向主 SKILL return 步骤 5.4 的结构。主 SKILL 自行处理阻塞逻辑。
 
 ---
 

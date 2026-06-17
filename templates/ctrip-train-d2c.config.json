@@ -29,6 +29,8 @@
     "bgColor": "bgc-",
     "font": "font-",
     "but": "btn-",
+    "scrollX": "scrollx-",
+    "scrollY": "scrolly-",
     "ignore": "x-"
   },
   "output": {

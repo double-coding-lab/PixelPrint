@@ -52,6 +52,8 @@ Read("ctrip-train-d2c.config.json")
 | `layers.bg` | 背景图前缀，默认 `bg-` |
 | `layers.font` | 文字前缀，默认 `font-` |
 | `layers.but` | 可点击区域前缀，默认 `btn-` |
+| `layers.scrollX` | 横向滚动容器前缀，默认 `scrollx-` |
+| `layers.scrollY` | 纵向滚动容器前缀，默认 `scrolly-` |
 | `layers.ignore` | 忽略前缀，默认 `x-` |
 | `output.dir` | 代码输出根目录 |
 | `health.enabled` | 是否启用前置体检（默认 true） |
@@ -100,6 +102,14 @@ doctor.run({
 **分块判断逻辑**：
 
 唯一的分块触发条件是图层名带有 `sub-` 前缀。其他前缀（`img-`、`bg-`、`font-`、`btn-` 等）不触发分块，由主 agent 直接处理。
+
+**`sub-` 必须分发 sub-agent（无任何例外）**：
+
+- 哪怕整稿只有 **1 个** `sub-` 节点，也必须分发 1 个 sub-agent，**禁止**以"无并行收益 / 单块"为由让主 agent 直接处理
+- 哪怕 sub- 内容看起来"很简单"，也必须分发；判定简单与否是 sub-agent 的事，不是主 agent 的事
+- 主 agent 只负责：分块识别、清单维护、合并、QA；**不负责** sub- 内部的 JSX/CSS 生成
+
+> **理由**：sub-agent 拆分是质量保证，不是性能优化。把 sub- 内容塞进主 agent 上下文会让主 agent 同时处理"全局协调 + 局部细节"，细节准确度急剧下降（实测：单 agent 串行生成的 sub-card 内部尺寸/对齐/字号偏差比拆分后高 3-5 倍）。
 
 **扫描前先过滤**：`visible: false` 的隐藏图层直接跳过，不参与分块，不进入执行清单。
 
@@ -169,36 +179,70 @@ img-*   → 主 agent 处理，生成 <img>
 
 #### 2.5.2 项目特征探测
 
-执行写入前**必须先探测项目类型**，决定写入策略。按以下顺序检查（**逐项 Read 文件，不要凭印象判定**）：
+执行写入前**必须先探测项目类型**，决定写入策略。按以下顺序检查（**逐项 Read 文件 / Grep 实证，不要凭印象判定**）：
 
-1. **检查 `output.dir` 同级（或父级 1-2 层内）**有几个 page 入口：
-   - 看是否有 `pages/` 目录 + 多个 `*.jsx` / `*.tsx`（Next.js / nfes 多页面）
-   - 看是否有 react-router / SPA 入口（单 entry 多 route）
-   - 看是否只有一个入口（单页活动）
-2. **检查全局样式入口**：
-   - `pages/style/base.scss`、`src/styles/global.scss`、`app.scss`、`_app.js` 引入的全局 css
-   - 是否已有 `body { background: ... }` 规则（用 grep 实证，**禁止猜**）
-3. **检查样式方案**：根据 config 的 `project.styleFormat`（scss / css-modules / tailwind / inline / styled-components 等）确定是否能写全局选择器
+1. **判定该 page 的 scss 是否走 css-modules**（最关键）：
+   - 看页面入口的 import 形式：`import './index.scss'` → **普通 scss（全局作用）**；`import styles from './index.module.scss'` → **css-modules**
+   - 看文件名：`*.module.scss` → css-modules；`*.scss` 且非 module → 普通 scss
+   - 看周边页面的引法：如果项目里既有普通 scss 又有 module.scss，**以本页面实际写法为准**
+   - **结论二选一：`普通 scss` / `css-modules`**
+   > ⚠️ **关键**：`:global(body)` 语法**只在 css-modules 下有效**。在普通 scss 文件里写 `:global(...)`，浏览器会原样接收选择器并解析失败，**body 背景不会生效**——这是 D2C 最常见的"我明明写了 body 背景但页面还是白底"的根因。
 
-把探测结果写入 `.d2c-tasks.md` 的"页面级背景"段，作为后续步骤的事实依据。
+2. **检查 `output.dir` 同级（或父级 1-2 层内）有几个 page 入口**：
+   - `pages/` 下多个 `*.jsx` / `*.tsx`（Next.js / nfes 多页面） → 多页
+   - react-router / SPA 多 route → 多页
+   - 只有一个入口 → 单页
 
-#### 2.5.3 写入策略（按探测结果自动选档）
+3. **检查全局样式入口是否已有 `body { background }` 规则**：
+   - 候选文件：`pages/style/base.scss`、`src/styles/global.scss`、`app.scss`、`_app.js` 引入的全局 css
+   - 用 grep 实证（**禁止猜**）
 
-| 项目特征 | 策略 | 实现 |
+4. **检查 config 的 `project.styleFormat`**：
+   - `scss` / `css-modules` / `tailwind` / `inline` / `styled-components`
+
+把以上 4 项探测结果**全部**写入 `.d2c-tasks.md` 的"页面级背景"段，作为选档的事实依据。
+
+#### 2.5.3 写入策略（**先按 styleFormat / module 状态选大类，再按多/单页选档**）
+
+##### 第一层：按 styleFormat / 当前 page 的 scss 是否走 module，二选一
+
+| 当前 page 的样式真实形态 | 大类 |
+|---|---|
+| 普通 scss（`import './x.scss'`），可写全局选择器 | **大类 P：plain scss** |
+| css-modules（`import s from './x.module.scss'`），需 `:global(...)` 才能写全局选择器 | **大类 M：css-modules** |
+| tailwind / inline / styled-components / RN stylesheet（不允许写全局选择器） | **大类 J：JS-only**（必走 useEffect） |
+
+**判定来源**：步骤 2.5.2 第 1、4 项的实证结果。**禁止**仅依赖 config 的 `styleFormat` 判定大类——同一项目里 page A 是 module、page B 是 plain 的情况存在，必须看**当前 page** 的实际 import 形式。
+
+##### 第二层：在大类下按"多页 / 单页"选策略
+
+**大类 P（普通 scss）**：
+
+| 多/单页 | 策略 | 实现 |
 |---|---|---|
-| **A. 多页面 / 多稿共存**（pages/ 下 ≥ 2 个 page，或 SPA 多 route，或预期会加更多稿） | **scope 隔离 class** | 见下方「策略 A」 |
-| **B. 单页活动 + 已有全局 body 规则**（output.dir 下只有 1 个 page，全局 base.scss 已有 body 背景） | **页面 scss 顶部局部覆盖** | 见下方「策略 B」 |
-| **C. 单页活动 + 无全局 body 规则** | **直接写页面 scss 的 `body` 选择器** | 见下方「策略 C」 |
-| **D. CSS Modules / styled-components 严格隔离方案** | **useEffect 操作 inline style** | 见下方「策略 D」 |
+| 多页 | **P-A：直接写页面级 `body.<page-class>` 选择器**（本页 scss 顶部）+ **useEffect 加 / 移 class** | 见下方「策略 P-A」 |
+| 单页（无论是否有全局兜底） | **P-B：直接写裸 `body { ... }`**（本页 scss 顶部） | 见下方「策略 P-B」 |
+
+**大类 M（css-modules）**：
+
+| 多/单页 | 策略 | 实现 |
+|---|---|---|
+| 多页 | **M-A：`:global(body.<page-class>)`** + useEffect 加 / 移 class | 见下方「策略 M-A」 |
+| 单页 | **M-B：`:global(body) { ... }`** | 见下方「策略 M-B」 |
+
+**大类 J（JS-only）**：
+
+| 多/单页 | 策略 |
+|---|---|
+| 都用 | **J：useEffect 操作 `document.body.style.background`**（见下方「策略 J」） |
 
 **`bgImage` 时**：无论哪一档，URL 都使用 `$asset-prefix` / `ASSET_PREFIX`（见步骤 4.3 的图片 URL 规则），**不允许在 body 样式中硬编码完整 URL**。
 
-##### 策略 A：scope class（多页面默认推荐）
+##### 策略 P-A：plain scss + 多页
 
-**`.scss`**：
+**`.scss`**（页面 scss 顶部）：
 ```scss
-// 页面级背景：本页面挂载时通过 .<page-class>-page-bg 类应用到 body
-:global(body.<page-class>-page-bg) {
+body.<page-class>-page-bg {
   background: <值>;
 }
 ```
@@ -214,24 +258,40 @@ useEffect(() => {
 }, []);
 ```
 
-`<page-class>` = 当前组件根 className（如 `fan-ticket-unlocked`），保证全项目唯一。**离开页面会自动还原**，多张稿共存不会互相污染。
+##### 策略 P-B：plain scss + 单页
 
-##### 策略 B：页面 scss 顶部局部覆盖
-
+**`.scss`**（页面 scss 顶部）：
 ```scss
-// 页面级背景：覆盖项目全局 body 兜底色
 body {
   background: <值>;
 }
 ```
 
-写在页面根 scss 文件顶部。**禁止改全局 base.scss / global.css**。
+不需要 useEffect。即使全局 base.scss 已有 `body { background: ... }`，本页 scss 的同名选择器**通过加载顺序自然覆盖**（page scss 在 `_app.js` import 的 base.scss 之后被引入）。
 
-##### 策略 C：直接写 body 选择器
+##### 策略 M-A：css-modules + 多页
 
-同策略 B 写法，但因为没有全局兜底冲突，是最干净的形态。
+**`.module.scss`**（页面 module scss 顶部）：
+```scss
+:global(body.<page-class>-page-bg) {
+  background: <值>;
+}
+```
 
-##### 策略 D：useEffect inline style
+**`.tsx`**：与策略 P-A 完全相同（操作 body class）。
+
+##### 策略 M-B：css-modules + 单页
+
+**`.module.scss`**：
+```scss
+:global(body) {
+  background: <值>;
+}
+```
+
+不需要 useEffect。
+
+##### 策略 J：useEffect inline style（tailwind / inline / styled-components / RN）
 
 ```tsx
 useEffect(() => {
@@ -241,11 +301,22 @@ useEffect(() => {
 }, []);
 ```
 
-不写 css，直接操作 DOM。仅在样式方案不允许全局选择器时使用。
+不写 css，直接操作 DOM。
+
+##### 决策核对（写代码前必做的最后一次自检）
+
+| 你写的代码 | 当前 page 的 scss 形态必须是 |
+|---|---|
+| `body { ... }` | 普通 scss |
+| `body.xxx-page-bg { ... }` | 普通 scss |
+| `:global(body) { ... }` | **css-modules** |
+| `:global(body.xxx-page-bg) { ... }` | **css-modules** |
+
+**对不上 → body 背景百分百不生效**。如果不确定，宁可走策略 J（useEffect）也不要写错。
 
 #### 2.5.4 SSR 首屏闪白处理（可选）
 
-若项目是 SSR（Next.js / nfes 的服务端渲染），策略 A / D 在客户端 hydrate 后才生效，可能出现首屏从全局兜底色 → 稿色的一帧闪烁。
+若项目是 SSR（Next.js / nfes 的服务端渲染），多页策略（P-A / M-A）和 J 策略在客户端 hydrate 后才生效，可能出现首屏从全局兜底色 → 稿色的一帧闪烁。
 
 如需消除：在该页面对应的 `getInitialProps` / `getServerSideProps` 返回的 props 里加 body class 字段，或在 `_document` 的 body 元素上根据路由 pathname 加 class。**默认不做这项优化**，除非用户明确说"避免首屏闪烁"。
 
@@ -256,9 +327,10 @@ useEffect(() => {
 ```markdown
 ## 页面级背景（写入 body）
 - [ ] 已采集顶层 frame 背景：类型 = <bgColor/bgGradient/bgImage/none>，值 = <值或 "none">
-- [ ] 已探测项目特征：多/单页 = <多/单>，全局 body 规则 = <存在/不存在>，样式方案 = <scss/...>
-- [ ] 已选定策略：<A / B / C / D>
-- [ ] 已按策略写入对应文件（路径：<file>）
+- [ ] 已探测当前 page 样式形态：scss 形态 = <普通 scss / css-modules / JS-only>，多/单页 = <多/单>，全局 body 规则 = <存在/不存在>，config.styleFormat = <scss/...>
+- [ ] 已选定策略：<P-A / P-B / M-A / M-B / J>
+- [ ] 已按策略写入对应文件（路径：<file>）；scss 选择器形式 = <body / body.xxx-page-bg / :global(body) / :global(body.xxx-page-bg) / 不写 scss>
+- [ ] 已通过决策核对表（2.5.3 末尾）：选择器形式 vs scss 形态 一致
 - [ ] 未改动任何项目全局样式文件
 ```
 
@@ -269,7 +341,9 @@ useEffect(() => {
 - 禁止改动项目已有的全局样式文件（`base.scss` / `global.css` / `_app` 引入的全局 css）
 - 禁止凭印象判定项目特征（必须 Read / Grep 文件实证后再选档）
 - 禁止在 body 背景里硬编码完整图片 URL（`bgImage` 时必须用 `$asset-prefix` / `ASSET_PREFIX`）
-- 禁止多页面项目使用策略 B / C（会互相污染）
+- 禁止多页面项目使用 P-B / M-B（单页策略，会互相污染）
+- 禁止在普通 scss（非 module）文件里写 `:global(...)`（语法不识别，body 背景不会生效）
+- 禁止在 `*.module.scss` 里直接写 `body { ... }`（会被 hash 化变成 `.body-xxx`，不会作用到真正的 body）
 
 ---
 
@@ -339,6 +413,8 @@ get_design_context(fileKey, nodeId)
 | `bg-`（`layers.bg`） | 背景图 | 将图片设置为**父元素**的 `background-image`，自身不生成独立 HTML 元素，**不再向内递归** |
 | `bgc-`（`layers.bgColor`） | 背景纯色 | 将颜色设置为**父元素**的 `background-color`，自身不生成独立 HTML 元素 |
 | `font-`（`layers.font`） | 文字内容 | 生成文字节点，继续递归 |
+| `scrollx-`（`layers.scrollX`） | 横向滚动容器 | 容器开 `overflow-x: auto`、子元素 `flex-shrink: 0`、隐藏滚动条；**继续递归子层** |
+| `scrolly-`（`layers.scrollY`） | 纵向滚动容器 | 容器开 `overflow-y: auto`、隐藏滚动条；**继续递归子层** |
 
 **无前缀兜底规则**
 
@@ -354,15 +430,35 @@ get_design_context(fileKey, nodeId)
 3. 含 `bg-` → 将图片写入父元素 `background-image`，自身不生成 HTML，**不递归**
 4. 含 `bgc-` → 将颜色写入父元素 `background-color`，自身不生成 HTML
 5. 提取 `btn-` → 记录"需要包可点击容器"
-6. 提取 `font-` → 生成文字节点
-7. 无内容前缀 → 走兜底规则
-8. 若有 `btn-`，将渲染结果包裹在可点击容器内
+6. 提取 `scrollx-` / `scrolly-` → 记录"需要包滚动容器"（容器层级；继续递归子层）
+7. 提取 `font-` → 生成文字节点
+8. 无内容前缀 → 走兜底规则
+9. 若有 `btn-`，将渲染结果包裹在可点击容器内
+10. 若有 `scrollx-` / `scrolly-`，给当前容器加 overflow 样式（**不新增 wrapper**，直接作用在当前节点对应的容器上）
 
 **`bg-` 的额外规则**
 
 - 一个父元素下只应有**一个** `bg-` 子图层，多个时取第一个，其余忽略
 - `bg-` 图层的**高度不代表父元素高度**，父元素高度由其他内容决定
 - `bg-` 与 `bgc-` 可同时存在，`bgc-` 作为背景色兜底，`bg-` 作为背景图覆盖
+
+**`scrollx-` / `scrolly-` 的额外规则**
+
+- 同一节点**只能含一个滚动方向**：同时含 `scrollx-` 和 `scrolly-` → error，按 `scrollx-` 处理并在 QA 中标注
+- 与 `img-` / `bg-` / `bgc-` / `x-` 互斥（不递归类前缀本来也不需要滚动）
+- 与 `btn-` 互斥（滚动容器整体可点击会冲突）
+- **生成的容器样式**（横向示例，纵向把 x/y 调换即可）：
+  ```scss
+  .<class> {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;  // iOS 惯性滚动
+    scrollbar-width: none;              // Firefox 隐藏滚动条
+    &::-webkit-scrollbar { display: none; } // Webkit 隐藏滚动条
+    > * { flex-shrink: 0; }             // 子项禁止压缩
+  }
+  ```
+- **前置条件**：容器必须有"被限定的宽度"（横向）或"被限定的高度"（纵向），否则 overflow 不会触发。Figma 中宽/高模式 = "Hug Contents" 或 fill 100% 父宽（且父也未限宽）时**仍生成代码**，但在 QA / doctor 中标注：「`scrollx-` 容器宽度不固定，运行时滚动可能不触发」。
 
 **布局规则：禁止使用绝对定位**
 
@@ -611,4 +707,6 @@ export default function ComponentName() {
 - 禁止把 `block-` 块内的元素与其他块的元素合并到同一 HTML 容器或共享 CSS 类名
 - 禁止只匹配第一个前缀就停止，必须扫描完整图层名提取所有已知前缀
 - 禁止脱离 `images.imageBaseUrl + images.assetsDir + filename` 公式拼接图片 URL；禁止补/删任何字符（包括末尾 `/`）；禁止在 SCSS 中分散硬编码完整 URL，必须先定义 `$asset-prefix` 变量再引用
-- 禁止跳过步骤 2.5 页面级背景采集；禁止把顶层 frame 的页面级背景写到组件根容器；禁止改动项目已有的全局样式文件（base.scss / global.css）；禁止凭印象判定项目特征（必须 Read/Grep 实证后选 A/B/C/D 策略）；禁止多页面项目使用 B/C 策略（会互相污染）
+- 禁止跳过步骤 2.5 页面级背景采集；禁止把顶层 frame 的页面级背景写到组件根容器；禁止改动项目已有的全局样式文件（base.scss / global.css）；禁止凭印象判定项目特征（必须 Read/Grep 实证后选 P-A / P-B / M-A / M-B / J 策略）；禁止多页面项目使用 P-B / M-B（单页策略，会互相污染）；**禁止在普通 scss 里写 `:global(...)`、禁止在 `*.module.scss` 里直接写 `body { ... }`（写错则 body 背景百分百不生效）**
+- 禁止"sub- 只有 1 个就退化为主 agent 处理"；任何 `sub-` 节点都必须分发独立 sub-agent，**单 sub 也必须拆**（分块是质量保证而非性能优化）
+- 禁止 `scrollx-` / `scrolly-` 与 `img-` / `bg-` / `bgc-` / `x-` / `btn-` 共存（语义冲突）；禁止同一节点同时含 `scrollx-` 和 `scrolly-`（一个元素只能一个滚动方向）；禁止省略隐藏滚动条样式（`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`）
