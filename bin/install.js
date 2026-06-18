@@ -210,8 +210,45 @@ async function runInit() {
     figma: { token: figmaToken },
     merge: { mode: mergeMode },
     unit: { figmaBase, outputUnit, outputBase, scale },
-    images: { assetsDir, imageBaseUrl },
-    output: { dir: outputDir }
+    images: {
+      assetsDir,
+      imageBaseUrl,
+      preserveEffectIds: existing.images?.preserveEffectIds || []
+    },
+    layers: existing.layers || {
+      sub: 'sub-',
+      block: 'block-',
+      img: 'img-',
+      bg: 'bg-',
+      bgColor: 'bgc-',
+      font: 'font-',
+      but: 'btn-',
+      scrollX: 'scrollx-',
+      scrollY: 'scrolly-',
+      ignore: 'x-'
+    },
+    output: { dir: outputDir },
+    health: existing.health || {
+      enabled: true,
+      blockOnError: true,
+      report: {
+        markdown: true,
+        json: true,
+        dir: ''
+      },
+      thresholds: {
+        maxDepth: 6,
+        subBlockMin: 3,
+        subBlockMax: 20,
+        totalNodesMax: 1500,
+        hiddenRatioMax: 0.2,
+        paddingAsymmetryMax: 32,
+        bgSizeMin: 0.8,
+        bgSizeMax: 1.2,
+        colorDeltaEMin: 3
+      },
+      rules: {}
+    }
   }
 
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2))

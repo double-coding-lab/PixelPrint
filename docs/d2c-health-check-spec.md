@@ -148,11 +148,12 @@
 
 旧规则只列了 `img×bg` / `img×font` / `x×any` 三组冲突，遗漏了：
 
-- **`bg×bgc` 共存**：两者都写父级 background（一个 image、一个 color），主 SKILL §430-431 没定义谁先谁后
 - **`scrollx`/`scrolly` 与 `img`/`bg`/`bgc`/`x`/`btn` 共存**：主 SKILL §448 / §712 明确禁止
 - **`scrollx` + `scrolly` 共存**：与 LAY012 重叠，但 NAM003 也应捕获（前缀冲突视角）
 
 → 修订后冲突表与主 SKILL §428-432 / §448 / §712 完全对齐。
+
+> **撤回错误判定**：上一版本曾把 `bg×bgc` 也列为冲突,理由是"都写父级 background 没定义先后"——这是错的。`bg-` 写父级 `background-image`、`bgc-` 写父级 `background-color`,**两者是父级 CSS 的不同属性,可以共存**。已从冲突表移除。
 
 #### NAM002 拼写正则补 scroll 前缀
 
@@ -174,6 +175,113 @@ SKILL.md 已实现这两条规则，但 spec §3.2 LAY 表只列到 LAY010，文
 
 ---
 
+### 2.7 sub- 嵌套 sub- 从禁止改为支持（v0.2 修订）
+
+**现象**：原 NAM008 把 `sub- 嵌套 sub-` 列为 error，强制设计师"仅保留外层或仅保留内层"。但实际项目中存在合法的真嵌套场景：
+
+> 例：`sub-content`（整个内容主区）含两个内层独立模块 `sub-card`（票卡轮播）+ `sub-scrolly-车票列表`（滚动列表）。两个内层异构、各自复杂度都值得独立 agent，展平会让外层 sub-agent 同时处理两类完全不同的实现，违反"每层独立上下文"原则。Component/Instance 也不适用——两个内层不是同构。
+
+**对策**（已落地到主 SKILL `templates/skills/ctrip-train-d2c/SKILL.md` §107-145 / §385-455 / §707-820 / 禁止项）：
+
+1. **主 SKILL §107**：明确"sub- 允许嵌套"，描述执行模型：主 agent 派发 + sub-agent 上报，深度上限 3 层
+2. **主 SKILL §385**：sub-agent 进入子层解析前**必须** §4.0.5 扫一遍直接子层的 sub-，写 `<__SUBSLOT__>` placeholder + `subslots.json`，自己**不处理**内层 sub- 内容
+3. **主 SKILL §707**：合并阶段 §5.0 placeholder 展开（深度优先），component 模式生成嵌套目录，flat 模式按树深度递归展开 JSX
+4. **主 SKILL §6.0**：视觉对比改为只对比**叶子 sub-block**（非叶子父 block 由叶子覆盖），避免重复
+5. **主 SKILL 禁止项**：禁止 sub-agent 自己派孙、禁止跨层扫描、禁止合并后残留 `__SUBSLOT__`
+6. **doctor NAM008**：error → warn，触发条件改为"嵌套深度 ≥ 3"（以前是"任何嵌套即报错"），fix 文案改为"拍平一层"
+7. **spec §3.1 NAM008 行**：同步上述修订
+
+**为什么深度上限 3 层而不是无限**：一是嵌套越深主 agent 派发链路越长（串行等待时间累加）；二是真业务场景里 3 层已能覆盖（外层"内容主区" + 中层"独立模块" + 内层"独立子模块"），更深通常是设计师过度组织图层的信号，应该拍平。
+
+**为什么"主 agent 派发 + sub-agent 上报"而不是"sub-agent 自己派孙"**：主 agent 全局清单维护更简单，合并阶段的 placeholder 展开和接缝检查更线性；sub-agent 自己派孙会让主 agent 失去全局视角，合并逻辑复杂度爆炸。串行等待的成本可接受——D2C 不是性能敏感场景。
+
+### 2.8 bg- 应改为 bgc- 识别（v0.2 新增）
+
+**现象**：`bg-box` 节点是个简单 GRADIENT_LINEAR + DROP_SHADOW 的 vector，按规则切成 PNG。但切出来的图四角圆角带 #DCD7FF 紫色"画板底色"——其实是渐变浅色端 + 灰色描边 + 阴影外扩在圆角抗锯齿处的混合，被误读为画板底色泄漏。
+
+**根因**：`bg-` 语义是"切位图作为父元素 background-image"，但**这个节点完全可以用 CSS 表达**（线性渐变 + 阴影 + 圆角全是 CSS 原生支持的）。设计师按"反正都是背景"的直觉用了 `bg-`，没意识到：
+
+- 位图渲染的渐变会因缩放产生 banding（视觉劣化），CSS 渐变在所有缩放下矢量级清晰
+- DROP_SHADOW 即使带 `use_absolute_bounds=true` 裁掉外扩，但圆角处的抗锯齿已经包含阴影渐隐部分，永远裁不干净
+- 位图无法运行时主题切换 / 暗黑模式动态适配
+- 位图文件大、HTTP 请求多，影响首屏
+
+**对策**（A + B 双管，已落地到主 SKILL 和 doctor）：
+
+#### A. doctor 加 NAM012 规则（治本：让设计师改命名）
+
+doctor 体检时检测：`bg-` 节点的 fills 全是 SOLID/简单 GRADIENT、strokes 空或 SOLID、effects 空或单一 DROP_SHADOW、子树纯净 → 命中 → warn 提示"改成 bgc- 用 CSS 实现"。详见 spec §3.1 NAM012。
+
+#### B. 主 SKILL sub-agent 切图前 CSS-able 自检（治标：兜底）
+
+即使设计师没改命名，sub-agent 在切 `bg-` 之前必须先调用 `get_design_context` 拿 fills/strokes/effects/cornerRadius，按同 NAM012 的判定标准检查：
+
+- 命中 CSS-able → **跳过切图**，输出告警，按 `bgc-` 规则用 CSS 实现（gradient + box-shadow + border + border-radius）
+- 不命中 → 走 `bg-` 切图正常流程
+
+详见主 SKILL §`bg-` 切图前的"CSS-able 自检"。
+
+#### 为什么不让 sub-agent 自动改 fallback 不报警
+
+更激进的方案是让 sub-agent 静默把所有 CSS-able 的 `bg-` 当 `bgc-` 处理。否决理由：
+
+- agent 自作主张改语义会让设计意图丢失，出事难追（设计师以为切了图，实际 CSS 表达，但 CSS 不支持某些复杂渐变细节时差异不可见）
+- 强制告警让设计师知道"这个本来该用 CSS"，下次设计稿能修正命名（治本）
+- 自检 + 告警的组合既保证了输出质量（不切错图），又驱动设计稿质量提升（命名规范化）
+
+---
+
+### 2.9 bgc- 范围扩展 + bg- 内嵌 bgc- 处理（v0.2 修订）
+
+**现象**：`sub-card > card > bg-bg > bgc-选中框` 这种结构里，`bg-bg` 是个 GROUP 容器（自身无视觉），子树里包着 `bgc-选中框`（GRADIENT_LINEAR fill + 4px Outside 渐变描边 + 1px 圆角）和装饰子层。生成出来 `card-bg.png` 把所有视觉揉成一张图，**4px 描边烤进位图**（无法主题化、无法选中态切换）、**bgc- 完全没起到 background-color 角色**。
+
+**根因**：
+
+1. **bgc- 范围太窄**（旧规则只取 fills）：设计师把"渐变填充 + 描边 + 圆角 + 阴影"理解为"一个 bgc-"是合理的——这就是父级 box 的全套装饰 CSS 属性。但旧规则只让 bgc- 处理 fills，描边/圆角/阴影全丢。
+2. **bgc- 嵌在 bg- 子树内时无处理逻辑**：sub-agent 看到 `bg-` 命中"整体导出图片"，调用 `/v1/images?ids=bg-id`——Figma 把整个 GROUP 子树（含 bgc- 那个矩形）一起 render 进 PNG。bgc- 的渐变/描边/圆角全烤进位图，CSS 端 0 处理。
+3. **NAM004 旧规则只检查 bg- 唯一性**：实际 CSS 限制是"一个父元素只能有一个 background-image **和一个** background-color"，bgc- 唯一性同样必须检查。
+
+**对策**（已落地到主 SKILL §`bgc-` 取值规则 / §`bg-` 内嵌 `bgc-` 的处理 / 禁止项；以及 doctor §3.4 NAM004 / §3.6c NAM013）：
+
+#### 修订 1：扩展 bgc- 范围到全套盒级 CSS 属性
+
+bgc- 不只是 `background-color`/`background-image`，还覆盖：
+
+| Figma 属性 | CSS 属性 |
+|-----------|---------|
+| fills（SOLID / GRADIENT_LINEAR / GRADIENT_RADIAL） | `background-color` / `background-image: linear-gradient(...)` / `radial-gradient(...)` |
+| strokes Outside | `outline: {weight}px solid #xxx` |
+| strokes Inside | `border: {weight}px solid #xxx` + `box-sizing: border-box` |
+| strokes Center | 退化 outline 偏移一半，QA 标注让用户决定 |
+| cornerRadius / rectangleCornerRadii | `border-radius` |
+| effects（DROP_SHADOW / INNER_SHADOW / LAYER_BLUR / BACKGROUND_BLUR） | `box-shadow` / `box-shadow: inset` / `filter: blur()` / `backdrop-filter: blur()` |
+
+#### 修订 2：bg- 内嵌 bgc- 的处理流程
+
+sub-agent 切 bg- 之前**必须**扫描子树（递归全部子孙）查找 bgc-：
+
+| 子树 bgc- 数量 | 处理 |
+|--------------|------|
+| 0 个（推荐） | 正常切 bg- |
+| 1 个 | 把 bgc- "摘出来" 按修订 1 规则写父元素 CSS；bg- 子树其他装饰随 bg- 整体切图（Figma API 限制无法切图时排除子节点）；输出告警 |
+| ≥ 2 个 | 取第一个 bgc-，其余忽略，输出 error 级告警 |
+
+**bg- 兄弟也有 bgc- 的优先级**：兄弟 bgc- 优先（更接近"父级 CSS 属性"语义），嵌套 bgc- 的 CSS 属性不重复声明（避免和兄弟 bgc- 打架），doctor 仍 warn 提示嵌套那个改成兄弟。
+
+#### 修订 3：NAM004 扩展覆盖 bgc- + 新增 NAM013
+
+- **NAM004**（已有）扩展为"同父级最多 1 个 bg- **和** 1 个 bgc-"——CSS 物理限制
+- **NAM013**（新增）"bgc- 嵌在 bg- 子树内"——结构错误，warn 提示改成兄弟关系
+
+#### 为什么不改 Figma API 切图行为
+
+Figma `/v1/images` API 不支持切图时排除某个子节点，这是 API 层面的物理限制。生成端只能：
+- 让设计师把 bgc- 移出 bg- 子树（治本，doctor NAM013 治理）
+- 兜底"摘出来"按 bgc- 规则写 CSS（治标，主 SKILL §`bg-` 内嵌 `bgc-` 的处理）
+- 即使兜底，位图里仍有 bgc- 视觉副本——CSS 生效但视觉重复，不影响最终视觉但浪费切图体积；这是物理限制下的最优解
+
+---
+
 ---
 
 ## 3. 规则清单
@@ -189,14 +297,16 @@ SKILL.md 已实现这两条规则，但 spec §3.2 LAY 表只列到 LAY010，文
 |---|---|---|---|---|---|
 | `NAM001` | 容器无前缀 | 🟡 | P0 | 节点为 FRAME/GROUP/COMPONENT，子层 ≥ 2，名称不含任何已知前缀，**且不在 `img-` / `bg-` / `bgc-` / `x-` 不递归子树内**，**且父节点不是 `scrollx-` / `scrolly-` 列表容器**，且非 `sub-` 内部一级容器 | 加 `sub-`（不再建议 `block-`，避免嵌套语义混乱） |
 | `NAM002` | 前缀拼写错误 | 🔴 | P0 | 名称含 `bg_` / `Bg-` / `IMG-` / `img -` / `Scroll-X-` / `scroll_y-` 等已知前缀（含 `scrollx` / `scrolly`）的拼写变体 | 改为标准小写连字符 |
-| `NAM003` | 前缀语义冲突 | 🔴 | P0 | `img×bg`、`img×font`、`bg×bgc`、`x` 与任意其他前缀；以及 `scrollx`/`scrolly` 与 `img`/`bg`/`bgc`/`x`/`btn`/对方滚动方向 共存（参见主 SKILL §428-432 / §448 / §712） | 参考主 SKILL 组合优先级，二选一；scroll 容器内部用单独子节点表达图片/背景/可点击区域 |
-| `NAM004` | bg- 唯一性违反 | 🔴 | P0 | 同一父级下出现 ≥ 2 个 `bg-` 子层 | 仅保留一个 |
+| `NAM003` | 前缀语义冲突 | 🔴 | P0 | `img×bg`、`img×font`、`x` 与任意其他前缀；以及 `scrollx`/`scrolly` 与 `img`/`bg`/`bgc`/`x`/`btn`/对方滚动方向 共存（参见主 SKILL §428-432 / §448 / §712）。**注意：`bg`+`bgc` 不冲突**——分别写父级 `background-image` / `background-color`，可共存 | 参考主 SKILL 组合优先级，二选一；scroll 容器内部用单独子节点表达图片/背景/可点击区域 |
+| `NAM004` | bg- / bgc- 唯一性违反 | 🔴 | P0 | 同一父级下出现 ≥ 2 个 `bg-` 或 ≥ 2 个 `bgc-` 子层 | 仅保留一个 bg- 和一个 bgc-（CSS 父元素只能有一个 background-image 和一个 background-color） |
 | `NAM005` | 同级重名 | 🟡 | P0 | 同父级两个图层去前缀后 kebab-case 相同（如 `img-hero` 与 `bg-hero`） | 加业务后缀区分 |
 | `NAM006` | 命名质量差 | 🔵 | P1 | 去前缀后为：纯数字 / `Group \d+` / `Frame \d+` / `编组\d+` / 仅含 node-id | 改为语义化命名（kebab-case，英文优先） |
 | `NAM007` | 裸名图层（兜底警告） | 🔵 | P1 | 非 TEXT、无任何前缀、且子层 = 0 | 明确加 `img-` 或 `x-` |
-| `NAM008` | sub- 嵌套 sub- | 🔴 | P0 | `sub-` 节点的子树内还有 `sub-` 节点 | 仅保留外层或仅保留内层 |
+| `NAM008` | sub- 嵌套深度过深 | 🟡 | P0 | `sub-` 节点祖先链上已有 ≥ 2 个 `sub-`（嵌套深度 ≥ 3） | 拍平一层（外层是分组容器就去外层；内层能平就去内层） |
 | `NAM009` | sub- 粒度过细 | 🔵 | P2 | `sub-` 内可见图层 < 3 个 | 合并到父级 |
 | `NAM010` | 隐藏图层堆积 | 🔵 | P1 | 整稿 `visible:false` 节点占比 > 20% | 清理废稿 |
+| `NAM012` | bg- 应改为 bgc- | 🟡 | P0 | `bg-` 节点的 fills 全是 SOLID/简单 GRADIENT、strokes 空或 SOLID、effects 空或单一 DROP_SHADOW、子树纯净（无可见子节点） | 改名为 `bgc-{name}`，生成端用 CSS 实现（gradient + box-shadow + border-radius），不切位图 |
+| `NAM013` | bgc- 嵌在 bg- 子树内 | 🟡 | P0 | `bgc-` 节点祖先链上存在 `bg-` 节点 | 把 bgc- 移出 bg- 子树，作为 bg- 的兄弟节点，让 bgc- 直接挂在 bg- 的父元素下 |
 
 ### 3.2 Auto Layout / 布局合理性（LAY）
 

@@ -19,7 +19,8 @@
     "config-precheck": ".Knowledge/topics/f2s-config-precheck.md",
     "f2s-task": ".Knowledge/topics/f2s-task.md",
     "f2s-req-plan": ".Knowledge/topics/f2s-req-plan.md",
-    "ctrip-train-d2c-doctor": ".Knowledge/topics/ctrip-train-d2c-doctor.md"
+    "ctrip-train-d2c-doctor": ".Knowledge/topics/ctrip-train-d2c-doctor.md",
+    "ctrip-train-d2c": ".Knowledge/topics/ctrip-train-d2c.md"
   },
   "taskToTopicRules": [
     {
@@ -70,6 +71,14 @@
       "topics": [
         "ctrip-train-d2c-doctor"
       ]
+    },
+    {
+      "task": "ctrip-train-d2c",
+      "matcherId": "m-ctrip-train-d2c",
+      "matcherPath": ".Knowledge/matchers/m-ctrip-train-d2c.json",
+      "topics": [
+        "ctrip-train-d2c"
+      ]
     }
   ],
   "topicMetadata": {
@@ -106,6 +115,14 @@
       "tags": [
         "config",
         "module"
+      ]
+    },
+    "ctrip-train-d2c": {
+      "primary": "policy",
+      "confidence": "inferred",
+      "tags": [
+        "feature",
+        "config"
       ]
     }
   }

@@ -10,6 +10,8 @@
 - 直接 `$ctrip-train-d2c-doctor`
 - 被 `ctrip-train-d2c` 主 SKILL 在步骤 0 之后以集成模式调用
 
+> **执行模型重申**：SKILL.md 是自然语言操作手册，不是代码。"被主 SKILL 调用"实际是**同一个 agent 顺序读两份 SKILL.md 并按步骤执行**——没有真正的函数调用、跨进程通信。"集成模式 return JSON"指的是当前 agent 在对话里输出 §5.4 描述的 JSON 摘要，主 SKILL 后续步骤自己读这段输出继续推进。完整说明见主 SKILL 顶部「执行模型说明」。
+
 ---
 
 ## 执行流程
@@ -218,9 +220,11 @@ inNonRecursiveSubtree(node) =
 | NAM001 | 👤 设计师 | 低（5 分钟改图层名） | AI 无法识别独立模块，生成出来的 JSX 会拍平嵌套，少 sub-agent 拆分 |
 | NAM002 | 👤 设计师 | 低（改拼写） | 前缀不被识别，按"无前缀"处理 |
 | NAM003 | 👤 设计师 | 低（删一个前缀） | 多前缀冲突时按优先级裁掉，行为可能违反设计意图 |
-| NAM004 | 👤 设计师 | 低（合并/改名） | 同父级多个 bg- 时只保留第一个，其余被丢弃 |
+| NAM004 | 👤 设计师 | 低（合并/改名） | 同父级多个 bg- 或 bgc- 时只保留第一个，其余被丢弃（CSS 父元素只能有一个 background-image 和一个 background-color） |
 | NAM005 | 👤 设计师 | 低（重命名） | 资产文件名冲突，后导出的图覆盖前一张 |
-| NAM008 | 👤 设计师 | 中（重新组织 sub- 层级） | sub- 嵌套 sub-，分块逻辑异常 |
+| NAM008 | 👤 设计师 | 中（拍平一层 sub-） | sub- 嵌套深度 ≥ 3，主 agent 派发链路变长，通常可以去掉一层 |
+| NAM012 | 👤 设计师 | 低（改一个字母 b→bc） | bg- 但视觉可 CSS 表达，切位图会 banding / effect 外扩 / 文件冗余；改 bgc- 用 CSS 实现更优 |
+| NAM013 | 👤 设计师 | 低（移到 bg- 兄弟位置） | bgc- 嵌在 bg- 子树内，视觉会被位图化；移到 bg- 的同级位置才能正确挂到父元素 CSS |
 | LAY001 | 👤 设计师 | 中（启用 Auto Layout） | AI 靠坐标推断方向，间距/对齐易偏 |
 | LAY002 | 👤 设计师 | 低（padding 改非负） | 生成代码 padding 错乱 |
 | LAY009 | 👤 设计师 | 中（拆分叠层 / 改前缀） | AI 分不清叠层顺序，常猜错谁在上 |
@@ -277,29 +281,36 @@ inNonRecursiveSubtree(node) =
 且该 name 不已经命中标准前缀。→ message: `前缀拼写不规范：{matched}`
 → fix: `改为标准小写连字符前缀（bg-/img-/font-/btn-/sub-/block-/bgc-/x-/scrollx-/scrolly-）`
 
-#### 3.3 NAM003 前缀语义冲突（默认 error）
+#### 3.3 NAM003 前缀语义冲突(默认 error)
 
-`prefixes` 命中以下任一组合即报错。**冲突表**与主 SKILL `templates/skills/ctrip-train-d2c/SKILL.md` §428-432 / §448 / §712 完全对齐：
+`prefixes` 命中以下任一组合即报错。**冲突表**与主 SKILL `templates/skills/ctrip-train-d2c/SKILL.md` §428-432 / §448 / §712 完全对齐:
 
-| 冲突组合 | 根因（来自主 SKILL） |
+| 冲突组合 | 根因(来自主 SKILL) |
 |---------|--------|
-| `img` + `bg` | 一个生成 `<img>`、一个写父级 `background-image`，互斥 |
-| `img` + `font` | 一个整体导出图、一个生成文字节点，互斥 |
-| `bg` + `bgc` | 都写父级 background，但一个是 `background-image`、一个是 `background-color`，主 SKILL 没定义谁先谁后 |
-| `x` + 任意其他前缀 | `x-` 直接跳过，其他前缀全部失效，组合无意义 |
-| `scrollx` + `img` / `bg` / `bgc` / `x` / `btn` | scroll 容器不能是图片 / 背景 / 忽略节点 / 可点击区域（主 SKILL §448 / §712 禁止） |
+| `img` + `bg` | 一个生成 `<img>`、一个写父级 `background-image`,互斥 |
+| `img` + `font` | 一个整体导出图、一个生成文字节点,互斥 |
+| `x` + 任意其他前缀 | `x-` 直接跳过,其他前缀全部失效,组合无意义 |
+| `scrollx` + `img` / `bg` / `bgc` / `x` / `btn` | scroll 容器不能是图片 / 背景 / 忽略节点 / 可点击区域(主 SKILL §448 / §712 禁止) |
 | `scrolly` + `img` / `bg` / `bgc` / `x` / `btn` | 同上 |
-| `scrollx` + `scrolly` | 一个元素只能一个滚动方向（主 SKILL §447 / §712），由 LAY012 单独覆盖；NAM003 此处只标"前缀冲突"，等级与 LAY012 保持一致 |
+| `scrollx` + `scrolly` | 一个元素只能一个滚动方向(主 SKILL §447 / §712),由 LAY012 单独覆盖;NAM003 此处只标"前缀冲突",等级与 LAY012 保持一致 |
 
-→ message: `前缀语义冲突：{冲突的前缀对}`
-→ fix: `参考主 SKILL 组合优先级，二选一；scroll 容器内部用单独子节点表达图片/背景/可点击区域`
+> **`bg` + `bgc` 不冲突**(v0.2 修订):两者写的是父级 CSS 的不同属性(`background-image` vs `background-color`),可以共存。同一父级同时有 `bg-` 和 `bgc-` 子节点是合法设计——分别贡献父级背景图和背景色。
 
-#### 3.4 NAM004 bg- 唯一性违反（默认 error）
+→ message: `前缀语义冲突:{冲突的前缀对}`
+→ fix: `参考主 SKILL 组合优先级,二选一;scroll 容器内部用单独子节点表达图片/背景/可点击区域`
 
-按父节点分组，统计每个父节点下含 `bg` 前缀的可见子节点数。> 1 时，对**第二个及以后**的 bg- 节点逐一报错。
+#### 3.4 NAM004 bg- / bgc- 唯一性违反（默认 error，v0.2 扩展覆盖 bgc-）
 
-→ message: `同父级下出现多个 bg- 子层，按规则将忽略本节点`
-→ fix: `仅保留一个 bg-，其他改为 img- 或合并`
+按父节点分组，统计每个父节点下：
+- 含 `bg` 前缀的可见子节点数（不含 `bgc`）
+- 含 `bgc` 前缀的可见子节点数
+
+任一类型 > 1 时，对**第二个及以后**的同类节点逐一报错。
+
+> **CSS 物理限制**：一个父元素只能有一个 `background-image` 和一个 `background-color`/`background: gradient`。同父级 ≥ 2 个 `bg-` 或 ≥ 2 个 `bgc-` 都会让生成端必须丢弃多余的，行为不可预期。
+
+→ message: `同父级下出现多个 {bg/bgc}- 子层（{count} 个），CSS 父元素只能有一个 background-image 和一个 background-color，按规则将忽略本节点`
+→ fix: `仅保留一个 {bg-/bgc-}，其他改名（如 img- 用 <img> 表达 / 拆到不同父容器 / 移除冗余装饰）`
 
 #### 3.5 NAM005 同级重名（默认 warn）
 
@@ -308,12 +319,55 @@ inNonRecursiveSubtree(node) =
 → message: `同级重名：{nameClean}，资产文件名将冲突`
 → fix: `加业务后缀区分（如 hero-top / hero-bottom）`
 
-#### 3.6 NAM008 sub- 嵌套 sub-（默认 error）
+#### 3.6 NAM008 sub- 嵌套深度过深（默认 warn，原"sub- 嵌套 sub- error"已废弃）
 
-`prefixes` 含 `sub` 且祖先链上已有 `sub-` 节点。
+> **v0.2 修订**：sub- 嵌套 sub- 不再禁止——主 SKILL §107-145 已支持嵌套场景（外层 `sub-content` 含内层 `sub-card` + `sub-scrolly-车票列表` 是合法且推荐的设计模式）。本规则改为只在嵌套**过深**时告警。
 
-→ message: `sub- 嵌套 sub-，分块逻辑会异常`
-→ fix: `仅保留外层或仅保留内层 sub-`
+- 节点 `prefixes` 含 `sub`
+- 祖先链上已有 ≥ 2 个 `sub-` 节点（即当前节点的 sub- 深度 ≥ 3）
+
+→ problem: `sub- 嵌套深度 {depth}（当前节点 + 祖先 sub- 链 = {depth} 层），超过推荐上限 3 层`
+→ consequence: `深嵌套会让主 agent 派发链路变长，合并阶段 placeholder 展开成本高；通常意味着可以拍平一层（外层 sub- 拆细 / 内层 sub- 上提）`
+→ fix: `检查嵌套是否必要：若外层 sub- 仅是"分组容器"无独立模块语义，去掉外层 sub-；若内层独立模块完全可以平到外层，去掉内层 sub-`
+
+#### 3.6b NAM012 bg- 应改为 bgc-（默认 warn，v0.2 新增）
+
+> **目的**：识别"命名为 `bg-` 但视觉属性其实可以用 CSS 完全表达"的节点，提示设计师改成 `bgc-` 以避免位图渲染（banding / effect 外扩 / 文件冗余）。
+
+判定条件（**全部满足**才命中）：
+
+- 节点 `prefixes` 含 `bg`
+- 节点 `fills` 全部 ∈ `{SOLID, GRADIENT_LINEAR, GRADIENT_RADIAL}`，且不含 `IMAGE` 类型
+- 节点 `strokes` 为空 或 全部是 SOLID 类型
+- 节点 `effects` 为空 或 只有单一 `DROP_SHADOW`（INNER_SHADOW / LAYER_BLUR / BACKGROUND_BLUR 都让节点 CSS-unable，不命中）
+- 节点子树内**没有可见子节点**（boolean-operation / vector / 子 frame 都是空，或全部隐藏）
+
+→ problem: `bg- 节点 {nodeName} 的视觉属性（fills/strokes/effects）可以用 CSS 完全表达，无需切位图`
+→ consequence: `位图渲染的渐变会因缩放产生 banding（视觉劣化）；含 effects 时切出来的 PNG 边缘会"沾染"画板底色泄漏的视觉假象（实际是渐变浅色端 + 描边在圆角处的混合）；位图无法运行时主题切换`
+→ fix: `把图层名从 bg-{name} 改为 bgc-{name}。生成端会自动取 fills 写 background-color/background-image:linear-gradient(...)，strokes 写 border，effects 写 box-shadow，cornerRadius 写 border-radius，不再切图`
+
+> **配套兜底**：即使设计师没改，主 SKILL 的"`bg-` 切图前 CSS-able 自检"也会在生成时跳过切图、用 CSS 实现。但仍建议在设计稿层面修正命名——那是最干净的做法。
+
+#### 3.6c NAM013 bgc- 嵌在 bg- 子树内（默认 warn，v0.2 新增）
+
+> **目的**：识别"`bgc-` 节点错误地嵌在 `bg-` 子树内"的结构问题，提示设计师改成兄弟关系。
+
+判定条件：
+
+- 当前节点 `prefixes` 含 `bgc`
+- 祖先链上存在 `prefixes` 含 `bg`（不含 `bgc`）的节点
+
+**为什么是错误结构**：
+
+- bgc- 写父元素 CSS 的盒级属性（background-color / outline / box-shadow / border-radius），需要直接挂在父元素的同级位置才能"自然映射到父元素"
+- 嵌在 bg- 子树内意味着 bgc- 的视觉会被 bg- 整体切图位图化（无法用 CSS 单独控制 / 主题切换 / 选中态切换）
+- 即使生成端兜底"摘出来"按 bgc- 规则处理（详见主 SKILL §`bg-` 内嵌 `bgc-` 的处理），位图里仍有 bgc- 的视觉副本——CSS 生效但视觉重复，不影响最终视觉但浪费切图体积
+
+→ problem: `bgc-{name} 嵌在 bg-{ancestor name} 子树内（祖先链：{path}），结构不规范`
+→ consequence: `bgc- 视觉会被 bg- 整体切图位图化，CSS 端兜底处理也无法消除位图里的视觉副本（切图体积浪费 + 主题切换时 CSS 改了但位图不变）`
+→ fix: `在 Figma 中把 bgc-{name} 移出 bg-{ancestor name} 子树，作为 bg- 的兄弟节点（同级位置），让 bgc- 直接挂在 bg- 的父元素下`
+
+> **生成端兜底**：即使设计师不改，主 SKILL §`bg-` 内嵌 `bgc-` 的处理 会把 bgc- "摘出来"按 bgc- 规则写父元素 CSS，并强制输出告警。bg- 子树外（兄弟）也有 bgc- 时，按"兄弟优先"取兄弟那个。
 
 #### 3.7 LAY001 容器缺 Auto Layout（默认 warn）
 
@@ -639,20 +693,40 @@ out/
 
 #### 5.4 集成模式（integrated）
 
-不写文件，直接 return：
+集成模式下不写文件（避免污染 output 目录）。"return"在这里**不是函数返回**——SKILL.md 里没有真函数。实际行为是：**当前正在执行 doctor 流程的 agent，在对话里输出下面这段 JSON 字符串作为体检摘要**，主 SKILL 后续步骤（§0.5 决策表）从同一个对话上下文读这段 JSON 继续推进：
 
-```
+```jsonc
 {
-  passed: boolean,
-  score: { total, grade, dimensions, coverage },
-  issues: [...],          // 含 problem / consequence / fix 三字段
-  summary: { error, warn, info },
-  todoByRole: {
-    designer: [...],       // 设计师待办（聚合后的精简清单）
-    developer: [...]       // 开发待办
+  "passed": true,                  // grade !== 'F'
+  "score": {
+    "total": 85,
+    "grade": "B",
+    "dimensions": { /* NAM/LAY/STR/STY/AST/FEA */ },
+    "coverage": { /* namedPrefixCoverage / autoLayoutCoverage / depthAvg / depthMax / hiddenRatio */ }
+  },
+  "issues": [
+    {
+      "id": "NAM001",
+      "level": "warn",                                                    // error / warn / info
+      "nodeId": "69:1846",
+      "nodeName": "编组",
+      "nodePath": "/.../scrolly-车票列表/编组",
+      "problem": "...",                                                   // 客观事实
+      "consequence": "...",                                               // 不修会怎样
+      "fix": "...",                                                       // 怎么修
+      "figmaUrl": "https://figma.com/design/{fileKey}/?node-id=69-1846"
+    }
+    // ...
+  ],
+  "summary": { "error": 0, "warn": 5, "info": 2 },
+  "todoByRole": {
+    "designer": [ /* 设计师待办（聚合后的精简清单）*/ ],
+    "developer": [ /* 开发待办 */ ]
   }
 }
 ```
+
+> **不要尝试调用 `return X` 风格的语句**——这是 SKILL.md 描述输出契约的伪代码语法，不是 JavaScript。实际执行时，把这段 JSON 当文本写在对话里就够了。
 
 #### 5.5 对话内摘要（两种模式都打印）
 
@@ -679,9 +753,11 @@ out/
 
 ---
 
-## 步骤 6：返回值（仅集成模式）
+## 步骤 6：输出体检摘要给主 SKILL（仅集成模式）
 
-向主 SKILL return 步骤 5.4 的结构。主 SKILL 自行处理阻塞逻辑。
+集成模式下，doctor 流程到这一步要做的事：**当前 agent 在对话里输出 §5.4 描述的 JSON 摘要**。主 SKILL 的下一步（§0.5 决策表）会从同一对话上下文读这段 JSON 继续推进，不存在跨进程"return"。
+
+> 独立模式（standalone）不走这一步——独立模式按 §5.1 / §5.3 写磁盘 .md / .json 文件 + 在对话里打印 §5.5 摘要即可。
 
 ---
 
@@ -713,20 +789,23 @@ doctor 在外部表现"长时间无响应"时，**99% 卡在步骤 2.1**（`get_
 
 ## 与主 SKILL 的协议
 
+> **重申**：主 SKILL 与 doctor 之间没有真正的函数调用——只有同一个 agent 顺序读两份 SKILL.md 并执行步骤。下面"输入/输出"是描述**信息流约定**：主 SKILL 在 §0.5 准备好哪些上下文（即"输入"），doctor 流程结束时在对话里输出哪些字段（即"输出"），主 SKILL 后续步骤再读取继续推进。
+
 集成调用约定：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| 输入 `fileKey` | string | 必填 |
-| 输入 `nodeId` | string | 必填，`:` 形式 |
-| 输入 `config` | object | 完整 ctrip-train-d2c.config.json |
-| 输入 `mode` | `'integrated'` | 必填，标识集成模式 |
+| 输入 `fileKey` | string | 必填，由主 SKILL §1 解析得到 |
+| 输入 `nodeId` | string | 必填，`:` 形式（主 SKILL §1 已经把 URL 里的 `-` 转成 `:`）|
+| 输入 `config` | object | 完整 ctrip-train-d2c.config.json，主 SKILL §0 已读取 |
+| 输入 `mode` | `'integrated'` | 当前 agent 进入 doctor 流程时**自我设定**的执行约束:不写磁盘文件、最后输出 JSON 摘要 |
 | 输出 `passed` | boolean | grade !== 'F' |
 | 输出 `score` | object | 见步骤 4 |
 | 输出 `issues` | array | 见步骤 3 |
 | 输出 `summary` | object | `{ error, warn, info }` |
+| 输出 `todoByRole` | object | `{ designer, developer }`，见步骤 5.4 |
 
-主 SKILL 在拿到结果后：
+主 SKILL §0.5 在读到这份 JSON 摘要后:
 - `passed === false && config.health.blockOnError === true` → 输出阻塞提示，等用户确认是否强制继续
 - `passed === true && error === 0 && warn > 0` → 简短提示警告数，继续生成
 - `passed === true && error === 0 && warn === 0` → 静默继续生成
