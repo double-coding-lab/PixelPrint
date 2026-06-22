@@ -1,19 +1,20 @@
 {
   "name": "@ctrip/train-d2c",
-  "version": "1.0.0",
-  "description": "携程火车票 Figma D2C 工具 —— 一键安装 Claude Code Skill，自动将 Figma 设计稿转换为前端代码",
-  "main": "bin/install.js",
+  "version": "0.2.1",
+  "description": "携程火车票 Figma D2C 工具 —— 一键安装 Claude Code Skill,自动将 Figma 设计稿转换为前端代码",
   "bin": {
     "ctrip-train-d2c": "bin/install.js"
   },
   "scripts": {
-    "postinstall": "node bin/install.js",
     "init": "node bin/install.js init"
   },
   "files": [
     "bin/",
     "templates/"
   ],
+  "engines": {
+    "node": ">=14"
+  },
   "keywords": [
     "figma",
     "d2c",
@@ -22,6 +23,6 @@
     "claude-code",
     "skill"
   ],
-  "author": "ctrip-train-fe",
+  "author": "兰涛",
   "license": "MIT"
 }

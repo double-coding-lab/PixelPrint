@@ -342,9 +342,24 @@ async function runInit() {
 
 const cmd = process.argv[2]
 
+function printHelp() {
+  console.log(`
+Usage:
+  npx @ctrip/train-d2c init      交互式初始化项目（推荐）
+  npx @ctrip/train-d2c install   仅复制模板文件，不进入交互
+  npx @ctrip/train-d2c help      显示本帮助
+`)
+}
+
 if (cmd === 'init') {
   runInit().catch(err => { console.error(err); process.exit(1) })
-} else {
+} else if (cmd === 'install') {
   installFiles()
   console.log('done. 运行 npx @ctrip/train-d2c init 完成环境配置。\n')
+} else if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
+  printHelp()
+} else {
+  console.error(`Unknown command: ${cmd}\n`)
+  printHelp()
+  process.exit(1)
 }
