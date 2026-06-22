@@ -156,9 +156,10 @@ async function runInit() {
   const fig = existing.figma || {}
   const out = existing.output || {}
 
-  console.log('─── 阶段一：Figma MCP 检测 ──────────────────────────\n')
-  console.log('  Figma 官方 MCP 需要在 Claude Code 中手动安装插件，无法通过命令行自动配置。\n')
-  console.log('  如果尚未安装，请按以下步骤操作：')
+  console.log('─── 阶段一：Figma MCP 安装提示 ──────────────────────\n')
+  console.log('  ⚠️  init 脚本运行在终端进程里，无法直接验证 Claude Code 内的 MCP 状态。')
+  console.log('  实际可用性会在 Claude 跑 SKILL 步骤 -1 时调 whoami 探针验证。\n')
+  console.log('  如果尚未安装 Figma 官方 MCP，请按以下步骤操作：')
   console.log('  1. 打开 Claude Code')
   console.log('  2. 进入 Settings → Extensions（或直接搜索 Figma）')
   console.log('  3. 找到 Figma 官方插件，点击安装')
@@ -329,7 +330,8 @@ async function runInit() {
   }
 
   console.log('\n─────────────────────────────────────────────────────')
-  console.log('  ⚠️  Figma MCP 需在 Claude Code 中手动安装（见阶段一引导）')
+  console.log('  ⚠️  Figma MCP 需在 Claude Code 中手动安装并完成 OAuth（见阶段一引导）')
+  console.log('     init 脚本无法直接验证；Claude 跑 SKILL 步骤 -1 时会调 whoami 探针验证。')
   console.log('  ✓ ctrip-train-d2c.config.json 已配置')
   console.log('  ✓ code-connect/mappings.json 已就绪')
   console.log('\n  Figma MCP 安装完成后，把设计稿链接发给 Claude：')

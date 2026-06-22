@@ -33,17 +33,56 @@
 
 在任何操作前执行，不可跳过。
 
-尝试调用 Figma MCP 工具，根据结果判断：
+**做法**：调用一个**最便宜的 MCP 工具**做探针——优先 `mcp__plugin_figma_figma__whoami`（无参数、无副作用、返回当前 Figma 用户身份）。如果项目里看不到这个工具，用 `mcp__plugin_figma_figma__get_metadata` 传一个**已知合法的 fileKey + nodeId**（从用户输入的 URL 解析出来）作为替代探针。
 
-| 结果 | 处理 |
-|------|------|
-| 调用成功 | 继续步骤 0 |
-| 工具不存在 / 调用失败 | 输出提示并终止 |
+**按返回结果分三种状态精准定位**：
 
-**失败时输出**：
+| 返回类型 | 含义 | 处理 |
+|---------|------|------|
+| 调用成功（whoami 返回用户名 / get_metadata 返回节点树） | MCP 已装、已认证、工作正常 | 继续步骤 0 |
+| `Tool not found` / `Unknown tool` / 工具列表里**完全找不到** `mcp__plugin_figma_figma__*` | **MCP 完全没装** | 输出「未装」提示并终止 |
+| 调用返回 `Unauthorized` / `Not authenticated` / `401` 且**错误来源是 MCP 工具本身**（不是 Figma REST API） | MCP 装了但未完成 OAuth 认证 | 输出「未认证」提示并终止 |
+| 调用返回 `403` / `Permission denied` / `Access denied` | MCP 装了但当前账号没有该 fileKey 的访问权限 | 输出「无权限」提示并终止 |
+| 调用返回其他业务错误（如 `Invalid node-id` / `File not found`） | MCP 工作正常，是用户输入有问题 | 继续步骤 0（让步骤 1 解析 URL 时再细化报错） |
+
+**三种失败提示文案**（精准提示，不让用户瞎猜）：
+
+**未装**：
 ```
-Figma MCP 未就绪，请先在 Claude Code 中安装 Figma 官方插件并完成认证后再重试。
+❌ Figma MCP 未安装
+
+请在 Claude Code 中安装 Figma 官方插件：
+1. 打开 Claude Code Settings → Extensions
+2. 搜索 "Figma" 找到官方插件并点击安装
+3. 安装完成后在 Figma 插件设置中完成 OAuth 认证
+4. 重新运行本 SKILL
+
+更多信息见：https://www.figma.com/community/plugin/...
 ```
+
+**未认证**：
+```
+❌ Figma MCP 已安装但未完成认证
+
+请完成 OAuth 流程：
+1. 在 Claude Code 中打开 Figma 插件设置
+2. 点击 "Sign in with Figma" 按钮完成浏览器 OAuth
+3. 认证成功后重新运行本 SKILL
+```
+
+**无权限**：
+```
+❌ 当前 Figma 账号无权限访问该设计稿
+
+可能原因：
+1. 当前登录的 Figma 账号不是该稿子的成员
+2. 该稿子是私有文件，未邀请你查看
+3. URL 里的 fileKey 错误
+
+请检查或更换账号后重试。
+```
+
+> **关键区分**：`401` / `403` **不一定**都是 MCP 问题——也可能是步骤 4.3 图片导出阶段的 REST API token 过期（走兜底链 L1）。判定方法：**MCP 工具自己的报错**才是 MCP 状态问题；**REST API curl 返回的 401**是 token 问题。
 
 ---
 

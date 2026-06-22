@@ -227,6 +227,7 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 | 设计稿里有"吸顶/吸底/悬浮"语义但没有对应前缀，AI 全部生成 `position: absolute` 跟随滚动 | layer 前缀体系缺"视口固定定位"语义 | 新增 `fixed-` 修饰前缀（SKILL §`fixed-` 定位规则 + doctor NAM014/LAY013 + design-guide.md 同步） |
 | init 第 2 题「样式方案」单选 `scss/css-modules/tailwind/inline`，less 项目无法表达；"scss + module" 也勾不出来 | 两个独立维度（预处理语法 / 是否走 module）压到一个单选里 | install.js 拆成 [2a] 样式方式 + [2b] 预处理语法 + [2c] 是否走 module；styleFormat 扩展到 8 种值；SKILL §0 加「样式方案标识符」表，§2.5 探测分支泛化到 scss/less/css，§4.5 框架适配表补全 |
 | init 第二阶段所有题目都显示「沿用现有配置」，但项目里其实没 config 文件 | `runInit()` 先调 `installFiles(true)` 把 templates 模板复制过去，再读 existing，读到的是 templates 默认值 | `runInit()` 调换顺序：先读 existing → 再 `installFiles(true, true)`（init 模式不复制 templates config 模板） |
+| MCP 没装时 Claude 跑半套流程才回退报错；原 §步骤 -1 只区分"成功 / 失败"两态，分不清「未装 / 未认证 / 无权限」 | 探针太粗（只描述"尝试调用 MCP 工具"）+ install.js 阶段一假装"检测"实际只打印说明 | SKILL §步骤 -1 改为调 `whoami` 最便宜探针，按错误类型精准分 4 态（未装 / 未认证 / 无权限 / 业务错误），每种给独立提示文案；install.js 阶段一改名「安装提示」并明示无法验证 |
 
 ## 不在本 topic 覆盖的内容
 
