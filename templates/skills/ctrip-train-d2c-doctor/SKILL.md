@@ -225,12 +225,14 @@ inNonRecursiveSubtree(node) =
 | NAM008 | 👤 设计师 | 中（拍平一层 sub-） | sub- 嵌套深度 ≥ 3，主 agent 派发链路变长，通常可以去掉一层 |
 | NAM012 | 👤 设计师 | 低（改一个字母 b→bc） | bg- 但视觉可 CSS 表达，切位图会 banding / effect 外扩 / 文件冗余；改 bgc- 用 CSS 实现更优 |
 | NAM013 | 👤 设计师 | 低（移到 bg- 兄弟位置） | bgc- 嵌在 bg- 子树内，视觉会被位图化；移到 bg- 的同级位置才能正确挂到父元素 CSS |
+| NAM014 | 👤 设计师 | 低（拆分前缀 / 移位） | fixed- 叠加在 bg-/bgc-/x- 上，没有节点可挂，定位失效 |
 | LAY001 | 👤 设计师 | 中（启用 Auto Layout） | AI 靠坐标推断方向，间距/对齐易偏 |
 | LAY002 | 👤 设计师 | 低（padding 改非负） | 生成代码 padding 错乱 |
 | LAY009 | 👤 设计师 | 中（拆分叠层 / 改前缀） | AI 分不清叠层顺序，常猜错谁在上 |
 | LAY010 | 👤 设计师 | 低（加 fill）/ 可忽略 | 顶层无背景，整屏由项目兜底色（通常是白底） |
 | LAY011 | 👤 设计师 | 低（固定宽/高） | scroll 容器宽/高不固定，运行时滚动不触发 |
 | LAY012 | 👤 设计师 | 低（删一个方向） | 双向滚动冲突，生成代码 scrolly 失效 |
+| LAY013 | 👤 设计师 | 中（移位 / 去除祖先 transform） | fixed- 祖先链含 transform/filter/blur，CSS 规范下 fixed 退化为相对祖先定位，跟着祖先滚动 |
 | STR001 | 👤 设计师 | 中（拍平 wrapper） | 生成的 DOM 多余嵌套，调试不便（不影响视觉） |
 | STR002 | 👤 设计师 | 低（删壳） | 同上 |
 | AST002 | 👤 设计师 | 低（调 bg- 尺寸） | bg- 露白，背景图未铺满父容器 |
@@ -293,6 +295,7 @@ inNonRecursiveSubtree(node) =
 | `scrollx` + `img` / `bg` / `bgc` / `x` / `btn` | scroll 容器不能是图片 / 背景 / 忽略节点 / 可点击区域(主 SKILL §448 / §712 禁止) |
 | `scrolly` + `img` / `bg` / `bgc` / `x` / `btn` | 同上 |
 | `scrollx` + `scrolly` | 一个元素只能一个滚动方向(主 SKILL §447 / §712),由 LAY012 单独覆盖;NAM003 此处只标"前缀冲突",等级与 LAY012 保持一致 |
+| `fixed` + `bg` / `bgc` / `x` | `fixed-` 需要"挂在节点上"才能生效;`bg-` / `bgc-` 不生成节点(写父元素 CSS),`x-` 跳过整层。由 NAM014 单独覆盖(error);NAM003 此处只标"前缀冲突",等级与 NAM014 保持一致 |
 
 > **`bg` + `bgc` 不冲突**(v0.2 修订):两者写的是父级 CSS 的不同属性(`background-image` vs `background-color`),可以共存。同一父级同时有 `bg-` 和 `bgc-` 子节点是合法设计——分别贡献父级背景图和背景色。
 
@@ -369,6 +372,26 @@ inNonRecursiveSubtree(node) =
 
 > **生成端兜底**：即使设计师不改，主 SKILL §`bg-` 内嵌 `bgc-` 的处理 会把 bgc- "摘出来"按 bgc- 规则写父元素 CSS，并强制输出告警。bg- 子树外（兄弟）也有 bgc- 时，按"兄弟优先"取兄弟那个。
 
+#### 3.6d NAM014 fixed- 与不生成节点的前缀叠加（默认 error，v0.2 新增）
+
+> **目的**：识别 `fixed-` 错误地叠加在 `bg-` / `bgc-` / `x-` 上的命名，提示设计师拆分。
+
+判定条件：
+
+- 节点 `prefixes` 含 `fixed`
+- 同节点 `prefixes` 还含 `bg` 或 `bgc` 或 `x`
+
+**为什么是错误结构**：
+
+- `fixed-` 通过给生成的 HTML 节点加 `position: fixed` 起作用，需要"有节点"才能生效
+- `bg-` / `bgc-` 不生成独立 HTML 节点（写到父元素 CSS），`fixed-` 落不到节点上
+- `x-` 跳过整层，`fixed-` 直接随之失效
+- 如果设计师想做"固定位置的背景"，应该把 `fixed-` 加在父节点上，而不是叠到 `bg-` / `bgc-` 上
+
+→ problem: `fixed- 与 {bg/bgc/x}- 叠加在同一节点（{nodeName}），fixed 无法挂载到不生成节点的前缀`
+→ consequence: `生成端忽略 fixed-；位图/装饰仍按父元素 CSS 表达，无法定位到视口`
+→ fix: `如需"固定位置的背景"：把 fixed- 移到父节点（父节点变成 fixed-Container），bg-/bgc- 保留为子节点。如需"固定的可点击/可滚动区域"：fixed-btn-/fixed-sub-/fixed-scrolly- 都合法`
+
 #### 3.7 LAY001 容器缺 Auto Layout（默认 warn）
 
 - 节点 `type === 'FRAME'`
@@ -427,6 +450,28 @@ inNonRecursiveSubtree(node) =
 → problem: `同一节点同时含 scrollx- 和 scrolly-`
 → consequence: `生成代码按 scrollx- 处理，scrolly- 失效；运行时滚动行为不可预期`
 → fix: `在 Figma 中只保留一个滚动方向；如确实需要二维滚动，请拆成两层嵌套（外层 scrolly + 内层 scrollx）`
+
+#### 3.9e LAY013 fixed- 祖先链含 transform（默认 warn，v0.2 新增）
+
+> **目的**：识别 `fixed-` 节点的祖先链上有可能让 `position: fixed` 退化为"相对祖先定位"的 CSS 属性来源。
+
+判定条件（**任一满足**即命中）：
+
+- 节点 `prefixes` 含 `fixed`
+- 祖先链上存在节点带以下属性（按以下顺序优先级判断）：
+  - Figma `effects` 含 `LAYER_BLUR` / `BACKGROUND_BLUR`（生成端转 `filter: blur()` / `backdrop-filter: blur()`，触发 fixed 退化）
+  - 祖先节点本身也是 `bgc-` 且取到的 effects 含 `LAYER_BLUR`（同上）
+  - 祖先节点带可能让生成端写 `transform` 的特征：rotation ≠ 0（生成 `transform: rotate(...)`）/ scale ≠ 1（生成 `transform: scale(...)`）
+
+**为什么命中也只是 warn**：
+
+- CSS 规范里祖先有 `transform` / `filter` / `perspective` 时，`position: fixed` 退化为"相对该祖先定位"。运行时表现是"fixed 节点跟着祖先滚动 / 不相对视口"
+- 但 D2C 大多数场景祖先链不会有这些属性（设计稿少用 rotation/blur），所以是 warn 不是 error
+- 生成端**不自动用 Portal 外挂**（重量级 + 跨组件副作用），由设计师/开发把 fixed- 节点上提到根 frame 或祖先去掉 transform
+
+→ problem: `fixed- 节点 {nodeName} 的祖先链上存在 transform/filter 来源（祖先：{ancestorName} → {属性}）`
+→ consequence: `运行时 position: fixed 退化为相对该祖先定位，fixed- 节点会跟着祖先滚动，不再贴视口`
+→ fix: `推荐：把 fixed- 节点在 Figma 中上提到顶层 frame 的直接子节点（避开有 transform/filter 的祖先）。次选：去掉祖先节点的 rotation / scale / blur 效果。如果业务场景必须保留祖先效果，开发端需要手动加 React Portal 把 fixed- 节点挂到 document.body`
 
 #### 3.10 STR001 嵌套深度过深（默认 warn）
 

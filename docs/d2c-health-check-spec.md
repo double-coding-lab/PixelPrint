@@ -282,6 +282,21 @@ Figma `/v1/images` API 不支持切图时排除某个子节点，这是 API 层�
 
 ---
 
+### 2.10 fixed- 视口固定定位前缀新增（v0.2 新增）
+
+**根因**：旧前缀体系只有"渲染前缀"（决定怎么画）和"分块前缀"（决定怎么拆 sub-agent），缺"定位修饰前缀"。设计稿里"吸顶 nav / 吸底 tab / 悬浮回顶 / 固定浮层入口"语义无法表达，AI 一律按 `position: absolute` 跟随滚动，运行时表现不符设计意图。
+
+**对策**：
+
+1. **主 SKILL §`fixed-` 定位规则**：新增"修饰前缀"概念——`fixed-` 只改 `position`，不改渲染方式，可与所有"生成节点"的前缀叠加（sub-/block-/btn-/img-/font-/scrollx-/scrolly-），不可与"不生成节点"的前缀叠加（bg-/bgc-/x-，doctor NAM014 命中后 error）
+2. **top/bottom/left/right 取值依赖 Figma `constraints`**：按 horizontal / vertical 的 TOP / BOTTOM / LEFT / RIGHT / CENTER 推断 CSS 定位，不直接读 absoluteBoundingBox 坐标。constraints 缺失时退化为绝对坐标 + 强制 QA 告警
+3. **doctor §3.6d NAM014**（error）：识别 `fixed-` + `bg-`/`bgc-`/`x-` 叠加的命名错误
+4. **doctor §3.9e LAY013**（warn）：识别祖先链含 `transform`/`filter`/`perspective`/blur 导致 fixed 退化为相对祖先定位的 CSS 副作用
+5. **install.js runInit() 改 spread merge**：从 `existing.layers || 默认` 整体短路改为 `{ ...默认, ...(existing.layers || {}) }` 字段级 merge，让老项目 re-init 时自动补 `fixed: "fixed-"`（以及未来新增的任何字段），无需用户手改 config
+6. **design-guide.md / topic / matcher 同步**：设计师指南加 fixed- 段落 + 速查表行 + 组合示例；topic 加 §7 + 工具链/配置项/边界/历史 bug 段同步；matcher 加 14 个新关键词
+
+---
+
 ---
 
 ## 3. 规则清单
@@ -307,6 +322,7 @@ Figma `/v1/images` API 不支持切图时排除某个子节点，这是 API 层�
 | `NAM010` | 隐藏图层堆积 | 🔵 | P1 | 整稿 `visible:false` 节点占比 > 20% | 清理废稿 |
 | `NAM012` | bg- 应改为 bgc- | 🟡 | P0 | `bg-` 节点的 fills 全是 SOLID/简单 GRADIENT、strokes 空或 SOLID、effects 空或单一 DROP_SHADOW、子树纯净（无可见子节点） | 改名为 `bgc-{name}`，生成端用 CSS 实现（gradient + box-shadow + border-radius），不切位图 |
 | `NAM013` | bgc- 嵌在 bg- 子树内 | 🟡 | P0 | `bgc-` 节点祖先链上存在 `bg-` 节点 | 把 bgc- 移出 bg- 子树，作为 bg- 的兄弟节点，让 bgc- 直接挂在 bg- 的父元素下 |
+| `NAM014` | fixed- 与不生成节点的前缀叠加 | 🔴 | P0 | 节点 `prefixes` 同时含 `fixed` 和 `bg` / `bgc` / `x` 中任一个 | 拆分前缀：若要"固定背景"，把 `fixed-` 移到父节点（父变 `fixed-{name}`），`bg-`/`bgc-` 保留为子节点 |
 
 ### 3.2 Auto Layout / 布局合理性（LAY）
 
@@ -324,6 +340,7 @@ Figma `/v1/images` API 不支持切图时排除某个子节点，这是 API 层�
 | `LAY010` | 顶层 frame 背景缺失 | 🔵 | P0 | 检查目标根节点 fills 为空/全透明 | Figma 顶层 frame 加 fill；否则确认走项目兜底色 |
 | `LAY011` | scroll 容器尺寸不固定 | 🟡 | P0 | `prefixes` 含 `'scrollx'` / `'scrolly'`，对应方向尺寸为 Hug Contents 或 fill 100% 父容器（且祖先链上没有固定值） | 把容器对应方向尺寸改为固定值；或确保父容器有限宽/限高 |
 | `LAY012` | scroll 方向冲突 | 🔴 | P0 | `prefixes` 同时含 `'scrollx'` 和 `'scrolly'` | 只保留一个滚动方向；二维滚动用两层嵌套 |
+| `LAY013` | fixed- 祖先链含 transform | 🟡 | P1 | 节点 `prefixes` 含 `fixed`，且祖先链上存在节点带可生成 `transform`/`filter`/`backdrop-filter` 的属性（rotation ≠ 0、scale ≠ 1、effects 含 `LAYER_BLUR` / `BACKGROUND_BLUR`） | 把 `fixed-` 节点上提到根 frame 的直接子节点；或去掉祖先的 rotation/scale/blur；业务必须保留时由开发手动加 React Portal |
 
 > **scroll 字段命名约定**：`prefixes` 数组里存放从 `name` 提取的**小写前缀字符串**（`'scrollx'` / `'scrolly'`），不是 config 字段名（`layers.scrollX` / `layers.scrollY`）。规则判断以 `prefixes` 内容为准。
 

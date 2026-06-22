@@ -76,6 +76,7 @@ Read("ctrip-train-d2c.config.json")
 | `layers.but` | 可点击区域前缀，默认 `btn-` |
 | `layers.scrollX` | 横向滚动容器前缀，默认 `scrollx-` |
 | `layers.scrollY` | 纵向滚动容器前缀，默认 `scrolly-` |
+| `layers.fixed` | 视口固定定位前缀，默认 `fixed-` |
 | `layers.ignore` | 忽略前缀，默认 `x-` |
 | `output.dir` | 代码输出根目录 |
 | `health.enabled` | 是否启用前置体检（默认 true） |
@@ -512,6 +513,7 @@ get_design_context(fileKey, nodeId)
 | `font-`（`layers.font`） | 文字内容 | 生成文字节点，继续递归 |
 | `scrollx-`（`layers.scrollX`） | 横向滚动容器 | 容器开 `overflow-x: auto`、子元素 `flex-shrink: 0`、隐藏滚动条；**继续递归子层** |
 | `scrolly-`（`layers.scrollY`） | 纵向滚动容器 | 容器开 `overflow-y: auto`、隐藏滚动条；**继续递归子层** |
+| `fixed-`（`layers.fixed`） | 视口固定定位 | 在当前节点对应的容器上加 `position: fixed`，相对视口定位；top/bottom/left/right 根据 Figma constraints 推断；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `font-` / `scrollx-` / `scrolly-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加（这三个不生成节点，没法 fixed） |
 
 **无前缀兜底规则**
 
@@ -532,6 +534,7 @@ get_design_context(fileKey, nodeId)
 8. 无内容前缀 → 走兜底规则
 9. 若有 `btn-`，将渲染结果包裹在可点击容器内
 10. 若有 `scrollx-` / `scrolly-`，给当前容器加 overflow 样式（**不新增 wrapper**，直接作用在当前节点对应的容器上）
+11. 若有 `fixed-`，在最终容器上加 `position: fixed` + 根据 Figma constraints 推断 top/bottom/left/right（详见下文 **`fixed-` 定位规则**）
 
 **`bg-` 的额外规则**
 
@@ -684,6 +687,44 @@ get_design_context(fileKey, nodeId)
 - 只有**明确的浮层/弹窗/角标**（设计上确实需要脱离文档流的元素）才允许使用 `position: absolute`
 
 > `layers.sub`（`sub-`）前缀仅用于步骤 2 的分块判断，sub-agent 拿到的 nodeId 已是该节点本身，内部按上述规则正常解析。
+
+**`fixed-` 定位规则（v0.2 新增）**
+
+`fixed-` 是**定位修饰前缀**——只改 `position` 属性，不决定渲染方式。可与所有"生成节点"的前缀叠加（`sub-` / `block-` / `btn-` / `img-` / `font-` / `scrollx-` / `scrolly-`），不可与"不生成节点"的前缀叠加（`bg-` / `bgc-` / `x-`，doctor NAM014 命中后 error）。
+
+**top/bottom/left/right 的取值（依赖 Figma `constraints`）**：
+
+1. 调用 `get_design_context(fileKey, fixedNodeId)` 拿 `constraints` 字段（包含 `horizontal` / `vertical`）
+2. 按下表把 Figma 坐标换算成 CSS 定位（换算遵循步骤 4.4 单位换算规则）：
+
+| Figma constraint | CSS 写法 | 取值来源 |
+|------------------|---------|---------|
+| `vertical: 'TOP'` | `top: <figma top>px` | 节点 `absoluteBoundingBox.y` |
+| `vertical: 'BOTTOM'` | `bottom: <viewport.h - figma bottom>px` | viewport 用顶层 frame 高度近似 |
+| `vertical: 'CENTER'` | `top: 50%; transform: translateY(-50%)` | — |
+| `vertical: 'TOP_BOTTOM'` / `SCALE` | 退化为 `top: <figma top>px` + QA 告警 | constraints 表达不了 fixed 语义 |
+| `horizontal: 'LEFT'` | `left: <figma left>px` | 节点 `absoluteBoundingBox.x` |
+| `horizontal: 'RIGHT'` | `right: <viewport.w - figma right>px` | viewport.w = `unit.figmaBase`（默认 375） |
+| `horizontal: 'CENTER'` | `left: 50%; transform: translateX(-50%)` | — |
+| `horizontal: 'LEFT_RIGHT'` / `SCALE` | 退化为 `left: <figma left>px` + QA 告警 | 同上 |
+
+**示例**：`fixed-btn-back-top`（回顶按钮，Figma 中 constraints = `{vertical: 'BOTTOM', horizontal: 'RIGHT'}`，坐标 right=24 / bottom=120）
+
+```scss
+.fixed-btn-back-top {
+  position: fixed;
+  right: 48px;     // 24 * scale=2
+  bottom: 240px;   // 120 * scale=2
+  z-index: 100;    // 见下方 z-index 规则
+  // ...其他从图层提取的样式
+}
+```
+
+**z-index**：fixed- 元素默认 `z-index: 100`（高于内容层但低于 PopLayer 等浮层）。同页面多个 fixed- 时按设计稿前后顺序递增（100 / 101 / 102 …），sub-agent 在 QA 段落里标注实际取值。
+
+**祖先 transform 警告**：CSS 规范里祖先元素若有 `transform` / `filter` / `perspective`，子代 `position: fixed` 会退化成相对该祖先定位（不再相对视口）。生成端**不自动用 Portal 外挂**，但 doctor LAY013 会扫描 fixed- 节点的祖先链，命中时 warn 提示设计师/开发把 fixed- 节点上提到根 frame 或祖先去掉 transform。
+
+**Figma 中没设 constraints**：退化为"按 absoluteBoundingBox 算 left/top"，**强制输出 QA 告警**："`fixed-{name}` 未设 Figma constraints，已退化为绝对坐标定位，滚动场景下可能错位，建议设计师补 constraints"。
 
 #### 4.3 图片处理
 
@@ -1065,3 +1106,6 @@ export default function Content() {
 - 禁止 sub-agent 自己派发孙 sub-agent（即 sub-agent 直接发起新 agent 处理内层 sub-）：嵌套 sub- 必须走「sub-agent 写 placeholder + subslots.json → 主 agent 收集 → 主 agent 派发」的链路。sub-agent 自己派孙会让主 agent 失去全局清单视角，合并阶段的 placeholder 展开和 §6.0 接缝检查易漏
 - 禁止 sub-agent 在子树扫描时递归到比"自己直接子层"更深的 sub-：每个 sub-agent 只上报自己直接发现的内层 sub-，更深的层由对应内层 sub-agent 自己扫描上报。这保证「每层独立上下文」，避免单个 sub-agent 看到整棵子树
 - 禁止合并阶段（§5）残留任何 `<__SUBSLOT__>` 标签：合并完成后必须运行 `grep -r "__SUBSLOT__" {output.dir}` 检查，有命中即合并失败，必须排查 placeholder 未展开的 block
+- 禁止 `fixed-` 与 `bg-` / `bgc-` / `x-` 叠加：这三个前缀不生成节点（bg- / bgc- 写到父元素 CSS，x- 跳过），没有节点就没法 `position: fixed`。doctor NAM014 命中后 error。要做"固定背景"请把 fixed- 加在父节点上，bg- 仍写父节点 background
+- 禁止 `fixed-` 节点写代码时省略 z-index：fixed 元素脱离文档流，没有 z-index 在不同浏览器栈顺序不稳定；默认 100，多个 fixed- 时按设计稿前后顺序递增（100/101/102…）
+- 禁止 `fixed-` 节点跳过 Figma constraints 读取：top/bottom/left/right 必须按 constraints 推断（详见 §`fixed-` 定位规则）；只在 constraints 缺失时退化为绝对坐标 + 强制 QA 告警

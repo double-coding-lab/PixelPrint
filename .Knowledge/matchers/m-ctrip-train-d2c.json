@@ -59,6 +59,22 @@
     "health 段缺失",
     "layers 段缺失",
     "use_figma",
-    "MCP 改稿"
+    "MCP 改稿",
+    "fixed-",
+    "fixed 前缀",
+    "视口固定",
+    "position fixed",
+    "吸顶",
+    "吸底",
+    "悬浮按钮",
+    "回顶按钮",
+    "Figma constraints",
+    "NAM014",
+    "LAY013",
+    "修饰前缀",
+    "前缀叠加",
+    "spread merge",
+    "runInit 升级",
+    "老项目补 fixed"
   ]
 }

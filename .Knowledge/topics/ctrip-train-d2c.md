@@ -142,26 +142,55 @@ sub-agent 在生成 scroll 容器代码前**必须输出自检 4 行**：
 
 **为什么必须做**：位图渲染的渐变会因缩放产生 banding（视觉劣化）；含 effects 时切出来的 PNG 边缘会"沾染"画板底色泄漏的视觉假象（实际是渐变浅色端 + 描边在圆角抗锯齿处的混合）；位图无法运行时主题切换。
 
+### 7. `fixed-` 视口固定定位（v0.2 新增）
+
+**位置**：主 SKILL §`fixed-` 定位规则（§4.3 末尾） + doctor §3.6d NAM014 + §3.9e LAY013。
+
+`fixed-` 是**定位修饰前缀**——只改 `position`，不决定渲染方式。可与所有"生成节点"的前缀叠加（`sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-`），**不可**与"不生成节点"的前缀叠加（`bg-`/`bgc-`/`x-`，doctor NAM014 命中后 error）。典型用途：吸顶 nav、吸底 tab、悬浮回顶按钮、固定浮层入口。
+
+**top/bottom/left/right 取值**（依赖 Figma `constraints`，**不是**直接读坐标）：
+
+| Figma constraint | CSS 写法 |
+|------------------|---------|
+| `vertical: 'TOP'` | `top: <figma top>px` |
+| `vertical: 'BOTTOM'` | `bottom: <viewport.h - figma bottom>px` |
+| `vertical: 'CENTER'` | `top: 50%; transform: translateY(-50%)` |
+| `horizontal: 'LEFT'` / `'RIGHT'` / `'CENTER'` | 同理（参见 SKILL §`fixed-` 定位规则表） |
+
+设计师没设 constraints 时退化为绝对坐标，**强制 QA 告警**。
+
+**已知 CSS 副作用 LAY013（warn）**：祖先链有 `transform` / `filter` / `perspective` 时，子代 `position: fixed` 退化为"相对该祖先定位"。生成端**不自动用 Portal 外挂**（重量副作用），由设计师把 fixed- 节点上提到根 frame 或祖先去掉 transform；业务必须保留祖先效果时由开发手动加 React Portal。
+
+**z-index 默认 100**：同页面多个 fixed- 按设计稿前后顺序递增（100/101/102…），sub-agent 在 QA 段落标注实际取值。
+
+**典型踩坑（doctor NAM014 阻止）**：
+- ❌ `fixed-bg-banner`：bg- 不生成节点，fixed- 落空
+- ❌ `fixed-bgc-header`：同上
+- ❌ `fixed-x-mark`：x- 跳过，fixed 失效
+- ✅ 想做"固定背景"：把 fixed- 加在**父节点**上（如 `fixed-sub-banner` 里再放 `bg-banner`）
+
 ## 工具链注意事项（install.js / config 完整性）
 
 **install.js `runInit()` 写 config 时必须包含完整字段**（v0.2 修订）。历史 bug：`runInit()` 只写了 project / figma / merge / unit / images / output 六大段，**漏了 layers / health / images.preserveEffectIds**，导致用户项目 config 缺关键字段。
 
-修复后 `runInit()` 用 `existing.X || 默认` 模式保留用户已有自定义：
+修复后 `runInit()` 写默认字段时采用 **spread merge** 模式 `{ ...默认值, ...(existing.X || {}) }`（v0.2.1 改自原"`existing.X || 默认`"短路写法）：
 
 - `images.preserveEffectIds`：默认 `[]`（所有图严格按 bbox 导出）
-- `layers`：完整 10 类前缀（sub/block/img/bg/bgColor/font/but/scrollX/scrollY/ignore）
+- `layers`：完整 11 类前缀（sub/block/img/bg/bgColor/font/but/scrollX/scrollY/fixed/ignore）
 - `health`：enabled=true / blockOnError=true / report 段 / thresholds 全套
 
-**升级老项目**：`existing.layers || ...` 写法让 re-init 自动补全缺失字段；用户已自定义的字段保持不变。
+**升级老项目**：spread merge 让 re-init 自动补缺失字段（典型场景：老项目 layers 块没有 `fixed`，re-init 时会自动补上 `fixed: "fixed-"`），同时**用户已自定义的字段保持不变**（spread 顺序"默认在前 + 现有在后"覆盖默认值）。
+
+> **为什么改写法**：原 `existing.layers || 默认` 是**整体短路**——只要老项目有 `layers` 块（哪怕缺 `fixed`），就完全跳过默认值，导致新加的字段补不上去。spread merge 是**字段级 merge**，加新前缀字段后 re-init 即可平滑升级所有历史项目，无需用户手改 config。
 
 **Config 完整性自检脚本**（出问题时排查用）：
 
 ```bash
-# 检查项目 config 是否含 health 段
-cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffectIds|layers\.scrollX"
+# 检查项目 config 是否含 health 段、preserveEffectIds、scrollX/fixed 前缀
+cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffectIds|layers\.scrollX|layers\.fixed"
 ```
 
-缺任何一个 → re-init 或手动补段。
+缺任何一个 → re-init 或手动补段。**老项目 `layers.fixed` 缺失最常见**（v0.2.1 才加），重跑一次 `install.js runInit()` 会自动补上。
 
 ## 配置项要点（详见 SKILL.md §0）
 
@@ -172,7 +201,7 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 | `images.preserveEffectIds` | 例外清单 | 仅当某张图就是要烤 effect 进 PNG 时使用 |
 | `health.enabled` / `health.blockOnError` | 是否在 §0.5 调用 doctor + 是否阻塞 | doctor 内部见 [[ctrip-train-d2c-doctor]] |
 | `unit.figmaBase` / `unit.outputBase` / `unit.scale` | 尺寸换算 | 设计稿 → 输出代码必经路径 |
-| `layers.*` | 11 类前缀（sub/block/img/bg/bgc/font/btn/x/scrollx/scrolly） | 多前缀组合解析见 §398-438 |
+| `layers.*` | 11 类前缀（sub/block/img/bg/bgc/font/btn/x/scrollx/scrolly/**fixed**） | 多前缀组合解析见 §398-438；**fixed- 是修饰前缀**，可叠加
 
 ## 边界与禁止（高频踩坑）
 
@@ -180,6 +209,7 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 - **scroll 互斥**:`scrollx-` / `scrolly-` 与 `img-` / `bg-` / `bgc-` / `x-` / `btn-` 共存禁止(§448 / §718);同节点 `scrollx + scrolly` 共存也禁止
 - **sub- 单独拆 + 允许嵌套**(v0.2 修订):哪怕只有 1 个 `sub-` 节点也必须分发独立 sub-agent(§108 / §717),分块是质量保证而非性能优化;**sub- 允许嵌套**(典型场景:`sub-content / sub-card + sub-scrolly-车票列表`),深度上限 3 层,执行走"主 agent 派发 + sub-agent 上报 + placeholder 展开"链路(§107-145 / §4.0.5 / §5.0)
 - **block- 不嵌套**:`block-` 是"顶层独立布局块"(§409),doctor NAM001 fix 已修订为只建议 `sub-`,不再建议 `block-`
+- **fixed- 是修饰前缀**:可与 `sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-` 叠加(只改 `position: fixed`,不改渲染方式);**不可**与 `bg-`/`bgc-`/`x-` 叠加(这三个不生成节点,fixed 无处可挂——doctor NAM014 error);top/bottom 必须读 Figma constraints 推断,不是直接读坐标;祖先链有 transform/filter/blur 时 fixed 退化为相对祖先定位(doctor LAY013 warn)
 - **页面级背景必须探测项目特征**:`*.module.scss` 里直接写 `body { ... }` 会被 hash 化失效;普通 scss 写 `:global(...)` 也不识别。详见 §2.5(强制不可跳过)
 
 ## 已知历史 bug 与修订（v0.2）
@@ -194,6 +224,7 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 | `bg-box.png` 切图带紫色"画板底色"假象 | bg-box 是简单 GRADIENT + DROP_SHADOW，应改 bgc- 用 CSS 实现，但被切成位图 | §`bg-` 切图前的"CSS-able 自检" + doctor NAM012 新增 |
 | 用户项目 config 缺 health / layers / preserveEffectIds 段，跑 SKILL 时靠默认值兜底 | install.js `runInit()` 写 config 时漏写这三段 | install.js 修复 + 业务项目 config patch |
 | `doctor.run({...})` 函数找不到，agent 等待返回值卡死 | 误把 SKILL.md 里的伪代码当真函数调用 | 主 SKILL 顶部加「执行模型说明」总纲 + doctor §5.4 / §6 改写自然语言 |
+| 设计稿里有"吸顶/吸底/悬浮"语义但没有对应前缀，AI 全部生成 `position: absolute` 跟随滚动 | layer 前缀体系缺"视口固定定位"语义 | 新增 `fixed-` 修饰前缀（SKILL §`fixed-` 定位规则 + doctor NAM014/LAY013 + design-guide.md 同步） |
 
 ## 不在本 topic 覆盖的内容
 

@@ -215,7 +215,7 @@ async function runInit() {
       imageBaseUrl,
       preserveEffectIds: existing.images?.preserveEffectIds || []
     },
-    layers: existing.layers || {
+    layers: {
       sub: 'sub-',
       block: 'block-',
       img: 'img-',
@@ -225,7 +225,9 @@ async function runInit() {
       but: 'btn-',
       scrollX: 'scrollx-',
       scrollY: 'scrolly-',
-      ignore: 'x-'
+      fixed: 'fixed-',
+      ignore: 'x-',
+      ...(existing.layers || {})
     },
     output: { dir: outputDir },
     health: existing.health || {

@@ -21,6 +21,7 @@
 | `font-`    | 强制文字    | 只生成文字，不当图片处理                     | `font-title`                           |
 | `scrollx-` | 横向滚动容器  | 子元素超出时可左右滑动；隐藏滚动条                | `scrollx-card-list`、`sub-scrollx-tabs` |
 | `scrolly-` | 纵向滚动容器  | 子元素超出时可上下滑动；隐藏滚动条                | `scrolly-comments`                     |
+| `fixed-`   | 视口固定定位 | 元素相对窗口定位（吸顶/吸底/悬浮按钮等），可与其他前缀叠加 | `fixed-btn-back-top`、`fixed-sub-nav` |
 | `x-`       | 忽略      | 完全不生成代码                          | `x-标注`、`x-备注`                          |
 
 
@@ -33,6 +34,8 @@
 | `btn-img-banner`    | 可点击 + 整块图片  | 可点击的 `<img>` |
 | `sub-btn-entry`     | 独立模块 + 可点击  | 独立可点击组件      |
 | `sub-scrollx-cards` | 独立模块 + 横向滚动 | 独立组件，内容横向可滑  |
+| `fixed-btn-back-top` | 固定定位 + 可点击 | 相对窗口固定的可点击按钮 |
+| `fixed-sub-nav` | 固定定位 + 独立模块 | 相对窗口固定的独立组件（如吸顶导航） |
 
 
 ---
@@ -102,6 +105,18 @@
 - ⚠️ 一个容器**只能选一个方向**，不要同时加 `scrollx-` 和 `scrolly-`
 - ⚠️ 不能和 `img-` / `bg-` / `bgc-` / `btn-` / `x-` 一起用（语义冲突）
 - 滚动条会自动隐藏（移动端体验默认）
+
+### `fixed-` — 视口固定定位
+
+适合吸顶导航、吸底 tab、悬浮回顶按钮、固定浮层入口等需要**相对窗口定位**（滚动页面时不跟着滚）的元素。
+
+- **修饰前缀**：和其他前缀叠加使用，只改"定位方式"，不改"渲染方式"。例：
+  - `fixed-btn-back-top` → 固定的回顶按钮
+  - `fixed-sub-nav` → 固定吸顶的独立模块
+  - `fixed-img-banner` → 固定的整张图
+- **位置识别依赖 Figma constraints**：建议设计师为 `fixed-` 图层显式设置 constraints（top/bottom/left/right/center），AI 据此换算为 CSS 的 `top` / `bottom` / `left` / `right`。没设 constraints 会退化为绝对坐标定位，**滚动场景下可能错位**
+- ⚠️ **不能**和 `bg-` / `bgc-` / `x-` 叠加：这三个不生成独立元素，没有节点可挂 `position: fixed`。要做"固定背景"请把 `fixed-` 加在父节点上（如 `fixed-sub-banner` 里面再放 `bg-banner`）
+- ⚠️ **祖先元素不要做 transform / rotation / blur 效果**：CSS 规范下祖先有这些属性时，`fixed` 会退化为"相对祖先定位"，跟着祖先滚动而非相对窗口
 
 ### `x-` — 忽略
 
