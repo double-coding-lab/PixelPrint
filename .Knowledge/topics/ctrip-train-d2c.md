@@ -78,7 +78,7 @@ sub-agent 在生成 scroll 容器代码前**必须输出自检 4 行**：
 
 ### 3. Token 过期兜底链 L0→L1→L2→L3（v0.2 新增）
 
-**位置**：SKILL.md §4.3.1。
+**位置**：SKILL.md §4.4.1。
 
 | 级别 | 动作 | 触发 |
 |------|------|------|
@@ -219,13 +219,13 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 | 切出来的图都带紫色画板背景 | `/v1/images` 默认导出包含父 fills | §487-501 加 `use_absolute_bounds=true` |
 | `bg-list.png` 把行程项内容都印进背景 | sub-agent 把 `sub-scrolly-` 整体导出 | §463-470 自检 4 行 + §728 禁止项 |
 | `ticketCard` 设计稿 -25px gap 必须写 -50px 才贴合 | effect 外扩让 PNG 比 bbox 大一圈 | 同 #1，`use_absolute_bounds=true` 一并解决 |
-| token 过期生成失败 / 用临时链接占位上线 24h 后 404 | 旧约定"跳过下载" | §4.3.1 新增 L0→L3 兜底链 |
+| token 过期生成失败 / 用临时链接占位上线 24h 后 404 | 旧约定"跳过下载" | §4.4.1 新增 L0→L3 兜底链 |
 | `card-bg.png` 把 bg-bg + bgc-选中框 揉成一张图，4px Outside 描边丢失 | bgc- 嵌在 bg- 子树内，旧 bgc- 规则只取 fills 丢 strokes/cornerRadius/effects | §`bgc-` 取值规则扩展 + §`bg-` 内嵌 `bgc-` 的处理 + doctor NAM004 扩展覆盖 bgc- + doctor NAM013 新增 |
 | `bg-box.png` 切图带紫色"画板底色"假象 | bg-box 是简单 GRADIENT + DROP_SHADOW，应改 bgc- 用 CSS 实现，但被切成位图 | §`bg-` 切图前的"CSS-able 自检" + doctor NAM012 新增 |
 | 用户项目 config 缺 health / layers / preserveEffectIds 段，跑 SKILL 时靠默认值兜底 | install.js `runInit()` 写 config 时漏写这三段 | install.js 修复 + 业务项目 config patch |
 | `doctor.run({...})` 函数找不到，agent 等待返回值卡死 | 误把 SKILL.md 里的伪代码当真函数调用 | 主 SKILL 顶部加「执行模型说明」总纲 + doctor §5.4 / §6 改写自然语言 |
 | 设计稿里有"吸顶/吸底/悬浮"语义但没有对应前缀，AI 全部生成 `position: absolute` 跟随滚动 | layer 前缀体系缺"视口固定定位"语义 | 新增 `fixed-` 修饰前缀（SKILL §`fixed-` 定位规则 + doctor NAM014/LAY013 + design-guide.md 同步） |
-| init 第 2 题「样式方案」单选 `scss/css-modules/tailwind/inline`，less 项目无法表达；"scss + module" 也勾不出来 | 两个独立维度（预处理语法 / 是否走 module）压到一个单选里 | install.js 拆成 [2a] 样式方式 + [2b] 预处理语法 + [2c] 是否走 module；styleFormat 扩展到 8 种值；SKILL §0 加「样式方案标识符」表，§2.5 探测分支泛化到 scss/less/css，§4.5 框架适配表补全 |
+| init 第 2 题「样式方案」单选 `scss/css-modules/tailwind/inline`，less 项目无法表达；"scss + module" 也勾不出来 | 两个独立维度（预处理语法 / 是否走 module）压到一个单选里 | install.js 拆成 [2a] 样式方式 + [2b] 预处理语法 + [2c] 是否走 module；styleFormat 扩展到 8 种值；SKILL §0 加「样式方案标识符」表，§2.5 探测分支泛化到 scss/less/css，§4.6 框架适配表补全 |
 | init 第二阶段所有题目都显示「沿用现有配置」，但项目里其实没 config 文件 | `runInit()` 先调 `installFiles(true)` 把 templates 模板复制过去，再读 existing，读到的是 templates 默认值 | `runInit()` 调换顺序：先读 existing → 再 `installFiles(true, true)`（init 模式不复制 templates config 模板） |
 | MCP 没装时 Claude 跑半套流程才回退报错；原 §步骤 -1 只区分"成功 / 失败"两态，分不清「未装 / 未认证 / 无权限」 | 探针太粗（只描述"尝试调用 MCP 工具"）+ install.js 阶段一假装"检测"实际只打印说明 | SKILL §步骤 -1 改为调 `whoami` 最便宜探针，按错误类型精准分 4 态（未装 / 未认证 / 无权限 / 业务错误），每种给独立提示文案；install.js 阶段一改名「安装提示」并明示无法验证 |
 

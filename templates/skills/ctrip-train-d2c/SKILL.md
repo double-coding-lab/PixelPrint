@@ -82,7 +82,7 @@
 请检查或更换账号后重试。
 ```
 
-> **关键区分**：`401` / `403` **不一定**都是 MCP 问题——也可能是步骤 4.3 图片导出阶段的 REST API token 过期（走兜底链 L1）。判定方法：**MCP 工具自己的报错**才是 MCP 状态问题；**REST API curl 返回的 401**是 token 问题。
+> **关键区分**：`401` / `403` **不一定**都是 MCP 问题——也可能是步骤 4.4 图片导出阶段的 REST API token 过期（走兜底链 L1）。判定方法：**MCP 工具自己的报错**才是 MCP 状态问题；**REST API curl 返回的 401**是 token 问题。
 
 ---
 
@@ -284,7 +284,7 @@ img-*   → 主 agent 处理，生成 <img>
 - [ ] 直接处理节点已写入主文件
 - [ ] **主 agent 逐叶子 block 单独视觉对比（§6.0；非叶子 block 不单独对比，由其叶子覆盖）**
 - [ ] 整体视觉 QA 完成（§6.1）
-- [ ] 图片 URL 自检完成（§6.1）
+- [ ] 图片 URL 自检完成（§6.2）
 ```
 
 **清单规则**：
@@ -377,7 +377,7 @@ img-*   → 主 agent 处理，生成 <img>
 |---|---|
 | 都用 | **J：useEffect 操作 `document.body.style.background`**（见下方「策略 J」） |
 
-**`bgImage` 时**：无论哪一档，URL 都使用 `$asset-prefix` / `ASSET_PREFIX`（见步骤 4.3 的图片 URL 规则），**不允许在 body 样式中硬编码完整 URL**。
+**`bgImage` 时**：无论哪一档，URL 都使用 `$asset-prefix` / `ASSET_PREFIX`（见步骤 4.4 的图片 URL 规则），**不允许在 body 样式中硬编码完整 URL**。
 
 ##### 策略 P-A：plain scss + 多页
 
@@ -770,7 +770,7 @@ get_design_context(fileKey, nodeId)
 **top/bottom/left/right 的取值（依赖 Figma `constraints`）**：
 
 1. 调用 `get_design_context(fileKey, fixedNodeId)` 拿 `constraints` 字段（包含 `horizontal` / `vertical`）
-2. 按下表把 Figma 坐标换算成 CSS 定位（换算遵循步骤 4.4 单位换算规则）：
+2. 按下表把 Figma 坐标换算成 CSS 定位（换算遵循步骤 4.5 单位换算规则）：
 
 | Figma constraint | CSS 写法 | 取值来源 |
 |------------------|---------|---------|
@@ -801,7 +801,7 @@ get_design_context(fileKey, nodeId)
 
 **Figma 中没设 constraints**：退化为"按 absoluteBoundingBox 算 left/top"，**强制输出 QA 告警**："`fixed-{name}` 未设 Figma constraints，已退化为绝对坐标定位，滚动场景下可能错位，建议设计师补 constraints"。
 
-#### 4.3 图片处理
+#### 4.4 图片处理
 
 所有图片（`img-` / `bg-` / 无前缀兜底）通过 **Figma REST API** 导出，保留透明通道：
 
@@ -829,7 +829,7 @@ curl -H "X-Figma-Token: {figma.token}" \
 
 **前提**：`figma.token` 必须在 config 中配置。**当 token 缺失或过期时（HTTP 403 / 401 / `invalid_token`），不允许跳过下载或仅用 MCP 临时链接占位**——必须按下面的兜底链拿到真实 PNG / SVG 文件。
 
-#### 4.3.1 Token 过期 / 缺失时的兜底链（v0.2 新增）
+#### 4.4.1 Token 过期 / 缺失时的兜底链（v0.2 新增）
 
 按以下顺序逐级兜底，**任意一级成功就停止**：
 
@@ -915,7 +915,7 @@ $asset-prefix: '<imageBaseUrl 字面值><assetsDir 字面值>';  // ← 把 conf
 
 **自检**：写完任何引用图片的代码后，**逐个 URL 在大脑中重新拼一遍**：取 config 里的 `imageBaseUrl`（连带末尾字符）+ `assetsDir`（连带末尾字符）+ 文件名，三段字符串按字面值连起来，与生成出来的 URL 字符串**逐字符比对**，不一致就改。
 
-#### 4.4 单位换算
+#### 4.5 单位换算
 
 Figma 设计稿的所有尺寸值（宽、高、间距、字号等）在写入代码前必须换算，规则如下：
 
@@ -935,7 +935,7 @@ Figma 设计稿的所有尺寸值（宽、高、间距、字号等）在写入�
 
 **禁止直接把 Figma 原始值写入代码**，所有尺寸必须经过换算。
 
-#### 4.5 框架适配
+#### 4.6 框架适配
 
 | framework + styleFormat | 组件语法 | 样式输出 |
 |------------------------|---------|---------|
@@ -951,7 +951,7 @@ Figma 设计稿的所有尺寸值（宽、高、间距、字号等）在写入�
 | rn + styled-components | styled-components/native | 无独立样式文件 |
 | rn + nativewind | TSX + className | 无独立样式文件 |
 
-#### 4.6 sub-agent 输出文件结构
+#### 4.7 sub-agent 输出文件结构
 
 ```
 {output.dir}/blocks/{label}/
@@ -960,7 +960,7 @@ Figma 设计稿的所有尺寸值（宽、高、间距、字号等）在写入�
 └── assets.txt       ← 本 block 图片清单（文件名 + 原始临时链接）
 ```
 
-#### 4.7 sub-agent 独立验收
+#### 4.8 sub-agent 独立验收
 
 代码生成完成后，sub-agent 对自己负责的 block 做视觉验收：
 
@@ -1092,7 +1092,7 @@ export default function Content() {
 
 **为什么必须逐叶子对比**：
 
-- sub-agent 在 §4.7 做的是**自我验收**——同一上下文里写完代码再看截图，视觉差异极易"看不到自己的盲点"（self-blind）。这是大模型生成代码的已知 bias，不是某个 sub-agent 的能力问题
+- sub-agent 在 §4.8 做的是**自我验收**——同一上下文里写完代码再看截图，视觉差异极易"看不到自己的盲点"（self-blind）。这是大模型生成代码的已知 bias，不是某个 sub-agent 的能力问题
 - flat 模式合并后子组件结构被打散在同一文件里，**整体大图扫一眼很难定位到具体某个 block 的局部偏差**（尺寸 1px / 颜色 #abc vs #abd / 字号差 1pt）
 - component 模式虽然 block 还在独立目录，但主 agent §6 整体验收时，目标节点 nodeId 是页面根，得到的截图分辨率被压缩到容纳整页，**单个 block 内部细节在大图里像素不够看**
 - `switchAgentVerification=true` 的本意就是 sub 写、主验，本节落地这条配置在 D2C 主流程里的意义
@@ -1117,7 +1117,7 @@ export default function Content() {
 | 检查项 | 容忍区间 | 超出怎么办 |
 |--------|---------|-----------|
 | 宽 / 高 | ±2px | 改对应 css 数值，不允许靠 transform / scale 凑 |
-| 间距（padding/margin/gap） | ±1px | 同上；若用了负 margin 凑，先核对图片是否带光晕外扩（见 §4.3 use_absolute_bounds） |
+| 间距（padding/margin/gap） | ±1px | 同上；若用了负 margin 凑，先核对图片是否带光晕外扩（见 §4.4 use_absolute_bounds） |
 | 颜色 | ΔE ≤ 3 | 用 Figma 取色值替换，不允许"看起来差不多" |
 | 字号 | 完全相等 | 设计稿是真值，不允许改 |
 | 字重 | 完全相等 | 同上 |
@@ -1134,7 +1134,7 @@ export default function Content() {
 
 > §6.0 和 §6.1 不是冗余：§6.0 看每个 block 内部的局部差异，§6.1 看 block 之间的整体协调差异（如全页背景在不同 block 上是否连续、整页滚动定位是否符合预期）。两者关注点正交。
 
-#### 6.1 图片 URL 自检（强制）
+#### 6.2 图片 URL 自检（强制）
 
 合并完成后，对生成的所有 `.tsx` / `.jsx` / `.scss` / `.less` / `.css` / `.module.scss` / `.module.less` / `.module.css` 文件做一次 URL 自检：
 
