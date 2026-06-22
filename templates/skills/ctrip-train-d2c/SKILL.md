@@ -58,7 +58,7 @@ Read("ctrip-train-d2c.config.json")
 | 字段 | 用途 |
 |------|------|
 | `project.framework` | 生成代码的目标框架（react / rn） |
-| `project.styleFormat` | 样式方案 |
+| `project.styleFormat` | 样式方案标识符（取值见下表） |
 | `figma.token` | Figma Personal Access Token，用于 REST API 导出图片 |
 | `merge.mode` | 合并模式（flat / component） |
 | `images.assetsDir` | 图片下载目录 |
@@ -81,6 +81,37 @@ Read("ctrip-train-d2c.config.json")
 | `output.dir` | 代码输出根目录 |
 | `health.enabled` | 是否启用前置体检（默认 true） |
 | `health.blockOnError` | 体检 grade=F 时是否阻塞生成（默认 true） |
+
+#### 样式方案标识符（`project.styleFormat` 取值表）
+
+`styleFormat` 是**预处理语法 + 是否走 css-modules** 两个维度的复合标识符。由 `install.js` 交互式 init 写入（题号 [2a/8]/[2b/8]/[2c/8]，详见 install.js `runInit`），SKILL 跑时根据这个值决定**文件后缀 / import 语法 / className 写法**。
+
+**React 项目（`framework: 'react'`）**：
+
+| styleFormat | 样式方式 | 预处理 | 走 module | 生成文件 | import 语法 | className 写法 |
+|------------|---------|--------|----------|---------|------------|--------------|
+| `scss` | stylesheet | scss | 否 | `index.scss` | `import './index.scss'` | `className="card"` |
+| `scss-modules` | stylesheet | scss | 是 | `index.module.scss` | `import styles from './index.module.scss'` | `className={styles.card}` |
+| `less` | stylesheet | less | 否 | `index.less` | `import './index.less'` | `className="card"` |
+| `less-modules` | stylesheet | less | 是 | `index.module.less` | `import styles from './index.module.less'` | `className={styles.card}` |
+| `css` | stylesheet | css | 否 | `index.css` | `import './index.css'` | `className="card"` |
+| `css-modules` | stylesheet | css | 是 | `index.module.css` | `import styles from './index.module.css'` | `className={styles.card}` |
+| `tailwind` | tailwind | — | — | （无独立样式文件） | （无） | `className="flex items-center gap-4 p-8"` |
+| `inline` | inline | — | — | （无独立样式文件） | （无） | `style={{display:'flex', padding:8}}` |
+
+**React Native 项目（`framework: 'rn'`）**：
+
+| styleFormat | 含义 |
+|------------|------|
+| `stylesheet` | `StyleSheet.create({...})` |
+| `styled-components` | `styled.View\`...\`` |
+| `nativewind` | NativeWind className |
+
+**关键判定**：
+
+- "是否走 module"看 styleFormat 后缀是否带 `-modules`（`scss-modules` / `less-modules` / `css-modules`），不依赖文件后缀猜
+- 步骤 2.5.3 的 P-A/P-B/M-A/M-B 五档判定中，**M 系**（module）= styleFormat 带 `-modules`，**P 系**（plain）= 不带
+- 同一项目里 page A 走 module / page B 不走 module 时，**以当前 page 的实际 import 形式为准**（步骤 2.5.2 实证），config.styleFormat 仅是 hint
 
 ---
 
@@ -247,12 +278,14 @@ img-*   → 主 agent 处理，生成 <img>
 
 执行写入前**必须先探测项目类型**，决定写入策略。按以下顺序检查（**逐项 Read 文件 / Grep 实证，不要凭印象判定**）：
 
-1. **判定该 page 的 scss 是否走 css-modules**（最关键）：
-   - 看页面入口的 import 形式：`import './index.scss'` → **普通 scss（全局作用）**；`import styles from './index.module.scss'` → **css-modules**
-   - 看文件名：`*.module.scss` → css-modules；`*.scss` 且非 module → 普通 scss
-   - 看周边页面的引法：如果项目里既有普通 scss 又有 module.scss，**以本页面实际写法为准**
-   - **结论二选一：`普通 scss` / `css-modules`**
-   > ⚠️ **关键**：`:global(body)` 语法**只在 css-modules 下有效**。在普通 scss 文件里写 `:global(...)`，浏览器会原样接收选择器并解析失败，**body 背景不会生效**——这是 D2C 最常见的"我明明写了 body 背景但页面还是白底"的根因。
+1. **判定该 page 的样式文件是否走 css-modules**（最关键）：
+   - 看页面入口的 import 形式：
+     - `import './index.scss'` / `'./index.less'` / `'./index.css'` → **普通 stylesheet（全局作用）**
+     - `import styles from './index.module.scss'` / `'.module.less'` / `'.module.css'` → **css-modules**
+   - 看文件名：`*.module.{scss,less,css}` → css-modules；`*.{scss,less,css}` 且非 module → 普通 stylesheet
+   - 看周边页面的引法：如果项目里既有普通形态又有 module 形态，**以本页面实际写法为准**
+   - **结论二选一：`plain stylesheet` / `css-modules`**（预处理语法用什么不影响这个结论）
+   > ⚠️ **关键**：`:global(body)` 语法**只在 css-modules 下有效**。在普通 stylesheet（无论 scss/less/css）里写 `:global(...)`，浏览器会原样接收选择器并解析失败，**body 背景不会生效**——这是 D2C 最常见的"我明明写了 body 背景但页面还是白底"的根因。
 
 2. **检查 `output.dir` 同级（或父级 1-2 层内）有几个 page 入口**：
    - `pages/` 下多个 `*.jsx` / `*.tsx`（Next.js / nfes 多页面） → 多页
@@ -260,11 +293,12 @@ img-*   → 主 agent 处理，生成 <img>
    - 只有一个入口 → 单页
 
 3. **检查全局样式入口是否已有 `body { background }` 规则**：
-   - 候选文件：`pages/style/base.scss`、`src/styles/global.scss`、`app.scss`、`_app.js` 引入的全局 css
+   - 候选文件：`pages/style/base.scss`、`src/styles/global.scss`、`pages/style/base.less`、`app.css`、`_app.js` 引入的全局样式入口
    - 用 grep 实证（**禁止猜**）
 
 4. **检查 config 的 `project.styleFormat`**：
-   - `scss` / `css-modules` / `tailwind` / `inline` / `styled-components`
+   - 取值参见 §0「样式方案标识符」表（`scss` / `scss-modules` / `less` / `less-modules` / `css` / `css-modules` / `tailwind` / `inline` / RN 的 `stylesheet`/`styled-components`/`nativewind`）
+   - 结合第 1 项探测结果做交叉验证；不一致时**以第 1 项实证为准**
 
 把以上 4 项探测结果**全部**写入 `.d2c-tasks.md` 的"页面级背景"段，作为选档的事实依据。
 
@@ -274,22 +308,24 @@ img-*   → 主 agent 处理，生成 <img>
 
 | 当前 page 的样式真实形态 | 大类 |
 |---|---|
-| 普通 scss（`import './x.scss'`），可写全局选择器 | **大类 P：plain scss** |
-| css-modules（`import s from './x.module.scss'`），需 `:global(...)` 才能写全局选择器 | **大类 M：css-modules** |
+| 普通 scss / less / css（`import './x.scss'` / `'.less'` / `'.css'`），可写全局选择器 | **大类 P：plain stylesheet** |
+| css-modules（`import s from './x.module.scss'` / `'.module.less'` / `'.module.css'`），需 `:global(...)` 才能写全局选择器 | **大类 M：modules stylesheet** |
 | tailwind / inline / styled-components / RN stylesheet（不允许写全局选择器） | **大类 J：JS-only**（必走 useEffect） |
 
 **判定来源**：步骤 2.5.2 第 1、4 项的实证结果。**禁止**仅依赖 config 的 `styleFormat` 判定大类——同一项目里 page A 是 module、page B 是 plain 的情况存在，必须看**当前 page** 的实际 import 形式。
 
+> **预处理语法不影响大类**：plain scss / plain less / plain css 都进 **P**；scss-modules / less-modules / css-modules 都进 **M**。下面策略示例统一用 `.scss` / `.module.scss` 表示——less 项目把后缀替换成 `.less` / `.module.less`，css 项目替换成 `.css` / `.module.css`，语义完全相同。
+
 ##### 第二层：在大类下按"多页 / 单页"选策略
 
-**大类 P（普通 scss）**：
+**大类 P（plain stylesheet：scss / less / css 均适用）**：
 
 | 多/单页 | 策略 | 实现 |
 |---|---|---|
-| 多页 | **P-A：直接写页面级 `body.<page-class>` 选择器**（本页 scss 顶部）+ **useEffect 加 / 移 class** | 见下方「策略 P-A」 |
-| 单页（无论是否有全局兜底） | **P-B：直接写裸 `body { ... }`**（本页 scss 顶部） | 见下方「策略 P-B」 |
+| 多页 | **P-A：直接写页面级 `body.<page-class>` 选择器**（本页样式文件顶部）+ **useEffect 加 / 移 class** | 见下方「策略 P-A」 |
+| 单页（无论是否有全局兜底） | **P-B：直接写裸 `body { ... }`**（本页样式文件顶部） | 见下方「策略 P-B」 |
 
-**大类 M（css-modules）**：
+**大类 M（modules stylesheet：scss-modules / less-modules / css-modules 均适用）**：
 
 | 多/单页 | 策略 | 实现 |
 |---|---|---|
@@ -371,11 +407,11 @@ useEffect(() => {
 
 ##### 决策核对（写代码前必做的最后一次自检）
 
-| 你写的代码 | 当前 page 的 scss 形态必须是 |
+| 你写的代码 | 当前 page 的样式形态必须是 |
 |---|---|
-| `body { ... }` | 普通 scss |
-| `body.xxx-page-bg { ... }` | 普通 scss |
-| `:global(body) { ... }` | **css-modules** |
+| `body { ... }` | 普通 stylesheet（scss / less / css 均可） |
+| `body.xxx-page-bg { ... }` | 普通 stylesheet（scss / less / css 均可） |
+| `:global(body) { ... }` | **css-modules**（scss-modules / less-modules / css-modules 均可） |
 | `:global(body.xxx-page-bg) { ... }` | **css-modules** |
 
 **对不上 → body 背景百分百不生效**。如果不确定，宁可走策略 J（useEffect）也不要写错。
@@ -393,7 +429,7 @@ useEffect(() => {
 ```markdown
 ## 页面级背景（写入 body）
 - [ ] 已采集顶层 frame 背景：类型 = <bgColor/bgGradient/bgImage/none>，值 = <值或 "none">
-- [ ] 已探测当前 page 样式形态：scss 形态 = <普通 scss / css-modules / JS-only>，多/单页 = <多/单>，全局 body 规则 = <存在/不存在>，config.styleFormat = <scss/...>
+- [ ] 已探测当前 page 样式形态：样式形态 = <plain stylesheet / css-modules / JS-only>，预处理语法 = <scss / less / css>，多/单页 = <多/单>，全局 body 规则 = <存在/不存在>，config.styleFormat = <scss/scss-modules/less/less-modules/css/css-modules/tailwind/inline/...>
 - [ ] 已选定策略：<P-A / P-B / M-A / M-B / J>
 - [ ] 已按策略写入对应文件（路径：<file>）；scss 选择器形式 = <body / body.xxx-page-bg / :global(body) / :global(body.xxx-page-bg) / 不写 scss>
 - [ ] 已通过决策核对表（2.5.3 末尾）：选择器形式 vs scss 形态 一致
@@ -408,8 +444,8 @@ useEffect(() => {
 - 禁止凭印象判定项目特征（必须 Read / Grep 文件实证后再选档）
 - 禁止在 body 背景里硬编码完整图片 URL（`bgImage` 时必须用 `$asset-prefix` / `ASSET_PREFIX`）
 - 禁止多页面项目使用 P-B / M-B（单页策略，会互相污染）
-- 禁止在普通 scss（非 module）文件里写 `:global(...)`（语法不识别，body 背景不会生效）
-- 禁止在 `*.module.scss` 里直接写 `body { ... }`（会被 hash 化变成 `.body-xxx`，不会作用到真正的 body）
+- 禁止在普通 stylesheet（非 module 的 scss / less / css）里写 `:global(...)`（语法不识别，body 背景不会生效）
+- 禁止在 `*.module.{scss,less,css}` 里直接写 `body { ... }`（会被 hash 化变成 `.body-xxx`，不会作用到真正的 body）
 
 ---
 
@@ -865,6 +901,10 @@ Figma 设计稿的所有尺寸值（宽、高、间距、字号等）在写入�
 | framework + styleFormat | 组件语法 | 样式输出 |
 |------------------------|---------|---------|
 | react + scss | TSX + className | `.scss` 文件 |
+| react + scss-modules | TSX + styles.xxx | `.module.scss` 文件 |
+| react + less | TSX + className | `.less` 文件 |
+| react + less-modules | TSX + styles.xxx | `.module.less` 文件 |
+| react + css | TSX + className | `.css` 文件 |
 | react + css-modules | TSX + styles.xxx | `.module.css` 文件 |
 | react + tailwind | TSX + className | 无独立样式文件 |
 | react + inline | TSX + style={{}} | 无独立样式文件 |
@@ -1057,7 +1097,7 @@ export default function Content() {
 
 #### 6.1 图片 URL 自检（强制）
 
-合并完成后，对生成的所有 `.tsx` / `.jsx` / `.scss` / `.css` / `.module.css` 文件做一次 URL 自检：
+合并完成后，对生成的所有 `.tsx` / `.jsx` / `.scss` / `.less` / `.css` / `.module.scss` / `.module.less` / `.module.css` 文件做一次 URL 自检：
 
 1. 用 grep 扫描所有 `url(` 和 `src=` 出现位置，提取完整 URL 字符串
 2. 对每个 URL，按字面公式 `imageBaseUrl + assetsDir + filename` 重新拼接预期值
@@ -1091,7 +1131,7 @@ export default function Content() {
 - 禁止把 `block-` 块内的元素与其他块的元素合并到同一 HTML 容器或共享 CSS 类名
 - 禁止只匹配第一个前缀就停止，必须扫描完整图层名提取所有已知前缀
 - 禁止脱离 `images.imageBaseUrl + images.assetsDir + filename` 公式拼接图片 URL；禁止补/删任何字符（包括末尾 `/`）；禁止在 SCSS 中分散硬编码完整 URL，必须先定义 `$asset-prefix` 变量再引用
-- 禁止跳过步骤 2.5 页面级背景采集；禁止把顶层 frame 的页面级背景写到组件根容器；禁止改动项目已有的全局样式文件（base.scss / global.css）；禁止凭印象判定项目特征（必须 Read/Grep 实证后选 P-A / P-B / M-A / M-B / J 策略）；禁止多页面项目使用 P-B / M-B（单页策略，会互相污染）；**禁止在普通 scss 里写 `:global(...)`、禁止在 `*.module.scss` 里直接写 `body { ... }`（写错则 body 背景百分百不生效）**
+- 禁止跳过步骤 2.5 页面级背景采集；禁止把顶层 frame 的页面级背景写到组件根容器；禁止改动项目已有的全局样式文件（base.scss / global.css / app.less 等）；禁止凭印象判定项目特征（必须 Read/Grep 实证后选 P-A / P-B / M-A / M-B / J 策略）；禁止多页面项目使用 P-B / M-B（单页策略，会互相污染）；**禁止在普通 stylesheet（非 module 的 scss/less/css）里写 `:global(...)`、禁止在 `*.module.{scss,less,css}` 里直接写 `body { ... }`（写错则 body 背景百分百不生效）**
 - 禁止"sub- 只有 1 个就退化为主 agent 处理"；任何 `sub-` 节点都必须分发独立 sub-agent，**单 sub 也必须拆**（分块是质量保证而非性能优化）
 - 禁止 `scrollx-` / `scrolly-` 与 `img-` / `bg-` / `bgc-` / `x-` / `btn-` 共存（语义冲突）；禁止同一节点同时含 `scrollx-` 和 `scrolly-`（一个元素只能一个滚动方向）；禁止省略隐藏滚动条样式（`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`）
 - 禁止把 `sub-scrollx-` / `sub-scrolly-` 节点**整体导出为单张背景图**作为容器 `background-image`：scroll 容器必须**继续递归子层**（§416-417），子层是同构列表项；只有标了 `bgc-` / `bg-` 的子节点才作为背景。即便子层结构复杂、识别困难，也不允许"省事 fallback 到整体导出"——需要时把识别失败的子树标 `x-` 或拆分稿子，不能用整体导出绕过。

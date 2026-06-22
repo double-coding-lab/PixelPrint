@@ -18,7 +18,7 @@
     "scale": 2
   },
   "images": {
-    "assetsDir": "static/figma",
+    "assetsDir": "static/",
     "imageBaseUrl": "http://127.0.0.1:8080/"
   },
   "layers": {
@@ -34,7 +34,7 @@
     "ignore": "x-"
   },
   "output": {
-    "dir": "src/components/generated"
+    "dir": "pages/"
   },
   "health": {
     "enabled": true,

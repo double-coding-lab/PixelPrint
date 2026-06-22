@@ -75,6 +75,13 @@
     "前缀叠加",
     "spread merge",
     "runInit 升级",
-    "老项目补 fixed"
+    "老项目补 fixed",
+    "styleFormat",
+    "样式方案标识符",
+    "scss-modules",
+    "less-modules",
+    "less 项目",
+    "样式方案拆成两题",
+    "init 沿用现有配置 bug"
   ]
 }

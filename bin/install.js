@@ -41,10 +41,12 @@ function copyDir(srcDir, destDir, force = false) {
   }
 }
 
-function installFiles(forceSkills = false) {
+function installFiles(forceSkills = false, skipConfig = false) {
   console.log('\nctrip-train-d2c: installing files...\n')
   copyDir(path.join(TEMPLATES_DIR, 'skills'), path.join(CWD, '.claude/skills'), forceSkills)
-  copyFile(path.join(TEMPLATES_DIR, 'ctrip-train-d2c.config.json'), CONFIG_PATH)
+  if (!skipConfig) {
+    copyFile(path.join(TEMPLATES_DIR, 'ctrip-train-d2c.config.json'), CONFIG_PATH)
+  }
   copyFile(path.join(TEMPLATES_DIR, 'code-connect/mappings.json'), MAPPINGS_PATH)
   console.log('')
 }
@@ -139,13 +141,14 @@ async function inputIntOrUse(label, currentVal, defaultVal) {
 // ─── 交互式配置 ──────────────────────────────────────────────
 
 async function runInit() {
-  installFiles(true)  // init 时强制覆盖 skill 文件
-
-  // 读取现有 config
+  // 先读现有 config（init 自己生成 config，不能让 installFiles 提前复制 templates 模板污染 existing）
   let existing = {}
   if (fs.existsSync(CONFIG_PATH)) {
     try { existing = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) } catch {}
   }
+
+  installFiles(true, true)  // init: 强制覆盖 skill 文件；跳过 config 复制（交互完会自己写）
+
   const p = existing.project || {}
   const m = existing.merge || {}
   const img = existing.images || {}
@@ -163,21 +166,55 @@ async function runInit() {
 
   console.log('─── 阶段二：交互式配置 ──────────────────────────────\n')
 
-  const framework = await pickOrUse('[1/6] 项目框架', p.framework, ['react', 'rn'], 'react')
+  const framework = await pickOrUse('[1/8] 项目框架', p.framework, ['react', 'rn'], 'react')
 
-  const styleChoices = framework === 'rn'
-    ? ['stylesheet', 'styled-components', 'nativewind']
-    : ['scss', 'css-modules', 'tailwind', 'inline']
-  const styleDefault = framework === 'rn' ? 'stylesheet' : 'scss'
-  const styleFormat = await pickOrUse('[2/6] 样式方案', p.styleFormat, styleChoices, styleDefault)
+  // 样式方案分两个维度问：方式 + (仅 stylesheet 时) 预处理语法 + 是否走 module
+  // 最终 styleFormat 落值规范见 SKILL §0「样式方案标识符」
+  let styleFormat
+  if (framework === 'rn') {
+    styleFormat = await pickOrUse('[2/8] 样式方案', p.styleFormat,
+      ['stylesheet', 'styled-components', 'nativewind'], 'stylesheet')
+    // RN 只有 1 题；后面 mergeMode 等步骤标号顺延
+  } else {
+    // 从现有 styleFormat 反推三个维度的当前值（兼容老 config）
+    const existing2a = (() => {
+      if (p.styleFormat === 'tailwind') return 'tailwind'
+      if (p.styleFormat === 'inline') return 'inline'
+      if (p.styleFormat && /^(scss|less|css)(-modules)?$/.test(p.styleFormat)) return 'stylesheet'
+      return null
+    })()
+    const existing2b = (() => {
+      if (!p.styleFormat) return null
+      const m = p.styleFormat.match(/^(scss|less|css)(-modules)?$/)
+      return m ? m[1] : null
+    })()
+    const existing2c = (() => {
+      if (!p.styleFormat) return null
+      return /-modules$/.test(p.styleFormat) ? 'Yes' : 'No'
+    })()
 
-  const mergeMode = await pickOrUse('[3/6] 合并模式', m.mode, ['component', 'flat'], 'component')
+    const styleMode = await pickOrUse('[2a/8] 样式方式', existing2a,
+      ['stylesheet', 'tailwind', 'inline'], 'stylesheet')
 
-  const assetsDir = await inputOrUse('[4/6] 图片输出目录', img.assetsDir, '')
+    if (styleMode === 'stylesheet') {
+      const syntax = await pickOrUse('[2b/8] 预处理语法', existing2b,
+        ['scss', 'less', 'css'], 'scss')
+      const useModulesYn = await pickOrUse('[2c/8] 是否启用 css-modules', existing2c,
+        ['No', 'Yes'], 'No')
+      const useModules = useModulesYn === 'Yes'
+      styleFormat = useModules ? `${syntax}-modules` : syntax
+    } else {
+      styleFormat = styleMode
+    }
+  }
 
-  const imageBaseUrl = await inputOrUse('[5/6] 图片 base URL', img.imageBaseUrl, 'http://127.0.0.1:8080/')
+  const mergeMode = await pickOrUse('[3/8] 合并模式', m.mode, ['component', 'flat'], 'component')
 
-  const outputDir = await inputOrUse('[6/6] 代码输出目录', out.dir, '')
+  const assetsDir = await inputOrUse('[4/8] 图片输出目录', img.assetsDir, 'static/')
+
+  const imageBaseUrl = await inputOrUse('[5/8] 图片 base URL', img.imageBaseUrl, 'http://127.0.0.1:8080/')
+
+  const outputDir = await inputOrUse('[6/8] 代码输出目录', out.dir, 'pages/')
 
   console.log('\n─── 阶段三：单位换算规则 ────────────────────────────\n')
   console.log('  使用 ← → 方向键选择，输入题直接回车使用默认值\n')

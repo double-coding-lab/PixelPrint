@@ -210,7 +210,7 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 - **sub- 单独拆 + 允许嵌套**(v0.2 修订):哪怕只有 1 个 `sub-` 节点也必须分发独立 sub-agent(§108 / §717),分块是质量保证而非性能优化;**sub- 允许嵌套**(典型场景:`sub-content / sub-card + sub-scrolly-车票列表`),深度上限 3 层,执行走"主 agent 派发 + sub-agent 上报 + placeholder 展开"链路(§107-145 / §4.0.5 / §5.0)
 - **block- 不嵌套**:`block-` 是"顶层独立布局块"(§409),doctor NAM001 fix 已修订为只建议 `sub-`,不再建议 `block-`
 - **fixed- 是修饰前缀**:可与 `sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-` 叠加(只改 `position: fixed`,不改渲染方式);**不可**与 `bg-`/`bgc-`/`x-` 叠加(这三个不生成节点,fixed 无处可挂——doctor NAM014 error);top/bottom 必须读 Figma constraints 推断,不是直接读坐标;祖先链有 transform/filter/blur 时 fixed 退化为相对祖先定位(doctor LAY013 warn)
-- **页面级背景必须探测项目特征**:`*.module.scss` 里直接写 `body { ... }` 会被 hash 化失效;普通 scss 写 `:global(...)` 也不识别。详见 §2.5(强制不可跳过)
+- **页面级背景必须探测项目特征**:`*.module.{scss,less,css}` 里直接写 `body { ... }` 会被 hash 化失效;普通 stylesheet（非 module 的 scss/less/css）里写 `:global(...)` 不识别。详见 §2.5(强制不可跳过)。**v0.2.1 新增**：install.js 把样式方案拆成两题（`[2a]` 样式方式 + `[2b]` 预处理语法 + `[2c]` 是否走 module），styleFormat 取值扩展到 `scss / scss-modules / less / less-modules / css / css-modules / tailwind / inline / RN 三选`，详见主 SKILL §0「样式方案标识符」
 
 ## 已知历史 bug 与修订（v0.2）
 
@@ -225,6 +225,8 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 | 用户项目 config 缺 health / layers / preserveEffectIds 段，跑 SKILL 时靠默认值兜底 | install.js `runInit()` 写 config 时漏写这三段 | install.js 修复 + 业务项目 config patch |
 | `doctor.run({...})` 函数找不到，agent 等待返回值卡死 | 误把 SKILL.md 里的伪代码当真函数调用 | 主 SKILL 顶部加「执行模型说明」总纲 + doctor §5.4 / §6 改写自然语言 |
 | 设计稿里有"吸顶/吸底/悬浮"语义但没有对应前缀，AI 全部生成 `position: absolute` 跟随滚动 | layer 前缀体系缺"视口固定定位"语义 | 新增 `fixed-` 修饰前缀（SKILL §`fixed-` 定位规则 + doctor NAM014/LAY013 + design-guide.md 同步） |
+| init 第 2 题「样式方案」单选 `scss/css-modules/tailwind/inline`，less 项目无法表达；"scss + module" 也勾不出来 | 两个独立维度（预处理语法 / 是否走 module）压到一个单选里 | install.js 拆成 [2a] 样式方式 + [2b] 预处理语法 + [2c] 是否走 module；styleFormat 扩展到 8 种值；SKILL §0 加「样式方案标识符」表，§2.5 探测分支泛化到 scss/less/css，§4.5 框架适配表补全 |
+| init 第二阶段所有题目都显示「沿用现有配置」，但项目里其实没 config 文件 | `runInit()` 先调 `installFiles(true)` 把 templates 模板复制过去，再读 existing，读到的是 templates 默认值 | `runInit()` 调换顺序：先读 existing → 再 `installFiles(true, true)`（init 模式不复制 templates config 模板） |
 
 ## 不在本 topic 覆盖的内容
 
