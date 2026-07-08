@@ -1,0 +1,43 @@
+templates/skills/ctrip-train-d2c-strip-nodeid/strip-node-id.mjs
+  s_dffc684da69e92::t_1a9794c7187b2a 1-113
+templates/ctrip-train-d2c.config.json
+  s_dffc684da69e92::t_54b76d6225bb99 22
+templates/skills/ctrip-train-d2c/SKILL.md
+  s_dffc684da69e92::t_936425afd345dc 830,835,838-840
+  s_ae4730fd3ed98b::t_4cfa39319650e4 860-861
+  s_dffc684da69e92::t_bcaf7677776f4d 1233-1236
+  s_dffc684da69e92::t_a717a76d7f3493 1252
+  s_ae4730fd3ed98b::t_a89b539ea5ca03 1258
+  s_dffc684da69e92::t_9636337f821489 1260
+  s_dffc684da69e92::t_4101419d897cda 95-96
+  s_dffc684da69e92::t_580abc9b80fb11 514
+  s_dffc684da69e92::t_f767247ac71ca7 941-992
+  s_dffc684da69e92::t_4c3f1ba5fe12d2 810-825
+  s_ae4730fd3ed98b::t_ff3e539620626b 880
+templates/skills/ctrip-train-d2c-strip-nodeid/SKILL.md
+  s_dffc684da69e92::t_f35bddbb970f01 1-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.32-trip",
+  "base_commit_sha": "6ba4337267726fdeb108a27e3bdb1430e3cd9e34",
+  "prompts": {},
+  "sessions": {
+    "s_ae4730fd3ed98b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17b668fa-60d7-430d-ac41-b73c6acc12b6",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/f1o7fn3rqmi4"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    },
+    "s_dffc684da69e92": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "598a9015-56b1-441c-aba4-1d829f706403",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
