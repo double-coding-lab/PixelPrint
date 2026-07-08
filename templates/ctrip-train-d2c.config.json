@@ -19,7 +19,7 @@
   },
   "images": {
     "assetsDir": "static/",
-    "imageBaseUrl": "http://127.0.0.1:8080/"
+    "imageBaseUrl": "http://127.0.0.1:8080/webapp/train/yun/xxxx/"
   },
   "layers": {
     "sub": "sub-",

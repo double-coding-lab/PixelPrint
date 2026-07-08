@@ -92,6 +92,8 @@
 Read("ctrip-train-d2c.config.json")
 ```
 
+**同时缓存 `projectRoot`**：即 `ctrip-train-d2c.config.json` 所在目录的**绝对路径**（例如 `/Users/xxx/Desktop/项目/xxx-function`）。后续所有涉及**本地文件写入**的路径（图片下载、代码产出）都必须以 `projectRoot` 为基点拼绝对路径，**禁止**依赖当前 cwd 使用相对路径——sub-agent 可能切换 cwd，相对路径会落到错误位置。
+
 缓存以下字段，后续步骤全部以此为准：
 
 | 字段 | 用途 |
@@ -509,7 +511,7 @@ sub-agent 拿到根节点后，**第一步**检查根节点自身的图层名前
 | 根节点剩余前缀 | 处理方式 |
 |--------------|---------|
 | 含 `img-` | 整个节点导出为一张图片，生成单个 `<img>`，**不解析任何子层，直接结束** |
-| 含 `bg-` | 整个节点导出为图片，设为父容器 background-image，**不解析任何子层** |
+| 含 `bg-` | **`bg-` 节点自身**（不是父容器！）导出为图片，设为**父容器**的 `background-image`，**不解析任何子层**。**切图源 nodeId 必须是 `bg-` 节点自己的 nodeId**，详见下面 §4.4「`bg-` 切图源约束」；违反这一条会把兄弟节点的文字/图标烤进 PNG |
 | 含 `x-` | 跳过，不生成任何代码 |
 | 无上述前缀 | 正常进入 4.0.5 嵌套 sub- 检测 |
 
@@ -805,17 +807,37 @@ get_design_context(fileKey, nodeId)
 
 所有图片（`img-` / `bg-` / 无前缀兜底）通过 **Figma REST API** 导出，保留透明通道：
 
+**⚠️ 调用 curl 前的强制前置自检（sub-agent 每张图都必须做，且必须把 4 行输出到对话，不允许省略）**：
+
+```
+· 图层前缀类型：{img- / bg- / 无前缀}
+· 切图源 nodeId：{要写进 curl 的 ids= 参数值}
+· 切图源 name：{该 nodeId 对应节点的图层名}
+· 交叉验证：切图源 name 是否以「{前缀}」开头？{是/否}
+```
+
+**交叉验证判定**：
+- 前缀是 `bg-` → 切图源 name **必须**以 `bg-` 开头（如 `bg-piao` / `bg-body`）。**若为「否」，立即停止 curl**，说明当前 nodeId 用的是父容器/兄弟节点，返回 §4.0.5 重新在 `bg-` 命中节点的子树里定位真正的 `bg-` 节点 id。
+- 前缀是 `img-` → 切图源 name 必须以 `img-` 开头。
+- 无前缀（兜底非文本图层）→ 切图源 name 与当前节点 name 一致。
+
+**这是 `card-bg.png` / `piao.png` 把兄弟节点文字烤进 PNG 这类 bug 的唯一防线**——历史事故根因就是 sub-agent 拿了 `bg-` 的**父容器 nodeId** 传给 `ids=` 参数，Figma REST API 会把父容器**整棵子树**（含兄弟节点的文字/图标/其他 block）一起 render 成位图。前置自检就是为了让这一步走不通。
+
 ```bash
 # PNG 2倍图，保留透明，严格按图层 bbox 导出（不含 effect / 父背景色）
 curl -H "X-Figma-Token: {figma.token}" \
   "https://api.figma.com/v1/images/{fileKey}?ids={nodeId}&format=png&scale=2&use_absolute_bounds=true" \
-  -o {assetsDir}/{filename}.png
+  -o {projectRoot}/{assetsDir}/{filename}.png
 
 # SVG（矢量图层优先）
 curl -H "X-Figma-Token: {figma.token}" \
   "https://api.figma.com/v1/images/{fileKey}?ids={nodeId}&format=svg&use_absolute_bounds=true" \
-  -o {assetsDir}/{filename}.svg
+  -o {projectRoot}/{assetsDir}/{filename}.svg
 ```
+
+> **本地写入路径铁律**：`-o` 参数必须使用 `{projectRoot}/{assetsDir}/{filename}.{ext}` 的**绝对路径**（`projectRoot` = 步骤 0 缓存的 config 文件所在目录绝对路径）。禁止写成 `{assetsDir}/{filename}.png` 这种相对路径——sub-agent 执行时 cwd 未必是项目根，相对路径会把图片落到代码产出目录下的相对位置，导致 `imageBaseUrl + assetsDir + filename` 拼出来的 URL 404。
+> - 若 `assetsDir` 以 `/` 开头（如 `/static/`），拼接结果会出现连续斜杠（如 `/Users/xxx/project//static/foo.png`），文件系统会自动归一，不影响写入；若担心可视化混乱，写入前把 `projectRoot` 尾部 `/` 与 `assetsDir` 首部 `/` 择一去掉即可（**只影响本地路径，不影响 URL 拼接铁律**）。
+> - 写入前必须确保 `{projectRoot}/{assetsDir}` 目录存在：`mkdir -p {projectRoot}/{assetsDir}`。
 
 > **`use_absolute_bounds=true` 是必须的**（v0.2 修订）：
 > - 默认导出会包含**图层 effect（drop-shadow / outer-stroke / blur）的可见范围**，PNG 会比 bbox 大一圈（多出来的部分是半透明阴影），导致 DOM 里对齐用的 `gap` / `margin` 算不准。例如设计稿 `gap: -25px`，因 PNG 多了 25px 视觉外扩，CSS 必须写 `gap: -50px` 才能视觉贴合——不可接受。
@@ -835,8 +857,8 @@ curl -H "X-Figma-Token: {figma.token}" \
 
 | 级别 | 动作 | 何时用 |
 |------|------|--------|
-| **L0 主路径** | REST API + `figma.token`（上面 curl 模板） | 默认 |
-| **L1 兜底** | 调用 Figma MCP **`download_assets(fileKey, nodeId, defaultFormat, defaultScale)`**，把返回的 export `url` 用 curl 拉下来存到 `{assetsDir}/{filename}.{ext}` | L0 返回 401/403/`invalid_token`/超时；或 config 里 `figma.token` 为空 |
+| **L0 主路径** | REST API + `figma.token`（上面 curl 模板） | **config 里 `figma.token` 非空时，必须走此路径，无论 MCP 是否可用** |
+| **L1 兜底** | 调用 Figma MCP **`download_assets(fileKey, nodeId, defaultFormat, defaultScale)`**，把返回的 export `url` 用 curl 拉下来存到 `{projectRoot}/{assetsDir}/{filename}.{ext}`（**绝对路径**，同 4.4 铁律） | **仅限**：config 里 `figma.token` 为空；或 L0 实际返回 401/403/`invalid_token`/超时后才可启用——**token 存在就不允许跳过 L0 直接走 L1** |
 | **L2 兜底** | 调用 Figma MCP **`upload_assets`** 走不通就直接退化为：用 `download_assets` 的 `url` **作为 `<img src>` 写进代码**（仅当用户明确说"先跑通再补图"），并在 QA 列表标红 | L1 也失败（极少：MCP 工具不可用） |
 | **L3 兜底** | 终止：输出 `图片下载链路全部失败：检查 figma.token 与 MCP 可用性`，由用户决策 | 全失败 |
 
@@ -855,6 +877,7 @@ curl -H "X-Figma-Token: {figma.token}" \
 ```
 
 **禁止**：
+- **禁止在 `figma.token` 存在且非空时直接调用 MCP `download_assets` 导出图片**：token 可用时必须走 L0 REST API，MCP 是 token 不可用时的兜底，不是方便快捷的替代路径——MCP 导出不支持 `use_absolute_bounds=true`，绕过 L0 等于主动引入"图带背景色 + gap 算不准"两个 bug
 - 禁止在 token 过期时直接跳过下载（旧 SKILL 写过"跳过下载，仅用 MCP 临时链接占位"，**v0.2 起作废**——临时链接 24h 过期，代码上线就 404）
 - 禁止用 MCP 临时链接（`figma.com/api/mcp/asset/...`）写进代码 `<img src>`，只允许作为下载源
 - 禁止在 L1 走通后省略 QA 标注（必须让用户知道这次切的图未严格按 bbox）
@@ -914,6 +937,58 @@ $asset-prefix: '<imageBaseUrl 字面值><assetsDir 字面值>';  // ← 把 conf
 > - 在 SCSS 中直接硬编码完整 URL，每个图各写一遍 → 容易写错且改 config 改不动
 
 **自检**：写完任何引用图片的代码后，**逐个 URL 在大脑中重新拼一遍**：取 config 里的 `imageBaseUrl`（连带末尾字符）+ `assetsDir`（连带末尾字符）+ 文件名，三段字符串按字面值连起来，与生成出来的 URL 字符串**逐字符比对**，不一致就改。
+
+#### 4.4.2 字体处理（阿里巴巴普惠体固定 CDN）
+
+设计稿中若出现 **Alibaba PuHuiTi**（阿里巴巴普惠体）Bold / Heavy 字重的文本节点，**统一使用固定 CDN 地址**，不下载到本地、不走 `assetsDir`：
+
+| Figma 字体名 | font-family 值 | 字体 URL |
+|--------------|----------------|----------|
+| `Alibaba PuHuiTi` / `AlibabaPuHuiTi` **Bold** | `AlibabaPuHuiTi-Bold` | `https://images3.c-ctrip.com/train/activity/fonts/AlibabaPuHuiTi-Bold.woff2` |
+| `Alibaba PuHuiTi` / `AlibabaPuHuiTi` **Heavy** | `AlibabaPuHuiTi-Heavy` | `https://images3.c-ctrip.com/train/activity/fonts/AlibabaPuHuiTi-Heavy.woff2` |
+
+**声明位置**：`@font-face` 写在**页面根样式**（即当前 page 目录下的入口 scss/less/css），**每个 font-family 只声明一次**；多个 sub-agent block 不重复声明。
+
+**声明写法**（SCSS/LESS/CSS 通用）：
+
+```scss
+@font-face {
+  font-family: 'AlibabaPuHuiTi-Bold';
+  src: url('https://images3.c-ctrip.com/train/activity/fonts/AlibabaPuHuiTi-Bold.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AlibabaPuHuiTi-Heavy';
+  src: url('https://images3.c-ctrip.com/train/activity/fonts/AlibabaPuHuiTi-Heavy.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+```
+
+**引用写法**：
+
+```scss
+.title-bold {
+  font-family: 'AlibabaPuHuiTi-Bold', sans-serif;
+}
+.title-heavy {
+  font-family: 'AlibabaPuHuiTi-Heavy', sans-serif;
+}
+```
+
+**Figma 字重映射规则**：
+- Figma `Bold` → `AlibabaPuHuiTi-Bold`
+- Figma `Heavy` / `Black` → `AlibabaPuHuiTi-Heavy`
+- Figma 其他字重（Regular / Medium / Light / Thin 等）→ **不引入 Alibaba PuHuiTi**，退化为系统默认字体栈；若设计确有需要，在 QA 段落里标注"设计使用了 <字重> 字重，当前仅提供 Bold / Heavy 两档"，由用户决策是否补 CDN
+
+**禁止**：
+- 禁止把阿里巴巴普惠体 woff2 下载到本地 `assetsDir`：这两个字重是团队固定 CDN，全项目复用，本地化只会增大产物
+- 禁止用 `imageBaseUrl + assetsDir` 拼字体 URL：字体不走图片资源公式，直接写 CDN 完整地址
+- 禁止在多个 sub-agent 的组件样式里各自重复 `@font-face`：必须集中到页面根样式声明一次
 
 #### 4.5 单位换算
 
@@ -1155,6 +1230,10 @@ export default function Content() {
 ✅ 生成文件：{output.dir}/ComponentName/
 📦 需下载图片：（汇总 assets.txt，含原始临时链接）
 ⚠️  需手动处理：（QA 发现的不可自动修正差异）
+🧹 上线前清理：产物已注入 `data-node-id="..."` 调试锚点（用于反查 Figma 节点、方便 review 逐 block 对比），
+   上线前请运行 `ctrip-train-d2c-strip-nodeid` skill 一键清理，或直接执行：
+     node .claude/skills/ctrip-train-d2c-strip-nodeid/strip-node-id.mjs --dry-run   # 先预览
+     node .claude/skills/ctrip-train-d2c-strip-nodeid/strip-node-id.mjs             # 确认后清理
 ```
 
 ---
@@ -1170,12 +1249,15 @@ export default function Content() {
 - 禁止把 `block-` 块内的元素与其他块的元素合并到同一 HTML 容器或共享 CSS 类名
 - 禁止只匹配第一个前缀就停止，必须扫描完整图层名提取所有已知前缀
 - 禁止脱离 `images.imageBaseUrl + images.assetsDir + filename` 公式拼接图片 URL；禁止补/删任何字符（包括末尾 `/`）；禁止在 SCSS 中分散硬编码完整 URL，必须先定义 `$asset-prefix` 变量再引用
+- 禁止用相对路径下载图片：`curl -o` / `download_assets` 落地路径必须是 `{projectRoot}/{assetsDir}/{filename}.{ext}` 绝对路径（`projectRoot` = 步骤 0 缓存的 config 文件所在目录绝对路径）。禁止写 `-o {assetsDir}/{filename}.png` 或 `-o ./static/xxx.png` 等相对形式——sub-agent 的 cwd 未必是项目根，相对路径会把图片落到代码产出目录下的错误相对位置，导致 URL 拼接后 404
 - 禁止跳过步骤 2.5 页面级背景采集；禁止把顶层 frame 的页面级背景写到组件根容器；禁止改动项目已有的全局样式文件（base.scss / global.css / app.less 等）；禁止凭印象判定项目特征（必须 Read/Grep 实证后选 P-A / P-B / M-A / M-B / J 策略）；禁止多页面项目使用 P-B / M-B（单页策略，会互相污染）；**禁止在普通 stylesheet（非 module 的 scss/less/css）里写 `:global(...)`、禁止在 `*.module.{scss,less,css}` 里直接写 `body { ... }`（写错则 body 背景百分百不生效）**
 - 禁止"sub- 只有 1 个就退化为主 agent 处理"；任何 `sub-` 节点都必须分发独立 sub-agent，**单 sub 也必须拆**（分块是质量保证而非性能优化）
 - 禁止 `scrollx-` / `scrolly-` 与 `img-` / `bg-` / `bgc-` / `x-` / `btn-` 共存（语义冲突）；禁止同一节点同时含 `scrollx-` 和 `scrolly-`（一个元素只能一个滚动方向）；禁止省略隐藏滚动条样式（`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`）
 - 禁止把 `sub-scrollx-` / `sub-scrolly-` 节点**整体导出为单张背景图**作为容器 `background-image`：scroll 容器必须**继续递归子层**（§416-417），子层是同构列表项；只有标了 `bgc-` / `bg-` 的子节点才作为背景。即便子层结构复杂、识别困难，也不允许"省事 fallback 到整体导出"——需要时把识别失败的子树标 `x-` 或拆分稿子，不能用整体导出绕过。
 - 禁止调用 Figma `/v1/images` 时省略 `use_absolute_bounds=true`：不带此参数会把图层 effect（drop-shadow / outer-stroke / blur）和父背景色一起 render 进 PNG，导致"图都带画板背景色"+"对齐用的 gap / margin 算不准（视觉外扩）"两个 bug 同时发生。仅当某张图明确要把 effect 烤进位图（在 config `images.preserveEffectIds` 列出 nodeId）时才省略。
+- 禁止 `figma.token` 存在且非空时使用 MCP `download_assets` 导出图片（即便 MCP 更方便）：token 有效时必须走 L0 REST API，MCP 兜底仅当 token 确实缺失或 L0 实际失败时才允许启用。
 - 禁止把 `bg-` 节点的**父容器**当成切图源传给 `/v1/images` API：切图源 nodeId 必须是 `bg-` 节点自己。把父容器整体切下会导致 `bgc-` 颜色、其他兄弟节点（block-/img-/font-/文本）融合到一张 PNG，违反"`bgc-` 写 CSS 颜色、`bg-` 写 CSS 背景图、内容层独立处理"的分离原则
+- 禁止跳过 §4.4 curl 前的**强制前置自检 4 行**（图层前缀类型 / 切图源 nodeId / 切图源 name / 交叉验证 name 是否以对应前缀开头）：这是防止把兄弟文字/图标烤进 bg- 位图的唯一防线，sub-agent 每张图都必须把 4 行输出到对话，交叉验证为"否"必须停 curl 回 §4.0.5 重找 nodeId。**任意一张图省略此自检，视为该 sub-agent 交付不合格，主 agent §6.0 逐叶子对比时必须回退重做整块**
 - 禁止把 `bgc-` 节点切成 PNG：`bgc-` 永远只取节点自身的盒级 CSS 属性（fills/strokes/cornerRadius/effects）写父元素，切图是错误实现
 - 禁止只取 `bgc-` 节点的 fills 而忽略 strokes/cornerRadius/effects：bgc- 覆盖父元素**全套**盒级 CSS 属性，不只是颜色（参见 §`bgc-` 取值规则）
 - 禁止父容器同时有 `bgc-` 和 `bg-` 时只写 `background-image` 不写 bgc- 的其他属性：bgc- 必须独立完整写到 CSS（颜色/渐变/描边/圆角/阴影），不允许靠 `bg-` 图片自带的视觉"代替"——这会让 bgc- 属性无法主题化/动态切换/选中态切换
@@ -1188,3 +1270,4 @@ export default function Content() {
 - 禁止 `fixed-` 与 `bg-` / `bgc-` / `x-` 叠加：这三个前缀不生成节点（bg- / bgc- 写到父元素 CSS，x- 跳过），没有节点就没法 `position: fixed`。doctor NAM014 命中后 error。要做"固定背景"请把 fixed- 加在父节点上，bg- 仍写父节点 background
 - 禁止 `fixed-` 节点写代码时省略 z-index：fixed 元素脱离文档流，没有 z-index 在不同浏览器栈顺序不稳定；默认 100，多个 fixed- 时按设计稿前后顺序递增（100/101/102…）
 - 禁止 `fixed-` 节点跳过 Figma constraints 读取：top/bottom/left/right 必须按 constraints 推断（详见 §`fixed-` 定位规则）；只在 constraints 缺失时退化为绝对坐标 + 强制 QA 告警
+- 禁止组件函数名、组件文件目录名以 `sub-` / `Sub` 开头：图层名 `sub-foo` 对应的组件函数名必须去掉 `sub-` 前缀后再转 PascalCase（`sub-card` → `Card`，`sub-login-form` → `LoginForm`），目录名保留原始图层名（`blocks/card/`）用于文件系统寻址，函数名严禁带 `sub-` 前缀

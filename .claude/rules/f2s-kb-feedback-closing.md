@@ -14,7 +14,12 @@ Run this rule only when all of the following are true:
 - This turn has **not entered** an `f2s-*` skill, `implement-tech-design`, `f2s-git-commit`, or another existing follow-up flow;
 - This turn read business source code and the final answer cites source-code facts.
 
-If this turn is already running a knowledge-base skill, do not repeat the suggestion.
+**Prohibited**: Do NOT output **any** of this rule's case 1–4 closing blocks in either of the following situations —
+
+1. **This turn has already entered `f2s-kb-distill`**: `f2s-kb-distill` is the skill that ingests this turn's knowledge into the KB; appending its own ingestion hint is both redundant and self-referential.
+2. **This turn entered a process-orchestration skill**: `f2s-req-clarify` / `f2s-req-tech` / `f2s-req-plan` / `f2s-doc-arch` / `f2s-doc-final` / `f2s-doc-milestone` / `f2s-doc-pdf`. The deliverable of these skills is a **`.Knowledge/req-docs/*`, `docs/*`, or task-planning artifact for this specific delivery**; reading source code serves that deliverable, it is not "picking up a piece of general knowledge on the side". Even if source code was read and its facts were written into the clarification / design / planning document, **do not** append a distill hint (clarification / design docs live under `req-docs`, not under `topics` / `stock-docs`; planning artifacts are archived with the task; doc skills each have their own write target).
+
+Other `f2s-kb-*` skills (e.g., `f2s-kb-feat` / `f2s-kb-fix` / `f2s-kb-sync`) **still judge per the four cases** after they finish: if this turn's answer contains reusable knowledge facts **outside the main path** that the current SKILL **did not ingest** (typical scenarios: while fixing a bug you incidentally read another module's source, or you answered a follow-up unrelated to the current SKILL's main subject), output the closing block as usual; the agent judges by what was actually written this turn, not by a blanket prohibition.
 
 ## Judgment Timing and Basis
 
@@ -59,18 +64,24 @@ If this turn is already running a knowledge-base skill, do not repeat the sugges
 1. **KB does not cover it + source code provided the answer**: append this at the end of the answer:
    ```md
    > 💡 Run `f2s-kb-distill` to ingest knowledge from this turn
+   >
+   > **This turn will ingest**: <one-line summary naming "what capability / which module / which kind of knowledge", e.g., module X's retry mechanism (first ingestion)>
    ```
    **Decision criteria**: no topic covers this capability / module / problem domain, and the final answer supplemented reusable knowledge facts.
 
 2. **KB covers it but lacks detail + source code completed the answer**: append this at the end of the answer:
    ```md
    > 💡 Run `f2s-kb-distill` to ingest knowledge from this turn
+   >
+   > **This turn will ingest**: <one-line summary naming "which topic and which section to supplement", e.g., supplement the "failure-fallback logic" section of `<topicId>`>
    ```
    **Decision criteria**: an existing topic covers the direction but lacks details, and the final answer supplemented reusable knowledge facts (core mechanisms, state transitions, contracts, etc.).
 
 3. **KB and source code disagree**: answer according to source-code facts and append this at the end of the answer:
    ```md
    > 💡 Run `f2s-kb-distill` to ingest knowledge from this turn
+   >
+   > **This turn will ingest**: <one-line summary naming "which description in `<topicId>` to fix that disagrees with source code">
    ```
 
 4. **KB fully covers it; source code was only verification**: append this at the end of the answer:
@@ -82,6 +93,8 @@ If this turn is already running a knowledge-base skill, do not repeat the sugges
    - This turn's final answer did not introduce new reusable knowledge facts outside the KB
    - Source code cited in the answer was only for evidence (line numbers, function names, call paths) or to verify KB-written content
    - If the gap noted before drilling down mentioned mechanism/contract/process-type knowledge gap, case 4 is prohibited
+
+> **Summary requirement (required for cases 1-3)**: one line stating "what this distill run will ingest" — capability / module name + knowledge type (mechanism / transition / contract / config etc.) + whether this is first ingestion or supplementing some topic. **Do not** post only the command without the summary; the summary is what lets the user decide whether to actually run distill.
 
 ## Boundary Between Case 1 and Case 2
 
@@ -97,7 +110,7 @@ This avoids misjudging "already has a topic but still suggests add".
 
 ## Output Format
 
-- Cases 1-3: output one Markdown blockquote containing only `f2s-kb-distill` command (the skill will automatically extract Q&A context from conversation history).
+- Cases 1-3: output one Markdown blockquote containing, in order, the `f2s-kb-distill` command + one blank line + the **This turn will ingest** summary (one line, see "Summary requirement" above).
 - Case 4: output one Markdown blockquote stating "Knowledge base already covers this" plus the related topicId.
 - Do not omit this block; do not output a list of KB paths read, a coverage comparison table, explanations, or multi-line background.
 - Only suggest; do not automatically run `f2s-kb-distill`.
