@@ -1,0 +1,16 @@
+[
+  {
+    "name": "skill_migrate_to_rest_api_with_cache",
+    "folder": ".task/active/skill_migrate_to_rest_api_with_cache/",
+    "keywords": ["去掉mcp", "rest api", "figma api", "缓存", "d2c-cache", "SKILL 迁移", "mcp 迁移"],
+    "linkedSkill": "f2s-kb-feat",
+    "createdAt": "2026-07-08"
+  },
+  {
+    "name": "skill_add_autolayout_and_spacing_rules",
+    "folder": ".task/active/skill_add_autolayout_and_spacing_rules/",
+    "keywords": ["autolayout", "flex 判定", "间距冲突", "margin gap", "布局规则", "定位太多", "position absolute", "space-between", "layoutMode"],
+    "linkedSkill": "f2s-kb-feat",
+    "createdAt": "2026-07-30"
+  }
+]
