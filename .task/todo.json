@@ -12,5 +12,12 @@
     "keywords": ["autolayout", "flex 判定", "间距冲突", "margin gap", "布局规则", "定位太多", "position absolute", "space-between", "layoutMode"],
     "linkedSkill": "f2s-kb-feat",
     "createdAt": "2026-07-30"
+  },
+  {
+    "name": "skill_add_end_prefix",
+    "folder": ".task/active/skill_add_end_prefix/",
+    "keywords": ["end-", "逆向布局", "贴底", "贴右", "reverse", "stick-end", "底部布局", "pinxuan", "space-between wrapper"],
+    "linkedSkill": "f2s-kb-feat",
+    "createdAt": "2026-07-30"
   }
 ]
