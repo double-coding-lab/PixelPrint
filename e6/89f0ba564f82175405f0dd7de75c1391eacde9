@@ -1,0 +1,24 @@
+.Knowledge/topics/ctrip-train-d2c.md
+  s_2843f3def1e163::t_5cc57d2fe5db88 243
+  s_2843f3def1e163::t_34df257df33c37 172-201
+.Knowledge/index.md
+  s_2843f3def1e163::t_5a902cd4a8e975 32
+.Knowledge/matchers/m-ctrip-train-d2c.json
+  s_2843f3def1e163::t_25aea6842b0b8b 74-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.38-trip",
+  "base_commit_sha": "e689f0ba564f82175405f0dd7de75c1391eacde9",
+  "prompts": {},
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
