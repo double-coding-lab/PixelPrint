@@ -1,0 +1,60 @@
+.task/active/skill_migrate_to_rest_api_with_cache/task.md
+  s_473053f53d3976::t_d3f94fc5597101 9,12,16-19,22-28
+  s_473053f53d3976::t_3affe7f44dcd6f 1-3,20-21
+  s_473053f53d3976::t_837c61395ffdc1 4-8,10-11,13-15
+.task/active/skill_add_autolayout_and_spacing_rules/context.md
+  s_2843f3def1e163::t_03188335203c29 1-14
+.task/active/skill_add_autolayout_and_spacing_rules/user-todos.md
+  s_2843f3def1e163::t_d205589e0fe938 1-9
+.task/active/skill_add_autolayout_and_spacing_rules/acceptance.md
+  s_2843f3def1e163::t_626120eb066ea9 3-30,32-42,52-68
+  s_2843f3def1e163::t_52a49c2a1d3504 1-2
+  s_2843f3def1e163::t_8c903b7cf65f4f 31,43-51
+.task/active/skill_migrate_to_rest_api_with_cache/user-todos.md
+  s_473053f53d3976::t_f3f6019976dd56 1-5
+.task/todo.json
+  s_2843f3def1e163::t_1a3237f2c67290 8-14
+  s_473053f53d3976::t_153e0ace65e7ca 1-7,15-16
+.task/active/skill_migrate_to_rest_api_with_cache/acceptance.md
+  s_473053f53d3976::t_7ec4a54201f31e 20-28
+  s_473053f53d3976::t_93dcd81524d7e7 58,60
+  s_473053f53d3976::t_9b562d73d96536 1-19,29-35,37-50,52-57,59
+  s_473053f53d3976::t_9960174d43568f 36
+  s_473053f53d3976::t_33e80564cec78c 51
+.task/active/skill_migrate_to_rest_api_with_cache/context.md
+  s_473053f53d3976::t_01e5f452b2518e 1-11
+.task/active/skill_add_autolayout_and_spacing_rules/task.md
+  s_2843f3def1e163::t_313b102486356f 1-3,12-18
+  s_2843f3def1e163::t_7e2b7d73ac03fb 6
+  s_2843f3def1e163::t_9c38985a96c302 8
+  s_2843f3def1e163::t_de3e390719af39 11
+  s_2843f3def1e163::t_d760a75282f039 4
+  s_2843f3def1e163::t_b66a89decac22a 5
+  s_2843f3def1e163::t_566cd46dc87fe0 10
+  s_2843f3def1e163::t_f7976d9537ac5b 7
+  s_2843f3def1e163::t_aa26a86b8a0b89 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.38-trip",
+  "base_commit_sha": "335ee0e423420d4aefe683bc94619ff8034d250b",
+  "prompts": {},
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    },
+    "s_473053f53d3976": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5f3e0ef0-d458-43e4-84df-ef5932cb0753",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
