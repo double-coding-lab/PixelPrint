@@ -49,6 +49,8 @@ Read("ctrip-train-d2c.config.json")
 | `layers.bgColor` | `bgc-` | 背景色前缀 |
 | `layers.font` | `font-` | 文字前缀 |
 | `layers.but` | `btn-` | 按钮前缀 |
+| `layers.fixed` | `fixed-` | 视口固定定位前缀（修饰） |
+| `layers.end` | `end-` | 逆向布局前缀（贴父末端，修饰） |
 | `layers.ignore` | `x-` | 忽略前缀 |
 | `health.enabled` | `true` | 总开关，false 时直接退出 |
 | `health.blockOnError` | `true` | 集成模式下 error 是否阻塞生成 |
@@ -153,6 +155,8 @@ Read("ctrip-train-d2c.config.json")
 **前缀识别**：从 `name` 左到右扫描，提取所有匹配 `layers.*` 配置值的前缀；前缀之间允许有 `-` 连接。如：
 - `sub-img-qa` → `[sub, img]`，nameClean = `qa`
 - `sub-btn-img-banner` → `[sub, btn, img]`，nameClean = `banner`
+- `fixed-btn-back-top` → `[fixed, btn]`，nameClean = `back-top`
+- `end-img-pinxuan` → `[end, img]`，nameClean = `pinxuan`（v0.3.2 新增 end- 修饰前缀）
 
 **额外打一个标：`inNonRecursiveSubtree`**（布尔，在打标完成后第二轮算，O(n)）：
 
@@ -226,6 +230,7 @@ inNonRecursiveSubtree(node) =
 | NAM012 | 👤 设计师 | 低（改一个字母 b→bc） | bg- 但视觉可 CSS 表达，切位图会 banding / effect 外扩 / 文件冗余；改 bgc- 用 CSS 实现更优 |
 | NAM013 | 👤 设计师 | 低（移到 bg- 兄弟位置） | bgc- 嵌在 bg- 子树内，视觉会被位图化；移到 bg- 的同级位置才能正确挂到父元素 CSS |
 | NAM014 | 👤 设计师 | 低（拆分前缀 / 移位） | fixed- 叠加在 bg-/bgc-/x- 上，没有节点可挂，定位失效 |
+| NAM016 | 👤 设计师 | 低（拆分前缀 / 移位） | end- 叠加在 bg-/bgc-/x- 上，没有节点可挂，逆向布局失效 |
 | LAY001 | 👤 设计师 | 中（启用 Auto Layout） | AI 靠坐标推断方向，间距/对齐易偏 |
 | LAY002 | 👤 设计师 | 低（padding 改非负） | 生成代码 padding 错乱 |
 | LAY009 | 👤 设计师 | 中（拆分叠层 / 改前缀） | AI 分不清叠层顺序，常猜错谁在上 |
@@ -233,6 +238,10 @@ inNonRecursiveSubtree(node) =
 | LAY011 | 👤 设计师 | 低（固定宽/高） | scroll 容器宽/高不固定，运行时滚动不触发 |
 | LAY012 | 👤 设计师 | 低（删一个方向） | 双向滚动冲突，生成代码 scrolly 失效 |
 | LAY013 | 👤 设计师 | 中（移位 / 去除祖先 transform） | fixed- 祖先链含 transform/filter/blur，CSS 规范下 fixed 退化为相对祖先定位，跟着祖先滚动 |
+| LAY017 | 👤 设计师 | 低（移到末位 / 去前缀） | end- 不在父末位，wrapper + space-between 机制无法生成 |
+| LAY018 | 👤 设计师 | 低（保留末位 end-） | 多个 end- 只有末位生效，其他被视为普通前缀 |
+| LAY019 | 👤 设计师 | 低（父开 auto-layout） | end- 的父不是 auto-layout，无方向可判 |
+| LAY020 | 👤 设计师 | 低（二选一） | end- 与 fixed- 同现，fixed- 优先，end- 忽略 |
 | STR001 | 👤 设计师 | 中（拍平 wrapper） | 生成的 DOM 多余嵌套，调试不便（不影响视觉） |
 | STR002 | 👤 设计师 | 低（删壳） | 同上 |
 | AST002 | 👤 设计师 | 低（调 bg- 尺寸） | bg- 露白，背景图未铺满父容器 |
@@ -296,6 +305,8 @@ inNonRecursiveSubtree(node) =
 | `scrolly` + `img` / `bg` / `bgc` / `x` / `btn` | 同上 |
 | `scrollx` + `scrolly` | 一个元素只能一个滚动方向(主 SKILL §447 / §712),由 LAY012 单独覆盖;NAM003 此处只标"前缀冲突",等级与 LAY012 保持一致 |
 | `fixed` + `bg` / `bgc` / `x` | `fixed-` 需要"挂在节点上"才能生效;`bg-` / `bgc-` 不生成节点(写父元素 CSS),`x-` 跳过整层。由 NAM014 单独覆盖(error);NAM003 此处只标"前缀冲突",等级与 NAM014 保持一致 |
+| `end` + `bg` / `bgc` / `x` | `end-` 需要"挂在节点上"才能生效(生成 wrapper + space-between 结构);`bg-` / `bgc-` 不生成节点,`x-` 跳过整层。由 NAM016 单独覆盖(error);NAM003 此处只标"前缀冲突",等级与 NAM016 保持一致 |
+| `fixed` + `end` | 两个修饰前缀同现,`fixed-` 让节点脱离父流走 position:fixed,`end-` 的"贴父末端"语义无法叠加。由 LAY020 单独覆盖(warn);生成时 fixed- 优先,end- 前缀被忽略 |
 
 > **`bg` + `bgc` 不冲突**(v0.2 修订):两者写的是父级 CSS 的不同属性(`background-image` vs `background-color`),可以共存。同一父级同时有 `bg-` 和 `bgc-` 子节点是合法设计——分别贡献父级背景图和背景色。
 
@@ -392,6 +403,26 @@ inNonRecursiveSubtree(node) =
 → consequence: `生成端忽略 fixed-；位图/装饰仍按父元素 CSS 表达，无法定位到视口`
 → fix: `如需"固定位置的背景"：把 fixed- 移到父节点（父节点变成 fixed-Container），bg-/bgc- 保留为子节点。如需"固定的可点击/可滚动区域"：fixed-btn-/fixed-sub-/fixed-scrolly- 都合法`
 
+#### 3.6e NAM016 end- 与不生成节点的前缀叠加（默认 error，v0.3.2 新增）
+
+> **目的**：识别 `end-` 错误地叠加在 `bg-` / `bgc-` / `x-` 上的命名，与 NAM014（fixed- 同类问题）逻辑一致。
+
+判定条件：
+
+- 节点 `prefixes` 含 `end`
+- 同节点 `prefixes` 还含 `bg` 或 `bgc` 或 `x`
+
+**为什么是错误结构**：
+
+- `end-` 通过在生成的 DOM 结构里"包 wrapper + `justify-content: space-between`"起作用，需要"有节点"才能生效
+- `bg-` / `bgc-` 不生成独立 HTML 节点（写到父元素 CSS），`end-` 落不到节点上
+- `x-` 跳过整层，`end-` 直接随之失效
+- 如果设计师想做"贴底的背景"，应该把 `end-` 加在父节点上，或者让 `bg-` 保持在父容器上通过 `background-position: bottom` 表达
+
+→ problem: `end- 与 {bg/bgc/x}- 叠加在同一节点（{nodeName}），end 无法挂载到不生成节点的前缀`
+→ consequence: `生成端忽略 end-；位图/装饰仍按父元素 CSS 表达，无法通过 wrapper + space-between 表达"贴末端"`
+→ fix: `如需"贴底的背景图"：改用 CSS background-position: bottom，或把 end- 移到父节点上。如需"贴底的独立元素"：end-btn-/end-img-/end-sub- 都合法（这些前缀生成节点）`
+
 #### 3.7 LAY001 容器缺 Auto Layout（默认 warn）
 
 - 节点 `type === 'FRAME'`
@@ -472,6 +503,56 @@ inNonRecursiveSubtree(node) =
 → problem: `fixed- 节点 {nodeName} 的祖先链上存在 transform/filter 来源（祖先：{ancestorName} → {属性}）`
 → consequence: `运行时 position: fixed 退化为相对该祖先定位，fixed- 节点会跟着祖先滚动，不再贴视口`
 → fix: `推荐：把 fixed- 节点在 Figma 中上提到顶层 frame 的直接子节点（避开有 transform/filter 的祖先）。次选：去掉祖先节点的 rotation / scale / blur 效果。如果业务场景必须保留祖先效果，开发端需要手动加 React Portal 把 fixed- 节点挂到 document.body`
+
+#### 3.9f LAY017 end- 位置不在父末端（默认 error，v0.3.2 新增）
+
+> **目的**：`end-` 语义是"贴父容器末端"，只在**父的最后一个可见子**位置才有意义；出现在中间或第一个属于命名错误。
+
+判定条件：
+
+- 节点 `prefixes` 含 `end`
+- 节点在父的 `children` 数组中，**过滤掉不可见子节点后**，索引 ≠ 末位
+
+→ problem: `end- 节点 {nodeName} 不是父容器 {parentName} 的最后一个可见子（当前位置 {i+1}/{总可见数}）`
+→ consequence: `end- 主线机制"wrapper + space-between"只有在末位子才能正确表达贴父末端；位置不合规时无法生成有效代码，会退化`
+→ fix: `在 Figma 中把该节点移动到父容器的最后位置，或者去掉 end- 前缀（如果本意不是贴末端）`
+
+#### 3.9g LAY018 同父下多个 end- 子（默认 warn，v0.3.2 新增）
+
+> **目的**：`end-` 主线机制"wrapper + `justify-content: space-between`"只能表达"一组前 vs 一个末尾"的两端布局；多个 end- 无法叠加语义。
+
+判定条件：
+
+- 父节点的可见子里 `prefixes` 含 `end` 的数量 ≥ 2
+
+→ problem: `父节点 {parentName} 下有 {n} 个 end- 子（{childNames.join(", ")}）`
+→ consequence: `只有最后一个 end- 生效走 wrapper + space-between，其他 end- 被视为普通节点忽略前缀`
+→ fix: `保留末位那个 end-，前面的 end- 改成普通命名；如果确需多点分布，重新用 Figma auto-layout 的 primaryAxisAlignItems 或拆父容器解决`
+
+#### 3.9h LAY019 end- 的父不是 autoLayout（默认 error，v0.3.2 新增）
+
+> **目的**：`end-` 方向由父 `layoutMode` 决定；父不是 autoLayout 时无方向可判。
+
+判定条件：
+
+- 节点 `prefixes` 含 `end`
+- 父节点 `autoLayout` 为 null（即父 `layoutMode` 缺失 / `NONE`）
+
+→ problem: `end- 节点 {nodeName} 的父容器 {parentName} 不是 autoLayout，end- 无方向可判`
+→ consequence: `无法确定该子应贴底还是贴右，主线机制 wrapper + space-between 无法生成`
+→ fix: `在 Figma 中给父容器开启 auto layout（Shift+A），选择 vertical（贴底）或 horizontal（贴右）；或者去掉子节点的 end- 前缀改用其他布局手段`
+
+#### 3.9i LAY020 end- 与 fixed- 同现（默认 warn，v0.3.2 新增）
+
+> **目的**：`fixed-` 已经让节点脱离父流相对视口定位，`end-` 的"贴父末端"语义在 fixed 状态下无法叠加。
+
+判定条件：
+
+- 节点 `prefixes` 同时含 `fixed` 和 `end`
+
+→ problem: `节点 {nodeName} 同时带 fixed- 和 end- 修饰前缀`
+→ consequence: `fixed- 让该节点脱离父流走 position: fixed，end- 的父末端语义此时无意义；生成时 fixed- 优先，end- 前缀被忽略`
+→ fix: `二选一：如果本意是相对视口贴底/贴右，保留 fixed- + 在 Figma 中设 constraints: BOTTOM/RIGHT；如果本意是相对父容器贴末端，去掉 fixed- 保留 end-`
 
 #### 3.10 STR001 嵌套深度过深（默认 warn）
 
