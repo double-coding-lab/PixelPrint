@@ -1,0 +1,19 @@
+templates/skills/ctrip-train-d2c/bin/figma.mjs
+  s_473053f53d3976::t_1900da970b23df 1-354
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.38-trip",
+  "base_commit_sha": "7fe677e61fa1d2298530999a33f583e6b21518ef",
+  "prompts": {},
+  "sessions": {
+    "s_473053f53d3976": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5f3e0ef0-d458-43e4-84df-ef5932cb0753",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
