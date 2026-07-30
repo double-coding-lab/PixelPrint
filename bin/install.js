@@ -41,6 +41,35 @@ function copyDir(srcDir, destDir, force = false) {
   }
 }
 
+// 把 .d2c-cache/ 和 .d2c-tmp/ 追加到项目 .gitignore（已存在则跳过）
+function ensureGitignoreEntries() {
+  const gitignorePath = path.join(CWD, '.gitignore')
+  const entries = ['.d2c-cache/', '.d2c-tmp/']
+  const header = '# ctrip-train-d2c cache & temp'
+
+  let existing = ''
+  if (fs.existsSync(gitignorePath)) {
+    existing = fs.readFileSync(gitignorePath, 'utf8')
+  }
+
+  const lines = existing.split(/\r?\n/).map(l => l.trim())
+  const hasEntry = e => lines.some(l => l === e || l === e.replace(/\/$/, ''))
+
+  const missing = entries.filter(e => !hasEntry(e))
+  if (missing.length === 0) {
+    console.log('  skip  .gitignore (.d2c-cache/ / .d2c-tmp/ 已存在)')
+    return
+  }
+
+  const needsLeadingNewline = existing.length > 0 && !existing.endsWith('\n')
+  const appended = (needsLeadingNewline ? '\n' : '') +
+    (existing.length > 0 ? '\n' : '') +
+    header + '\n' + missing.join('\n') + '\n'
+
+  fs.writeFileSync(gitignorePath, existing + appended)
+  console.log(`  ${existing.length > 0 ? 'append' : 'create'}  .gitignore  (+ ${missing.join(' + ')})`)
+}
+
 function installFiles(forceSkills = false, skipConfig = false) {
   console.log('\nctrip-train-d2c: installing files...\n')
   copyDir(path.join(TEMPLATES_DIR, 'skills'), path.join(CWD, '.claude/skills'), forceSkills)
@@ -156,14 +185,15 @@ async function runInit() {
   const fig = existing.figma || {}
   const out = existing.output || {}
 
-  console.log('─── 阶段一：Figma MCP 安装提示 ──────────────────────\n')
-  console.log('  ⚠️  init 脚本运行在终端进程里，无法直接验证 Claude Code 内的 MCP 状态。')
-  console.log('  实际可用性会在 Claude 跑 SKILL 步骤 -1 时调 whoami 探针验证。\n')
-  console.log('  如果尚未安装 Figma 官方 MCP，请按以下步骤操作：')
-  console.log('  1. 打开 Claude Code')
-  console.log('  2. 进入 Settings → Extensions（或直接搜索 Figma）')
-  console.log('  3. 找到 Figma 官方插件，点击安装')
-  console.log('  4. 按提示完成浏览器 OAuth 认证\n')
+  console.log('─── 阶段一：Figma Personal Access Token 说明 ─────────\n')
+  console.log('  ⚠️  v0.3 起本 SKILL 完全走 Figma REST API,不再依赖 MCP。')
+  console.log('  你只需要一个 Figma Personal Access Token 即可运行(在后续阶段三输入)。\n')
+  console.log('  Token 生成路径:')
+  console.log('  1. 打开 https://www.figma.com/ 登录')
+  console.log('  2. 右上角头像 → Settings → Security')
+  console.log('  3. 找到 Personal access tokens,点击 "Generate new token"')
+  console.log('  4. 权限勾选 "File content: Read-only" 即可')
+  console.log('  5. 复制 token 后不要关闭窗口(离开后无法再次查看)\n')
 
   console.log('─── 阶段二：交互式配置 ──────────────────────────────\n')
 
@@ -329,13 +359,16 @@ async function runInit() {
     console.log('  ✓ mappings.json 已初始化')
   }
 
+  console.log('\n─── 阶段五：追加 .gitignore ─────────────────────────\n')
+  ensureGitignoreEntries()
+
   console.log('\n─────────────────────────────────────────────────────')
-  console.log('  ⚠️  Figma MCP 需在 Claude Code 中手动安装并完成 OAuth（见阶段一引导）')
-  console.log('     init 脚本无法直接验证；Claude 跑 SKILL 步骤 -1 时会调 whoami 探针验证。')
+  console.log('  ✓ v0.3 起完全走 Figma REST API,无需 MCP;确保 figma.token 已配置即可。')
   console.log('  ✓ ctrip-train-d2c.config.json 已配置')
   console.log('  ✓ code-connect/mappings.json 已就绪')
-  console.log('\n  Figma MCP 安装完成后，把设计稿链接发给 Claude：')
-  console.log('  把这份设计稿转成代码：https://figma.com/design/xxx?node-id=1-2\n')
+  console.log('  ✓ .gitignore 已追加 .d2c-cache/ / .d2c-tmp/')
+  console.log('\n  把设计稿链接发给 Claude 即可开始生成:')
+  console.log('  把这份设计稿转成代码:https://figma.com/design/xxx?node-id=1-2\n')
 }
 
 // ─── 入口 ────────────────────────────────────────────────────
