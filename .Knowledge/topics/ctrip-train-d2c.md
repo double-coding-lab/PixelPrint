@@ -169,6 +169,36 @@ sub-agent 在生成 scroll 容器代码前**必须输出自检 4 行**：
 - ❌ `fixed-x-mark`：x- 跳过，fixed 失效
 - ✅ 想做"固定背景"：把 fixed- 加在**父节点**上（如 `fixed-sub-banner` 里再放 `bg-banner`）
 
+### 8. `end-` 逆向布局（贴父末端，v0.3.2 新增）
+
+**位置**：主 SKILL §`end-` 逆向布局规则（§4.3 fixed- 章节后） + doctor §3.6e NAM016 + §3.9f-i LAY017/018/019/020。
+
+`end-` 是**定位修饰前缀**——表达"该节点在父 autoLayout 里贴向末端"。方向由父 `layoutMode` 决定：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。可与所有"生成节点"前缀叠加（`sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-`），**不可**与"不生成节点"前缀叠加（`bg-`/`bgc-`/`x-`，doctor NAM016 命中后 error）。
+
+**主线机制（唯一实现路径）**：wrapper + `justify-content: space-between`。父容器把 end- 节点前面的所有兄弟包一层虚拟 wrapper（className 用父类名 + `__front-group`，不写 data-node-id），父 CSS 设 `justify-content: space-between`，天然把 end- 推到末端。end- 节点本身保持原生成逻辑不变。
+
+```jsx
+<parent>                          {/* justify-content: space-between */}
+  <wrapper-of-front>              {/* v0.3.2 虚拟 wrapper */}
+    <A /> <B /> <C />
+  </wrapper-of-front>
+  <D />                           {/* end- 节点，贴到父末端 */}
+</parent>
+```
+
+**与 `fixed-` 的区别**：`fixed-` 相对**视口**贴边，`end-` 相对**父容器**贴末端。两者同现（`fixed-end-x-btn`）时 fixed- 优先，end- 忽略（doctor LAY020 warn）。
+
+**触发前提**（doctor 校验四类不合规）：
+- `end-` 必须是父的**最后一个可见子**（LAY017 error，不在末位）
+- 同一父下**只允许一个** `end-` 子（LAY018 warn，多个只有末位生效）
+- 父必须是 autoLayout（LAY019 error，`layoutMode` 缺失 / `NONE` 时无方向可判）
+- 不与 `fixed-` 同现（LAY020 warn）
+- 不与 `bg-` / `bgc-` / `x-` 同现（NAM016 error，不生成节点无法应用）
+
+**父容器主轴必须有确定长度**：`space-between` 只有在父 `layoutSizingHorizontal/Vertical: FIXED` / `FILL` 时才能真正把 end- 推到末端；父是 `HUG`（内容撑开）时会退化——**强制 QA 告警**，建议父改 FIXED / FILL 或根容器加 `min-height: 100vh`。
+
+**典型场景**：底部品宣（`end-img-pinxuan`）在设备高度大于设计稿基准时贴屏底；两栏按钮组"取消 / 确认"分居左右（`[btn-cancel, end-btn-confirm]` 父 `HORIZONTAL`）；卡片头右侧"更多 >"链接（`[title, end-more]` 父 `HORIZONTAL`）。
+
 ## 工具链注意事项（install.js / config 完整性）
 
 **install.js `runInit()` 写 config 时必须包含完整字段**（v0.2 修订）。历史 bug：`runInit()` 只写了 project / figma / merge / unit / images / output 六大段，**漏了 layers / health / images.preserveEffectIds**，导致用户项目 config 缺关键字段。
@@ -210,6 +240,7 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 - **sub- 单独拆 + 允许嵌套**(v0.2 修订):哪怕只有 1 个 `sub-` 节点也必须分发独立 sub-agent(§108 / §717),分块是质量保证而非性能优化;**sub- 允许嵌套**(典型场景:`sub-content / sub-card + sub-scrolly-车票列表`),深度上限 3 层,执行走"主 agent 派发 + sub-agent 上报 + placeholder 展开"链路(§107-145 / §4.0.5 / §5.0)
 - **block- 不嵌套**:`block-` 是"顶层独立布局块"(§409),doctor NAM001 fix 已修订为只建议 `sub-`,不再建议 `block-`
 - **fixed- 是修饰前缀**:可与 `sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-` 叠加(只改 `position: fixed`,不改渲染方式);**不可**与 `bg-`/`bgc-`/`x-` 叠加(这三个不生成节点,fixed 无处可挂——doctor NAM014 error);top/bottom 必须读 Figma constraints 推断,不是直接读坐标;祖先链有 transform/filter/blur 时 fixed 退化为相对祖先定位(doctor LAY013 warn)
+- **end- 是修饰前缀(v0.3.2 新增)**:表达"贴父末端",方向由父 `layoutMode` 决定(VERTICAL→贴底 / HORIZONTAL→贴右);可与 `sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-` 叠加,**不可**与 `bg-`/`bgc-`/`x-` 叠加(doctor NAM016 error);唯一实现路径是 wrapper + `justify-content: space-between`;必须是父的最后一个可见子(LAY017 error)且父必须是 autoLayout(LAY019 error);与 fixed- 同现时 fixed- 优先(LAY020 warn)
 - **页面级背景必须探测项目特征**:`*.module.{scss,less,css}` 里直接写 `body { ... }` 会被 hash 化失效;普通 stylesheet（非 module 的 scss/less/css）里写 `:global(...)` 不识别。详见 §2.5(强制不可跳过)。**v0.2.1 新增**：install.js 把样式方案拆成两题（`[2a]` 样式方式 + `[2b]` 预处理语法 + `[2c]` 是否走 module），styleFormat 取值扩展到 `scss / scss-modules / less / less-modules / css / css-modules / tailwind / inline / RN 三选`，详见主 SKILL §0「样式方案标识符」
 
 ## 已知历史 bug 与修订（v0.2）
