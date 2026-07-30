@@ -1,0 +1,35 @@
+.task/active/skill_add_end_prefix/context.md
+  s_2843f3def1e163::t_347506bbda5d9f 1-20
+.task/active/skill_add_end_prefix/acceptance.md
+  s_2843f3def1e163::t_8e82989e7fa447 1-2
+  s_2843f3def1e163::t_83705deadccf72 3-78
+.task/active/skill_add_end_prefix/user-todos.md
+  s_2843f3def1e163::t_5fb4e5288c1c06 1-10
+.task/active/skill_add_end_prefix/task.md
+  s_2843f3def1e163::t_9984f58553e768 8
+  s_2843f3def1e163::t_ea02f6c7bfda9c 9
+  s_2843f3def1e163::t_a646dfe832f51a 4
+  s_2843f3def1e163::t_35f4a861a984e7 10
+  s_2843f3def1e163::t_43c6dd26075860 1-3,11-23
+  s_2843f3def1e163::t_928426f4f08f63 7
+  s_2843f3def1e163::t_b8a74977bee5c5 5
+  s_2843f3def1e163::t_8d1d2b1e9fe5df 6
+.task/todo.json
+  s_2843f3def1e163::t_49a78bf998fe4c 15-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.38-trip",
+  "base_commit_sha": "8005bf465a12efdc4bccca53b97be35def35af59",
+  "prompts": {},
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
