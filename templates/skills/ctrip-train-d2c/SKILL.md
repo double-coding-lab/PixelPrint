@@ -21,7 +21,9 @@
 | `<__SUBSLOT__ nodeId="..." />` | **真实字符串**，要字面写进 JSX 文件作占位符 |
 | `subslots.json` 文件 | **真实磁盘文件**，与 `assets.txt` 同级写入 block 目录 |
 
-**唯一真正"被执行"的事情有两类**：（1）调用 MCP 工具（Figma get_metadata / get_screenshot / get_design_context / 文件读写）；（2）在对话里产出文本（包括代码、JSON、报告、决策）。其余"调用"、"派发"、"返回"全部由 agent 自己按文档说明顺序操作完成。
+**唯一真正"被执行"的事情有两类**：（1）调用 Figma REST API（通过 Bash 执行 curl）读取节点属性 / 导出图片 / 截图，以及本地文件读写；（2）在对话里产出文本（包括代码、JSON、报告、决策）。其余"调用"、"派发"、"返回"全部由 agent 自己按文档说明顺序操作完成。
+
+> **v0.3 起本 SKILL 完全走 Figma REST API，不再依赖任何 `mcp__plugin_figma_figma__*` 工具**。这样做的理由：MCP 工具会附带"AI 生成的参考代码"字段，容易让 agent 信参考代码结构 > 信项目前缀规则（历史事故：`bg-` 节点被 MCP 参考代码展开成 `display: contents` 子结构，agent 跟着递归 DOM 化）。REST API 只返回原始节点 JSON，前缀规则永远优先。
 
 > 误把伪代码当真函数会卡死流程（等待一个永远不会到来的"返回值"），或者绕过关键步骤（"既然 SKILL 里说 doctor.run() 就行，那直接跳到 §1"）。
 
@@ -29,60 +31,30 @@
 
 ## 执行流程
 
-### 步骤 -1（前置预检）：检测 Figma MCP 可用性
+### 步骤 -1（前置预检）：检测 Figma Token 可用性
 
 在任何操作前执行，不可跳过。
 
-**做法**：调用一个**最便宜的 MCP 工具**做探针——优先 `mcp__plugin_figma_figma__whoami`（无参数、无副作用、返回当前 Figma 用户身份）。如果项目里看不到这个工具，用 `mcp__plugin_figma_figma__get_metadata` 传一个**已知合法的 fileKey + nodeId**（从用户输入的 URL 解析出来）作为替代探针。
+**做法**：调用脚本探针（脚本会自动 Read config、发 `/v1/me`、按状态码判定）：
 
-**按返回结果分三种状态精准定位**：
-
-| 返回类型 | 含义 | 处理 |
-|---------|------|------|
-| 调用成功（whoami 返回用户名 / get_metadata 返回节点树） | MCP 已装、已认证、工作正常 | 继续步骤 0 |
-| `Tool not found` / `Unknown tool` / 工具列表里**完全找不到** `mcp__plugin_figma_figma__*` | **MCP 完全没装** | 输出「未装」提示并终止 |
-| 调用返回 `Unauthorized` / `Not authenticated` / `401` 且**错误来源是 MCP 工具本身**（不是 Figma REST API） | MCP 装了但未完成 OAuth 认证 | 输出「未认证」提示并终止 |
-| 调用返回 `403` / `Permission denied` / `Access denied` | MCP 装了但当前账号没有该 fileKey 的访问权限 | 输出「无权限」提示并终止 |
-| 调用返回其他业务错误（如 `Invalid node-id` / `File not found`） | MCP 工作正常，是用户输入有问题 | 继续步骤 0（让步骤 1 解析 URL 时再细化报错） |
-
-**三种失败提示文案**（精准提示，不让用户瞎猜）：
-
-**未装**：
-```
-❌ Figma MCP 未安装
-
-请在 Claude Code 中安装 Figma 官方插件：
-1. 打开 Claude Code Settings → Extensions
-2. 搜索 "Figma" 找到官方插件并点击安装
-3. 安装完成后在 Figma 插件设置中完成 OAuth 认证
-4. 重新运行本 SKILL
-
-更多信息见：https://www.figma.com/community/plugin/...
+```bash
+node .claude/skills/ctrip-train-d2c/bin/figma.mjs verify-token
 ```
 
-**未认证**：
-```
-❌ Figma MCP 已安装但未完成认证
+**返回约定**：
+- 退出码 `0` + stdout `{"ok":true,"data":{"email":...,"handle":...}}` → 继续步骤 0
+- 退出码非 0 + stdout `{"ok":false,"error":"..."}` → 把 `error` 显示给用户并终止；建议提示：
 
-请完成 OAuth 流程：
-1. 在 Claude Code 中打开 Figma 插件设置
-2. 点击 "Sign in with Figma" 按钮完成浏览器 OAuth
-3. 认证成功后重新运行本 SKILL
-```
+  ```
+  ❌ Figma Token 探针失败：<error 内容>
 
-**无权限**：
-```
-❌ 当前 Figma 账号无权限访问该设计稿
+  请检查 `ctrip-train-d2c.config.json` 里的 `figma.token`：
+  1. 是否已配置且未过期（Figma 网页版右上角头像 → Settings → Security → Personal access tokens）
+  2. Token 权限是否包含 File content: Read-only
+  3. 网络能否访问 api.figma.com
+  ```
 
-可能原因：
-1. 当前登录的 Figma 账号不是该稿子的成员
-2. 该稿子是私有文件，未邀请你查看
-3. URL 里的 fileKey 错误
-
-请检查或更换账号后重试。
-```
-
-> **关键区分**：`401` / `403` **不一定**都是 MCP 问题——也可能是步骤 4.4 图片导出阶段的 REST API token 过期（走兜底链 L1）。判定方法：**MCP 工具自己的报错**才是 MCP 状态问题；**REST API curl 返回的 401**是 token 问题。
+> **v0.3 变更**：本 SKILL 已完全移除 MCP 依赖，所有 Figma 数据读取都走 `figma.mjs` 脚本（内部调 REST API）。不再需要在 Claude Code 里装 Figma 插件或走 OAuth。
 
 ---
 
@@ -156,6 +128,41 @@ Read("ctrip-train-d2c.config.json")
 
 ---
 
+### 步骤 0.3：初始化缓存（v0.3 新增，不可跳过）
+
+**目的**：把 Figma REST API 拿到的节点属性 / 图片文件缓存到本地，避免同一稿子每次跑 SKILL 都重拉。
+
+**做法**：主 agent 在解析 URL（步骤 1）拿到 `fileKey` 后，立即调：
+
+```bash
+node .claude/skills/ctrip-train-d2c/bin/figma.mjs cache-check <fileKey>
+```
+
+脚本会：拉远端 `lastModified` → 与本地 `.d2c-cache/{fileKey}/meta.json` 比对 → **命中**直接返回 `{"status":"hit"}`；**未命中或首次**自动清空并重建 `.d2c-cache/{fileKey}/`（内部结构 `meta.json` / `nodes/*.json` / `images.json`）。
+
+**后续所有 Figma 数据都走 `figma.mjs` 子命令**，不直接 curl：
+
+| 需要什么 | 调什么 | 说明 |
+|---------|--------|------|
+| 节点属性 JSON | `fetch-node <fileKey> <nodeId> [--depth=N]` | 自动查/回写 `nodes/` 缓存；stdout 返回 `{cached, node}` |
+| 导出图片到 assetsDir | `export-image <fileKey> <nodeId> --filename=<name> [--format=png\|svg] [--scale=2] [--preserve-effect]` | 自动"存在即跳过"、两步式下载、3 次指数退避、`use_absolute_bounds=true` 默认开、回写 `images.json`；stdout 返回 `{path, reused, format}` |
+| QA 对比截图 | `screenshot <fileKey> <nodeId> [--tag=leaf\|whole\|block]` | 落到 `.d2c-tmp/screenshots/`，不入缓存 |
+| SKILL 结束时清临时截图 | `cleanup-tmp` | 步骤 7 收尾时调用 |
+
+**约定**：脚本 stdout 是**一行 JSON**（`{"ok":true,"data":{...}}` 或 `{"ok":false,"error":"..."}`），退出码 0 = 成功、非 0 = 失败。LLM 用 `Bash` 拿 stdout 后自己 parse 即可。
+
+**gitignore 兜底**（老项目升级到 v0.3 首次跑时可能没有 gitignore 条目）：
+
+调 `cache-check` 前先自查一次 `{projectRoot}/.gitignore`，缺 `.d2c-cache/` 或 `.d2c-tmp/` 就追加。install.js 已在 init 时处理，此步是**已存在老项目**的兜底。
+
+**禁止项**：
+- 禁止跳过 `cache-check`（会让缓存在设计稿改过后仍被复用）
+- 禁止在同一次 SKILL 运行里多次 `cache-check`（主 agent 校验一次即可，sub-agent 只读缓存不校）
+- 禁止绕过脚本直接手写 curl 或手动管理 `.d2c-cache/` 内容
+- 禁止把 QA 截图落到 `.d2c-cache/`（脚本 `screenshot` 命令固定落 `.d2c-tmp/`，别改）
+
+---
+
 ### 步骤 0.5：调用设计稿体检（health 启用时）
 
 `health.enabled === true` 时，**在解析 URL 前**先做一次设计稿体检。
@@ -213,7 +220,13 @@ Read("ctrip-train-d2c.config.json")
 
 ### 步骤 2：扫描图层结构，生成执行清单
 
-调用 `get_metadata(fileKey, nodeId)` 获取目标节点的子孙图层树。
+**拉节点树**：
+
+```bash
+node .claude/skills/ctrip-train-d2c/bin/figma.mjs fetch-node <fileKey> <nodeId> --depth=2
+```
+
+stdout 是 `{"ok":true,"data":{"cached":<bool>,"node":{...}}}`。`node` 就是目标节点的完整子孙树（含 `type` / `name` / `children` / `visible` / `absoluteBoundingBox` 等）。脚本已处理缓存查/写，LLM 不用管。
 
 **分块判断逻辑**：
 
@@ -306,7 +319,7 @@ img-*   → 主 agent 处理，生成 <img>
 
 #### 2.5.1 采集
 
-调用 `get_design_context(fileKey, nodeId)` 取顶层节点的 `fills` / `backgroundColor`，判定类型：
+**复用步骤 2 已拿的 `node` 对象**，取其 `fills` / `backgroundColor` 字段，不再单独发 API 请求。判定类型：
 
 | 顶层节点情况 | 类型 tag | 值 |
 |---|---|---|
@@ -551,11 +564,84 @@ sub-agent 拿到根节点后，**第一步**检查根节点自身的图层名前
 
 #### 4.1 读取设计上下文
 
-```
-get_design_context(fileKey, nodeId)
+调脚本拿节点属性（含子树）：
+
+```bash
+node .claude/skills/ctrip-train-d2c/bin/figma.mjs fetch-node <fileKey> <nodeId> --depth=8
 ```
 
-获取：图层树、颜色/间距/字体属性、参考代码、节点截图。
+`node` 里含图层树、以下几类字段必须读全（脚本自动查/写缓存）：
+
+- **视觉属性**：`fills` / `strokes` / `strokeWeight` / `strokeAlign` / `effects` / `cornerRadius` / `rectangleCornerRadii` / `opacity` / `blendMode`
+- **布局属性（autoLayout，v0.3.1 强调）**：`layoutMode` / `itemSpacing` / `paddingLeft` / `paddingRight` / `paddingTop` / `paddingBottom` / `primaryAxisAlignItems` / `counterAxisAlignItems` / `layoutWrap` / `layoutSizingHorizontal` / `layoutSizingVertical`
+- **子节点尺寸行为**：`layoutGrow` / `layoutAlign` / `layoutPositioning`（`AUTO` = 参与父 autoLayout 顺流；`ABSOLUTE` = 脱离父顺流，用 `absoluteBoundingBox` 独立定位。缺失视为 `AUTO`）
+- **定位**：`constraints` / `absoluteBoundingBox`
+- **文本**：`characters` / `style`（TEXT 节点）
+- **可见性**：`visible`
+
+> **v0.3 铁律：不再使用 MCP `get_design_context` 返回的"参考代码"字段**。REST API 只返回原始节点 JSON，agent 按项目前缀规则（§4.0 / §4.3）自主判断如何渲染，不受任何"AI 生成的通用 D2C 参考代码"干扰。
+
+> **v0.3.1 强调**：`layoutMode` 字段是 Figma autoLayout 的核心信号。**每处理一个 Frame 节点，必须先读 `layoutMode`**（`HORIZONTAL` / `VERTICAL` / 缺失 = 无 autoLayout）；这是 §4.3 布局判定的入口条件，跳过读它会直接退化成 absolute 定位泛滥。
+
+> **v0.3.1 补丁：`layoutPositioning`（读每个子节点时必读）**：Figma auto-layout 支持"子节点脱离父顺流"——子节点 `layoutPositioning === 'ABSOLUTE'` 表示该子在父 autoLayout 里挖了个洞独立定位；其他兄弟仍按 flex 顺流。**读子节点时必读此字段**，值为 `ABSOLUTE` 时子走绝对定位、父仍走 flex（见 §4.3 判定优先级第 0 条）。
+
+#### 4.1.1 REST 原始 JSON 字段取值指引（v0.3 新增；v0.3.1 补 autoLayout）
+
+Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一层壳；agent 从中取值时按下表映射：
+
+**A. 布局 / autoLayout → flex（v0.3.1 新增，最高优先级；每个 Frame 都必须先读这一段）**
+
+| 目标 CSS | Figma REST 字段 | 取值细节 |
+|---------|----------------|---------|
+| `display: flex` | `layoutMode`：`HORIZONTAL` / `VERTICAL` / (缺失或 `NONE` = 无 autoLayout) | 只要 `layoutMode ∈ {HORIZONTAL, VERTICAL}` → 该 Frame **必须**用 flex；缺失/`NONE` → 走 §4.3 决策树后续步骤 |
+| `flex-direction` | `layoutMode` | `HORIZONTAL → row`；`VERTICAL → column` |
+| `gap` | `itemSpacing` (px) | 直接映射；数值按 §4.5 单位换算 × scale |
+| `padding-top` / `padding-right` / `padding-bottom` / `padding-left` | `paddingTop` / `paddingRight` / `paddingBottom` / `paddingLeft` (px) | 缺失字段视为 0 |
+| `justify-content` (主轴对齐) | `primaryAxisAlignItems` | `MIN → flex-start`；`CENTER → center`；`MAX → flex-end`；`SPACE_BETWEEN → space-between`（**两端对齐**，设计师在 Figma 主轴对齐里选"两端对齐"时返回此值） |
+| `align-items` (交叉轴对齐) | `counterAxisAlignItems` | `MIN → flex-start`；`CENTER → center`；`MAX → flex-end`；`BASELINE → baseline` |
+| `flex-wrap` | `layoutWrap` | `WRAP → wrap`；`NO_WRAP` 或缺失 → 默认（`nowrap`） |
+| 容器**自身**尺寸行为 | `layoutSizingHorizontal` / `layoutSizingVertical` | `FIXED → width/height 固定值`；`HUG → width/height 由内容撑开`（CSS 里对应 `width: fit-content` 或**不写宽度**）；`FILL → width: 100%`（在 flex 父下等价 `flex: 1`） |
+| **子节点**主轴伸缩 | `layoutGrow` (0 或 1) | `1 → flex: 1`（在父 flex 下沿主轴撑满剩余空间）；0 或缺失 → 不写 |
+| **子节点**交叉轴对齐（覆盖父 align-items） | `layoutAlign` | `STRETCH → align-self: stretch`；`INHERIT` / 缺失 → 不写（继承父 align-items） |
+| **子节点**是否脱离父 autoLayout 顺流 | `layoutPositioning` | `AUTO` 或缺失 → 参与父 flex 顺流，不写 position；`ABSOLUTE` → 子代 `position: absolute` + `top/left`（相对父原点，用 `子.absoluteBoundingBox.{x,y} - 父.absoluteBoundingBox.{x,y}` 算得），同时**父容器必须加** `position: relative`。**仅当父 `layoutMode ∈ {HORIZONTAL, VERTICAL}` 时此字段有意义**。此机制通用（不限于 `bg-` / `fixed-` 前缀）——任何设计师在 Figma 里勾选"绝对定位"的子节点都会返 `ABSOLUTE` |
+
+> **v0.3.1 铁律**：`layoutMode` 是 `HORIZONTAL` / `VERTICAL` 时，**禁止**对该 Frame 使用 `position: absolute` + `top/left`；主 agent §6.0 验收命中此违反 → 回退整块重写。
+>
+> **两端对齐特别提醒**：`primaryAxisAlignItems === 'SPACE_BETWEEN'` 是明确信号，**直接翻译成 `justify-content: space-between`**，不要用 `margin-left: auto` / `justify-content: flex-end` 等其他手段模拟。设计师用两端对齐排 = REST 返 `SPACE_BETWEEN`；设计师用固定间距排 = REST 返 `MIN` + `itemSpacing`。忠实翻译即可，不做推断。
+>
+> **`layoutPositioning` vs `layoutMode` 谁决定 CSS 定位方式（看谁：看自己 or 看父）**：`layoutMode` 描述**该节点自己**的内部布局（父视角）；`layoutPositioning` 描述**该节点在父容器里**是否脱离顺流（子视角）。两者互不冲突：一个节点可以自己是 autoLayout 容器（`layoutMode = VERTICAL`），同时又在父的 autoLayout 里绝对定位（`layoutPositioning = ABSOLUTE`）——CSS 里写成 `position: absolute; top:...; left:...; display: flex; flex-direction: column; ...`。
+
+**B. 视觉属性**
+
+| 目标 CSS | Figma REST 字段 | 取值细节 |
+|---------|----------------|---------|
+| `background-color` (SOLID) | `fills[i].color = {r, g, b, a}` (0-1 浮点) + `fills[i].opacity` (可选，0-1) | HEX = `#` + `Math.round(r*255).toString(16).padStart(2,'0')` 三段拼接；`a` 或 `opacity` < 1 时改用 `rgba(R,G,B,A)`（R/G/B 是 0-255 整数） |
+| `background-image: linear-gradient(...)` | `fills[i].type = 'GRADIENT_LINEAR'` + `gradientHandlePositions[3 点]` + `gradientStops[]` | 角度按 `gradientHandlePositions[0]→[1]` 向量算：`angle = Math.atan2(y1-y0, x1-x0) * 180 / Math.PI + 90`；stops 用 `gradientStops[i].position * 100%` + `gradientStops[i].color`（同上转 rgba） |
+| `background-image: radial-gradient(...)` | `fills[i].type = 'GRADIENT_RADIAL'` | 类似，Figma 里 `[0]` 是圆心，`[1]` 决定 x 半径，`[2]` 决定 y 半径 |
+| `background-image: url(...)` | `fills[i].type = 'IMAGE'` + `fills[i].imageRef` | 该节点需按 §4.4 走图片导出；`imageRef` 只是图片资源哈希，实际下载靠 `/v1/images` API |
+| `border`（inside stroke） | `strokes[i]` + `strokeWeight` + `strokeAlign = 'INSIDE'` | `border: {strokeWeight}px solid {color}` + `box-sizing: border-box` |
+| `outline`（outside stroke） | `strokes[i]` + `strokeWeight` + `strokeAlign = 'OUTSIDE'` | `outline: {strokeWeight}px solid {color}`；gradient stroke 降级为 `box-shadow: 0 0 0 {weight}px ...` |
+| `border-radius` | 单值 `cornerRadius`，或四角 `rectangleCornerRadii = [tl, tr, br, bl]` | 优先 `rectangleCornerRadii`；只有 `cornerRadius` 时四角同值 |
+| `box-shadow` | `effects[i].type = 'DROP_SHADOW'` + `offset.{x,y}` + `radius` + `color` + `spread` (可选) | `box-shadow: {x}px {y}px {radius}px {spread}px {rgba}`；`INNER_SHADOW` 加 `inset` 前缀 |
+| `filter: blur(...)` | `effects[i].type = 'LAYER_BLUR'` + `radius` | 前景/自身模糊 |
+| `backdrop-filter: blur(...)` | `effects[i].type = 'BACKGROUND_BLUR'` + `radius` | 背景模糊 |
+| `position: fixed` 定位来源 | `constraints = {horizontal, vertical}` + `absoluteBoundingBox = {x, y, width, height}` | horizontal 取值：`LEFT` / `RIGHT` / `CENTER` / `LEFT_RIGHT` / `SCALE`；vertical 同理加 `TOP` / `BOTTOM`。**注意 REST 里字段就叫 `constraints`，值不是 `position` 而是 `LEFT`/`RIGHT` 等** |
+| `font-family` / `font-size` / `font-weight` / `line-height` | `style.{fontFamily, fontSize, fontWeight, lineHeightPx / lineHeightPercent}`（TEXT 节点） | Figma 字重是数字（400/500/700/900）；`lineHeightPx` 优先，否则用 `lineHeightPercent` |
+| 是否可见 | `visible`（缺失时视为 `true`） | `false` 直接跳过 |
+| 子树 | `children[]` | 递归结构 |
+
+**颜色转换代码模板**（LLM 可以按此思路手算，也可以让 Bash 跑 python 一次性算完）：
+
+```python
+def rgb_to_hex(c):
+    r, g, b = round(c['r']*255), round(c['g']*255), round(c['b']*255)
+    a = c.get('a', 1)
+    if a < 1:
+        return f"rgba({r},{g},{b},{a})"
+    return f"#{r:02x}{g:02x}{b:02x}"
+```
+
+**stroke position 关键区分**：mcp 里叫 `position`（值 `INSIDE`/`OUTSIDE`/`CENTER`），REST 里字段名叫 `strokeAlign`（值一样）。**v0.3 起统一按 REST 字段名 `strokeAlign` 取**。
 
 #### 4.2 隐藏图层处理
 
@@ -648,7 +734,7 @@ get_design_context(fileKey, nodeId)
 
 **取值流程**：
 
-1. 调用 `get_design_context(fileKey, bgcNodeId)` 拿节点完整属性
+1. 用 `figma.mjs fetch-node <fileKey> <bgcNodeId>` 拿节点完整属性（脚本自动查/写缓存）
 2. 按以下表逐项映射到父元素 CSS：
 
 | Figma 属性 | CSS 属性 | 说明 |
@@ -699,7 +785,7 @@ get_design_context(fileKey, nodeId)
 
 **`bg-` 切图前的"CSS-able 自检"（v0.2 必读，强制执行）**：
 
-切 `bg-` 之前，sub-agent **必须**先调用 `get_design_context(fileKey, bgNodeId)` 拿该节点的 `fills` / `strokes` / `effects` / `cornerRadius`，然后判断**这个节点是不是其实更适合用 CSS 实现**（即应该改成 `bgc-`）。
+切 `bg-` 之前，sub-agent **必须**先用 `figma.mjs fetch-node <fileKey> <bgNodeId>` 拿该节点的 `fills` / `strokes` / `effects` / `cornerRadius`，然后判断**这个节点是不是其实更适合用 CSS 实现**（即应该改成 `bgc-`）。
 
 判断标准：
 
@@ -723,11 +809,11 @@ get_design_context(fileKey, nodeId)
 
 **判定的实操步骤**：
 
-1. `get_design_context(fileKey, bgNodeId)` 拿到节点完整 JSON
+1. `figma.mjs fetch-node <fileKey> <bgNodeId>` 拿节点完整 JSON（脚本自动查/写缓存）
 2. 检查 `fills`：所有 fill 的 `type` 必须 ∈ `{SOLID, GRADIENT_LINEAR, GRADIENT_RADIAL}`，且无 IMAGE
 3. 检查 `strokes`：要么空，要么所有 stroke 的 `type` 是 SOLID
 4. 检查 `effects`：要么空，要么只有 1 个 DROP_SHADOW（INNER_SHADOW、LAYER_BLUR、BACKGROUND_BLUR 都让节点 CSS-unable）
-5. 检查子树（用 `get_metadata` 的子节点列表）：当前节点必须**没有可见子节点**（boolean-operation / vector / 子 frame 等），或子节点都是隐藏的
+5. 检查子树（`node.children[]` 列表）：当前节点必须**没有可见子节点**（boolean-operation / vector / 子 frame 等），或子节点都是隐藏的
 6. 全部通过 → 命中 CSS-able，输出告警，按 `bgc-` 规则处理；任一不通过 → 正常切图
 
 **`scrollx-` / `scrolly-` 的额外规则**
@@ -756,12 +842,75 @@ get_design_context(fileKey, nodeId)
   ```
   自检中任意一项无法明确填写时，**先停下问主 agent**，不允许猜测后整体导出。这是质量保证，不是性能优化——错误的整体导出会让"列表渲染"退化为"一张静态图片背景"，运行时无法绑定数据。
 
-**布局规则：禁止使用绝对定位**
+**布局规则：每 Frame 独立走判定优先级 + 间距单一来源（v0.3.1 重写）**
 
-- 生成的元素**默认使用 flex 布局**，不使用 `position: absolute`
-- Figma 中通过 Auto Layout 表达的间距，用 `gap` / `padding` 还原
-- Figma 中无 Auto Layout 的 Frame，推断其内容排列方向（横向/纵向），用 `flex-direction` 还原
-- 只有**明确的浮层/弹窗/角标**（设计上确实需要脱离文档流的元素）才允许使用 `position: absolute`
+**判定优先级**（每个 Frame 节点**独立按顺序判定**，命中一条即用该分支，不再往下走）：
+
+**判定角度说明**：判定分为**子视角**（当前节点在父容器里的定位方式）和**父视角**（当前节点自己内部子代的排布方式）。**子视角先于父视角**——因为 CSS 里 `position` / `top` / `left` 决定该元素相对父的位置，`display: flex` 决定其内部子代的排布，两者互不冲突可共存。
+
+0. **`node.layoutPositioning === 'ABSOLUTE'`**（子视角；v0.3.1 补丁）
+   → 该节点在父 autoLayout 里**脱离顺流**，CSS 写 `position: absolute` + `top` / `left`（值 = `子.absoluteBoundingBox.{x,y} - 父.absoluteBoundingBox.{x,y}` × scale）
+   → **父容器必须加** `position: relative`（若父本来是 flex，`relative` 与 flex 可以共存，不影响 flex 顺流的其他兄弟）
+   → 该节点自身**内部**如何布局，接着走下面第 1-5 条判定（子视角处理完，接着处理父视角）
+   → **触发场景通用**：设计师在 Figma 属性面板勾选"Absolute position"的任何节点都会返 `ABSOLUTE`——不限前缀。常见场景：`bg-` 背景层要铺满、`fixed-` 状态栏、卡片角标、悬浮徽章、需要精确定位的装饰元素
+   → **优先级**：若节点前缀是 `fixed-`（判定优先级第 2 条），CSS 用 `position: fixed`（不是 `absolute`），走各自 constraints 规则；`fixed-` 优先于本条
+
+1. **`node.layoutMode ∈ {HORIZONTAL, VERTICAL}`**（父视角；Figma autoLayout）
+   → **强制** `display: flex`，其余字段严格按 §4.1.1 §A 表映射（`flex-direction` / `gap` / `padding-*` / `justify-content` / `align-items` / `flex-wrap`）
+   → **禁止**对该 Frame 用 `position: absolute` + `top/left`；子代不写任何 `margin-*`（间距由父的 `gap` / `padding-*` 唯一负责）
+   → 违反此条 = §6.0 验收不合格，回退整块 sub-agent 重写
+
+   > **边界：父层 `layoutMode` 是 autoLayout，但子层里混有 `fixed-` 前缀节点时怎么办？**
+   >
+   > `fixed-` 子层在 Figma JSON 里作为父 autoLayout 的顺流子节点存在（占 flex 顺流的一个"位置"），但在 CSS 里 `position: fixed` 会让它脱离文档流。**父容器仍然走 flex，不因此回退到 absolute**——CSS 的 `position: fixed` 子元素会**自动**从父的 flex 排布中脱出，不占位置、不参与 gap 分配，跟"该子元素不存在"效果等价。
+   >
+   > 正确写法（父 = flex column，子层 statusBar 是 fixed-）：
+   >
+   > ```scss
+   > .root {
+   >   display: flex;              /* 父 layoutMode 是 VERTICAL */
+   >   flex-direction: column;
+   >   gap: 20px;
+   >   padding: 0;
+   > }
+   > .statusBar {                  /* fixed- 子层 */
+   >   position: fixed;            /* 自动脱离父 flex 顺流 */
+   >   top: 100px; left: 22px;
+   >   /* 不影响 .notify / .mainWrap 的顺流位置 */
+   > }
+   > .notify, .mainWrap {          /* 其余顺流子层 */
+   >   /* 内部按各自 layoutMode 走本判定树，不写任何 top/left */
+   > }
+   > ```
+   >
+   > **错误写法（本次 v0.3.1 修订前的典型 bug）**：父 layoutMode 明明是 autoLayout，因看到子层混有 fixed- 兄弟就把父写成 `relative` + 其他子层全部 `absolute + top/left`。这**同时违反**判定优先级第 1 条 和 §6.0 checklist 第 3 项（absolute + padding 冲突）。
+
+2. **前缀是 `fixed-`**
+   → `position: fixed`，走本节下方"`fixed-` 定位规则"（`constraints` → `top/right/bottom/left`）
+
+3. **前缀是 `bg-` / `sub-` / `scrollx-` / `scrolly-` / `bgc-` / `x-` / `img-` / `font-` / `btn-`**
+   → 按各前缀在 §4.3 的专属规则处理，不走本决策树
+
+4. **`layoutMode` 缺失 / `NONE`，且子节点坐标（`absoluteBoundingBox`）存在重叠**
+   → `position: relative` (父) + `position: absolute` + `top` / `left` (子)，坐标按 §4.5 单位换算
+   → 典型场景：切图 + DOM 叠加层（如 `img-card` 上叠 `Frame 263` 表单）
+
+5. **`layoutMode` 缺失 / `NONE`，子节点坐标无重叠、顺流排布**
+   → 允许两种写法，二选一：
+     - **推荐**（简单堆叠、纯文字段落）：父 `padding-*` + 子代 `margin-{top|bottom}`（顺流轴向）+ `:last-child { margin-*: 0 }` 收尾
+     - **兜底**（结构较复杂、需要精确对齐）：`display: flex` + `flex-direction` 推断 + `gap`（父负责间距）
+   → **禁止**同时用两套（父 `gap` + 子 `margin-*` 混合）
+
+**间距单一来源铁律**（每一段间距只能有一个 owner；三条铁律，任一违反 = §6.0 回退）：
+
+- **兄弟间距**：父容器负责。用 flex 就是 `gap`；用 block 就是子代 `margin-*`。**同一父级下二选一，禁止混用**。
+- **容器内边距**：只写 `padding-*` 在该容器上。**禁止**用 `:first-child { margin-top }` / `:last-child { margin-bottom }` 去凑容器边距。
+- **绝对定位下无 margin**：`position: absolute` / `fixed` 的元素**禁止**同时写 `margin-*`（`margin: auto` 用于居中除外）；位置由 `top` / `right` / `bottom` / `left` 唯一表达。
+
+> **选 flex 还是 block+margin？**
+> - Figma 里父 Frame 是 autoLayout（`layoutMode` 非空）→ 无条件 flex。这是 §4.1.1 §A 表的直接翻译，不做推断。
+> - Figma 里父 Frame 不是 autoLayout → 看子节点关系：重叠 → absolute；顺流简单堆叠（如"标题 + 一段说明 + 一段协议"）→ block+margin；顺流但需对齐控制 → flex 兜底。
+> - **选择依据是 Figma 属性（`layoutMode` / 坐标关系），不是图层名前缀**。图层名前缀只在 Figma 属性无法表达 D2C 语义时使用（切图 / 独立组件 / fixed / 跳过节点等，见 §4.3 各前缀章节）。
 
 > `layers.sub`（`sub-`）前缀仅用于步骤 2 的分块判断，sub-agent 拿到的 nodeId 已是该节点本身，内部按上述规则正常解析。
 
@@ -771,7 +920,7 @@ get_design_context(fileKey, nodeId)
 
 **top/bottom/left/right 的取值（依赖 Figma `constraints`）**：
 
-1. 调用 `get_design_context(fileKey, fixedNodeId)` 拿 `constraints` 字段（包含 `horizontal` / `vertical`）
+1. `figma.mjs fetch-node <fileKey> <fixedNodeId>` 拿节点属性，读 `node.constraints = {horizontal, vertical}`
 2. 按下表把 Figma 坐标换算成 CSS 定位（换算遵循步骤 4.5 单位换算规则）：
 
 | Figma constraint | CSS 写法 | 取值来源 |
@@ -805,83 +954,83 @@ get_design_context(fileKey, nodeId)
 
 #### 4.4 图片处理
 
-所有图片（`img-` / `bg-` / 无前缀兜底）通过 **Figma REST API** 导出，保留透明通道：
+所有图片（`img-` / `bg-` / 无前缀兜底）通过 `figma.mjs export-image` 导出。脚本内置：两步式下载 / `use_absolute_bounds=true` 默认开 / 存在即跳过 / 3 次指数退避 / 回写 `images.json` / 绝对路径写入 `{projectRoot}/{assetsDir}/{filename}.{ext}`。
 
-**⚠️ 调用 curl 前的强制前置自检（sub-agent 每张图都必须做，且必须把 4 行输出到对话，不允许省略）**：
+**⚠️ 调脚本前的强制前置自检（sub-agent 每张图都必须做，且必须把 4 行输出到对话，不允许省略）**：
 
 ```
 · 图层前缀类型：{img- / bg- / 无前缀}
-· 切图源 nodeId：{要写进 curl 的 ids= 参数值}
+· 切图源 nodeId：{要写进 --ids 的值}
 · 切图源 name：{该 nodeId 对应节点的图层名}
 · 交叉验证：切图源 name 是否以「{前缀}」开头？{是/否}
 ```
 
 **交叉验证判定**：
-- 前缀是 `bg-` → 切图源 name **必须**以 `bg-` 开头（如 `bg-piao` / `bg-body`）。**若为「否」，立即停止 curl**，说明当前 nodeId 用的是父容器/兄弟节点，返回 §4.0.5 重新在 `bg-` 命中节点的子树里定位真正的 `bg-` 节点 id。
+- 前缀是 `bg-` → 切图源 name **必须**以 `bg-` 开头（如 `bg-piao` / `bg-body`）。**若为「否」，立即停止**，返回 §4.0.5 重新在 `bg-` 命中节点的子树里定位真正的 `bg-` 节点 id。
 - 前缀是 `img-` → 切图源 name 必须以 `img-` 开头。
 - 无前缀（兜底非文本图层）→ 切图源 name 与当前节点 name 一致。
 
-**这是 `card-bg.png` / `piao.png` 把兄弟节点文字烤进 PNG 这类 bug 的唯一防线**——历史事故根因就是 sub-agent 拿了 `bg-` 的**父容器 nodeId** 传给 `ids=` 参数，Figma REST API 会把父容器**整棵子树**（含兄弟节点的文字/图标/其他 block）一起 render 成位图。前置自检就是为了让这一步走不通。
+**这是 `card-bg.png` / `piao.png` 把兄弟节点文字烤进 PNG 这类 bug 的唯一防线**——历史事故根因就是 sub-agent 拿了 `bg-` 的**父容器 nodeId** 传给 API，Figma 会把父容器**整棵子树**（含兄弟节点的文字/图标/其他 block）一起 render 成位图。前置自检就是为了让这一步走不通。**脚本不知道你传的 nodeId 是否合法**，这个判断只能 LLM 自己做。
+
+**调用**：
 
 ```bash
-# PNG 2倍图，保留透明，严格按图层 bbox 导出（不含 effect / 父背景色）
-curl -H "X-Figma-Token: {figma.token}" \
-  "https://api.figma.com/v1/images/{fileKey}?ids={nodeId}&format=png&scale=2&use_absolute_bounds=true" \
-  -o {projectRoot}/{assetsDir}/{filename}.png
+# PNG 2 倍图（默认，含透明通道）
+node .claude/skills/ctrip-train-d2c/bin/figma.mjs export-image <fileKey> <nodeId> --filename=<name>
 
 # SVG（矢量图层优先）
-curl -H "X-Figma-Token: {figma.token}" \
-  "https://api.figma.com/v1/images/{fileKey}?ids={nodeId}&format=svg&use_absolute_bounds=true" \
-  -o {projectRoot}/{assetsDir}/{filename}.svg
+node .claude/skills/ctrip-train-d2c/bin/figma.mjs export-image <fileKey> <nodeId> --filename=<name> --format=svg
+
+# 极少数场景:需要把 Figma effect 烤进位图(通常不用)
+node .claude/skills/ctrip-train-d2c/bin/figma.mjs export-image <fileKey> <nodeId> --filename=<name> --preserve-effect
 ```
 
-> **本地写入路径铁律**：`-o` 参数必须使用 `{projectRoot}/{assetsDir}/{filename}.{ext}` 的**绝对路径**（`projectRoot` = 步骤 0 缓存的 config 文件所在目录绝对路径）。禁止写成 `{assetsDir}/{filename}.png` 这种相对路径——sub-agent 执行时 cwd 未必是项目根，相对路径会把图片落到代码产出目录下的相对位置，导致 `imageBaseUrl + assetsDir + filename` 拼出来的 URL 404。
-> - 若 `assetsDir` 以 `/` 开头（如 `/static/`），拼接结果会出现连续斜杠（如 `/Users/xxx/project//static/foo.png`），文件系统会自动归一，不影响写入；若担心可视化混乱，写入前把 `projectRoot` 尾部 `/` 与 `assetsDir` 首部 `/` 择一去掉即可（**只影响本地路径，不影响 URL 拼接铁律**）。
-> - 写入前必须确保 `{projectRoot}/{assetsDir}` 目录存在：`mkdir -p {projectRoot}/{assetsDir}`。
+stdout 返回 `{"ok":true,"data":{"path":"<绝对路径>","reused":<bool>,"format":"png|svg"}}`。`reused=true` 表示命中缓存跳过下载。
 
-> **`use_absolute_bounds=true` 是必须的**（v0.2 修订）：
-> - 默认导出会包含**图层 effect（drop-shadow / outer-stroke / blur）的可见范围**，PNG 会比 bbox 大一圈（多出来的部分是半透明阴影），导致 DOM 里对齐用的 `gap` / `margin` 算不准。例如设计稿 `gap: -25px`，因 PNG 多了 25px 视觉外扩，CSS 必须写 `gap: -50px` 才能视觉贴合——不可接受。
-> - 默认导出在节点位于**带背景色父容器**内时，会把父背景一起 render 进 PNG（哪怕图层本身是透明的）。这就是"切出来的图都带画板背景色"的根因。
-> - 加上此参数后，Figma 严格按节点 `absoluteBoundingBox` 导出，effect 和父背景被裁掉。**代价**：图层用 Figma effect 实现的阴影/光晕**不会**烤进 PNG——但这本来就是要的（阴影应该用 CSS `filter: drop-shadow()` 实现，不该烤进位图）。
-> - 若某张图**就是要把 effect 烤进位图**（极少见，例如复杂渐变蒙版），单独在 config `images.preserveEffectIds` 数组里列出该 nodeId，那一张图省略此参数。
+> **`use_absolute_bounds=true` 是默认开的**：
+> - 默认导出会包含图层 effect（drop-shadow / outer-stroke / blur）的可见范围与父容器背景色，PNG 会比 bbox 大一圈并带画板底色 → 导致 `gap`/`margin` 算不准 + 图带背景色两个历史 bug。
+> - 加此参数后，Figma 严格按节点 `absoluteBoundingBox` 导出，effect 和父背景被裁掉。**代价**：Figma effect 实现的阴影/光晕不会烤进 PNG——但这本来就是要的（应用 CSS `filter: drop-shadow()` 实现）。
+> - 若某张图**就是要**把 effect 烤进位图（极少见），加 `--preserve-effect` 覆盖。也可在 config `images.preserveEffectIds` 数组里列出该 nodeId（LLM 端根据 config 决定是否加 flag）。
 
 **格式选择**：
-- 图层为矢量（Vector / Icon / 无栅格内容）→ **SVG**
-- 其他 → **PNG 2倍图**
+- 图层为矢量（Vector / Icon / 无栅格内容）→ `--format=svg`
+- 其他 → 默认 PNG 2 倍图
 
-**前提**：`figma.token` 必须在 config 中配置。**当 token 缺失或过期时（HTTP 403 / 401 / `invalid_token`），不允许跳过下载或仅用 MCP 临时链接占位**——必须按下面的兜底链拿到真实 PNG / SVG 文件。
+**前提**：`figma.token` 必须在 config 中配置。**当 token 缺失或过期时（HTTP 403 / 401 / `invalid_token`）**，本 SKILL v0.3 起**不再有 MCP 兜底路径**——直接终止并要求用户补 token 后重跑。原因见下文 §4.4.1。
 
-#### 4.4.1 Token 过期 / 缺失时的兜底链（v0.2 新增）
+#### 4.4.1 Token 过期 / 缺失时的处理（v0.3 修订）
 
-按以下顺序逐级兜底，**任意一级成功就停止**：
+v0.3 起本 SKILL 完全不依赖 MCP，图片导出**只有 REST API 一条路径**：
 
-| 级别 | 动作 | 何时用 |
-|------|------|--------|
-| **L0 主路径** | REST API + `figma.token`（上面 curl 模板） | **config 里 `figma.token` 非空时，必须走此路径，无论 MCP 是否可用** |
-| **L1 兜底** | 调用 Figma MCP **`download_assets(fileKey, nodeId, defaultFormat, defaultScale)`**，把返回的 export `url` 用 curl 拉下来存到 `{projectRoot}/{assetsDir}/{filename}.{ext}`（**绝对路径**，同 4.4 铁律） | **仅限**：config 里 `figma.token` 为空；或 L0 实际返回 401/403/`invalid_token`/超时后才可启用——**token 存在就不允许跳过 L0 直接走 L1** |
-| **L2 兜底** | 调用 Figma MCP **`upload_assets`** 走不通就直接退化为：用 `download_assets` 的 `url` **作为 `<img src>` 写进代码**（仅当用户明确说"先跑通再补图"），并在 QA 列表标红 | L1 也失败（极少：MCP 工具不可用） |
-| **L3 兜底** | 终止：输出 `图片下载链路全部失败：检查 figma.token 与 MCP 可用性`，由用户决策 | 全失败 |
+| 情况 | 处理 |
+|------|------|
+| Token 有效，导出成功 | 正常流程 |
+| Token 缺失 / 过期（HTTP 401/403） | **立即终止**，输出下方错误提示，由用户补 token 后重跑 |
+| `/v1/images` 返回 `err` 字段或临时 URL 404 | 3 次指数退避重试（1s/2s/4s），三次都失败 → 终止并输出错误 |
 
-**关键 trade-off（必须在 QA 中标注）**：MCP `download_assets` **不支持** `use_absolute_bounds=true` 参数。走 L1 兜底拿到的图：
-- **会**包含图层 effect（drop-shadow / outer-stroke / blur）的可见外扩范围，PNG 比 bbox 大一圈
-- **会**包含父容器背景色（如果父有 fills）
-- **结果**：会重新出现 #1（图带画板背景色）/ #3（gap 算不准）的现象，**这不是退步，而是 token 不可用时的能力上限**
-
-走完 L1 后，QA 段落必须输出（强制）：
+**错误提示文案**：
 
 ```
-⚠️ Token 不可用，本次走 MCP download_assets 兜底导出（{N} 张）
-   · 这些图未应用 use_absolute_bounds=true，可能带画板背景 / effect 外扩
-   · 影响：跨 sub- 模块的对齐 gap 可能算不准，建议补 figma.token 后用 L0 重跑
-   · 受影响文件：{filename1}, {filename2}, ...
+❌ 图片导出失败：Figma Token 无效或过期
+
+请检查 `ctrip-train-d2c.config.json` 里的 `figma.token`：
+1. Token 是否已过期或被撤销
+2. Token 权限是否包含 File content: Read-only
+3. Token 对应的账号是否有该 fileKey 的访问权限
+
+修正后重新运行本 SKILL（缓存会因 lastModified 校验自动决定是否复用）。
 ```
+
+**为什么删除 MCP `download_assets` 兜底**（v0.3 起）：
+
+- MCP `download_assets` 不支持 `use_absolute_bounds=true` 参数，导出的图会带图层 effect 外扩 + 父背景色 → 直接导致 `card-bg.png` 类历史 bug 重现
+- 保留兜底会让 agent 在 token 失败时"悄悄降级"，用户看不到严重的视觉退步
+- v0.3 全流程走 REST，兜底路径与主路径**能力不对等**，与其藏 bug 不如显式失败
 
 **禁止**：
-- **禁止在 `figma.token` 存在且非空时直接调用 MCP `download_assets` 导出图片**：token 可用时必须走 L0 REST API，MCP 是 token 不可用时的兜底，不是方便快捷的替代路径——MCP 导出不支持 `use_absolute_bounds=true`，绕过 L0 等于主动引入"图带背景色 + gap 算不准"两个 bug
-- 禁止在 token 过期时直接跳过下载（旧 SKILL 写过"跳过下载，仅用 MCP 临时链接占位"，**v0.2 起作废**——临时链接 24h 过期，代码上线就 404）
-- 禁止用 MCP 临时链接（`figma.com/api/mcp/asset/...`）写进代码 `<img src>`，只允许作为下载源
-- 禁止在 L1 走通后省略 QA 标注（必须让用户知道这次切的图未严格按 bbox）
-
+- 禁止在 token 过期时直接跳过下载或用临时链接占位（Figma `/v1/images` 返回的 S3 临时 URL 约 30 分钟过期，代码上线就 404）
+- 禁止把 Figma `/v1/images` 返回的 S3 临时 URL 写进代码 `<img src>`（同上，只能作为下载源，下载完立刻丢弃）
+- 禁止调用任何 `mcp__plugin_figma_figma__*` 工具（v0.3 起本 SKILL 不再依赖 MCP）
 
 **文件命名规则**：
 
@@ -1039,7 +1188,7 @@ Figma 设计稿的所有尺寸值（宽、高、间距、字号等）在写入�
 
 代码生成完成后，sub-agent 对自己负责的 block 做视觉验收：
 
-1. 调用 `get_screenshot(fileKey, nodeId)` 获取本 block 的截图
+1. 调 `figma.mjs screenshot <fileKey> <blockNodeId> --tag=block` 获取本 block 的截图；stdout 返回 `{path}` 即本地绝对路径（`{projectRoot}/.d2c-tmp/screenshots/block-<nodeId_safe>.png`）
 2. 与生成代码做视觉差异分析
 3. 可自动修正的差异（颜色偏差、间距误差）直接修正
 4. 不可自动修正的差异记入 `assets.txt` 底部的 `QA` 段落
@@ -1177,7 +1326,13 @@ export default function Content() {
 
 对 `.d2c-tasks.md` 中**每个叶子 sub-block**（无内层 sub- 的 block），主 agent 依次执行：
 
-1. 调用 `get_screenshot(fileKey, leafBlockNodeId, maxDimension=1200)` 获取该 block 原始设计稿截图（分辨率拉满，看清细节）
+1. 调脚本获取该 block 原始设计稿截图：
+
+   ```bash
+   node .claude/skills/ctrip-train-d2c/bin/figma.mjs screenshot <fileKey> <leafBlockNodeId> --tag=leaf --scale=2
+   ```
+
+   stdout 返回 `{path}`，本地绝对路径 `{projectRoot}/.d2c-tmp/screenshots/leaf-<nodeId_safe>.png`。用图片查看器 zoom 100% 看即可对齐细节。SKILL 结束时统一清理。
 2. 在浏览器或 dev-server 中定位合并后该 block 渲染出的 DOM 区域，截图相同区域（可用浏览器开发者工具的 element capture / 或本地起 dev-server 后用 puppeteer/playwright 截图）
 3. 两张图并排对比，聚焦四类差异：
    - **尺寸**：宽 / 高 / padding / margin / gap 是否对齐（对齐铁律见下）
@@ -1199,9 +1354,32 @@ export default function Content() {
 
 **叶子 sub-block 之间的"接缝"也要看**：flat 模式下相邻叶子在 JSX 里挨着，但视觉上可能有意外的间距（因为各自的 margin/padding 叠加）。整体验收时容易漏看，**这一步逐叶对比时也要把当前叶子的"上边界"和"下边界"与原稿对齐**。父 block 内多个叶子之间的接缝同理。
 
+**双重间距 / 布局违反检测 checklist（v0.3.1 新增，主 agent 逐叶子对比时必查）**：
+
+对每个叶子 block 产出的 `.tsx` / `.scss` 文件（或对应片段），**逐项静态扫描**：
+
+1. **flex + margin 混用**：是否存在父级同时出现 `display: flex` 且直接子代出现 `margin-{top|right|bottom|left}`？（`margin: auto` / 居中用途除外）
+2. **padding + first/last-child margin 冲突**：是否存在父级 `padding-{side}` 且子代规则 `:first-child { margin-{same-side} }` 或 `:last-child { margin-{same-side} }`？
+3. **absolute + margin 冲突**：是否存在元素同时具有 `position: absolute` 或 `position: fixed` 且 `margin-*`？（`margin: auto` 用于居中除外）
+4. **autoLayout 违反 flex 强制**：对照 Figma 原始 JSON，是否存在 `layoutMode ∈ {HORIZONTAL, VERTICAL}` 的 Frame，输出的 CSS 却用了 `position: absolute` + `top/left`？（此项是 §4.3 判定优先级第 1 条的硬红线）
+5. **space-between 表达不忠实**：是否存在 Figma `primaryAxisAlignItems === 'SPACE_BETWEEN'`，输出的 CSS 却用 `margin-left: auto` / `justify-content: flex-end` 等其他手段模拟？
+6. **`layoutPositioning` 未落地**：是否存在 Figma `layoutPositioning === 'ABSOLUTE'` 的子节点，输出的 CSS 却没写 `position: absolute` + `top` / `left`（结果被塞进父 flex 顺流，视觉错位）？或反之：`layoutPositioning === 'AUTO'` / 缺失的子节点被误加 `position: absolute`？
+
+**任一项命中 → 该叶子 sub-agent 交付不合格，主 agent 必须回退该块重写**（不是自己改 scss 数值糊过去；这是结构性问题，改数值没用）。回退命令：把该叶子 nodeId 重新按 §4.0 派发一次 sub-agent，把本节 checklist 内容作为额外约束附加进去。
+
+**常见触发原因与修复方向**（v0.3.1 补充；主 agent 回退时把对应"修复方向"一起塞给 sub-agent）：
+
+| 触发原因 | 修复方向 |
+|---------|---------|
+| 父 Frame `layoutMode` 是 autoLayout，但子层混有 `fixed-` 兄弟 → agent 保守把父写成 `relative` + 其他子层全 `absolute` | 父仍走 flex，`fixed-` 子层作为普通 flex 子项写在 DOM 里；其 `position: fixed` 会自动从 flex 顺流脱出，不占位置、不影响其他兄弟 |
+| 父 Frame `layoutMode` 是 autoLayout，但子层坐标看起来"重叠"（其实是 padding 撑开的） | Figma padding 已经把子层推到位置，父走 flex + padding 即可；不要把父的 padding 翻译成子的 `top` |
+| Agent 把 Figma `paddingTop` 同时翻成父 `padding-top` 和子 `position: absolute + top` | 只保留父 `padding-top`（间距单一来源铁律第 2 条），删掉子的 `absolute + top` |
+| Figma `primaryAxisAlignItems: SPACE_BETWEEN` 被翻成 `margin-left: auto` / `justify-content: flex-end` | 直译成 `justify-content: space-between`（§4.1.1 §A 表最后一列） |
+| Figma 子节点 `layoutPositioning: ABSOLUTE` 被漏读，agent 按父 autoLayout 顺流处理该子层 → 视觉错位 / 覆盖关系错 | 该子层写 `position: absolute` + `top`/`left`（父.bbox 减出来）；父容器加 `position: relative`；其他 `AUTO` 兄弟保持 flex 顺流不变 |
+
 #### 6.1 整体视觉验收
 
-1. 调用 `get_screenshot(fileKey, nodeId)` 获取原始设计稿**整体**截图（目标 nodeId 是页面根）
+1. 调 `figma.mjs screenshot <fileKey> <rootNodeId> --tag=whole` 获取原始设计稿**整体**截图，stdout 返回 `{path}`（`.d2c-tmp/screenshots/whole-<nodeId_safe>.png`）
 2. 与合并后的完整组件做视觉差异分析
 3. 汇总各 block QA 段落中未解决的差异 + §6.0 写入 `## 待人工核对` 的项
 4. 可自动修正的整体差异（对齐偏差、间距）直接修正
@@ -1234,7 +1412,14 @@ export default function Content() {
    上线前请运行 `ctrip-train-d2c-strip-nodeid` skill 一键清理，或直接执行：
      node .claude/skills/ctrip-train-d2c-strip-nodeid/strip-node-id.mjs --dry-run   # 先预览
      node .claude/skills/ctrip-train-d2c-strip-nodeid/strip-node-id.mjs             # 确认后清理
+🗑️  临时截图目录：{projectRoot}/.d2c-tmp/screenshots/ 已自动清理（QA 阶段的对比截图，跨会话不保留）
+💾 缓存目录：{projectRoot}/.d2c-cache/{fileKey}/ 保留（下次跑同一 fileKey 会自动比对 lastModified 决定复用或作废）
 ```
+
+**SKILL 结束时的清理动作**：
+
+1. `node .claude/skills/ctrip-train-d2c/bin/figma.mjs cleanup-tmp`（脚本会 `rm -rf` 掉 `{projectRoot}/.d2c-tmp/screenshots/`）
+2. 不清 `.d2c-cache/`——那是持久化缓存，等 `lastModified` 变化时才失效
 
 ---
 
@@ -1249,13 +1434,16 @@ export default function Content() {
 - 禁止把 `block-` 块内的元素与其他块的元素合并到同一 HTML 容器或共享 CSS 类名
 - 禁止只匹配第一个前缀就停止，必须扫描完整图层名提取所有已知前缀
 - 禁止脱离 `images.imageBaseUrl + images.assetsDir + filename` 公式拼接图片 URL；禁止补/删任何字符（包括末尾 `/`）；禁止在 SCSS 中分散硬编码完整 URL，必须先定义 `$asset-prefix` 变量再引用
-- 禁止用相对路径下载图片：`curl -o` / `download_assets` 落地路径必须是 `{projectRoot}/{assetsDir}/{filename}.{ext}` 绝对路径（`projectRoot` = 步骤 0 缓存的 config 文件所在目录绝对路径）。禁止写 `-o {assetsDir}/{filename}.png` 或 `-o ./static/xxx.png` 等相对形式——sub-agent 的 cwd 未必是项目根，相对路径会把图片落到代码产出目录下的错误相对位置，导致 URL 拼接后 404
+- 禁止用相对路径下载图片：`curl -o` 落地路径必须是 `{projectRoot}/{assetsDir}/{filename}.{ext}` 绝对路径（`projectRoot` = 步骤 0 缓存的 config 文件所在目录绝对路径）。禁止写 `-o {assetsDir}/{filename}.png` 或 `-o ./static/xxx.png` 等相对形式——sub-agent 的 cwd 未必是项目根，相对路径会把图片落到代码产出目录下的错误相对位置，导致 URL 拼接后 404
 - 禁止跳过步骤 2.5 页面级背景采集；禁止把顶层 frame 的页面级背景写到组件根容器；禁止改动项目已有的全局样式文件（base.scss / global.css / app.less 等）；禁止凭印象判定项目特征（必须 Read/Grep 实证后选 P-A / P-B / M-A / M-B / J 策略）；禁止多页面项目使用 P-B / M-B（单页策略，会互相污染）；**禁止在普通 stylesheet（非 module 的 scss/less/css）里写 `:global(...)`、禁止在 `*.module.{scss,less,css}` 里直接写 `body { ... }`（写错则 body 背景百分百不生效）**
 - 禁止"sub- 只有 1 个就退化为主 agent 处理"；任何 `sub-` 节点都必须分发独立 sub-agent，**单 sub 也必须拆**（分块是质量保证而非性能优化）
 - 禁止 `scrollx-` / `scrolly-` 与 `img-` / `bg-` / `bgc-` / `x-` / `btn-` 共存（语义冲突）；禁止同一节点同时含 `scrollx-` 和 `scrolly-`（一个元素只能一个滚动方向）；禁止省略隐藏滚动条样式（`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`）
 - 禁止把 `sub-scrollx-` / `sub-scrolly-` 节点**整体导出为单张背景图**作为容器 `background-image`：scroll 容器必须**继续递归子层**（§416-417），子层是同构列表项；只有标了 `bgc-` / `bg-` 的子节点才作为背景。即便子层结构复杂、识别困难，也不允许"省事 fallback 到整体导出"——需要时把识别失败的子树标 `x-` 或拆分稿子，不能用整体导出绕过。
 - 禁止调用 Figma `/v1/images` 时省略 `use_absolute_bounds=true`：不带此参数会把图层 effect（drop-shadow / outer-stroke / blur）和父背景色一起 render 进 PNG，导致"图都带画板背景色"+"对齐用的 gap / margin 算不准（视觉外扩）"两个 bug 同时发生。仅当某张图明确要把 effect 烤进位图（在 config `images.preserveEffectIds` 列出 nodeId）时才省略。
-- 禁止 `figma.token` 存在且非空时使用 MCP `download_assets` 导出图片（即便 MCP 更方便）：token 有效时必须走 L0 REST API，MCP 兜底仅当 token 确实缺失或 L0 实际失败时才允许启用。
+- 禁止 `figma.token` 无效时直接跳过图片下载或用 Figma S3 临时链接占位（约 30 分钟过期，代码上线就 404）；v0.3 起 token 失败即终止，由用户补 token 后重跑，不再有 MCP 兜底路径
+- 禁止调用任何 `mcp__plugin_figma_figma__*` 工具（v0.3 起本 SKILL 全流程走 Figma REST API，不再依赖 MCP）；禁止把 MCP `get_design_context` 返回的"参考代码"字段作为渲染依据——项目前缀规则（§4.0 / §4.3）的优先级永远高于任何"AI 生成的通用 D2C 参考代码"
+- 禁止跳过步骤 0.3 缓存初始化；禁止绕过 `.d2c-cache/{fileKey}/meta.json` 的 `lastModified` 校验直接读旧缓存（设计稿改过必须整份作废重拉）；禁止 sub-agent 独立校验 `lastModified`（主 agent 校验一次即可）；禁止把 QA 临时截图写进 `.d2c-cache/`（该目录只放跨会话可复用的数据，QA 截图属于 `.d2c-tmp/screenshots/`）
+- 禁止 SKILL 结束时不清理 `.d2c-tmp/screenshots/`（跨会话不保留 QA 对比截图，避免污染仓库和 `git status`）
 - 禁止把 `bg-` 节点的**父容器**当成切图源传给 `/v1/images` API：切图源 nodeId 必须是 `bg-` 节点自己。把父容器整体切下会导致 `bgc-` 颜色、其他兄弟节点（block-/img-/font-/文本）融合到一张 PNG，违反"`bgc-` 写 CSS 颜色、`bg-` 写 CSS 背景图、内容层独立处理"的分离原则
 - 禁止跳过 §4.4 curl 前的**强制前置自检 4 行**（图层前缀类型 / 切图源 nodeId / 切图源 name / 交叉验证 name 是否以对应前缀开头）：这是防止把兄弟文字/图标烤进 bg- 位图的唯一防线，sub-agent 每张图都必须把 4 行输出到对话，交叉验证为"否"必须停 curl 回 §4.0.5 重找 nodeId。**任意一张图省略此自检，视为该 sub-agent 交付不合格，主 agent §6.0 逐叶子对比时必须回退重做整块**
 - 禁止把 `bgc-` 节点切成 PNG：`bgc-` 永远只取节点自身的盒级 CSS 属性（fills/strokes/cornerRadius/effects）写父元素，切图是错误实现
