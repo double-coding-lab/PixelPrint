@@ -1,0 +1,22 @@
+bin/install.js
+  s_473053f53d3976::t_b2250a7f2916a8 188-196
+  s_473053f53d3976::t_9678f0604d6cbc 362-364
+  s_473053f53d3976::t_a76bc69de67b46 366,369-371
+  s_473053f53d3976::t_c6ca73d3f197c0 44-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.38-trip",
+  "base_commit_sha": "b56a23d04883737687daf49fdc904f47594fa4ac",
+  "prompts": {},
+  "sessions": {
+    "s_473053f53d3976": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5f3e0ef0-d458-43e4-84df-ef5932cb0753",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
