@@ -51,6 +51,7 @@ Read("ctrip-train-d2c.config.json")
 | `layers.but` | `btn-` | 按钮前缀 |
 | `layers.fixed` | `fixed-` | 视口固定定位前缀（修饰） |
 | `layers.end` | `end-` | 逆向布局前缀（贴父末端，修饰） |
+| `layers.input` | `input-` | 输入框前缀（独立，生成 `<input>`） |
 | `layers.ignore` | `x-` | 忽略前缀 |
 | `health.enabled` | `true` | 总开关，false 时直接退出 |
 | `health.blockOnError` | `true` | 集成模式下 error 是否阻塞生成 |
@@ -157,6 +158,8 @@ Read("ctrip-train-d2c.config.json")
 - `sub-btn-img-banner` → `[sub, btn, img]`，nameClean = `banner`
 - `fixed-btn-back-top` → `[fixed, btn]`，nameClean = `back-top`
 - `end-img-pinxuan` → `[end, img]`，nameClean = `pinxuan`（v0.3.2 新增 end- 修饰前缀）
+- `input-people` → `[input]`，nameClean = `people`（v0.3.4 新增 input- 独立前缀）
+- `fixed-input-search` → `[fixed, input]`，nameClean = `search`（fixed- + input- 叠加合法）
 
 **额外打一个标：`inNonRecursiveSubtree`**（布尔，在打标完成后第二轮算，O(n)）：
 
@@ -242,6 +245,10 @@ inNonRecursiveSubtree(node) =
 | LAY018 | 👤 设计师 | 低（保留末位 end-） | 多个 end- 只有末位生效，其他被视为普通前缀 |
 | LAY019 | 👤 设计师 | 低（父开 auto-layout） | end- 的父不是 auto-layout，无方向可判 |
 | LAY020 | 👤 设计师 | 低（二选一） | end- 与 fixed- 同现，fixed- 优先，end- 忽略 |
+| NAM017 | 👤 设计师 | 低（补 TEXT 子层） | input- 节点内没有 TEXT 子层，placeholder 无来源 |
+| NAM018 | 👤 设计师 | 低（保留一个 TEXT） | input- 节点内多个 TEXT 子层，只取第一个，其他忽略 |
+| NAM019 | 👤 设计师 | 低（拆分前缀） | input- 与 bg-/bgc-/x- 叠加，不生成节点无法挂 |
+| NAM020 | 👤 设计师 | 低（拆分前缀） | input- 与 img-/btn- 叠加，语义冲突 |
 | STR001 | 👤 设计师 | 中（拍平 wrapper） | 生成的 DOM 多余嵌套，调试不便（不影响视觉） |
 | STR002 | 👤 设计师 | 低（删壳） | 同上 |
 | AST002 | 👤 设计师 | 低（调 bg- 尺寸） | bg- 露白，背景图未铺满父容器 |
@@ -307,6 +314,8 @@ inNonRecursiveSubtree(node) =
 | `fixed` + `bg` / `bgc` / `x` | `fixed-` 需要"挂在节点上"才能生效;`bg-` / `bgc-` 不生成节点(写父元素 CSS),`x-` 跳过整层。由 NAM014 单独覆盖(error);NAM003 此处只标"前缀冲突",等级与 NAM014 保持一致 |
 | `end` + `bg` / `bgc` / `x` | `end-` 需要"挂在节点上"才能生效(生成 wrapper + space-between 结构);`bg-` / `bgc-` 不生成节点,`x-` 跳过整层。由 NAM016 单独覆盖(error);NAM003 此处只标"前缀冲突",等级与 NAM016 保持一致 |
 | `fixed` + `end` | 两个修饰前缀同现,`fixed-` 让节点脱离父流走 position:fixed,`end-` 的"贴父末端"语义无法叠加。由 LAY020 单独覆盖(warn);生成时 fixed- 优先,end- 前缀被忽略 |
+| `input` + `bg` / `bgc` / `x` | `input-` 需要"挂在节点上"才能生效(生成 `<input>` 标签);`bg-` / `bgc-` 不生成节点,`x-` 跳过整层。由 NAM019 单独覆盖(error);NAM003 此处只标"前缀冲突",等级与 NAM019 保持一致 |
+| `input` + `img` / `btn` | `input-` 生成 `<input>` 表单元素,与 `img-` 生成 `<img>`、`btn-` 生成可点击容器语义完全冲突。由 NAM020 单独覆盖(error);二选一保留 |
 
 > **`bg` + `bgc` 不冲突**(v0.2 修订):两者写的是父级 CSS 的不同属性(`background-image` vs `background-color`),可以共存。同一父级同时有 `bg-` 和 `bgc-` 子节点是合法设计——分别贡献父级背景图和背景色。
 
@@ -422,6 +431,58 @@ inNonRecursiveSubtree(node) =
 → problem: `end- 与 {bg/bgc/x}- 叠加在同一节点（{nodeName}），end 无法挂载到不生成节点的前缀`
 → consequence: `生成端忽略 end-；位图/装饰仍按父元素 CSS 表达，无法通过 wrapper + space-between 表达"贴末端"`
 → fix: `如需"贴底的背景图"：改用 CSS background-position: bottom，或把 end- 移到父节点上。如需"贴底的独立元素"：end-btn-/end-img-/end-sub- 都合法（这些前缀生成节点）`
+
+#### 3.6f NAM017 input- 节点内没有 TEXT 子层（默认 error，v0.3.4 新增）
+
+> **目的**：`input-` 生成 `<input placeholder="..." />` 需要从子 TEXT 节点读 `characters` 作为 placeholder 文本；无 TEXT 则 placeholder 无来源。
+
+判定条件：
+
+- 节点 `prefixes` 含 `input`
+- 节点子树内（含深层后代）没有可见 `type === 'TEXT'` 的节点
+
+→ problem: `input- 节点 {nodeName} 内没有可见 TEXT 子层,placeholder 无来源`
+→ consequence: `生成的 <input> 将没有 placeholder,交互提示缺失,用户不知道该输入什么`
+→ fix: `在 Figma 中给 input-{name} 节点内添加一个 TEXT 图层,内容写 placeholder 文案(如"请输入乘车人姓名"),字体色设为灰色`
+
+#### 3.6g NAM018 input- 节点内有多个 TEXT 子层（默认 warn，v0.3.4 新增）
+
+> **目的**：`input-` 只支持单一 placeholder；多个 TEXT 会让 agent 猜（默认取第一个），产物可能与设计意图不符。
+
+判定条件：
+
+- 节点 `prefixes` 含 `input`
+- 节点子树内可见 `type === 'TEXT'` 的节点数 ≥ 2
+
+→ problem: `input- 节点 {nodeName} 内有 {n} 个可见 TEXT 子层（{textNames.join(", ")}）`
+→ consequence: `agent 只取第一个 TEXT 的 characters 作 placeholder,其他 TEXT 内容被丢弃`
+→ fix: `只保留一个作为 placeholder 的 TEXT 图层;如果需要"标签 + 输入框"结构,把标签 TEXT 移到 input- 节点的兄弟位置(即 input- 的父容器下,而不是子层)`
+
+#### 3.6h NAM019 input- 与不生成节点的前缀叠加（默认 error，v0.3.4 新增）
+
+> **目的**：识别 `input-` 错误地叠加在 `bg-` / `bgc-` / `x-` 上的命名，与 NAM014 / NAM016 同类问题。
+
+判定条件：
+
+- 节点 `prefixes` 含 `input`
+- 同节点 `prefixes` 还含 `bg` 或 `bgc` 或 `x`
+
+→ problem: `input- 与 {bg/bgc/x}- 叠加在同一节点（{nodeName}），input 无法挂载到不生成节点的前缀`
+→ consequence: `生成端忽略 input-;该节点被当作背景/背景色/跳过处理,失去表单输入语义`
+→ fix: `二选一:保留 input-{name} 让它生成 <input>;或去掉 input- 保留 bg-/bgc-/x-`
+
+#### 3.6i NAM020 input- 与生成其他标签的前缀叠加（默认 error，v0.3.4 新增）
+
+> **目的**：`input-` 生成 `<input>` 表单元素，与 `img-` 生成 `<img>`、`btn-` 生成可点击容器语义完全冲突，不能同时生效。
+
+判定条件：
+
+- 节点 `prefixes` 含 `input`
+- 同节点 `prefixes` 还含 `img` 或 `btn`
+
+→ problem: `input- 与 {img/btn}- 叠加在同一节点（{nodeName}），语义冲突`
+→ consequence: `生成端只能选一个前缀执行(实际实现里 input- 优先);另一个前缀被忽略,设计意图落空`
+→ fix: `二选一:input-btn-search → 拆成"父容器 btn-search 里放子节点 input-search"(点击按钮触发搜索);input-img-avatar → 拆成"input-avatar"(如果是编辑昵称)或"img-avatar"(如果是纯头像展示)`
 
 #### 3.7 LAY001 容器缺 Auto Layout（默认 warn）
 

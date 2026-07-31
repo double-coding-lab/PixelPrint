@@ -32,6 +32,7 @@
 | `layers.scrollY` | 纵向滚动，默认 `scrolly-` |
 | `layers.fixed` | 视口固定，默认 `fixed-` |
 | `layers.end` | 逆向布局（贴父末端），默认 `end-` |
+| `layers.input` | 输入框（`<input type="text">`），默认 `input-` |
 | `layers.ignore` | 忽略，默认 `x-` |
 | `output.dir` | 代码输出根目录 |
 
