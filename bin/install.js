@@ -306,11 +306,24 @@ async function runInit() {
 
   const mergeMode = await pickOrUse('[3/8] 合并模式', m.mode, ['component', 'flat'], 'component')
 
-  const assetsDir = await inputOrUse('[4/8] 图片输出目录', img.assetsDir, 'static/')
+  // rn / react 分支的默认值分叉:
+  // - rn 项目走 require('./assets/xxx.png') 编译期路径,imageBaseUrl 为空,assetsDir 一般在 src/assets/,代码在 src/pages/
+  // - react (h5) 项目走远程 URL, static/ + http://127... 是老约定
+  const isRn = framework === 'rn'
+  const defaultAssetsDir   = isRn ? 'src/assets/' : 'static/'
+  const defaultImageBaseUrl= isRn ? ''            : 'http://127.0.0.1:8080/'
+  const defaultOutputDir   = isRn ? 'src/pages/'  : 'pages/'
 
-  const imageBaseUrl = await inputOrUse('[5/8] 图片 base URL', img.imageBaseUrl, 'http://127.0.0.1:8080/')
+  const assetsDir = await inputOrUse('[4/8] 图片输出目录', img.assetsDir, defaultAssetsDir)
 
-  const outputDir = await inputOrUse('[6/8] 代码输出目录', out.dir, 'pages/')
+  const imageBaseUrl = await inputOrUse(
+    isRn
+      ? '[5/8] 图片 base URL (rn 项目一般留空,走 require 引用)'
+      : '[5/8] 图片 base URL',
+    img.imageBaseUrl, defaultImageBaseUrl
+  )
+
+  const outputDir = await inputOrUse('[6/8] 代码输出目录', out.dir, defaultOutputDir)
 
   console.log('\n─── 阶段三：单位换算规则 ────────────────────────────\n')
   console.log('  使用 ← → 方向键选择，输入题直接回车使用默认值\n')
@@ -322,9 +335,16 @@ async function runInit() {
   let outputBase = figmaBase
   let scale = 1
   if (outputUnit === 'px') {
-    outputBase = await inputIntOrUse('[单位3/4] 代码 px 基准宽度（如 postcss px2vw 基于 750 则填 750）', u.outputBase, figmaBase * 2)
+    // rn 项目单位是 dp,一比一对应设计稿 pt,scale=1;h5 老约定用 postcss 二次编译,scale=2
+    const defaultOutputBase = isRn ? figmaBase : figmaBase * 2
+    outputBase = await inputIntOrUse(
+      isRn
+        ? '[单位3/4] 代码 px 基准宽度(rn 项目一般等于设计稿基准,scale=1)'
+        : '[单位3/4] 代码 px 基准宽度(如 postcss px2vw 基于 750 则填 750)',
+      u.outputBase, defaultOutputBase
+    )
     scale = outputBase / figmaBase
-    console.log(`  → 换算倍数：×${scale}（Figma ${figmaBase}px → 代码 ${figmaBase * scale}px）`)
+    console.log(`  → 换算倍数:×${scale}(Figma ${figmaBase}px → 代码 ${figmaBase * scale}${isRn ? '' : 'px'}${isRn ? ' dp' : ''})`)
   } else if (outputUnit === 'vw') {
     outputBase = await inputIntOrUse('[单位3/4] vw 基准宽度（100vw 对应多少 px）', u.outputBase, figmaBase)
     scale = outputBase / figmaBase
