@@ -70,9 +70,16 @@ function ensureGitignoreEntries() {
   console.log(`  ${existing.length > 0 ? 'append' : 'create'}  .gitignore  (+ ${missing.join(' + ')})`)
 }
 
-function installFiles(forceSkills = false, skipConfig = false) {
+function installFiles(forceSkills = false, skipConfig = false, options = {}) {
+  const { skipRn = false } = options
   console.log('\nctrip-train-d2c: installing files...\n')
-  copyDir(path.join(TEMPLATES_DIR, 'skills'), path.join(CWD, '.claude/skills'), forceSkills)
+  const skillsSrc = path.join(TEMPLATES_DIR, 'skills')
+  const skillsDst = path.join(CWD, '.claude/skills')
+  for (const entry of fs.readdirSync(skillsSrc, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    if (skipRn && entry.name === 'ctrip-train-d2c-rn') continue
+    copyDir(path.join(skillsSrc, entry.name), path.join(skillsDst, entry.name), forceSkills)
+  }
   if (!skipConfig) {
     copyFile(path.join(TEMPLATES_DIR, 'ctrip-train-d2c.config.json'), CONFIG_PATH)
   }
@@ -167,6 +174,28 @@ async function inputIntOrUse(label, currentVal, defaultVal) {
   return parseInt(await input(label, String(defaultVal))) || defaultVal
 }
 
+// ─── 【新增】内置携程 xtaro adapter 常量 ──────────────────
+const XTARO_ADAPTER = {
+  enabled: true,
+  tagMap: {
+    View: 'XView',
+    Text: 'XText',
+    Image: 'XImage',
+    Pressable: 'XClickableSimplified',
+    TextInput: 'XInput',
+    ScrollView: 'XScrollView'
+  },
+  importMap: {
+    XView: '@ctrip/xtaro',
+    XText: '@ctrip/xtaro',
+    XImage: '@ctrip/xtaro',
+    XClickableSimplified: '@ctrip/xtaro',
+    XInput: '@ctrip/xtaro',
+    XScrollView: '@ctrip/xtaro'
+  },
+  reactImport: 'react'
+}
+
 // ─── 交互式配置 ──────────────────────────────────────────────
 
 async function runInit() {
@@ -175,8 +204,6 @@ async function runInit() {
   if (fs.existsSync(CONFIG_PATH)) {
     try { existing = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) } catch {}
   }
-
-  installFiles(true, true)  // init: 强制覆盖 skill 文件；跳过 config 复制（交互完会自己写）
 
   const p = existing.project || {}
   const m = existing.merge || {}
@@ -199,13 +226,51 @@ async function runInit() {
 
   const framework = await pickOrUse('[1/8] 项目框架', p.framework, ['react', 'rn'], 'react')
 
+  // 先问完 framework 再复制 SKILL 文件:react 项目不需要装 rn SKILL,反之亦然
+  installFiles(true, true, { skipRn: framework !== 'rn' })  // init: 强制覆盖 skill 文件；跳过 config 复制
+
   // 样式方案分两个维度问：方式 + (仅 stylesheet 时) 预处理语法 + 是否走 module
   // 最终 styleFormat 落值规范见 SKILL §0「样式方案标识符」
   let styleFormat
+  let adapterCfg = null  // rn 分支下才会填,react 分支保持 null(config 不写 adapter 段)
   if (framework === 'rn') {
     styleFormat = await pickOrUse('[2/8] 样式方案', p.styleFormat,
       ['stylesheet', 'styled-components', 'nativewind'], 'stylesheet')
-    // RN 只有 1 题；后面 mergeMode 等步骤标号顺延
+
+    // ─── 【新增】adapter 引导 ─────────────────────────
+    // adapter 把 RN 原生标签映射到 xtaro / taro / 其他框架
+    const existingAdapter = existing.adapter || {}
+    const existingEnabledYn = existingAdapter.enabled === true ? 'Yes' : existingAdapter.enabled === false ? 'No' : null
+    const enableAdapterYn = await pickOrUse('[2.1/8] 是否启用 adapter 映射(把 RN 标签映射到 xtaro/taro 等)',
+      existingEnabledYn, ['No', 'Yes'], 'No')
+    const enableAdapter = enableAdapterYn === 'Yes'
+
+    if (!enableAdapter) {
+      adapterCfg = { enabled: false, tagMap: {}, importMap: {}, reactImport: 'react' }
+    } else {
+      // 判断是否已存在完整 adapter 配置,已有则直接沿用
+      const hasExistingMap = existingAdapter.tagMap && Object.keys(existingAdapter.tagMap).length > 0
+      if (hasExistingMap) {
+        logUseExisting('[2.2/8] adapter 映射', `${Object.keys(existingAdapter.tagMap).length} 条(沿用)`)
+        adapterCfg = {
+          enabled: true,
+          tagMap: existingAdapter.tagMap || {},
+          importMap: existingAdapter.importMap || {},
+          reactImport: existingAdapter.reactImport || 'react'
+        }
+      } else {
+        const preset = await select('[2.2/8] 选择预设 adapter',
+          ['携程 xtaro', '自定义'], '携程 xtaro')
+        if (preset === '携程 xtaro') {
+          adapterCfg = { ...XTARO_ADAPTER }
+          console.log('  → 已写入携程 xtaro 映射(6 个标签 → @ctrip/xtaro)')
+        } else {
+          adapterCfg = { enabled: true, tagMap: {}, importMap: {}, reactImport: 'react' }
+          console.log('  → adapter.enabled=true,请后续在 ctrip-train-d2c.config.json 手动填 tagMap / importMap')
+        }
+      }
+    }
+    // RN 分支后面 mergeMode 等步骤标号顺延
   } else {
     // 从现有 styleFormat 反推三个维度的当前值（兼容老 config）
     const existing2a = (() => {
@@ -294,38 +359,37 @@ async function runInit() {
       scrollX: 'scrollx-',
       scrollY: 'scrolly-',
       fixed: 'fixed-',
+      end: 'end-',
+      input: 'input-',
       ignore: 'x-',
       ...(existing.layers || {})
     },
     output: { dir: outputDir },
-    health: existing.health || {
-      enabled: true,
-      blockOnError: true,
-      report: {
-        markdown: true,
-        json: true,
-        dir: ''
-      },
-      thresholds: {
-        maxDepth: 6,
-        subBlockMin: 3,
-        subBlockMax: 20,
-        totalNodesMax: 1500,
-        hiddenRatioMax: 0.2,
-        paddingAsymmetryMax: 32,
-        bgSizeMin: 0.8,
-        bgSizeMax: 1.2,
-        colorDeltaEMin: 3
-      },
-      rules: {}
-    }
+    // rn 项目默认关闭 doctor(不接卫星 SKILL);react 项目保留完整 health 段
+    health: framework === 'rn'
+      ? (existing.health || { enabled: false })
+      : (existing.health || {
+        enabled: true,
+        blockOnError: true,
+        report: { markdown: true, json: true, dir: '' },
+        thresholds: {
+          maxDepth: 6, subBlockMin: 3, subBlockMax: 20, totalNodesMax: 1500,
+          hiddenRatioMax: 0.2, paddingAsymmetryMax: 32,
+          bgSizeMin: 0.8, bgSizeMax: 1.2, colorDeltaEMin: 3
+        },
+        rules: {}
+      }),
+    // 【新增】rn 分支写 adapter 段;react 项目不写
+    ...(framework === 'rn' ? { adapter: adapterCfg } : {})
   }
 
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2))
   console.log('\n  ✓ ctrip-train-d2c.config.json 已写入')
 
-  // 将单位规则注入主 Skill
-  const skillPath = path.join(CWD, '.claude/skills/ctrip-train-d2c/SKILL.md')
+  // 将单位规则注入主 Skill(按 framework 分叉:react → h5 SKILL;rn → rn SKILL)
+  const skillPath = framework === 'rn'
+    ? path.join(CWD, '.claude/skills/ctrip-train-d2c-rn/SKILL.md')
+    : path.join(CWD, '.claude/skills/ctrip-train-d2c/SKILL.md')
   if (fs.existsSync(skillPath)) {
     let skillContent = fs.readFileSync(skillPath, 'utf8')
     const unitExample = outputUnit === 'px'
@@ -339,7 +403,7 @@ async function runInit() {
       ? skillContent.slice(0, skillContent.indexOf(marker)) + section
       : skillContent + section
     fs.writeFileSync(skillPath, skillContent)
-    console.log('  ✓ 单位换算规则已注入 .claude/skills/ctrip-train-d2c/SKILL.md')
+    console.log(`  ✓ 单位换算规则已注入 ${path.relative(CWD, skillPath)}`)
   }
 
   console.log('\n─── 阶段四：mappings.json ───────────────────────────\n')

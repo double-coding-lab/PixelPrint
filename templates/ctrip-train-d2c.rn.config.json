@@ -1,0 +1,51 @@
+{
+  "version": "2.0.0",
+  "project": {
+    "name": "ctrip-train-d2c-rn",
+    "framework": "rn",
+    "styleFormat": "stylesheet"
+  },
+  "figma": {
+    "token": ""
+  },
+  "merge": {
+    "mode": "component"
+  },
+  "unit": {
+    "figmaBase": 375,
+    "outputUnit": "px",
+    "outputBase": 750,
+    "scale": 2
+  },
+  "images": {
+    "assetsDir": "src/assets/",
+    "imageBaseUrl": ""
+  },
+  "layers": {
+    "sub": "sub-",
+    "block": "block-",
+    "img": "img-",
+    "bg": "bg-",
+    "bgColor": "bgc-",
+    "font": "font-",
+    "but": "btn-",
+    "scrollX": "scrollx-",
+    "scrollY": "scrolly-",
+    "fixed": "fixed-",
+    "end": "end-",
+    "input": "input-",
+    "ignore": "x-"
+  },
+  "output": {
+    "dir": "src/pages/"
+  },
+  "health": {
+    "enabled": false
+  },
+  "adapter": {
+    "enabled": false,
+    "tagMap": {},
+    "importMap": {},
+    "reactImport": "react"
+  }
+}
