@@ -19,5 +19,19 @@
     "keywords": ["end-", "逆向布局", "贴底", "贴右", "reverse", "stick-end", "底部布局", "pinxuan", "space-between wrapper"],
     "linkedSkill": "f2s-kb-feat",
     "createdAt": "2026-07-30"
+  },
+  {
+    "name": "skill_page_root_min_height_100vh",
+    "folder": ".task/active/skill_page_root_min_height_100vh/",
+    "keywords": ["100vh", "min-height", "页面根容器", "根容器 100%", "底下露白", "长屏撑不满", "min-height max", "固定高度", "d3c-ticket-fillin 100%"],
+    "linkedSkill": "f2s-kb-feat",
+    "createdAt": "2026-07-30"
+  },
+  {
+    "name": "skill_add_input_prefix",
+    "folder": ".task/active/skill_add_input_prefix/",
+    "keywords": ["input-", "输入框", "input 标签", "placeholder", "text field", "表单输入", "NAM017", "NAM018", "NAM019", "NAM020"],
+    "linkedSkill": "f2s-kb-feat",
+    "createdAt": "2026-07-31"
   }
 ]
