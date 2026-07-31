@@ -33,5 +33,12 @@
     "keywords": ["input-", "输入框", "input 标签", "placeholder", "text field", "表单输入", "NAM017", "NAM018", "NAM019", "NAM020"],
     "linkedSkill": "f2s-kb-feat",
     "createdAt": "2026-07-31"
+  },
+  {
+    "name": "skill_add_rn_skill",
+    "folder": ".task/active/skill_add_rn_skill/",
+    "keywords": ["rn skill", "d2c-rn", "ctrip-train-d2c-rn", "xtaro adapter", "adapter tagMap importMap", "React Native d2c", "StyleSheet d2c", "独立 rn skill", "RN 生成代码", "多端 d2c"],
+    "linkedSkill": "f2s-req-plan",
+    "createdAt": "2026-07-31"
   }
 ]
