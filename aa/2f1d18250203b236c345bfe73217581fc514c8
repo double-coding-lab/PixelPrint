@@ -1,0 +1,26 @@
+.Knowledge/matchers/m-ctrip-train-d2c-rn.json
+  s_2843f3def1e163::t_c197bb9bf67793 1-78
+.Knowledge/topics/ctrip-train-d2c-rn.md
+  s_2843f3def1e163::t_28e95afb7a4aa5 1-7,10-14,17-20,24-32,39-67,69-72,77-85,88-96,106-114,120-124,137-141,146-150
+  s_2843f3def1e163::t_b3e9d1fbee39cb 8-9,15-16,21-23,33-38,68,73-76,86-87,97-105,115-119,125-136,142-145,151-153
+.Knowledge/manifest-routing.json
+  s_2843f3def1e163::t_423ca7c0120407 23-24,83-90,137-144
+.Knowledge/index.md
+  s_2843f3def1e163::t_6f4b97773a5c67 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "aa2f1d18250203b236c345bfe73217581fc514c8",
+  "prompts": {},
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
