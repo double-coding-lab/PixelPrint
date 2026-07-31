@@ -18,7 +18,7 @@
     "scale": 2
   },
   "images": {
-    "assetsDir": "src/assets/",
+    "assetsDir": "assets/",
     "imageBaseUrl": ""
   },
   "layers": {

@@ -234,8 +234,10 @@ async function runInit() {
   let styleFormat
   let adapterCfg = null  // rn 分支下才会填,react 分支保持 null(config 不写 adapter 段)
   if (framework === 'rn') {
-    styleFormat = await pickOrUse('[2/8] 样式方案', p.styleFormat,
-      ['stylesheet', 'styled-components', 'nativewind'], 'stylesheet')
+    // rn 分支样式方案写死 StyleSheet.create + 行内 style,不再询问
+    // 理由:styled-components / nativewind 需要额外依赖且 SKILL 侧未落地生成模板,现阶段只支持 stylesheet
+    styleFormat = 'stylesheet'
+    console.log('  [2/8] 样式方案: \x1b[36mstylesheet\x1b[0m \x1b[90m(rn 分支固定用 StyleSheet.create + 行内 style)\x1b[0m')
 
     // ─── 【新增】adapter 引导 ─────────────────────────
     // adapter 把 RN 原生标签映射到 xtaro / taro / 其他框架
@@ -307,21 +309,30 @@ async function runInit() {
   const mergeMode = await pickOrUse('[3/8] 合并模式', m.mode, ['component', 'flat'], 'component')
 
   // rn / react 分支的默认值分叉:
-  // - rn 项目走 require('./assets/xxx.png') 编译期路径,imageBaseUrl 为空,assetsDir 一般在 src/assets/,代码在 src/pages/
+  // - rn 项目走 require('./assets/xxx.png') 编译期路径,imageBaseUrl 为空,assetsDir 固定 assets/,代码在 src/pages/
   // - react (h5) 项目走远程 URL, static/ + http://127... 是老约定
   const isRn = framework === 'rn'
-  const defaultAssetsDir   = isRn ? 'src/assets/' : 'static/'
+  const defaultAssetsDir   = isRn ? 'assets/'    : 'static/'
   const defaultImageBaseUrl= isRn ? ''            : 'http://127.0.0.1:8080/'
   const defaultOutputDir   = isRn ? 'src/pages/'  : 'pages/'
 
-  const assetsDir = await inputOrUse('[4/8] 图片输出目录', img.assetsDir, defaultAssetsDir)
+  // rn 分支:图片目录固定 assets/(根目录 assets 文件夹),不再询问
+  let assetsDir
+  if (isRn) {
+    assetsDir = 'assets/'
+    console.log(`  [4/8] 图片输出目录: \x1b[36m${assetsDir}\x1b[0m \x1b[90m(rn 分支固定根目录 assets/,走 require('./assets/xxx.png'))\x1b[0m`)
+  } else {
+    assetsDir = await inputOrUse('[4/8] 图片输出目录', img.assetsDir, defaultAssetsDir)
+  }
 
-  const imageBaseUrl = await inputOrUse(
-    isRn
-      ? '[5/8] 图片 base URL (rn 项目一般留空,走 require 引用)'
-      : '[5/8] 图片 base URL',
-    img.imageBaseUrl, defaultImageBaseUrl
-  )
+  // rn 分支:图片 base URL 固定为空,不再询问
+  let imageBaseUrl
+  if (isRn) {
+    imageBaseUrl = ''
+    console.log(`  [5/8] 图片 base URL: \x1b[36m(空)\x1b[0m \x1b[90m(rn 分支走 require 引用,不用远程 URL)\x1b[0m`)
+  } else {
+    imageBaseUrl = await inputOrUse('[5/8] 图片 base URL', img.imageBaseUrl, defaultImageBaseUrl)
+  }
 
   const outputDir = await inputOrUse('[6/8] 代码输出目录', out.dir, defaultOutputDir)
 
