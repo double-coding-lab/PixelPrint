@@ -339,34 +339,42 @@ async function runInit() {
   console.log('\n─── 阶段三：单位换算规则 ────────────────────────────\n')
   console.log('  使用 ← → 方向键选择，输入题直接回车使用默认值\n')
 
-  const figmaBase = await inputIntOrUse('[单位1/4] 设计稿基准宽度 (px)', u.figmaBase, 375)
+  const figmaBase = await inputIntOrUse(
+    isRn ? '[单位1/2] 设计稿基准宽度 (px)' : '[单位1/4] 设计稿基准宽度 (px)',
+    u.figmaBase, 375
+  )
 
-  const outputUnit = await pickOrUse('[单位2/4] 代码使用的单位', u.outputUnit, ['px', 'vw', 'rem'], 'px')
-
-  let outputBase = figmaBase
-  let scale = 1
-  if (outputUnit === 'px') {
-    // rn 项目单位是 dp,一比一对应设计稿 pt,scale=1;h5 老约定用 postcss 二次编译,scale=2
-    const defaultOutputBase = isRn ? figmaBase : figmaBase * 2
-    outputBase = await inputIntOrUse(
-      isRn
-        ? '[单位3/4] 代码 px 基准宽度(rn 项目一般等于设计稿基准,scale=1)'
-        : '[单位3/4] 代码 px 基准宽度(如 postcss px2vw 基于 750 则填 750)',
-      u.outputBase, defaultOutputBase
-    )
-    scale = outputBase / figmaBase
-    console.log(`  → 换算倍数:×${scale}(Figma ${figmaBase}px → 代码 ${figmaBase * scale}${isRn ? '' : 'px'}${isRn ? ' dp' : ''})`)
-  } else if (outputUnit === 'vw') {
-    outputBase = await inputIntOrUse('[单位3/4] vw 基准宽度（100vw 对应多少 px）', u.outputBase, figmaBase)
-    scale = outputBase / figmaBase
-    console.log(`  → 换算：Figma ${figmaBase}px → ${(figmaBase * scale / outputBase * 100).toFixed(3)}vw`)
-  } else {
-    outputBase = await inputIntOrUse('[单位3/4] rem 基准（1rem = 多少 px）', u.outputBase, 16)
+  let outputUnit, outputBase, scale
+  if (isRn) {
+    // rn 分支:不问单位、不问输出基准
+    // - RN style 数值就是数字(iOS pt / Android dp),没有 px/vw/rem 概念
+    // - outputBase 永远等于 figmaBase,scale 永远 1(Figma 里画的数字直接就是 rn 产物里的数字)
+    outputUnit = 'px'      // 内部标记为 px 表示"数字模式",不代表输出带 px 单位字符串
+    outputBase = figmaBase
     scale = 1
-    console.log(`  → 换算：Figma 值 / ${outputBase} rem`)
+    console.log(`  [单位2/2] 换算:\x1b[36mRN 数字模式(scale=1,figmaBase=${figmaBase} pt)\x1b[0m \x1b[90m(rn 分支固定,不做 px/vw/rem 单位选择)\x1b[0m`)
+  } else {
+    outputUnit = await pickOrUse('[单位2/4] 代码使用的单位', u.outputUnit, ['px', 'vw', 'rem'], 'px')
+    if (outputUnit === 'px') {
+      outputBase = await inputIntOrUse('[单位3/4] 代码 px 基准宽度(如 postcss px2vw 基于 750 则填 750)', u.outputBase, figmaBase * 2)
+      scale = outputBase / figmaBase
+      console.log(`  → 换算倍数:×${scale}(Figma ${figmaBase}px → 代码 ${figmaBase * scale}px)`)
+    } else if (outputUnit === 'vw') {
+      outputBase = await inputIntOrUse('[单位3/4] vw 基准宽度(100vw 对应多少 px)', u.outputBase, figmaBase)
+      scale = outputBase / figmaBase
+      console.log(`  → 换算:Figma ${figmaBase}px → ${(figmaBase * scale / outputBase * 100).toFixed(3)}vw`)
+    } else {
+      outputBase = await inputIntOrUse('[单位3/4] rem 基准(1rem = 多少 px)', u.outputBase, 16)
+      scale = 1
+      console.log(`  → 换算:Figma 值 / ${outputBase} rem`)
+    }
   }
 
-  const figmaToken = await inputOrUse('[单位4/4] Figma Personal Access Token（用于导出透明图片，回车跳过）', fig.token, '')
+  const figmaToken = await inputOrUse(
+    isRn ? '[单位2/2] Figma Personal Access Token(用于导出透明图片,回车跳过)'
+         : '[单位4/4] Figma Personal Access Token(用于导出透明图片,回车跳过)',
+    fig.token, ''
+  )
 
   const config = {
     version: '2.0.0',
