@@ -199,6 +199,78 @@ sub-agent 在生成 scroll 容器代码前**必须输出自检 4 行**：
 
 **典型场景**：底部品宣（`end-img-pinxuan`）在设备高度大于设计稿基准时贴屏底；两栏按钮组"取消 / 确认"分居左右（`[btn-cancel, end-btn-confirm]` 父 `HORIZONTAL`）；卡片头右侧"更多 >"链接（`[title, end-more]` 父 `HORIZONTAL`）。
 
+### 9. 页面根容器 `min-height: max(..., 100vh)`（v0.3.3 新增）
+
+**位置**：主 SKILL §4.1.1 §A 表 FIXED 行例外 + §4.3 判定优先级第 6 条 + §6.0 checklist 第 9 项。
+
+**痛点**：D2C 默认把 Figma 顶层 Frame 的高度死值（例如 812 × 2 = 1624px）翻译成 `min-height: 1624px`。设备视口 >1624px 时，页面底下露白（项目全局兜底色）；`end-` 前缀的贴屏底效果也失效（只贴到 1624 那个死高度的底部,不是屏幕底部）。
+
+**判定"页面根容器"3 信号 AND**（缺一不成立）：
+
+| 信号 | 内容 | 用途 |
+|------|------|------|
+| A | 该节点是主 agent `fetchNode` 入口 nodeId 本身（不是子孙） | 排除 sub-agent 派发进来的内层 block |
+| B | 父在 Figma REST 里查不到 或 父 `type` 是 `PAGE`/`DOCUMENT`/`CANVAS` | 排除嵌套在其他 Frame 里的次级容器 |
+| C | `absoluteBoundingBox.height` ≈ 视口常见值（667/736/812/844/896/926/932/1024，±20 容差） | 排除长图页面（例如 375×2000） / 卡片子模块 |
+
+**命中后覆写**：
+
+```scss
+.root {
+  /* 保留 1-5 判定产出的 CSS(flex/gap/padding/align-items) */
+  min-height: max({figmaH * scale}px, 100vh);   /* 至少设计稿高度,长屏撑到 100vh */
+  width: {figmaW * scale}px;                    /* 宽度死值保留 */
+  margin: 0 auto;
+  position: relative;                           /* 若已存在保留 */
+}
+.root__bg {                                     /* 根内部 layoutPositioning:ABSOLUTE 的 bg- 层 */
+  position: absolute;
+  inset: 0;                                     /* 覆写 top:0 left:0 width/height:{死值} */
+  background-size: cover;                       /* 从 {w}px {h}px 改成 cover */
+  background-position: top center;
+}
+```
+
+**为什么放在判定优先级第 6 条（覆写位而不是分支）**：本条不改变 1-5 对根容器**内部结构**的判定（是 flex 还是 flex、padding 还是 padding），只覆写高度和背景。所以先走完 1-5 拿到基础 CSS，再叠加本条覆写。
+
+**与 `end-` 的联动**：`end-` 想真正贴屏底，必须依赖根容器能撑到 `100vh`；否则 `space-between` 只把 end- 推到 1624px 的底部而不是屏幕底部。两条规则组合起来才能做到"长屏时 end- 贴屏底"。
+
+**豁免场景**（3 信号任一不成立时走普通 FIXED 规则，不覆写）：
+- Sub-agent 单独处理某个 block 时（信号 A 命中但 C 因高度不匹配排除）
+- URL 直接指向非根子节点（例如 `?node-id=163-2302` 指向 `sub-cardopen`，信号 C 排除）
+- 长图页面（例如 375×2000，信号 C 排除，死值 `min-height: 4000px` 是正确的）
+
+### 10. `input-` 输入框（v0.3.4 新增）
+
+**位置**：主 SKILL §`input-` 输入框规则（§4.3 end- 章节后） + doctor §3.6f-i NAM017/018/019/020。
+
+`input-` 是**独立前缀**（决定生成什么元素,不是修饰）。命中即输出 `<input type="text">` 标签,**不再向内递归**（子层 TEXT/vector 都被消化用于填 placeholder/icon）。可与 `fixed-`/`end-`/`sub-` 叠加,**不可**与 `bg-`/`bgc-`/`x-`（NAM019 error）或 `img-`/`btn-`（NAM020 error）叠加。
+
+**Figma 侧图层结构约定**：
+
+```
+input-{name}              ← Frame,自身 fills(输入框底色) + strokes + cornerRadius
+  ├─ [vector | RECT | 子 Frame]   ← 可选,左侧图标
+  └─ TEXT "请输入..."              ← 必须,characters 是 placeholder 文本,fills 是 placeholder 颜色
+```
+
+**生成机制**：
+- `<input type="text" placeholder="{TEXT.characters}" />`（单标签,无 wrapper）
+- 输入框视觉从 `input-` 节点自身 fills/strokes/cornerRadius 读
+- 左侧图标切图作 `background-image` + `padding-left` 腾位置(不生成独立 DOM)
+- `::placeholder` 颜色取自 TEXT 子的 `fills[0]`
+- 字体从 TEXT 子的 `style` 读
+
+**doctor 校验**：
+- **NAM017**（error）:input- 内无 TEXT 子层 → placeholder 无来源
+- **NAM018**（warn）:input- 内 ≥2 个 TEXT → 只取第一个,其他忽略
+- **NAM019**（error）:input- 与 bg-/bgc-/x- 叠加 → 不生成节点无法挂
+- **NAM020**（error）:input- 与 img-/btn- 叠加 → 语义冲突,需拆父子结构
+
+**类型限定**：v0.3.4 只支持 `<input type="text">`。密码/数字/邮箱等特殊 type 由 agent 输出 QA 告警提示手工改,不自动推断。多行输入(`textarea`)、下拉选择(`select`)本版不覆盖,后续按需扩 `layers.textarea` / `layers.select`。
+
+**典型场景**：登录表单(手机号/密码)、订单填写(乘车人姓名/身份证/备注)、搜索框、评论框。
+
 ## 工具链注意事项（install.js / config 完整性）
 
 **install.js `runInit()` 写 config 时必须包含完整字段**（v0.2 修订）。历史 bug：`runInit()` 只写了 project / figma / merge / unit / images / output 六大段，**漏了 layers / health / images.preserveEffectIds**，导致用户项目 config 缺关键字段。
@@ -241,6 +313,8 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 - **block- 不嵌套**:`block-` 是"顶层独立布局块"(§409),doctor NAM001 fix 已修订为只建议 `sub-`,不再建议 `block-`
 - **fixed- 是修饰前缀**:可与 `sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-` 叠加(只改 `position: fixed`,不改渲染方式);**不可**与 `bg-`/`bgc-`/`x-` 叠加(这三个不生成节点,fixed 无处可挂——doctor NAM014 error);top/bottom 必须读 Figma constraints 推断,不是直接读坐标;祖先链有 transform/filter/blur 时 fixed 退化为相对祖先定位(doctor LAY013 warn)
 - **end- 是修饰前缀(v0.3.2 新增)**:表达"贴父末端",方向由父 `layoutMode` 决定(VERTICAL→贴底 / HORIZONTAL→贴右);可与 `sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-` 叠加,**不可**与 `bg-`/`bgc-`/`x-` 叠加(doctor NAM016 error);唯一实现路径是 wrapper + `justify-content: space-between`;必须是父的最后一个可见子(LAY017 error)且父必须是 autoLayout(LAY019 error);与 fixed- 同现时 fixed- 优先(LAY020 warn)
+- **页面根容器 min-height: max(..., 100vh)(v0.3.3 新增)**:3 信号 AND 判定(入口 nodeId + 父是 Page/Document + 高度接近视口),命中后覆写根 CSS min-height 为 `max({figmaH*scale}px, 100vh)`,内部 `layoutPositioning: ABSOLUTE` 的 bg- 层同步改 `height: 100%` + `background-size: cover`;不改动根内部结构判定(1-5 优先级已产出的 flex/gap/padding 保留);解决设备视口 >1624px 时页面底下露白 + end- 无法真正贴屏底的问题
+- **input- 是独立前缀(v0.3.4 新增)**:生成 `<input type="text" placeholder=... />` 单标签(不包 wrapper),placeholder 取子 TEXT 节点 characters,左侧图标切图作 CSS background-image + padding-left(不生成独立 DOM);可叠加 fixed-/end-/sub-,**不可**叠加 bg-/bgc-/x-(NAM019 error) 或 img-/btn-(NAM020 error);子层无 TEXT 报 NAM017 error,多 TEXT 报 NAM018 warn;命中即停止向内递归;当前只覆盖 `<input type="text">`,textarea/select/密码/数字等 type 由 agent 输出 QA 告警提示手工改
 - **页面级背景必须探测项目特征**:`*.module.{scss,less,css}` 里直接写 `body { ... }` 会被 hash 化失效;普通 stylesheet（非 module 的 scss/less/css）里写 `:global(...)` 不识别。详见 §2.5(强制不可跳过)。**v0.2.1 新增**：install.js 把样式方案拆成两题（`[2a]` 样式方式 + `[2b]` 预处理语法 + `[2c]` 是否走 module），styleFormat 取值扩展到 `scss / scss-modules / less / less-modules / css / css-modules / tailwind / inline / RN 三选`，详见主 SKILL §0「样式方案标识符」
 
 ## 已知历史 bug 与修订（v0.2）
