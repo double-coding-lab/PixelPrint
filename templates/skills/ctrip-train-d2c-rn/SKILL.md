@@ -170,13 +170,13 @@ SKILL 内核默认按 pure React Native 描述,用 `Dimensions.get('window').wid
 | 框架 | 屏宽取法 | 视口高取法 | 落地位置 |
 |-----|---------|-----------|---------|
 | pure React Native / Expo | `Dimensions.get('window').width` | `Dimensions.get('window').height` | rpx helper 内、页面根 minHeight;SKILL 默认举例 |
-| 携程 xtaro | `Taro.getSystemInfoSync().windowWidth`(降级 `.screenWidth`) | `Taro.getSystemInfoSync().windowHeight`(降级 `.screenHeight`) | 预设 helperTemplate=`xtaro.rpx.ts` + 生成产物页面根写 `Taro.getSystemInfoSync().windowHeight` |
-| taro / 小程序 | 同 xtaro(`Taro.getSystemInfoSync()`) | 同左 | 自定义预设时参考 xtaro.rpx.ts |
+| 携程 xtaro | `xGetSystemInfoSync().windowWidth`(降级 `.screenWidth`) | `xGetSystemInfoSync().windowHeight`(降级 `.screenHeight`) | 预设 helperTemplate=`xtaro.rpx.ts`;`import { xGetSystemInfoSync } from '@ctrip/xtaro'` — 项目只依赖 @ctrip/xtaro 一个包 |
+| taro / 小程序 | `getSystemInfoSync().windowWidth`(from `@tarojs/taro`) | `getSystemInfoSync().windowHeight` | 自定义预设时参考 xtaro.rpx.ts,改 import 源为 `@tarojs/taro` |
 | react-native-web | `Dimensions.get('window').*`(RN-web 层已 shim) | 同左 | pure RN 默认即可 |
 
 **agent 生成产物时的判定**:
 
-1. 若 config `unit.responsive.enabled === true` → 尺寸类走 `rpx()` 包装(见 §4.1.1 §C.1 白名单),helper 内部已经处理好屏宽 API 差异,agent **不需要**在业务代码里直接调 `Dimensions` 或 `Taro.getSystemInfoSync`
+1. 若 config `unit.responsive.enabled === true` → 尺寸类走 `rpx()` 包装(见 §4.1.1 §C.1 白名单),helper 内部已经处理好屏宽 API 差异,agent **不需要**在业务代码里直接调 `Dimensions` 或 `xGetSystemInfoSync`
 2. 若必须在业务代码里直接读屏宽/视口高(典型:§4.3 判定优先级第 6 条的"页面根 minHeight"):
    - 有预设且预设声明了 `helperTemplate` → 参考 helper 里的写法(用 Taro / getSystemInfo 之类),**不要**硬编码 `Dimensions.get('window')`
    - 无预设或预设未声明 → 默认用 `Dimensions.get('window')`(pure RN 语义)
@@ -186,7 +186,7 @@ SKILL 内核默认按 pure React Native 描述,用 `Dimensions.get('window').wid
 
 1. config `adapter.importMap` 里的 value 命中 `@ctrip/xtaro` / `@tarojs/*` → 走 Taro API
 2. config `adapter.enabled === false` + 项目 `package.json` 有 `expo` 依赖 → pure RN(Expo 兼容 Dimensions)
-3. 都识别不出 → 保守默认 pure RN 写法,但**必须**在 QA 段落 warn 一句"项目未识别到框架类型,页面根 minHeight 用了 Dimensions.get('window'),xtaro / taro 类项目请手动改为 Taro.getSystemInfoSync"
+3. 都识别不出 → 保守默认 pure RN 写法,但**必须**在 QA 段落 warn 一句"项目未识别到框架类型,页面根 minHeight 用了 Dimensions.get('window'),xtaro 项目请手动改为 `xGetSystemInfoSync from @ctrip/xtaro`,taro 项目改为 `getSystemInfoSync from @tarojs/taro`"
 
 **本节仅约束"屏宽 / 视口高"这两个值**。其他 RN API(如 `StyleSheet` / `PixelRatio` / `Platform`)不在此约束范围,继续按内核默认 `import from 'react-native'`(若目标框架也不支持,由 adapter 预设的 helperTemplate 内部处理,不由 SKILL 主流程负责)。
 
@@ -464,7 +464,7 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 | `justifyContent` (主轴对齐) | `primaryAxisAlignItems` | `MIN → 'flex-start'`;`CENTER → 'center'`;`MAX → 'flex-end'`;`SPACE_BETWEEN → 'space-between'`(**两端对齐**) |
 | `alignItems` (交叉轴对齐) | `counterAxisAlignItems` | `MIN → 'flex-start'`;`CENTER → 'center'`;`MAX → 'flex-end'`;`BASELINE → 'baseline'` |
 | `flexWrap` | `layoutWrap` | `WRAP → 'wrap'`;`NO_WRAP` 或缺失 → 不写(RN 默认 `'nowrap'`) |
-| 容器**自身**尺寸行为 | `layoutSizingHorizontal` / `layoutSizingVertical` | `FIXED → width/height: <数字>` 固定值;`HUG → 不写 width/height`(RN 默认按内容 hug);`FILL → flex: 1` 或 `alignSelf: 'stretch'`。**页面根容器例外**(§4.3 判定优先级第 6 条):vertical `FIXED` 时不写 `height: <死值>`,改写 `minHeight: Dimensions.get('window').height`(xtaro/taro 类框架需改用 `Taro.getSystemInfoSync().windowHeight`,见 §SCREEN-API) |
+| 容器**自身**尺寸行为 | `layoutSizingHorizontal` / `layoutSizingVertical` | `FIXED → width/height: <数字>` 固定值;`HUG → 不写 width/height`(RN 默认按内容 hug);`FILL → flex: 1` 或 `alignSelf: 'stretch'`。**页面根容器例外**(§4.3 判定优先级第 6 条):vertical `FIXED` 时不写 `height: <死值>`,改写 `minHeight: Dimensions.get('window').height`(xtaro 项目改用 `xGetSystemInfoSync().windowHeight`,见 §SCREEN-API) |
 | **子节点**主轴伸缩 | `layoutGrow` (0 或 1) | `1 → flex: 1`;0 或缺失 → 不写 |
 | **子节点**交叉轴对齐(覆盖父 alignItems) | `layoutAlign` | `STRETCH → alignSelf: 'stretch'`;`INHERIT` / 缺失 → 不写 |
 | **子节点**是否脱离父 autoLayout 顺流 | `layoutPositioning` | `AUTO` 或缺失 → 参与父 flex 顺流,不写 position;`ABSOLUTE` → 子代 `position: 'absolute'` + `top` / `left` 数值(相对父原点,用 `子.absoluteBoundingBox.{x,y} - 父.absoluteBoundingBox.{x,y}` 算得),同时**父容器必须加** `position: 'relative'`。仅当父 `layoutMode ∈ {HORIZONTAL, VERTICAL}` 时此字段有意义 |
@@ -1081,7 +1081,7 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 | Figma / h5 语义 | 触发条件 | rn 退化策略 | QA 告警级别 |
 |-----------------|---------|-----------|-----------|
 | `fixed-` 前缀 | 图层名带 `fixed-` | 生成 `position: 'absolute'`,constraints 转 `top` / `left` / `right` / `bottom` 数值;**不引入 Portal**,层级由 JSX 顺序决定 | warn(说明 RN 端 fixed 语义不完全等价 — 滚动时随内容一起动) |
-| 页面根 `min-height: max(x, 100vh)` | 3 信号 AND 命中(§4.3 判定优先级第 6 条) | 顶部 import `Dimensions`;根 View style 加 `minHeight: Dimensions.get('window').height`;同时保留 `flex: 1`。**xtaro / taro 类项目**改用 `Taro.getSystemInfoSync().windowHeight`,见 §SCREEN-API | info |
+| 页面根 `min-height: max(x, 100vh)` | 3 信号 AND 命中(§4.3 判定优先级第 6 条) | 顶部 import `Dimensions`;根 View style 加 `minHeight: Dimensions.get('window').height`;同时保留 `flex: 1`。**xtaro 项目**改用 `import { xGetSystemInfoSync } from '@ctrip/xtaro'` + `minHeight: xGetSystemInfoSync().windowHeight`,见 §SCREEN-API | info |
 | `bg-` 背景图 | 图层名带 `bg-` 或 fills 是 IMAGE | 拆成独立 `<Image source={require('./xxx.png')} style={StyleSheet.absoluteFillObject} />`,置于父兄弟节点最前;父容器加 `position: 'relative'`;bg 图不生成为 style 属性 | info |
 | GRADIENT_LINEAR / GRADIENT_RADIAL | `fills[0].type` 是 GRADIENT_* | 退化为纯色 `backgroundColor: <gradientStops[0].color 转 hex>` | warn:"渐变已退化为纯色,如需真渐变请手动接 `react-native-linear-gradient`(裸 RN)或 `expo-linear-gradient`(Expo),或使用你所在框架的等价渐变组件" |
 | `overflow: scroll` 容器 | `scrollx-` / `scrolly-` 前缀 | 标签强制换 `<ScrollView>`,加 `horizontal={true}`(scrollx)或不加(scrolly);无 `overflow` CSS 属性 | 无(这是 rn 的正确写法) |
@@ -1210,44 +1210,68 @@ stdout 返回 `{"ok":true,"data":{"path":"<绝对路径>","reused":<bool>,"forma
 - **禁止**使用 Figma node ID 作为文件名
 - **禁止**使用 `101`、`201` 等数字序号作为文件名
 
-**代码中图片可访问地址（铁律）**：
+**代码中图片引用(RN/xtaro 铁律,与 h5 完全不同)**：
 
-唯一公式：
-
-```
-最终 URL = images.imageBaseUrl + images.assetsDir + filename
-```
-
-- **原样字符串拼接**，不要修剪 / 不要补 / 不要"规整化"末尾斜杠
-- `imageBaseUrl` 和 `assetsDir` 由项目自己配置，配置者已经决定了斜杠位置
-- 不允许根据"看起来对不对"调整任何一段
-- 不允许在 SCSS / CSS 里手写完整 URL；必须用 SCSS 变量统一定义后引用，**且变量值即上述公式的字面拼接结果**
-
-**TSX/JSX 写法**：
+**唯一形式**:`require()` 编译期路径,不允许字符串拼接:
 
 ```tsx
-const ASSET_PREFIX = `${imageBaseUrl}${assetsDir}`;  // ← 直接字面拼接两个 config 字符串
-// ...
-<img src={`${ASSET_PREFIX}${filename}`} />
+// pure RN
+<Image source={require('@Images/<页面>/<filename>.<ext>')} />
+
+// xtaro(adapter §5.5 阶段自动 tagMap Image→XImage + propMap source→src)
+<XImage src={require('@Images/<页面>/<filename>.<ext>')} />
 ```
 
-**SCSS 写法（强制）**：
+**为什么必须 require**:
 
-```scss
-$asset-prefix: '<imageBaseUrl 字面值><assetsDir 字面值>';  // ← 把 config 两段字符串原样首尾拼接，不动任何字符
+- RN Metro / xtaro webpack **只在编译期**解析 `require('./x.png')`,把它转成资源模块 ID;运行时才能拿到真实资源
+- 字符串拼接的 URL(`` src={`${prefix}${name}`} ``)在 RN/xtaro 里**无法解析**,产物跑起来图片 404 / 白屏
+- 这是 RN 与 h5 最大的图片处理差异 — h5 走网络 URL,RN 走编译期资源打包
 
-.foo {
-  background-image: url('#{$asset-prefix}filename.png');
+**alias `@Images/` 说明**:
+
+- 大部分 xtaro/RN 项目在 `webpack.config` / `metro.config` / `tsconfig.paths` 里配了 `@Images` alias 指向 `./src/Images`(项目自己的约定,SKILL 不管配置)
+- 若项目没配 alias,可用相对路径 `require('../../Images/<页面>/xxx.png')`(不推荐,层级深了难维护)
+- **agent 判定项目 alias 前缀**:先 grep `tsconfig.json` / `config/index.js` / `webpack.config.js` 里的 `Images` alias 定义;找不到默认写 `@Images/`(90% 的 xtaro/RN 项目都这样),同时 QA info 告警"未在项目配置里读到 alias,产物默认写 @Images/,请人工核对"
+
+**config 字段语义**(rn 分支与 h5 有别):
+
+- `images.assetsDir`:图片**落地目录**(相对 projectRoot),推荐 `src/Images/`(xtaro 项目通行) 或 `assets/`(裸 RN);agent 生成产物时按此路径写 require
+- `images.imageBaseUrl`:**rn 分支应为空**;若非空,说明项目走"运行时 URL"路径(极少见,如自建 CDN 分发),此时 agent 才拼字符串,但**默认不这么做**
+- rn 分支的 assetsDir 通常按 `src/Images/<页面 kebab-name>/`(每个页面独立子目录),避免多个页面切图 name 冲突
+
+**产物示例**:Figma 页面 `AirportBus` 有 6 张切图(title.png / tabs.png / arrow-to.svg / ...),config `images.assetsDir = "src/Images/"`,agent 生成:
+
+```tsx
+import { XImage, XView } from '@ctrip/xtaro'
+import { styles } from './styles'
+
+export default function AirportBus() {
+  return (
+    <XView style={styles.root}>
+      <XImage src={require('@Images/AirportBus/title.png')} style={styles.bgTitle} />
+      <XImage src={require('@Images/AirportBus/tabs.png')} style={styles.tabs} />
+      {/* ... */}
+    </XView>
+  )
 }
 ```
 
-> 反例（绝对禁止）：
-> - `url('http://.../static_xxx.png')`（漏 `/`）
-> - `url('http://.../static//xxx.png')`（自作主张补 `/`）
-> - `url('http://.../xxx.png')`（自作主张省略 `assetsDir`）
-> - 在 SCSS 中直接硬编码完整 URL，每个图各写一遍 → 容易写错且改 config 改不动
+对应 export-image 的 `--filename` 参数拼接页面子目录,让图片直接落到 `{projectRoot}/{assetsDir}/<页面>/`:
 
-**自检**：写完任何引用图片的代码后，**逐个 URL 在大脑中重新拼一遍**：取 config 里的 `imageBaseUrl`（连带末尾字符）+ `assetsDir`（连带末尾字符）+ 文件名，三段字符串按字面值连起来，与生成出来的 URL 字符串**逐字符比对**，不一致就改。
+```bash
+node .claude/skills/ctrip-train-d2c-rn/bin/figma.mjs export-image <fileKey> <nodeId> \
+  --filename=AirportBus/title
+```
+
+若 figma.mjs 不支持在 --filename 里带子目录,SKILL 主流程在 export 之后把图 `mv` 到正确子目录再生成 require 路径。
+
+**禁止**:
+
+- 禁止 `` src={`${imageBaseUrl}${assetsDir}${filename}`} `` 字符串拼接(那是 h5 SKILL 的写法,RN/xtaro 跑起来 404)
+- 禁止 `const ASSET_PREFIX = '...'`(rn 侧无用变量)
+- 禁止在 rn 产物里出现任何 `.scss` / `$asset-prefix` 定义(rn 无 SCSS)
+- 禁止 xtaro 项目产物里直接用 `<Image>` 而不用 `<XImage>`(adapter §5.5 阶段会转,但 agent 生成主流程内核仍写 `<Image>` — adapter 转换后 prop 名也会一并从 `source` 改成 `src`,见 §5.5.3b propMap)
 
 #### 4.4.2 字体处理（阿里巴巴普惠体固定 CDN）
 
