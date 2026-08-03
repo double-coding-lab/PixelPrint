@@ -1,14 +1,14 @@
 # ctrip-train-d2c-rn Skill
 
-> **独立 SKILL**:本 SKILL 专为 React Native 端产出代码。目标框架:**React Native**(原生 `react-native`)以及一切 RN-like 框架(携程 `@ctrip/xtaro`、通用 `@tarojs/components`、`expo`、`react-native-web` 等)。
+> **独立 SKILL**:本 SKILL 专为 React Native 端产出代码。目标框架:**React Native**(原生 `react-native`)以及一切 RN-like 框架(如 `@tarojs/components`、`expo`、`react-native-web`,或组织内部的 RN 组件库,通过 adapter 配置接入)。
 >
 > 与现有 h5 SKILL `ctrip-train-d2c` **完全独立并列**:h5 SKILL 一字不改。用户根据项目类型选装 h5 SKILL / rn SKILL / 两者共存。
 >
-> **核心机制**:内核以 RN 原生标签(View / Text / Image / Pressable / TextInput / ScrollView + StyleSheet)描述一切,再通过 `config.adapter` 配置(tagMap + importMap)映射到具体框架标签。
+> **核心机制**:内核以 RN 原生标签(View / Text / Image / Pressable / TextInput / ScrollView + StyleSheet)描述一切,再通过 `config.adapter` 配置(tagMap + importMap + propMap)映射到具体框架标签。
 
 ## 触发条件
 - 用户提供 Figma 设计稿 URL,且**项目 config `project.framework === 'rn'`**
-- 用户说「帮我用 RN 还原这个设计稿」「D2C RN」「生成 React Native 代码」「生成 xtaro 代码」
+- 用户说「帮我用 RN 还原这个设计稿」「D2C RN」「生成 React Native 代码」
 - 用户明确说明目标是移动端原生(iOS / Android),而非 H5 网页
 
 ---
@@ -83,9 +83,12 @@ Read("ctrip-train-d2c.config.json")
 | `images.imageBaseUrl` | 代码中图片 src 前缀 |
 | `images.preserveEffectIds` | 数组，可选；列出"导出时**保留** Figma effect / 父背景"的 nodeId（即不带 `use_absolute_bounds`）。默认空数组 = 所有图都按 bbox 严格导出 |
 | `unit.figmaBase` | 设计稿基准宽度，默认 `375` |
-| `unit.outputUnit` | 输出单位，`px` / `vw` / `rem`，默认 `px` |
-| `unit.outputBase` | 输出基准宽度（px 模式有效），默认 `750` |
-| `unit.scale` | 换算倍数（outputBase / figmaBase），默认 `2` |
+| `unit.outputUnit` | 输出单位,rn 侧固定为 `px`(数字模式,写 StyleSheet 时不带字符串单位) |
+| `unit.outputBase` | 输出基准宽度,rn 侧 = `figmaBase` |
+| `unit.scale` | 换算倍数(outputBase / figmaBase),rn 侧固定 `1` |
+| `unit.responsive.enabled` | 是否启用 rpx() 响应式包装(按屏宽线性缩放尺寸),默认 `true` |
+| `unit.responsive.helperImport` | rpx helper 的 import 路径,默认 `@/utils/rpx`;SKILL 生成产物时按此写 `import { rpx } from '<helperImport>'` |
+| `unit.responsive.helperName` | rpx helper 的导出函数名,默认 `rpx`;SKILL 用它包装白名单属性(如 `paddingLeft: rpx(16)`) |
 | `layers.sub` | 分块触发前缀，默认 `sub-` |
 | `layers.block` | 独立布局块前缀，默认 `block-` |
 | `layers.img` | 图片前缀，默认 `img-` |
@@ -101,8 +104,9 @@ Read("ctrip-train-d2c.config.json")
 | `output.dir` | 代码输出根目录 |
 | `health.enabled` | **rn SKILL 默认 false 且忽略此字段**(rn 不接 doctor) |
 | `adapter.enabled` | 是否启用 adapter 映射(把 RN 原生标签替换为其他框架标签),默认 `false` |
-| `adapter.tagMap` | RN 标签 → 目标框架标签 的映射表(如 `{ View: "XView" }`),仅 6 大 RN 标签作为 key 合法 |
-| `adapter.importMap` | 目标标签 → import from 路径(如 `{ XView: "@ctrip/xtaro" }`),未列的标签走 `react-native` |
+| `adapter.tagMap` | RN 标签 → 目标框架标签 的映射表(如 `{ View: "MyView" }`),仅 6 大 RN 标签作为 key 合法 |
+| `adapter.importMap` | 目标标签 → import from 路径(如 `{ MyView: "my-rn-lib" }`),未列的标签走 `react-native` |
+| `adapter.propMap` | RN 原标签 → prop 名重命名规则(如 `{ Image: { source: "src" } }`),用于目标框架 prop 语义与 RN 不一致的场景;key 是 RN 原标签名(不是 tagMap 映射后的名字) |
 | `adapter.reactImport` | React 本体 import 源,默认 `"react"` |
 
 #### 样式方案标识符(`project.styleFormat` 取值表)
@@ -123,25 +127,30 @@ Read("ctrip-train-d2c.config.json")
 
 #### adapter 配置示例
 
+> **预设定义在哪**:CLI 层的预设列表在 `templates/adapter-presets/*.json`(每个 JSON 是一个预设,`install.js init` 扫目录列成选项)。SKILL 自身**只消费** `ctrip-train-d2c.config.json` 里最终写好的 `adapter` 段,不读预设目录。新增框架映射(taro / nativewind / 组织内部 RN 组件库)加 preset 文件即可,不用改本 SKILL。
+
 **未启用 adapter**(输出原生 RN):
 
 ```json
-{ "adapter": { "enabled": false, "tagMap": {}, "importMap": {} } }
+{ "adapter": { "enabled": false, "tagMap": {}, "importMap": {}, "propMap": {} } }
 ```
 
-**启用携程 xtaro adapter**:
+**启用某个预设后 config 长这样**(以下用中性占位 `MyView` / `my-rn-lib` 展示结构,真实预设的具体值见 `adapter-presets/*.json`):
 
 ```json
 {
   "adapter": {
     "enabled": true,
     "tagMap": {
-      "View": "XView", "Text": "XText", "Image": "XImage",
-      "Pressable": "XClickableSimplified", "TextInput": "XInput", "ScrollView": "XScrollView"
+      "View": "MyView", "Text": "MyText", "Image": "MyImage",
+      "Pressable": "MyPressable", "TextInput": "MyInput", "ScrollView": "MyScrollView"
     },
     "importMap": {
-      "XView": "@ctrip/xtaro", "XText": "@ctrip/xtaro", "XImage": "@ctrip/xtaro",
-      "XClickableSimplified": "@ctrip/xtaro", "XInput": "@ctrip/xtaro", "XScrollView": "@ctrip/xtaro"
+      "MyView": "my-rn-lib", "MyText": "my-rn-lib", "MyImage": "my-rn-lib",
+      "MyPressable": "my-rn-lib", "MyInput": "my-rn-lib", "MyScrollView": "my-rn-lib"
+    },
+    "propMap": {
+      "Image": { "source": "src" }
     }
   }
 }
@@ -151,6 +160,7 @@ Read("ctrip-train-d2c.config.json")
 - tagMap 只支持 6 大 RN 标签作为 key(`View / Text / Image / Pressable / TextInput / ScrollView`),其他 key 忽略 + QA 告警
 - tagMap value 必须匹配 `/^[A-Z][A-Za-z0-9]*$/`(JSX 大写标识符),否则忽略该条 + QA 告警
 - importMap 未覆盖的映射后标签,自动 fallback 到 `react-native`
+- propMap key 必须是 6 大 RN 原标签(不是 tagMap 映射后的名字);value 是 `{ 原 prop 名: 新 prop 名 }` 的对象;命中的 JSX 属性会被重命名,`style` / `key` / `ref` 等 React 保留 prop **不参与重命名**
 - `StyleSheet` / `Dimensions` 等 RN API **始终从 `react-native` 导入**,不进 tagMap
 
 ---
@@ -473,9 +483,58 @@ def rgb_to_hex(c):
 
 **C. 单位规则(rn 特有)**
 
-- 所有数值 = `figmaValue * unit.scale`,写**数字不写单位**(RN StyleSheet 不认 `'20px'`,只认 `20`)
-- `unit.outputUnit` 在 rn 侧固定为 `'px'`(实际输出的是"密度无关像素" DP,与 web px 语义不同但数值可直接用)
-- 若 config 里 `unit.outputUnit === 'vw'` / `'rem'` → 强制退化到 `'px'`(数字)+ QA info 告警
+- **响应式 rpx() 包装(默认启用)**:config `unit.responsive.enabled === true` 时,以下"像素属性"必须用 `<helperName>(数值)` 包装(见 `unit.responsive.helperName`,默认 `rpx`),从 `unit.responsive.helperImport` 引入(默认 `@/utils/rpx`)。**非像素属性**保持原始数值,不得包装。
+- 关闭响应式(`unit.responsive.enabled === false`)时,所有值都直接写数字。
+- 所有数值先经 `figmaValue * unit.scale` 得到基准值(rn 分支下 `scale=1`,值就是 figma 原值),再判断是否走 `<helperName>()` 包装。
+- `unit.outputUnit` 在 rn 侧固定为 `'px'`(表示"数字模式",实际输出的是"密度无关像素" DP,与 web px 语义不同但数值可直接用)。写 StyleSheet 时**不带 `'px'` 字符串**,RN 只认数字。
+- 若 config 里 `unit.outputUnit === 'vw'` / `'rem'` → 强制退化到 `'px'`(数字)+ QA info 告警。
+
+**C.1 rpx() 包装白名单**(启用响应式时的强制规则)
+
+**必须包装**(视为"像素属性",按屏宽线性缩放):
+
+| 属性组 | 具体字段 |
+|-------|---------|
+| 尺寸 | `width` / `height` / `minWidth` / `minHeight` / `maxWidth` / `maxHeight` |
+| 定位 | `top` / `left` / `right` / `bottom` |
+| 间距 | `padding` / `paddingHorizontal` / `paddingVertical` / `paddingTop` / `paddingRight` / `paddingBottom` / `paddingLeft` |
+| 间距 | `margin` / `marginHorizontal` / `marginVertical` / `marginTop` / `marginRight` / `marginBottom` / `marginLeft` |
+| flex 间距 | `gap` / `rowGap` / `columnGap` |
+| 边框 | `borderRadius` / `borderTopLeftRadius` / `borderTopRightRadius` / `borderBottomLeftRadius` / `borderBottomRightRadius` / `borderWidth` / `borderTopWidth` / `borderRightWidth` / `borderBottomWidth` / `borderLeftWidth` |
+| 文字 | `fontSize` / `lineHeight` / `letterSpacing` |
+| 阴影 | `shadowRadius` / `elevation` / `shadowOffset.width` / `shadowOffset.height` |
+| transform | `translateX` / `translateY`(数值型,不含 `%` 字符串) |
+
+**禁止包装**(视为"非像素属性",保持原样):
+
+| 属性组 | 具体字段 | 理由 |
+|-------|---------|------|
+| 透明度 | `opacity` / `shadowOpacity` | 0-1 比例 |
+| 布局系数 | `flex` / `flexGrow` / `flexShrink` / `flexBasis`(数值 0-1) / `zIndex` | 布局系数 |
+| 颜色 | `color` / `backgroundColor` / `borderColor` / `shadowColor` / `tintColor` | 颜色 |
+| 字重 | `fontWeight`(字符串如 `'500'`) | 字重字符串 |
+| 枚举 | `flexDirection` / `justifyContent` / `alignItems` / `alignSelf` / `flexWrap` / `position` / `textAlign` / `textAlignVertical` / `overflow` / `resizeMode` / `display` | 枚举字符串 |
+| 百分比 / auto | 任何字符串型值(如 `'100%'` / `'auto'` / `'50%'`) | 已经是响应式表达 |
+| Dimensions API | `Dimensions.get('window').width` / `.height` 及其计算 | 已经是屏幕相关 |
+| transform matrix | `scale` / `scaleX` / `scaleY` / `rotate` / `skewX` / `skewY` | 变换系数或角度 |
+
+**判定优先级**:同一字段先查"禁止包装"表,命中 → 保留原样;否则查"必须包装"表,命中 → 用 `<helperName>()` 包装;都不命中 → 保留原样 + QA info 告警"字段 X 未在响应式白名单,已保留原始值,请人工核对是否遗漏"。
+
+**C.2 生成形态对比**
+
+同一 Figma 节点(`paddingLeft: 16`, `fontSize: 14`, `opacity: 0.8`):
+
+```js
+// 响应式禁用(unit.responsive.enabled === false)
+foo: { paddingLeft: 16, fontSize: 14, opacity: 0.8 }
+
+// 响应式启用(默认)
+import { rpx } from '@/utils/rpx'
+// ...
+foo: { paddingLeft: rpx(16), fontSize: rpx(14), opacity: 0.8 }
+//     ~~~~~~~~~~~~~~~~~~~~  ~~~~~~~~~~~~~~~~   ~~~~~~~~~~~
+//     像素属性,包装         像素属性,包装      非像素属性,不动
+```
 
 **D. 完整示例**
 
@@ -494,12 +553,16 @@ h5 SKILL 输出(参考,不在本 SKILL 生效):
   align-items: center; border-radius: 16px; background-color: #09bb07; }
 ```
 
-**rn SKILL 输出**(本 SKILL 主流程):
+**rn SKILL 输出**(本 SKILL 主流程,响应式启用时,`figmaBase=375`):
 
 ```js
-btnLogin: { flexDirection: 'row', paddingLeft: 32, paddingRight: 32, paddingTop: 24, paddingBottom: 24,
-  gap: 16, alignItems: 'center', borderRadius: 16, backgroundColor: '#09bb07' }
+import { rpx } from '@/utils/rpx'
+// ...
+btnLogin: { flexDirection: 'row', paddingLeft: rpx(16), paddingRight: rpx(16), paddingTop: rpx(12), paddingBottom: rpx(12),
+  gap: rpx(8), alignItems: 'center', borderRadius: rpx(8), backgroundColor: '#09bb07' }
 ```
+
+> 说明:`flexDirection` / `alignItems` / `backgroundColor` 是"非像素属性",不包装。`figmaValue * unit.scale`(此处 scale=1)后再传给 rpx()。响应式关闭时,`rpx(N)` 全部退化为纯数字 `N`。
 
 #### 4.2 隐藏图层处理
 
@@ -993,7 +1056,7 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 | `fixed-` 前缀 | 图层名带 `fixed-` | 生成 `position: 'absolute'`,constraints 转 `top` / `left` / `right` / `bottom` 数值;**不引入 Portal**,层级由 JSX 顺序决定 | warn(说明 RN 端 fixed 语义不完全等价 — 滚动时随内容一起动) |
 | 页面根 `min-height: max(x, 100vh)` | 3 信号 AND 命中(§4.3 判定优先级第 6 条) | 顶部 import `Dimensions`;根 View style 加 `minHeight: Dimensions.get('window').height`;同时保留 `flex: 1` | info |
 | `bg-` 背景图 | 图层名带 `bg-` 或 fills 是 IMAGE | 拆成独立 `<Image source={require('./xxx.png')} style={StyleSheet.absoluteFillObject} />`,置于父兄弟节点最前;父容器加 `position: 'relative'`;bg 图不生成为 style 属性 | info |
-| GRADIENT_LINEAR / GRADIENT_RADIAL | `fills[0].type` 是 GRADIENT_* | 退化为纯色 `backgroundColor: <gradientStops[0].color 转 hex>` | warn:"渐变已退化为纯色,如需真渐变请手动接 `react-native-linear-gradient`(裸 RN)或 `expo-linear-gradient`(Expo)或 `@ctrip/xtaro` 内置渐变组件" |
+| GRADIENT_LINEAR / GRADIENT_RADIAL | `fills[0].type` 是 GRADIENT_* | 退化为纯色 `backgroundColor: <gradientStops[0].color 转 hex>` | warn:"渐变已退化为纯色,如需真渐变请手动接 `react-native-linear-gradient`(裸 RN)或 `expo-linear-gradient`(Expo),或使用你所在框架的等价渐变组件" |
 | `overflow: scroll` 容器 | `scrollx-` / `scrolly-` 前缀 | 标签强制换 `<ScrollView>`,加 `horizontal={true}`(scrollx)或不加(scrolly);无 `overflow` CSS 属性 | 无(这是 rn 的正确写法) |
 | `box-shadow` | effect DROP_SHADOW | 拆成:`shadowColor`, `shadowOffset: { width, height }`, `shadowRadius`, `shadowOpacity`, `elevation`(Android) | 无(rn 原生支持) |
 | `filter: blur(...)` | effect LAYER_BLUR | 不出 style;产物注释 `// TODO: RN needs 'expo-blur' or '@react-native-community/blur'`;继续生成其他属性 | error |
@@ -1397,6 +1460,43 @@ const styles = StyleSheet.create({
 
 ---
 
+### 步骤 5.4:应用响应式 rpx()(仅 `config.unit.responsive.enabled === true` 时执行)
+
+合并完成后、进入 adapter 阶段(§5.5)之前,若 config 里 `unit.responsive.enabled` 为 `true`,主 agent 按下述顺序**重写所有 index.tsx / styles.ts** 中的 `StyleSheet.create({...})` 对象:
+
+**步骤 5.4.1 加 import 段**
+
+在每个含 `StyleSheet.create` 的文件顶部 import 区,追加一行(如果已存在则跳过):
+
+```tsx
+import { <helperName> } from '<helperImport>'
+```
+
+`<helperName>` 和 `<helperImport>` 从 config `unit.responsive.helperName` / `helperImport` 读取(默认 `rpx` + `@/utils/rpx`)。
+
+**步骤 5.4.2 遍历 style 对象包装数值**
+
+对每个 `StyleSheet.create({ blockName: { ...props } })` 里的每一条 `key: value`,按 §4.1.1 §C.1 白名单判定:
+
+- key 命中"必须包装"表 且 value 是**数值型字面量**(如 `16`,不是字符串 `'100%'` / 变量引用 / 表达式) → 改写成 `<helperName>(<value>)`
+- key 命中"禁止包装"表 → 跳过
+- key 都不命中 → 跳过 + 累计到 QA info 告警"字段 X 未在响应式白名单,已保留原始值"
+
+**边界**:
+
+- **只包装数值型字面量**:`paddingLeft: 16` → `paddingLeft: rpx(16)`;`paddingLeft: '50%'` / `paddingLeft: someVar` / `paddingLeft: Dimensions.get('window').width` **保持原样**
+- **`shadowOffset` 嵌套对象**:内部的 `width` / `height` 按白名单包装(`shadowOffset: { width: rpx(0), height: rpx(2) }`)
+- **`transform` 数组**:内部对象 `translateX` / `translateY` 数值型的按白名单包装;`scale` / `rotate` 不包装
+- **零值**:`padding: 0` **不包装**(rpx(0) 恒为 0,只增噪),直接保留 `0`
+
+**步骤 5.4.3 输出前统计**
+
+主 agent 在 §7.3 报告里写入本次包装了多少属性、跳过多少非白名单字段。
+
+**响应式关闭时**:整个 §5.4 跳过,产物就是纯数字 StyleSheet。SKILL 不写 rpx import,不改数值。
+
+---
+
 ### 步骤 5.5:应用 adapter(仅 `config.adapter.enabled === true` 时执行)
 
 合并完成后、写盘前,若 config 里 `adapter.enabled` 为 `true`,主 agent 按下述顺序**重写所有 index.tsx**(嵌套 block 都要走一遍):
@@ -1415,12 +1515,41 @@ const styles = StyleSheet.create({
 - value 是任意非空字符串
 - 不合法的丢弃 + QA info 告警
 
+**步骤 5.5.2b 校验 propMap**
+
+遍历 `config.adapter.propMap`(可选字段,不存在则跳过本步):
+- key 必须是 6 大 RN 原生标签(`View / Text / Image / Pressable / TextInput / ScrollView`)之一,其他 key 丢弃 + QA warn
+- value 必须是对象 `{ 原 prop: 新 prop }`;`原 prop` / `新 prop` 都必须匹配 `/^[a-zA-Z_$][a-zA-Z0-9_$]*$/`(合法 JSX 标识符)
+- **禁止重命名 React 保留 prop**:`style` / `key` / `ref` / `children` / `className` — 命中即丢弃该条 + QA warn
+- 处理后得到"合法 propMap"
+
 **步骤 5.5.3 重写 JSX 标签**
 
 对每个 index.tsx:
-- 全文查找 `<View ` / `<View>` / `</View>` / `<View/>`(注意区分开闭标签、自闭合、带属性的 `<View style=`),替换为映射后的标签(如 `<XView `)
+- 全文查找 `<View ` / `<View>` / `</View>` / `<View/>`(注意区分开闭标签、自闭合、带属性的 `<View style=`),替换为映射后的标签(如 `<MyView `)
 - 6 大标签逐个处理(**只处理 6 大**,其他 JSX 标识符保持原样)
 - StyleSheet / Dimensions / Fragment(`<>`)等**不动**
+
+**步骤 5.5.3b 应用 propMap(prop 名重命名)**
+
+对每个 index.tsx,基于**合法 propMap**逐个 RN 原标签遍历重写 JSX 属性:
+
+- 对于 `propMap[原标签] = { 原 prop: 新 prop }` 的每一条:
+  - 定位所有该"原标签"对应的 JSX 元素(注意此时标签名已在 5.5.3 被 tagMap 替换,匹配时用**映射后的标签名**,例如 `Image` 的 propMap 应作用到 `<MyImage ...>`)
+  - 逐个元素扫属性:命中 `原 prop=` 的属性(含 `原 prop={...}` / `原 prop="..."` / 自闭合 `<MyImage 原 prop={...} />` 三种写法),将属性名整体替换为 `新 prop`
+  - **不动属性值**:值是 JSX 表达式(`{require('./x.png')}`)/字符串字面量(`"foo"`)/变量引用(`{iconUrl}`)都保持原样
+  - **不动 style / key / ref / children / className**:即便 propMap 声明了这些 key(5.5.2b 已过滤),这里也**再次跳过**作为兜底
+- **未在 propMap 声明的属性一律保留原样**:例如 `<MyImage source={...} style={...} resizeMode="cover" />`,若 propMap 声明 `Image.source → src`,只把 `source` 改成 `src`,`style` 和 `resizeMode` 保持不动
+
+**示例**(设 propMap 为 `{ Image: { source: "src" } }`,某预设把 `Image` 映射成 `MyImage`):
+
+```tsx
+// 5.5.3 tagMap 之后、5.5.3b propMap 之前
+<MyImage source={require('./assets/icon.png')} style={styles.icon} resizeMode="contain" />
+
+// 5.5.3b propMap 之后
+<MyImage src={require('./assets/icon.png')} style={styles.icon} resizeMode="contain" />
+```
 
 **步骤 5.5.4 重写 import 段**
 
@@ -1432,17 +1561,17 @@ import { View, Text, Image, Pressable, TextInput, ScrollView, StyleSheet, Dimens
 
 应用 adapter 后按下述分组重新生成:
 
-1. 收集本文件用到的所有映射后的标签(如 `XView` / `XText` / `XImage`)
+1. 收集本文件用到的所有映射后的标签(如 `MyView` / `MyText` / `MyImage`)
 2. 收集本文件用到的所有未映射的原生标签(如 `Pressable`,若 tagMap 里没有映射)
 3. 收集本文件用到的所有 RN API(如 `StyleSheet` / `Dimensions`)
 4. 按 importMap 把每个标签归到目标 import 源:
-   - 映射后标签 + importMap 有条目 → 用条目里的路径(如 `@ctrip/xtaro`)
+   - 映射后标签 + importMap 有条目 → 用条目里的路径(如 `my-rn-lib`)
    - 映射后标签 + importMap 无条目 → 用 `react-native` fallback + QA info 告警
    - 未映射的原生标签 → 用 `react-native`
    - RN API(StyleSheet / Dimensions) → 用 `react-native`
 5. 每个 import 源合并为一条 import 语句
 
-**示例:启用携程 xtaro adapter 后**
+**示例:启用某个 adapter 预设后**(下面用中性占位 `MyView` / `MyText` / `MyPressable` / `my-rn-lib` 展示合并逻辑,具体标签名由项目 config 里的 tagMap / importMap 决定,某预设可能把 `Pressable` 直接归到 `MyView`,SKILL 侧照配置执行即可)
 
 原始产物:
 
@@ -1464,21 +1593,21 @@ export default function Login() {
 const styles = StyleSheet.create({ /* ... */ })
 ```
 
-应用 xtaro adapter 后:
+应用 adapter 后(设 tagMap 三个都映射到 `MyView / MyText / MyPressable`,importMap 都指向 `my-rn-lib`):
 
 ```tsx
 import React from 'react'
-import { XView, XText, XClickableSimplified } from '@ctrip/xtaro'
+import { MyView, MyText, MyPressable } from 'my-rn-lib'
 import { StyleSheet, Dimensions } from 'react-native'
 
 export default function Login() {
   return (
-    <XView style={styles.root}>
-      <XText style={styles.title}>标题</XText>
-      <XClickableSimplified style={styles.btn}>
-        <XText style={styles.btnText}>登录</XText>
-      </XClickableSimplified>
-    </XView>
+    <MyView style={styles.root}>
+      <MyText style={styles.title}>标题</MyText>
+      <MyPressable style={styles.btn}>
+        <MyText style={styles.btnText}>登录</MyText>
+      </MyPressable>
+    </MyView>
   )
 }
 
@@ -1487,10 +1616,12 @@ const styles = StyleSheet.create({ /* ... */ })
 
 **步骤 5.5.5 adapter 应用禁止项**
 
-- **禁止改动 style 对象内容**:adapter 只改标签名 + import 路径,不改 style 属性
-- **禁止改动 props**:如 `<TextInput placeholder="..." />` 的 placeholder 属性,adapter 后仍是 `<XInput placeholder="..." />`,保留原样
+- **禁止改动 style 对象内容**:adapter 只改标签名 + import 路径 + 声明过的 prop 名,不改 style 属性
+- **禁止改动未声明的 props**:如 `<TextInput placeholder="..." />` 若 propMap 里没声明 `placeholder`,adapter 后仍是 `<MyInput placeholder="..." />`,保留原样
+- **禁止改动 propMap 未覆盖的属性值**:propMap 只重命名 prop 名(左侧),不动 prop 值(右侧)
 - **禁止改动 children**:文本 / 嵌套组件都保留
-- **禁止对 StyleSheet / Dimensions 等 API 应用 tagMap**:这些是"工具"不是"标签"
+- **禁止对 StyleSheet / Dimensions 等 API 应用 tagMap / propMap**:这些是"工具"不是"标签"
+- **禁止重命名 React 保留 prop**:`style` / `key` / `ref` / `children` / `className` 即便声明在 propMap 里也必须跳过
 
 ---
 
@@ -1543,6 +1674,41 @@ const styles = StyleSheet.create({ /* ... */ })
 | 字重 | 完全相等 | 同上 |
 
 **叶子 sub-block 之间的"接缝"也要看**：flat 模式下相邻叶子在 JSX 里挨着，但视觉上可能有意外的间距（因为各自的 margin/padding 叠加）。整体验收时容易漏看，**这一步逐叶对比时也要把当前叶子的"上边界"和"下边界"与原稿对齐**。父 block 内多个叶子之间的接缝同理。
+
+#### 6.0.1 手工调整数值的溯源铁律(反幻觉)
+
+**核心规则**:§6.0 阶段主 agent 手工调 style 数值(改 `marginLeft` / `marginTop` / `padding*` / `top` / `left` / `width` / `height` / `gap`)前,**必须先输出 3 行溯源自答到对话**,答不齐禁止改数值。
+
+**溯源自答模板**(每次改数值前粘贴到对话):
+
+```
+调整目标: <block 名>#<nodeId> 的 <属性名>,从 <原值> 改为 <新值>
+1. Figma bbox(必答): 该节点的 absoluteBoundingBox.{x,y,width,height} = ?(来自 fetch-node,不允许凭截图估)
+2. 父容器布局(必答): 父 Frame 的 layoutMode / primaryAxisAlignItems / counterAxisAlignItems / itemSpacing / padding* = ?
+3. 视觉幻觉排查(必答): "看起来错位"是不是子 TEXT 节点自己 textAlignHorizontal=CENTER,而容器本身靠左?或者子层某个 img/bg 带光晕导致视觉外扩?
+```
+
+**判定标准**:
+
+| 自答情况 | 允许操作 |
+|---------|---------|
+| 3 行都能从 Figma JSON 事实回答 | 可改数值,新值必须等于"Figma 事实计算结果",不允许四舍五入或凑整 |
+| 第 1 行答不出(没拉过 fetch-node) | **禁止改**,先 `fetch-node <fileKey> <nodeId>` 拿真值 |
+| 第 2 行答不出(不知道父 layout) | **禁止改**,同上先 fetch |
+| 第 3 行发现是文字居中幻觉 / 光晕外扩 | **禁止改容器 marginLeft**,应改文字节点 `textAlign` 或重切图去光晕 |
+| 无法从 Figma 事实推出新值,只是"看着舒服" | **禁止改**,写入 `## 待人工核对`,标明"视觉判断,需设计确认" |
+
+**为什么需要这一步**: 大模型在 §6.0 对比截图时容易触发两类"视觉幻觉":
+
+1. **文字居中幻觉**: 子 TEXT 节点 `textAlignHorizontal=CENTER` 让文字视觉居中,但容器本身 `absoluteBoundingBox.x` 靠左。agent 误判"整个容器该居中",在容器上加 `marginLeft: <(父宽 - 容器宽)/2>` — 数值编造,不来自 Figma。
+2. **光晕外扩幻觉**: `bg-` / `img-` 切图未加 `use_absolute_bounds=true` 导致 drop-shadow / outer-stroke 烤进 PNG,视觉边缘外扩几像素,agent 误判"该加负 margin 或减 padding" — 应该重切图,不是改数值。
+
+**违反本节的后果**: 手工调的数值无 Figma 溯源 → §6.1 整体验收看不出问题(因为 agent 自己改的自己看不出错),但**上线后与其他 block 拼接时错位显现**。所以本节是 §6.0 的强制前置,不是可选。
+
+**豁免场景**(不需要 3 行自答):
+
+- 只改颜色 / 字号 / 字重 / 圆角 / 阴影这类"值型属性",且新值直接取自 Figma JSON 的 fills/strokes/style(不涉及位置尺寸计算)
+- 修正 §6.0 双重间距 checklist 命中的结构性问题(如删掉 flex + margin 混用中的 margin) — 这类是"改错误结构",不是"手工调数值"
 
 **双重间距 / 布局违反检测 checklist**：
 
@@ -1606,7 +1772,8 @@ const styles = StyleSheet.create({ /* ... */ })
 ✅ 生成文件:{output.dir}/ComponentName/
 📦 需下载图片:(汇总 assets.txt,含原始临时链接)
 ⚠️  需手动处理:(QA 发现的不可自动修正差异)
-🎯 Adapter 应用:{已启用 xtaro / 已启用自定义 / 未启用,输出原生 RN}
+🎯 Adapter 应用:{已启用 <预设名> / 已启用自定义 / 未启用,输出原生 RN}
+📐 rpx 响应式:{已启用 helper=<helperImport>,包装 X 处属性,跳过 Y 处非白名单 / 未启用,输出纯数字}
 🧹 上线前清理:产物已注入 `data-node-id="..."` 调试锚点(用于反查 Figma 节点、方便 review 逐 block 对比),
    上线前请运行 `ctrip-train-d2c-strip-nodeid` skill 一键清理,或直接执行:
      node .claude/skills/ctrip-train-d2c-strip-nodeid/strip-node-id.mjs --dry-run   # 先预览
@@ -1645,9 +1812,10 @@ const styles = StyleSheet.create({ /* ... */ })
 ```markdown
 ### Adapter 应用报告
 
-- Preset:携程 xtaro / 自定义
-- tagMap 命中标签:View → XView, Text → XText, ...(共 X 个)
-- importMap 应用:@ctrip/xtaro(合并了 X 个 import)
+- Preset:<预设名>(取自 config 或 CLI 选择,如无预设写"自定义")
+- tagMap 命中标签:View → <目标>, Text → <目标>, ...(共 X 个)
+- propMap 命中属性:Image.source → src(共 X 条,若未启用 propMap 写"未启用")
+- importMap 应用:<import 源>(合并了 X 个 import)
 - 未映射的原生标签:StyleSheet, Dimensions(保留从 react-native 导入)
 - 无效条目:0 条(若有,列出并附 QA warn)
 ```
@@ -1657,10 +1825,29 @@ const styles = StyleSheet.create({ /* ... */ })
 1. `node .claude/skills/ctrip-train-d2c-rn/bin/figma.mjs cleanup-tmp`(脚本会 `rm -rf` 掉 `{projectRoot}/.d2c-tmp/screenshots/`)
 2. 不清 `.d2c-cache/`——那是持久化缓存,等 `lastModified` 变化时才失效
 
+#### 7.3 响应式 rpx 应用报告(启用时必须输出)
+
+若 `config.unit.responsive.enabled === true`,输出:
+
+```markdown
+### 响应式 rpx 应用报告
+
+- Helper:`<helperImport>`(函数名 `<helperName>`,基准 `figmaBase=<N>pt`)
+- 已包装属性:width / height / padding* / margin* / gap / borderRadius / fontSize / lineHeight(共 X 处)
+- 保留原样(非像素属性):opacity / flex* / color / backgroundColor / fontDirection 等(共 Y 处)
+- 白名单未命中(需人工核对):字段 A(nodeId N)、字段 B(nodeId N)(共 Z 处,若为 0 写"无")
+- 零值跳过:padding: 0 等零值已保留纯数字,未包装(共 W 处)
+```
+
+**未启用时**:显式输出"✅ 未启用响应式 rpx 包装,产物为纯数字 StyleSheet(iPhone SE / 大屏设备物理尺寸会有差异,请手动接响应式方案或改回 rpx)"
+
 ---
 
 ## 禁止项
 
+- 禁止对"非像素属性"应用 rpx() 包装(见 §4.1.1 §C.1 白名单):`opacity` / `flex*` / `zIndex` / `color` / `backgroundColor` / `fontWeight` / 枚举值(`flexDirection` / `justifyContent` / …)/ 已经是 `'50%'` `'auto'` 的字符串型值 / `Dimensions.get('window').*` / transform 里的 `scale` / `rotate` — 命中这些字段仍写 rpx() 是硬错误,视觉/逻辑都会崩
+- 禁止在响应式启用时写 `paddingLeft: rpx('16')` / `paddingLeft: rpx("50%")` 这种非数值字面量传入(rpx 只接受数字);字符串型 / 表达式型的值保留原样
+- 禁止修改项目里已存在的 rpx helper 文件(`unit.responsive.helperImport` 指向的路径):SKILL init 阶段"存在则跳过",跑 SKILL 阶段更不允许改;用户可能已定制无障碍逻辑
 - 禁止把 `img-` / `bg-` 前缀图层拆解为 CSS 实现
 - 禁止在代码中写 HEX 色值或 px 魔法数字（使用 Token 变量，若项目有）
 - 禁止跳过步骤 -1 的预检
