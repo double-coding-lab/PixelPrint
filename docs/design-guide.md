@@ -18,10 +18,11 @@
 | `bgc-`     | 父级背景与装饰 | 把填充/渐变/描边/圆角/阴影写到父元素 CSS，不生成独立元素 | `bgc-header`、`bgc-card`                |
 | `btn-`     | 可点击区域   | 包裹可点击容器                          | `btn-submit`、`btn-img-banner`          |
 | `block-`   | 独立布局块   | HTML/CSS 上与其他元素隔离，不可点击           | `block-price`、`block-action`           |
-| `font-`    | 强制文字    | 只生成文字，不当图片处理                     | `font-title`                           |
+| `input-`   | 输入框     | 生成 `<input type="text">`,取子 TEXT 作 placeholder,左侧图标切图作 background | `input-search`、`input-destination`     |
 | `scrollx-` | 横向滚动容器  | 子元素超出时可左右滑动；隐藏滚动条                | `scrollx-card-list`、`sub-scrollx-tabs` |
 | `scrolly-` | 纵向滚动容器  | 子元素超出时可上下滑动；隐藏滚动条                | `scrolly-comments`                     |
 | `fixed-`   | 视口固定定位 | 元素相对窗口定位（吸顶/吸底/悬浮按钮等），可与其他前缀叠加 | `fixed-btn-back-top`、`fixed-sub-nav` |
+| `end-`     | 贴父末端(逆向布局) | 让节点在父 autoLayout 里贴向末端;方向由父决定(VERTICAL→贴底 / HORIZONTAL→贴右) | `end-btn-submit`、`end-sub-footer` |
 | `x-`       | 忽略      | 完全不生成代码                          | `x-标注`、`x-备注`                          |
 
 
@@ -36,6 +37,7 @@
 | `sub-scrollx-cards` | 独立模块 + 横向滚动 | 独立组件，内容横向可滑  |
 | `fixed-btn-back-top` | 固定定位 + 可点击 | 相对窗口固定的可点击按钮 |
 | `fixed-sub-nav` | 固定定位 + 独立模块 | 相对窗口固定的独立组件（如吸顶导航） |
+| `end-btn-submit` | 贴父末端 + 可点击 | 父容器最后一项贴底/贴右的按钮 |
 
 
 ---
@@ -117,6 +119,36 @@
 - **位置识别依赖 Figma constraints**：建议设计师为 `fixed-` 图层显式设置 constraints（top/bottom/left/right/center），AI 据此换算为 CSS 的 `top` / `bottom` / `left` / `right`。没设 constraints 会退化为绝对坐标定位，**滚动场景下可能错位**
 - ⚠️ **不能**和 `bg-` / `bgc-` / `x-` 叠加：这三个不生成独立元素，没有节点可挂 `position: fixed`。要做"固定背景"请把 `fixed-` 加在父节点上（如 `fixed-sub-banner` 里面再放 `bg-banner`）
 - ⚠️ **祖先元素不要做 transform / rotation / blur 效果**：CSS 规范下祖先有这些属性时，`fixed` 会退化为"相对祖先定位"，跟着祖先滚动而非相对窗口
+
+### `end-` — 贴父末端(逆向布局)
+
+适合"贴底/贴右"的元素。举例:表单页最底部的"提交"按钮、卡片右侧的"更多"图标、页面底部的免责声明。
+
+- 方向由父容器 Auto Layout 决定:父 `VERTICAL` → 贴底;父 `HORIZONTAL` → 贴右
+- **前提**:父容器必须是 Auto Layout(非 Auto Layout 的父容器 end- 不生效)
+- 该 end- 节点必须是**父的最后一个子**(否则 AI 报错;不是"倒数第 X 个",就是最后一个)
+- **修饰前缀**:和其他"生成节点"前缀叠加使用:
+  - `end-btn-submit` → 贴底的提交按钮
+  - `end-sub-footer` → 贴底的独立模块(如底部免责声明区)
+  - `end-img-logo` → 贴右的 logo 图
+- ⚠️ **不能**和 `bg-` / `bgc-` / `x-` 叠加(这三个不生成独立元素)
+- ⚠️ **不能**和 `fixed-` 同时用(优先级冲突,fixed- 会赢,end- 失效)
+- **实现原理**:AI 把前面的兄弟节点包成一个 wrapper,父容器加 `justify-content: space-between`,自然把 end- 推到末端。设计师不用关心具体实现
+
+### `input-` — 输入框
+
+适合搜索框、目的地选择、表单输入等需要**真实输入能力**的元素。生成 `<input type="text">` 标签,而不是普通的文字节点。
+
+- 图层内**必须**包含一个 TEXT 子节点,其内容作为 `placeholder`(如"选择你的目的地"、"搜索关键词")
+- 图层内**可选**包含 vector / icon 子节点作为左侧图标(自动切图作 `background-image`,右侧留 padding 给文字)
+- TEXT 子节点的颜色 → 变成 `::placeholder` 颜色(灰色占位文字色)
+- **独立前缀**(决定生成什么标签),不是修饰,不能和以下前缀混用:
+  - ❌ `input-bg-xxx` / `input-bgc-xxx`:input 自己是输入框元素,不能兼作背景层
+  - ❌ `input-x-xxx`:input 是要生成的,不能同时忽略
+  - ❌ `input-img-xxx` / `input-btn-xxx`:input 与 img / btn 语义冲突(input 已经能点、能输入)
+- ✅ 可与 `fixed-` / `end-` / `sub-` 叠加(表达"固定/贴底/独立的输入框")
+- ⚠️ 图层内如果**没有** TEXT 子节点,AI 报错(placeholder 从哪取?)
+- ⚠️ 图层内如果有**多个** TEXT 子节点,AI 只取第一个作 placeholder,其他忽略并 warn
 
 ### `x-` — 忽略
 
