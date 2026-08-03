@@ -103,7 +103,7 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 | Figma / h5 语义 | rn 退化策略 | 告警级别 |
 |-----------------|-----------|--------|
 | `fixed-` 前缀 | `position: 'absolute'` + 数值定位(滚动时随内容动,不保持屏幕位置) | warn |
-| 页面根 `min-height: max(x, 100vh)` | `minHeight: Dimensions.get('window').height`(需 import Dimensions) | info |
+| 页面根 `min-height: max(x, 100vh)` | `minHeight: Dimensions.get('window').height`(需 import Dimensions);xtaro/taro 类框架改 `Taro.getSystemInfoSync().windowHeight`(见 SKILL §SCREEN-API) | info |
 | `bg-` 背景图 | 拆成独立 `<Image>` + `StyleSheet.absoluteFillObject` | info |
 | GRADIENT_LINEAR / GRADIENT_RADIAL | 退化为纯色(第一个 stop),提示接 `react-native-linear-gradient` | warn |
 | box-shadow | 拆成 `shadowColor` / `shadowOffset` / `shadowRadius` / `shadowOpacity` / `elevation` | 无(rn 原生支持) |

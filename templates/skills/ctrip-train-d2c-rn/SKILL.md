@@ -163,6 +163,33 @@ Read("ctrip-train-d2c.config.json")
 - propMap key 必须是 6 大 RN 原标签(不是 tagMap 映射后的名字);value 是 `{ 原 prop 名: 新 prop 名 }` 的对象;命中的 JSX 属性会被重命名,`style` / `key` / `ref` 等 React 保留 prop **不参与重命名**
 - `StyleSheet` / `Dimensions` 等 RN API **始终从 `react-native` 导入**,不进 tagMap
 
+#### 跨框架屏宽 / 系统信息 API 差异(§SCREEN-API)
+
+SKILL 内核默认按 pure React Native 描述,用 `Dimensions.get('window').width` / `.height` 取屏宽和视口高。**但某些 RN-like 框架的 H5 端 webpack 不解析 `react-native` 的 Flow 语法,直接 `import from 'react-native'` 会在构建期崩**。这类框架必须走各自的 API,由 adapter 预设的 `helperTemplate`(参见 `adapter-presets/README.md`)承接:
+
+| 框架 | 屏宽取法 | 视口高取法 | 落地位置 |
+|-----|---------|-----------|---------|
+| pure React Native / Expo | `Dimensions.get('window').width` | `Dimensions.get('window').height` | rpx helper 内、页面根 minHeight;SKILL 默认举例 |
+| 携程 xtaro | `Taro.getSystemInfoSync().windowWidth`(降级 `.screenWidth`) | `Taro.getSystemInfoSync().windowHeight`(降级 `.screenHeight`) | 预设 helperTemplate=`xtaro.rpx.ts` + 生成产物页面根写 `Taro.getSystemInfoSync().windowHeight` |
+| taro / 小程序 | 同 xtaro(`Taro.getSystemInfoSync()`) | 同左 | 自定义预设时参考 xtaro.rpx.ts |
+| react-native-web | `Dimensions.get('window').*`(RN-web 层已 shim) | 同左 | pure RN 默认即可 |
+
+**agent 生成产物时的判定**:
+
+1. 若 config `unit.responsive.enabled === true` → 尺寸类走 `rpx()` 包装(见 §4.1.1 §C.1 白名单),helper 内部已经处理好屏宽 API 差异,agent **不需要**在业务代码里直接调 `Dimensions` 或 `Taro.getSystemInfoSync`
+2. 若必须在业务代码里直接读屏宽/视口高(典型:§4.3 判定优先级第 6 条的"页面根 minHeight"):
+   - 有预设且预设声明了 `helperTemplate` → 参考 helper 里的写法(用 Taro / getSystemInfo 之类),**不要**硬编码 `Dimensions.get('window')`
+   - 无预设或预设未声明 → 默认用 `Dimensions.get('window')`(pure RN 语义)
+3. **不要**跨框架乱引:xtaro 项目里写 `import { Dimensions } from 'react-native'` 是硬错误 — H5 端会 crash;taro 项目写也一样
+
+**agent 判定当前项目属于哪类框架**的信号(按优先级):
+
+1. config `adapter.importMap` 里的 value 命中 `@ctrip/xtaro` / `@tarojs/*` → 走 Taro API
+2. config `adapter.enabled === false` + 项目 `package.json` 有 `expo` 依赖 → pure RN(Expo 兼容 Dimensions)
+3. 都识别不出 → 保守默认 pure RN 写法,但**必须**在 QA 段落 warn 一句"项目未识别到框架类型,页面根 minHeight 用了 Dimensions.get('window'),xtaro / taro 类项目请手动改为 Taro.getSystemInfoSync"
+
+**本节仅约束"屏宽 / 视口高"这两个值**。其他 RN API(如 `StyleSheet` / `PixelRatio` / `Platform`)不在此约束范围,继续按内核默认 `import from 'react-native'`(若目标框架也不支持,由 adapter 预设的 helperTemplate 内部处理,不由 SKILL 主流程负责)。
+
 ---
 
 ### 步骤 0.3：初始化缓存(不可跳过)
@@ -437,7 +464,7 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 | `justifyContent` (主轴对齐) | `primaryAxisAlignItems` | `MIN → 'flex-start'`;`CENTER → 'center'`;`MAX → 'flex-end'`;`SPACE_BETWEEN → 'space-between'`(**两端对齐**) |
 | `alignItems` (交叉轴对齐) | `counterAxisAlignItems` | `MIN → 'flex-start'`;`CENTER → 'center'`;`MAX → 'flex-end'`;`BASELINE → 'baseline'` |
 | `flexWrap` | `layoutWrap` | `WRAP → 'wrap'`;`NO_WRAP` 或缺失 → 不写(RN 默认 `'nowrap'`) |
-| 容器**自身**尺寸行为 | `layoutSizingHorizontal` / `layoutSizingVertical` | `FIXED → width/height: <数字>` 固定值;`HUG → 不写 width/height`(RN 默认按内容 hug);`FILL → flex: 1` 或 `alignSelf: 'stretch'`。**页面根容器例外**(§4.3 判定优先级第 6 条):vertical `FIXED` 时不写 `height: <死值>`,改写 `minHeight: Dimensions.get('window').height` |
+| 容器**自身**尺寸行为 | `layoutSizingHorizontal` / `layoutSizingVertical` | `FIXED → width/height: <数字>` 固定值;`HUG → 不写 width/height`(RN 默认按内容 hug);`FILL → flex: 1` 或 `alignSelf: 'stretch'`。**页面根容器例外**(§4.3 判定优先级第 6 条):vertical `FIXED` 时不写 `height: <死值>`,改写 `minHeight: Dimensions.get('window').height`(xtaro/taro 类框架需改用 `Taro.getSystemInfoSync().windowHeight`,见 §SCREEN-API) |
 | **子节点**主轴伸缩 | `layoutGrow` (0 或 1) | `1 → flex: 1`;0 或缺失 → 不写 |
 | **子节点**交叉轴对齐(覆盖父 alignItems) | `layoutAlign` | `STRETCH → alignSelf: 'stretch'`;`INHERIT` / 缺失 → 不写 |
 | **子节点**是否脱离父 autoLayout 顺流 | `layoutPositioning` | `AUTO` 或缺失 → 参与父 flex 顺流,不写 position;`ABSOLUTE` → 子代 `position: 'absolute'` + `top` / `left` 数值(相对父原点,用 `子.absoluteBoundingBox.{x,y} - 父.absoluteBoundingBox.{x,y}` 算得),同时**父容器必须加** `position: 'relative'`。仅当父 `layoutMode ∈ {HORIZONTAL, VERTICAL}` 时此字段有意义 |
@@ -1054,7 +1081,7 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 | Figma / h5 语义 | 触发条件 | rn 退化策略 | QA 告警级别 |
 |-----------------|---------|-----------|-----------|
 | `fixed-` 前缀 | 图层名带 `fixed-` | 生成 `position: 'absolute'`,constraints 转 `top` / `left` / `right` / `bottom` 数值;**不引入 Portal**,层级由 JSX 顺序决定 | warn(说明 RN 端 fixed 语义不完全等价 — 滚动时随内容一起动) |
-| 页面根 `min-height: max(x, 100vh)` | 3 信号 AND 命中(§4.3 判定优先级第 6 条) | 顶部 import `Dimensions`;根 View style 加 `minHeight: Dimensions.get('window').height`;同时保留 `flex: 1` | info |
+| 页面根 `min-height: max(x, 100vh)` | 3 信号 AND 命中(§4.3 判定优先级第 6 条) | 顶部 import `Dimensions`;根 View style 加 `minHeight: Dimensions.get('window').height`;同时保留 `flex: 1`。**xtaro / taro 类项目**改用 `Taro.getSystemInfoSync().windowHeight`,见 §SCREEN-API | info |
 | `bg-` 背景图 | 图层名带 `bg-` 或 fills 是 IMAGE | 拆成独立 `<Image source={require('./xxx.png')} style={StyleSheet.absoluteFillObject} />`,置于父兄弟节点最前;父容器加 `position: 'relative'`;bg 图不生成为 style 属性 | info |
 | GRADIENT_LINEAR / GRADIENT_RADIAL | `fills[0].type` 是 GRADIENT_* | 退化为纯色 `backgroundColor: <gradientStops[0].color 转 hex>` | warn:"渐变已退化为纯色,如需真渐变请手动接 `react-native-linear-gradient`(裸 RN)或 `expo-linear-gradient`(Expo),或使用你所在框架的等价渐变组件" |
 | `overflow: scroll` 容器 | `scrollx-` / `scrolly-` 前缀 | 标签强制换 `<ScrollView>`,加 `horizontal={true}`(scrollx)或不加(scrolly);无 `overflow` CSS 属性 | 无(这是 rn 的正确写法) |
