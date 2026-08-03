@@ -1,0 +1,52 @@
+templates/skills/ctrip-train-d2c/SKILL.md
+  s_2843f3def1e163::t_6a1c3a13a39cc7 679
+  s_2843f3def1e163::t_6e594b0768ea05 963
+  s_2843f3def1e163::t_50f0cda642c68f 727
+  s_2843f3def1e163::t_2a2f9d8ebf4d42 698-699
+  s_2843f3def1e163::t_dc177eef5a7897 680
+  s_2843f3def1e163::t_ecbd21469f8217 892
+  s_2843f3def1e163::t_21bf8124794961 234
+  s_2843f3def1e163::t_26cd8679381a1b 1001
+  s_2843f3def1e163::t_c4bf43a45b8818 1628
+docs/d2c-health-check-spec.md
+  s_2843f3def1e163::t_7161c8ceb93e9f 291
+.Knowledge/topics/ctrip-train-d2c.md
+  s_2843f3def1e163::t_38fd00810132cc 149
+  s_2843f3def1e163::t_e01362e5415f07 314-315
+  s_2843f3def1e163::t_c87e93c933609c 176
+templates/skills/ctrip-train-d2c-rn/SKILL.md
+  s_2843f3def1e163::t_882440b3261298 1918
+  s_2843f3def1e163::t_4835dcec55ffeb 947
+  s_2843f3def1e163::t_d8dac213343850 838
+  s_2843f3def1e163::t_39a9a38687cf9a 625-626
+  s_2843f3def1e163::t_74890774634ba5 644-645
+  s_2843f3def1e163::t_a548d234305930 257
+  s_2843f3def1e163::t_692f2155019fe3 909
+  s_2843f3def1e163::t_d60dc1aa369737 673
+templates/skills/ctrip-train-d2c-style/SKILL.md
+  s_2843f3def1e163::t_6117174306764a 74,86-89
+  s_2843f3def1e163::t_e4bc5b5e9345d6 109
+templates/skills/ctrip-train-d2c-doctor/SKILL.md
+  s_2843f3def1e163::t_0fcd38f68cae32 299
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "0269cbb3de6b4aec64d9f9040d2d715d491f9e51",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
