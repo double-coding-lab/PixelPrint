@@ -1,0 +1,49 @@
+templates/skills/ctrip-train-d2c-rn/SKILL.md
+  s_2843f3def1e163::t_87cb63ef726c71 1848-1850
+  s_2843f3def1e163::t_35ca2595b36e73 86-91
+  s_2843f3def1e163::t_a81653826c3b49 1815-1816,1818
+  s_2843f3def1e163::t_4ef51d35c07254 1828-1843
+  s_2843f3def1e163::t_9286524eb2ab39 1620
+  s_2843f3def1e163::t_0c37a7c35be339 130,138,145-146,149-150
+  s_2843f3def1e163::t_ead2225990614b 556,559-562,565
+  s_2843f3def1e163::t_a3d4700b827ff6 1059
+  s_2843f3def1e163::t_77768413169ecc 109
+  s_2843f3def1e163::t_ba10ed8849dd9e 3,7,11
+  s_2843f3def1e163::t_395415ecd8f9f5 135,151-153,163
+  s_2843f3def1e163::t_75fa6a396012d9 1463-1499
+  s_2843f3def1e163::t_5f3007b80c2a76 107-108
+  s_2843f3def1e163::t_6096dd7c31587f 1518-1525
+  s_2843f3def1e163::t_fd41f7fe419132 1533-1537,1540-1541,1543,1545-1547,1549-1550,1552-1553
+  s_2843f3def1e163::t_9f473b4fb06ee6 1538-1539,1542,1544,1548,1551
+  s_2843f3def1e163::t_b0acdbae311d4b 1564,1568
+  s_2843f3def1e163::t_5afd56af988d9e 1574,1596,1600,1605-1610
+  s_2843f3def1e163::t_48f63ffde3b99d 1529
+  s_2843f3def1e163::t_8293d4c3757dd2 1678-1712
+  s_2843f3def1e163::t_5a878899f5d941 486-537
+  s_2843f3def1e163::t_d6b75ebee4766a 1775
+  s_2843f3def1e163::t_98c0e84facbc0f 1776
+  s_2843f3def1e163::t_2d02959cbc24f4 1619,1621,1623-1624
+  s_2843f3def1e163::t_f360f8fd3f6bb6 131
+  s_2843f3def1e163::t_303f9458fef639 1817
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "42db849bdf3886368924895d3a6a55de4f98df9f",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
