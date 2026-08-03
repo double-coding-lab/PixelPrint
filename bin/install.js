@@ -174,26 +174,24 @@ async function inputIntOrUse(label, currentVal, defaultVal) {
   return parseInt(await input(label, String(defaultVal))) || defaultVal
 }
 
-// ─── 【新增】内置携程 xtaro adapter 常量 ──────────────────
-const XTARO_ADAPTER = {
-  enabled: true,
-  tagMap: {
-    View: 'XView',
-    Text: 'XText',
-    Image: 'XImage',
-    Pressable: 'XClickableSimplified',
-    TextInput: 'XInput',
-    ScrollView: 'XScrollView'
-  },
-  importMap: {
-    XView: '@ctrip/xtaro',
-    XText: '@ctrip/xtaro',
-    XImage: '@ctrip/xtaro',
-    XClickableSimplified: '@ctrip/xtaro',
-    XInput: '@ctrip/xtaro',
-    XScrollView: '@ctrip/xtaro'
-  },
-  reactImport: 'react'
+// ─── adapter 预设加载 ────────────────────────────────────
+// 每个预设是 templates/adapter-presets/*.json,结构见该目录 README.md。
+// 抽出成独立文件的动机:让外部团队加自己的映射不用改 install.js 常量,只加 JSON 就行。
+const PRESETS_DIR = path.join(TEMPLATES_DIR, 'adapter-presets')
+
+function loadAdapterPresets() {
+  if (!fs.existsSync(PRESETS_DIR)) return []
+  const list = []
+  for (const entry of fs.readdirSync(PRESETS_DIR)) {
+    if (!entry.endsWith('.json')) continue
+    try {
+      const preset = JSON.parse(fs.readFileSync(path.join(PRESETS_DIR, entry), 'utf8'))
+      if (preset && preset.name && preset.adapter) list.push(preset)
+    } catch (e) {
+      console.warn(`  ⚠️  adapter-presets/${entry} 解析失败,跳过: ${e.message}`)
+    }
+  }
+  return list
 }
 
 // ─── 交互式配置 ──────────────────────────────────────────────
@@ -248,7 +246,7 @@ async function runInit() {
     const enableAdapter = enableAdapterYn === 'Yes'
 
     if (!enableAdapter) {
-      adapterCfg = { enabled: false, tagMap: {}, importMap: {}, reactImport: 'react' }
+      adapterCfg = { enabled: false, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
     } else {
       // 判断是否已存在完整 adapter 配置,已有则直接沿用
       const hasExistingMap = existingAdapter.tagMap && Object.keys(existingAdapter.tagMap).length > 0
@@ -258,19 +256,52 @@ async function runInit() {
           enabled: true,
           tagMap: existingAdapter.tagMap || {},
           importMap: existingAdapter.importMap || {},
+          propMap: existingAdapter.propMap || {},
           reactImport: existingAdapter.reactImport || 'react'
         }
       } else {
-        const preset = await select('[2.2/8] 选择预设 adapter',
-          ['携程 xtaro', '自定义'], '携程 xtaro')
-        if (preset === '携程 xtaro') {
-          adapterCfg = { ...XTARO_ADAPTER }
-          console.log('  → 已写入携程 xtaro 映射(6 个标签 → @ctrip/xtaro)')
+        // 扫 templates/adapter-presets/ 目录,把每个 preset 的 name 列成选项,末尾追加"自定义"兜底
+        const presets = loadAdapterPresets()
+        const CUSTOM_LABEL = '自定义'
+        const choices = [...presets.map(p => p.name), CUSTOM_LABEL]
+        const defaultChoice = presets[0]?.name || CUSTOM_LABEL
+        const picked = await select('[2.2/8] 选择预设 adapter', choices, defaultChoice)
+
+        if (picked === CUSTOM_LABEL) {
+          adapterCfg = { enabled: true, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
+          console.log('  → adapter.enabled=true,请后续在 ctrip-train-d2c.config.json 手动填 tagMap / importMap / propMap')
         } else {
-          adapterCfg = { enabled: true, tagMap: {}, importMap: {}, reactImport: 'react' }
-          console.log('  → adapter.enabled=true,请后续在 ctrip-train-d2c.config.json 手动填 tagMap / importMap')
+          const hit = presets.find(p => p.name === picked)
+          adapterCfg = { ...hit.adapter }
+          console.log(`  → 已写入 ${hit.name} 预设(${hit.description || '见 templates/adapter-presets/README.md'})`)
         }
       }
+    }
+
+    // ─── 【新增】响应式 rpx() 包装引导 ──────────────────
+    // RN 数值默认是 dp/pt(iOS pt / Android dp),不同屏宽下同一数值物理尺寸不同。
+    // 启用 rpx 包装 → SKILL 在 layout / spacing / borderRadius / fontSize 类属性上调用 rpx(),
+    // 由 helper 按 Dimensions.get('window').width / figmaBase 线性缩放。
+    const existingUnit = existing.unit || {}
+    const existingResp = existingUnit.responsive || {}
+    const existingRespYn = existingResp.enabled === true ? 'Yes' : existingResp.enabled === false ? 'No' : null
+    const enableRespYn = await pickOrUse(
+      '[2.3/8] 是否启用响应式 rpx() 包装(按屏宽线性缩放尺寸)',
+      existingRespYn, ['Yes', 'No'], 'Yes'
+    )
+    var responsiveCfg = null  // 到 config 阶段合并到 unit 段
+    if (enableRespYn === 'Yes') {
+      const helperImport = await inputOrUse(
+        '[2.4/8] rpx helper import 路径',
+        existingResp.helperImport, '@/utils/rpx'
+      )
+      const helperName = await inputOrUse(
+        '[2.5/8] rpx helper 导出函数名',
+        existingResp.helperName, 'rpx'
+      )
+      responsiveCfg = { enabled: true, helperImport, helperName }
+    } else {
+      responsiveCfg = { enabled: false, helperImport: '@/utils/rpx', helperName: 'rpx' }
     }
     // RN 分支后面 mergeMode 等步骤标号顺延
   } else {
@@ -316,14 +347,10 @@ async function runInit() {
   const defaultImageBaseUrl= isRn ? ''            : 'http://127.0.0.1:8080/'
   const defaultOutputDir   = isRn ? 'src/pages/'  : 'pages/'
 
-  // rn 分支:图片目录固定 assets/(根目录 assets 文件夹),不再询问
-  let assetsDir
-  if (isRn) {
-    assetsDir = 'assets/'
-    console.log(`  [4/8] 图片输出目录: \x1b[36m${assetsDir}\x1b[0m \x1b[90m(rn 分支固定根目录 assets/,走 require('./assets/xxx.png'))\x1b[0m`)
-  } else {
-    assetsDir = await inputOrUse('[4/8] 图片输出目录', img.assetsDir, defaultAssetsDir)
-  }
+  // 图片输出目录 rn/react 都作为输入题:
+  // rn 默认 assets/(项目根 assets),但各家 RN 项目目录组织不同(如 src/assets/、src/Images/<页面>/)
+  // 强制写死会绑架用户,保留输入让用户能改。imageBaseUrl 才是真正的 rn 特化项(走 require 不走 URL)。
+  const assetsDir = await inputOrUse('[4/8] 图片输出目录', img.assetsDir, defaultAssetsDir)
 
   // rn 分支:图片 base URL 固定为空,不再询问
   let imageBaseUrl
@@ -381,7 +408,9 @@ async function runInit() {
     project: { name: path.basename(CWD), framework, styleFormat },
     figma: { token: figmaToken },
     merge: { mode: mergeMode },
-    unit: { figmaBase, outputUnit, outputBase, scale },
+    unit: framework === 'rn'
+      ? { figmaBase, outputUnit, outputBase, scale, responsive: responsiveCfg }
+      : { figmaBase, outputUnit, outputBase, scale },
     images: {
       assetsDir,
       imageBaseUrl,
@@ -424,6 +453,42 @@ async function runInit() {
 
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2))
   console.log('\n  ✓ ctrip-train-d2c.config.json 已写入')
+
+  // rn + 响应式启用时,复制 rpx helper 到项目(存在则跳过,不覆盖用户自定义)
+  // 落地路径按 helperImport 反推:
+  //   `@/utils/rpx` → `src/utils/rpx.ts`(默认约定 @ 指向 src)
+  //   相对路径开头(如 `./utils/rpx`) → 走 CWD + 该路径
+  //   绝对 npm 包名(如 `@mylib/rpx`)→ 认为是外部包,不落地文件
+  if (framework === 'rn' && responsiveCfg && responsiveCfg.enabled) {
+    const helperTemplate = path.join(TEMPLATES_DIR, 'rn-helpers/rpx.ts')
+    let destRel = null
+    const imp = responsiveCfg.helperImport
+    if (imp.startsWith('@/')) {
+      destRel = path.join('src', imp.slice(2) + '.ts')
+    } else if (imp.startsWith('./') || imp.startsWith('../')) {
+      destRel = imp + '.ts'
+    } else if (imp.startsWith('/')) {
+      destRel = imp.slice(1) + '.ts'
+    }
+    // 其他形式(npm 包名如 `@ctrip/rpx`)不落地文件,只在 SKILL 里作为 import 源引用
+    if (destRel) {
+      const dest = path.join(CWD, destRel)
+      if (fs.existsSync(dest)) {
+        console.log(`  skip  ${destRel} (rpx helper 已存在,保留你的自定义实现)`)
+      } else {
+        const helperSrc = fs.readFileSync(helperTemplate, 'utf8')
+          // 替换 helper 模板里的默认 rpx 函数名为 config 里的自定义名字(如果用户改过)
+          .replace(/export function rpx\(/g, `export function ${responsiveCfg.helperName}(`)
+          // 替换 DESIGN_BASE 常量为实际 figmaBase
+          .replace(/^const DESIGN_BASE = 375$/m, `const DESIGN_BASE = ${figmaBase}`)
+        fs.mkdirSync(path.dirname(dest), { recursive: true })
+        fs.writeFileSync(dest, helperSrc)
+        console.log(`  create  ${destRel}(rpx helper,基准 ${figmaBase}pt,函数名 ${responsiveCfg.helperName})`)
+      }
+    } else {
+      console.log(`  info  helperImport "${imp}" 看起来是外部包,SKILL 会按此路径引用,不落地本地 helper 文件`)
+    }
+  }
 
   // 将单位规则注入主 Skill(按 framework 分叉:react → h5 SKILL;rn → rn SKILL)
   const skillPath = framework === 'rn'
