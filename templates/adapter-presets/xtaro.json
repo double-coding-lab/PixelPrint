@@ -1,0 +1,27 @@
+{
+  "id": "xtaro",
+  "name": "携程 xtaro",
+  "description": "6 大 RN 标签映射到 @ctrip/xtaro;Pressable 归到 XView(XView 自身可点击);Image.source → src(xtaro 走 taro 语义)",
+  "adapter": {
+    "enabled": true,
+    "tagMap": {
+      "View": "XView",
+      "Text": "XText",
+      "Image": "XImage",
+      "Pressable": "XView",
+      "TextInput": "XInput",
+      "ScrollView": "XScrollView"
+    },
+    "importMap": {
+      "XView": "@ctrip/xtaro",
+      "XText": "@ctrip/xtaro",
+      "XImage": "@ctrip/xtaro",
+      "XInput": "@ctrip/xtaro",
+      "XScrollView": "@ctrip/xtaro"
+    },
+    "propMap": {
+      "Image": { "source": "src" }
+    },
+    "reactImport": "react"
+  }
+}
