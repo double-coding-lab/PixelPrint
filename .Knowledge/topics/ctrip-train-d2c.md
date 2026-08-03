@@ -146,7 +146,7 @@ sub-agent 在生成 scroll 容器代码前**必须输出自检 4 行**：
 
 **位置**：主 SKILL §`fixed-` 定位规则（§4.3 末尾） + doctor §3.6d NAM014 + §3.9e LAY013。
 
-`fixed-` 是**定位修饰前缀**——只改 `position`，不决定渲染方式。可与所有"生成节点"的前缀叠加（`sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-`），**不可**与"不生成节点"的前缀叠加（`bg-`/`bgc-`/`x-`，doctor NAM014 命中后 error）。典型用途：吸顶 nav、吸底 tab、悬浮回顶按钮、固定浮层入口。
+`fixed-` 是**定位修饰前缀**——只改 `position`，不决定渲染方式。可与所有"生成节点"的前缀叠加（`sub-`/`block-`/`btn-`/`img-`/`scrollx-`/`scrolly-`），**不可**与"不生成节点"的前缀叠加（`bg-`/`bgc-`/`x-`，doctor NAM014 命中后 error）。典型用途：吸顶 nav、吸底 tab、悬浮回顶按钮、固定浮层入口。
 
 **top/bottom/left/right 取值**（依赖 Figma `constraints`，**不是**直接读坐标）：
 
@@ -173,7 +173,7 @@ sub-agent 在生成 scroll 容器代码前**必须输出自检 4 行**：
 
 **位置**：主 SKILL §`end-` 逆向布局规则（§4.3 fixed- 章节后） + doctor §3.6e NAM016 + §3.9f-i LAY017/018/019/020。
 
-`end-` 是**定位修饰前缀**——表达"该节点在父 autoLayout 里贴向末端"。方向由父 `layoutMode` 决定：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。可与所有"生成节点"前缀叠加（`sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-`），**不可**与"不生成节点"前缀叠加（`bg-`/`bgc-`/`x-`，doctor NAM016 命中后 error）。
+`end-` 是**定位修饰前缀**——表达"该节点在父 autoLayout 里贴向末端"。方向由父 `layoutMode` 决定：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。可与所有"生成节点"前缀叠加（`sub-`/`block-`/`btn-`/`img-`/`scrollx-`/`scrolly-`），**不可**与"不生成节点"前缀叠加（`bg-`/`bgc-`/`x-`，doctor NAM016 命中后 error）。
 
 **主线机制（唯一实现路径）**：wrapper + `justify-content: space-between`。父容器把 end- 节点前面的所有兄弟包一层虚拟 wrapper（className 用父类名 + `__front-group`，不写 data-node-id），父 CSS 设 `justify-content: space-between`，天然把 end- 推到末端。end- 节点本身保持原生成逻辑不变。
 
@@ -311,8 +311,8 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 - **scroll 互斥**:`scrollx-` / `scrolly-` 与 `img-` / `bg-` / `bgc-` / `x-` / `btn-` 共存禁止(§448 / §718);同节点 `scrollx + scrolly` 共存也禁止
 - **sub- 单独拆 + 允许嵌套**(v0.2 修订):哪怕只有 1 个 `sub-` 节点也必须分发独立 sub-agent(§108 / §717),分块是质量保证而非性能优化;**sub- 允许嵌套**(典型场景:`sub-content / sub-card + sub-scrolly-车票列表`),深度上限 3 层,执行走"主 agent 派发 + sub-agent 上报 + placeholder 展开"链路(§107-145 / §4.0.5 / §5.0)
 - **block- 不嵌套**:`block-` 是"顶层独立布局块"(§409),doctor NAM001 fix 已修订为只建议 `sub-`,不再建议 `block-`
-- **fixed- 是修饰前缀**:可与 `sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-` 叠加(只改 `position: fixed`,不改渲染方式);**不可**与 `bg-`/`bgc-`/`x-` 叠加(这三个不生成节点,fixed 无处可挂——doctor NAM014 error);top/bottom 必须读 Figma constraints 推断,不是直接读坐标;祖先链有 transform/filter/blur 时 fixed 退化为相对祖先定位(doctor LAY013 warn)
-- **end- 是修饰前缀(v0.3.2 新增)**:表达"贴父末端",方向由父 `layoutMode` 决定(VERTICAL→贴底 / HORIZONTAL→贴右);可与 `sub-`/`block-`/`btn-`/`img-`/`font-`/`scrollx-`/`scrolly-` 叠加,**不可**与 `bg-`/`bgc-`/`x-` 叠加(doctor NAM016 error);唯一实现路径是 wrapper + `justify-content: space-between`;必须是父的最后一个可见子(LAY017 error)且父必须是 autoLayout(LAY019 error);与 fixed- 同现时 fixed- 优先(LAY020 warn)
+- **fixed- 是修饰前缀**:可与 `sub-`/`block-`/`btn-`/`img-`/`scrollx-`/`scrolly-` 叠加(只改 `position: fixed`,不改渲染方式);**不可**与 `bg-`/`bgc-`/`x-` 叠加(这三个不生成节点,fixed 无处可挂——doctor NAM014 error);top/bottom 必须读 Figma constraints 推断,不是直接读坐标;祖先链有 transform/filter/blur 时 fixed 退化为相对祖先定位(doctor LAY013 warn)
+- **end- 是修饰前缀(v0.3.2 新增)**:表达"贴父末端",方向由父 `layoutMode` 决定(VERTICAL→贴底 / HORIZONTAL→贴右);可与 `sub-`/`block-`/`btn-`/`img-`/`scrollx-`/`scrolly-` 叠加,**不可**与 `bg-`/`bgc-`/`x-` 叠加(doctor NAM016 error);唯一实现路径是 wrapper + `justify-content: space-between`;必须是父的最后一个可见子(LAY017 error)且父必须是 autoLayout(LAY019 error);与 fixed- 同现时 fixed- 优先(LAY020 warn)
 - **页面根容器 min-height: max(..., 100vh)(v0.3.3 新增)**:3 信号 AND 判定(入口 nodeId + 父是 Page/Document + 高度接近视口),命中后覆写根 CSS min-height 为 `max({figmaH*scale}px, 100vh)`,内部 `layoutPositioning: ABSOLUTE` 的 bg- 层同步改 `height: 100%` + `background-size: cover`;不改动根内部结构判定(1-5 优先级已产出的 flex/gap/padding 保留);解决设备视口 >1624px 时页面底下露白 + end- 无法真正贴屏底的问题
 - **input- 是独立前缀(v0.3.4 新增)**:生成 `<input type="text" placeholder=... />` 单标签(不包 wrapper),placeholder 取子 TEXT 节点 characters,左侧图标切图作 CSS background-image + padding-left(不生成独立 DOM);可叠加 fixed-/end-/sub-,**不可**叠加 bg-/bgc-/x-(NAM019 error) 或 img-/btn-(NAM020 error);子层无 TEXT 报 NAM017 error,多 TEXT 报 NAM018 warn;命中即停止向内递归;当前只覆盖 `<input type="text">`,textarea/select/密码/数字等 type 由 agent 输出 QA 告警提示手工改
 - **页面级背景必须探测项目特征**:`*.module.{scss,less,css}` 里直接写 `body { ... }` 会被 hash 化失效;普通 stylesheet（非 module 的 scss/less/css）里写 `:global(...)` 不识别。详见 §2.5(强制不可跳过)。**v0.2.1 新增**：install.js 把样式方案拆成两题（`[2a]` 样式方式 + `[2b]` 预处理语法 + `[2c]` 是否走 module），styleFormat 取值扩展到 `scss / scss-modules / less / less-modules / css / css-modules / tailwind / inline / RN 三选`，详见主 SKILL §0「样式方案标识符」

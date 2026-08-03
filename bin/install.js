@@ -424,7 +424,6 @@ async function runInit() {
       img: 'img-',
       bg: 'bg-',
       bgColor: 'bgc-',
-      font: 'font-',
       but: 'btn-',
       scrollX: 'scrollx-',
       scrollY: 'scrolly-',

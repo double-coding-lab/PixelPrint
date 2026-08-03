@@ -26,7 +26,6 @@
 | `layers.img` | 图片前缀，默认 `img-` |
 | `layers.bg` | 背景图前缀，默认 `bg-` |
 | `layers.bgColor` | 背景色前缀，默认 `bgc-` |
-| `layers.font` | 文字前缀，默认 `font-` |
 | `layers.but` | 可点击前缀，默认 `btn-` |
 | `layers.scrollX` | 横向滚动，默认 `scrollx-` |
 | `layers.scrollY` | 纵向滚动，默认 `scrolly-` |
@@ -70,10 +69,9 @@
 | `bg-` | 背景图 | 图片写入**父元素** `background-image`，自身不生成 HTML，**不递归** |
 | `bgc-` | 背景色/盒级装饰 | fills/strokes/cornerRadius/effects 写入**父元素** CSS，自身不生成 HTML |
 | `btn-` | 可点击区域 | 在内容外包一层可点击容器 |
-| `font-` | 文字 | 生成文字节点，继续递归 |
 | `scrollx-` | 横向滚动容器 | `overflow-x: auto` + 隐藏滚动条，**继续递归子层** |
 | `scrolly-` | 纵向滚动容器 | `overflow-y: auto` + 隐藏滚动条，**继续递归子层** |
-| `fixed-` | 视口固定定位 | 在容器加 `position: fixed`，可与 `sub-/block-/btn-/img-/font-/scrollx-/scrolly-` 叠加 |
+| `fixed-` | 视口固定定位 | 在容器加 `position: fixed`，可与 `sub-/block-/btn-/img-/scrollx-/scrolly-` 叠加 |
 
 **无前缀兜底**：TEXT 图层 → 文字节点；其他 → `<img>`，不递归。
 
@@ -85,11 +83,10 @@
 4. 含 `bgc-` → 属性写父元素 CSS，自身不生成 HTML
 5. 提取 `btn-` → 记录"需要包可点击容器"
 6. 提取 `scrollx-` / `scrolly-` → 记录"需要包滚动容器"，继续递归子层
-7. 提取 `font-` → 生成文字节点
-8. 无内容前缀 → 走兜底规则
-9. 有 `btn-` → 把渲染结果包裹在可点击容器内
-10. 有 `scrollx-` / `scrolly-` → 给当前容器加 overflow 样式（不新增 wrapper）
-11. 有 `fixed-` → 在最终容器上加 `position: fixed` + constraints 推断定位值
+7. 无内容前缀 → 走兜底规则
+8. 有 `btn-` → 把渲染结果包裹在可点击容器内
+9. 有 `scrollx-` / `scrolly-` → 给当前容器加 overflow 样式（不新增 wrapper）
+10. 有 `fixed-` → 在最终容器上加 `position: fixed` + constraints 推断定位值
 
 ---
 
@@ -109,7 +106,7 @@
 · 切图源 nodeId：{bgNodeId}（必须是带 bg- 前缀的节点本身，不是父容器）
 · 切图源 name：{bgNodeName}（必须以 bg- 开头）
 · 父容器内是否还有 bgc-？{是/否}；若是 → bgc- 取 fill 色值单独写 background-color，不参与切图
-· 父容器内是否还有其他 sub-/block-/img-/font-/btn-/文本？{是/否}；若是 → 它们独立处理，不参与切图
+· 父容器内是否还有其他 sub-/block-/img-/btn-/文本？{是/否}；若是 → 它们独立处理，不参与切图
 ```
 
 任意一项答错即停下重做。

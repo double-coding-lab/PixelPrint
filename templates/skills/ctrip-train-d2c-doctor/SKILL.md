@@ -47,7 +47,6 @@ Read("ctrip-train-d2c.config.json")
 | `layers.img` | `img-` | 图片前缀 |
 | `layers.bg` | `bg-` | 背景图前缀 |
 | `layers.bgColor` | `bgc-` | 背景色前缀 |
-| `layers.font` | `font-` | 文字前缀 |
 | `layers.but` | `btn-` | 按钮前缀 |
 | `layers.fixed` | `fixed-` | 视口固定定位前缀（修饰） |
 | `layers.end` | `end-` | 逆向布局前缀（贴父末端，修饰） |
@@ -297,7 +296,7 @@ inNonRecursiveSubtree(node) =
 | `Scroll-X-` / `Scroll-Y-` 等含 `-`/`_`/空格 的大小写变体 | 同上小写连字符形式 |
 
 且该 name 不已经命中标准前缀。→ message: `前缀拼写不规范：{matched}`
-→ fix: `改为标准小写连字符前缀（bg-/img-/font-/btn-/sub-/block-/bgc-/x-/scrollx-/scrolly-）`
+→ fix: `改为标准小写连字符前缀（bg-/img-/btn-/sub-/block-/bgc-/x-/scrollx-/scrolly-）`
 
 #### 3.3 NAM003 前缀语义冲突(默认 error)
 

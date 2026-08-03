@@ -288,7 +288,7 @@ Figma `/v1/images` API 不支持切图时排除某个子节点，这是 API 层�
 
 **对策**：
 
-1. **主 SKILL §`fixed-` 定位规则**：新增"修饰前缀"概念——`fixed-` 只改 `position`，不改渲染方式，可与所有"生成节点"的前缀叠加（sub-/block-/btn-/img-/font-/scrollx-/scrolly-），不可与"不生成节点"的前缀叠加（bg-/bgc-/x-，doctor NAM014 命中后 error）
+1. **主 SKILL §`fixed-` 定位规则**：新增"修饰前缀"概念——`fixed-` 只改 `position`，不改渲染方式，可与所有"生成节点"的前缀叠加（sub-/block-/btn-/img-/scrollx-/scrolly-），不可与"不生成节点"的前缀叠加（bg-/bgc-/x-，doctor NAM014 命中后 error）
 2. **top/bottom/left/right 取值依赖 Figma `constraints`**：按 horizontal / vertical 的 TOP / BOTTOM / LEFT / RIGHT / CENTER 推断 CSS 定位，不直接读 absoluteBoundingBox 坐标。constraints 缺失时退化为绝对坐标 + 强制 QA 告警
 3. **doctor §3.6d NAM014**（error）：识别 `fixed-` + `bg-`/`bgc-`/`x-` 叠加的命名错误
 4. **doctor §3.9e LAY013**（warn）：识别祖先链含 `transform`/`filter`/`perspective`/blur 导致 fixed 退化为相对祖先定位的 CSS 副作用
