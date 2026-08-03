@@ -6,7 +6,7 @@ D2C RN skill 的 adapter 预设目录。每个 `.json` 文件是一个"框架预
 
 | 文件 | 目标框架 | 说明 |
 |-----|---------|------|
-| `xtaro.json` | 携程 xtaro | 6 大 RN 标签映射到 `@ctrip/xtaro`;`Pressable → XView`(XView 自身可点击,不引 XClickableSimplified);`Image.source → src`(xtaro 走 taro 语义) |
+| `xtaro.json` + `xtaro.rpx.ts` | 携程 xtaro | 6 大 RN 标签映射到 `@ctrip/xtaro`;`Pressable → XView`(XView 自身可点击,不引 XClickableSimplified);`Image.source → src`(xtaro 走 taro 语义);自带 rpx helper 走 `Taro.getSystemInfoSync().windowWidth`(xtaro H5 端 webpack 不解析 react-native Flow 语法) |
 
 CLI 里始终有个 `自定义` 兜底选项 — 选它写空 adapter,用户后续在 `ctrip-train-d2c.config.json` 手改 tagMap / importMap / propMap 即可,不必先建 preset 文件。
 
@@ -19,6 +19,7 @@ CLI 里始终有个 `自定义` 兜底选项 — 选它写空 adapter,用户后�
   "id": "<framework-id>",
   "name": "<CLI 里显示的名字>",
   "description": "<一句话说清映射策略,给自己或其他人看>",
+  "helperTemplate": "<framework-id>.rpx.ts",
   "adapter": {
     "enabled": true,
     "tagMap": {
@@ -39,6 +40,13 @@ CLI 里始终有个 `自定义` 兜底选项 — 选它写空 adapter,用户后�
   }
 }
 ```
+
+**helperTemplate 说明**(可选字段):
+
+- 值是相对本目录的文件名(如 `xtaro.rpx.ts`),表示该预设**自带一份 rpx helper 模板**;CLI init 时会用它替换默认的 `templates/rn-helpers/rpx.ts` 落到项目
+- 不同框架的 helper 里屏宽获取方式可能不同 — pure RN 用 `Dimensions.get('window')`;xtaro 走 `Taro.getSystemInfoSync().windowWidth`(H5 端 webpack 不解析 react-native Flow 语法);小程序 taro 也用 Taro API;expo 直接用 `Dimensions` 无异
+- **helper 文件里必须导出**一个函数,名字与 `install.js` init 时用户填的 `helperName`(默认 `rpx`)一致;`DESIGN_BASE` 常量会被 CLI 替换成 `unit.figmaBase` 的实际值
+- 不写 helperTemplate → CLI 回退到 `templates/rn-helpers/rpx.ts`(pure RN 版)
 
 ### 字段约束(CLI 和 SKILL 都会校验,不合规会被 QA 告警丢弃)
 

@@ -231,6 +231,7 @@ async function runInit() {
   // 最终 styleFormat 落值规范见 SKILL §0「样式方案标识符」
   let styleFormat
   let adapterCfg = null  // rn 分支下才会填,react 分支保持 null(config 不写 adapter 段)
+  let pickedPreset = null  // 若走预设分支,记录命中的 preset 对象;供 helper 复制阶段选源
   if (framework === 'rn') {
     // rn 分支样式方案写死 StyleSheet.create + 行内 style,不再询问
     // 理由:styled-components / nativewind 需要额外依赖且 SKILL 侧未落地生成模板,现阶段只支持 stylesheet
@@ -273,6 +274,7 @@ async function runInit() {
         } else {
           const hit = presets.find(p => p.name === picked)
           adapterCfg = { ...hit.adapter }
+          pickedPreset = hit
           console.log(`  → 已写入 ${hit.name} 预设(${hit.description || '见 templates/adapter-presets/README.md'})`)
         }
       }
@@ -460,7 +462,21 @@ async function runInit() {
   //   相对路径开头(如 `./utils/rpx`) → 走 CWD + 该路径
   //   绝对 npm 包名(如 `@mylib/rpx`)→ 认为是外部包,不落地文件
   if (framework === 'rn' && responsiveCfg && responsiveCfg.enabled) {
-    const helperTemplate = path.join(TEMPLATES_DIR, 'rn-helpers/rpx.ts')
+    // helper 源文件优先级:
+    //   1. 命中预设且预设声明了 helperTemplate → adapter-presets/<helperTemplate>
+    //      (例: xtaro 预设走 xtaro.rpx.ts,内部用 Taro.getSystemInfoSync 而非 Dimensions,
+    //      因为 xtaro H5 端 webpack 不解析 react-native 的 Flow 语法)
+    //   2. 无预设或预设没声明 helperTemplate → rn-helpers/rpx.ts(pure RN 默认版)
+    let helperTemplate = path.join(TEMPLATES_DIR, 'rn-helpers/rpx.ts')
+    if (pickedPreset && pickedPreset.helperTemplate) {
+      const presetHelper = path.join(PRESETS_DIR, pickedPreset.helperTemplate)
+      if (fs.existsSync(presetHelper)) {
+        helperTemplate = presetHelper
+        console.log(`  info  使用预设自带 helper 模板:${pickedPreset.helperTemplate}`)
+      } else {
+        console.warn(`  ⚠️  预设 ${pickedPreset.name} 声明 helperTemplate=${pickedPreset.helperTemplate} 但文件不存在,回退到默认 pure RN 模板`)
+      }
+    }
     let destRel = null
     const imp = responsiveCfg.helperImport
     if (imp.startsWith('@/')) {
