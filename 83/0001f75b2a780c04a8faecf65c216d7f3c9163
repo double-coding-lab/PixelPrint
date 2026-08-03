@@ -1,0 +1,33 @@
+templates/adapter-presets/xtaro.rpx.ts
+  s_2843f3def1e163::t_7f45fbc1b57f82 1-41
+templates/adapter-presets/xtaro.json
+  s_2843f3def1e163::t_f9d18897117631 4-5
+templates/adapter-presets/README.md
+  s_2843f3def1e163::t_3ff23c06fb639a 9
+  s_2843f3def1e163::t_65a3db7112c04e 22,44-49
+bin/install.js
+  s_2843f3def1e163::t_4b76781f649e9c 465-479
+  s_2843f3def1e163::t_aca378b85116a4 234
+  s_2843f3def1e163::t_81b3db056bd9ac 277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "830001f75b2a780c04a8faecf65c216d7f3c9163",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
