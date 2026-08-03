@@ -14,8 +14,13 @@
   "unit": {
     "figmaBase": 375,
     "outputUnit": "px",
-    "outputBase": 750,
-    "scale": 2
+    "outputBase": 375,
+    "scale": 1,
+    "responsive": {
+      "enabled": true,
+      "helperImport": "@/utils/rpx",
+      "helperName": "rpx"
+    }
   },
   "images": {
     "assetsDir": "assets/",
@@ -46,6 +51,7 @@
     "enabled": false,
     "tagMap": {},
     "importMap": {},
+    "propMap": {},
     "reactImport": "react"
   }
 }
