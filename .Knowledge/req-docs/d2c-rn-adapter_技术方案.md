@@ -118,7 +118,7 @@ templates/skills/
       // "View": "XView",              // 例:接携程 xtaro
       // "Text": "XText",
       // "Image": "XImage",
-      // "Pressable": "XClickableSimplified",
+      // "Pressable": "XView",
       // "TextInput": "XInput",
       // "ScrollView": "XScrollView"
     },
@@ -301,7 +301,7 @@ export default function Index() {
 
 Adapter 应用逻辑(agent 按顺序执行):
 
-1. **构建标签替换表**:遍历 `config.adapter.tagMap`,产生 `{ View → XView, Text → XText, Pressable → XClickableSimplified }` 等映射对(未映射的标签保持原名)
+1. **构建标签替换表**:遍历 `config.adapter.tagMap`,产生 `{ View → XView, Text → XText, Pressable → XView }` 等映射对(未映射的标签保持原名;xtaro 里 Pressable 也归到 XView,因为 XView 自身可点击,不再走 XClickableSimplified)
 2. **构建 import 分组表**:对"最终使用的所有标签"按 import 源分组:
    - 每个映射后的标签(如 XView),查 `importMap[XView]` → `@ctrip/xtaro`
    - 每个未映射标签(如 StyleSheet,如果 tagMap 里没写),用默认源 `react-native`
@@ -314,7 +314,7 @@ Adapter 应用逻辑(agent 按顺序执行):
 
 ```jsx
 import React from 'react';
-import { XView, XText, XImage, XClickableSimplified, XInput, XScrollView } from '@ctrip/xtaro';
+import { XView, XText, XImage, XInput, XScrollView } from '@ctrip/xtaro';
 import { StyleSheet } from 'react-native';
 
 const styles = StyleSheet.create({ /* ... */ });
@@ -323,7 +323,7 @@ export default function Index() {
   return (
     <XView style={styles.root}>
       <XText style={styles.title}>标题</XText>
-      <XClickableSimplified style={styles.btn}><XText style={styles.btnText}>登录</XText></XClickableSimplified>
+      <XView style={styles.btn}><XText style={styles.btnText}>登录</XText></XView>
     </XView>
   );
 }
@@ -369,7 +369,7 @@ export default function Index() {
       "View": "XView",
       "Text": "XText",
       "Image": "XImage",
-      "Pressable": "XClickableSimplified",
+      "Pressable": "XView",
       "TextInput": "XInput",
       "ScrollView": "XScrollView"
     },
@@ -377,7 +377,6 @@ export default function Index() {
       "XView": "@ctrip/xtaro",
       "XText": "@ctrip/xtaro",
       "XImage": "@ctrip/xtaro",
-      "XClickableSimplified": "@ctrip/xtaro",
       "XInput": "@ctrip/xtaro",
       "XScrollView": "@ctrip/xtaro"
     }

@@ -42,7 +42,11 @@ rn SKILL 内部只知道 6 个 RN 原生标签,对应现有 6 个前缀槽位:
 
 ### Adapter 配置(通过 config 映射到任意框架)
 
-Adapter 是 rn SKILL 独有的机制。用户在 `ctrip-train-d2c.config.json` 里配置两张表:
+Adapter 是 rn SKILL 独有的机制。用户在 `ctrip-train-d2c.config.json` 里配置三张表(`tagMap` / `importMap` / `propMap`),SKILL 在合并阶段应用到产物 JSX。
+
+**预设来源**:CLI 层的预设列表在 `templates/adapter-presets/*.json`(每个 JSON 是一个预设,`install.js init` 扫目录列成选项;新增框架加 preset 文件即可,不用改 SKILL 或 CLI)。SKILL 自身只消费 config 里最终写好的 `adapter` 段。
+
+**xtaro 预设应用后的 config 长这样**:
 
 ```json
 {
@@ -52,7 +56,7 @@ Adapter 是 rn SKILL 独有的机制。用户在 `ctrip-train-d2c.config.json` �
       "View": "XView",
       "Text": "XText",
       "Image": "XImage",
-      "Pressable": "XClickableSimplified",
+      "Pressable": "XView",
       "TextInput": "XInput",
       "ScrollView": "XScrollView"
     },
@@ -60,9 +64,11 @@ Adapter 是 rn SKILL 独有的机制。用户在 `ctrip-train-d2c.config.json` �
       "XView": "@ctrip/xtaro",
       "XText": "@ctrip/xtaro",
       "XImage": "@ctrip/xtaro",
-      "XClickableSimplified": "@ctrip/xtaro",
       "XInput": "@ctrip/xtaro",
       "XScrollView": "@ctrip/xtaro"
+    },
+    "propMap": {
+      "Image": { "source": "src" }
     }
   }
 }
@@ -73,6 +79,7 @@ Adapter 是 rn SKILL 独有的机制。用户在 `ctrip-train-d2c.config.json` �
 - `tagMap` 只支持 6 大 RN 标签作为 key,其他 key 忽略 + QA 告警
 - `tagMap` value 必须匹配 JSX 大写标识符
 - `importMap` 未覆盖的映射后标签自动 fallback 到 `react-native`
+- `propMap` key 必须是 6 大 RN 原标签(不是 tagMap 映射后的名字);value 形如 `{ 原 prop: 新 prop }`;禁止重命名 `style` / `key` / `ref` / `children` / `className`
 - StyleSheet / Dimensions 等 RN API 始终从 `react-native` 导入,不进 tagMap
 - 不允许写 JS 逻辑映射(纯声明式 JSON)
 

@@ -85,7 +85,7 @@ export default function Index() {
         "View": "XView",
         "Text": "XText",
         "Image": "XImage",
-        "Pressable": "XClickableSimplified",
+        "Pressable": "XView",
         "TextInput": "XInput",
         "ScrollView": "XScrollView"
       },
@@ -93,7 +93,6 @@ export default function Index() {
         "XView": "@ctrip/xtaro",
         "XText": "@ctrip/xtaro",
         "XImage": "@ctrip/xtaro",
-        "XClickableSimplified": "@ctrip/xtaro",
         "XInput": "@ctrip/xtaro",
         "XScrollView": "@ctrip/xtaro"
       }
@@ -106,7 +105,7 @@ export default function Index() {
 
 ```jsx
 import React from 'react';
-import { XView, XText, XImage, XClickableSimplified, XInput, XScrollView } from '@ctrip/xtaro';
+import { XView, XText, XImage, XInput, XScrollView } from '@ctrip/xtaro';
 import { StyleSheet } from 'react-native';
 
 const styles = StyleSheet.create({ ... });
