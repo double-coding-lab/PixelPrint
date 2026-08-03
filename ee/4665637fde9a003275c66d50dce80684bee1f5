@@ -1,0 +1,33 @@
+.Knowledge/req-docs/d2c-rn-adapter_技术方案.md
+  s_2843f3def1e163::t_4bf4e8113b1dec 372
+  s_2843f3def1e163::t_a547d098ecbecd 304
+  s_2843f3def1e163::t_e01edce23b03f7 317,326
+  s_2843f3def1e163::t_ea7f36590957ec 121
+.Knowledge/req-docs/d2c-rn-adapter_需求澄清.md
+  s_2843f3def1e163::t_6515a1e9e22df3 88
+  s_2843f3def1e163::t_102eeb0a0d4e17 108
+.Knowledge/topics/ctrip-train-d2c-rn.md
+  s_2843f3def1e163::t_cebf8bbc3009b6 59
+  s_2843f3def1e163::t_e5276fe2feb480 45-49,69-71,82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "ee4665637fde9a003275c66d50dce80684bee1f5",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
