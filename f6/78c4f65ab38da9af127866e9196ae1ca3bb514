@@ -1,0 +1,25 @@
+templates/ctrip-train-d2c.rn.config.json
+  s_2843f3def1e163::t_9d504c6f82a495 17-23
+  s_2843f3def1e163::t_fce72c6c91ade7 54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "f678c4f65ab38da9af127866e9196ae1ca3bb514",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
