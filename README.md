@@ -1,8 +1,10 @@
-# @double-coding/pixel-print
+# PixelPrint
 
-携程火车票 Figma D2C（Design-to-Code）工具——把 Figma 设计稿一键还原成可运行的 React/SCSS 代码。
+> npm 包名:`@double-coding/pixel-print`
 
-通过 Claude Code Skill 协议工作，团队约定的图层命名规范 + 体检规则 + 单位换算 + 资产管理全部内置。
+Figma D2C(Design-to-Code)工具 — 把 Figma 设计稿一键还原成可运行的前端代码(H5 / React Native / xtaro)。
+
+通过 Claude Code Skill 协议工作,图层命名规范 + 体检规则 + 单位换算 + 资产管理全部内置。
 
 ---
 
@@ -254,4 +256,4 @@ pp-d2c/
 
 ## License
 
-UNLICENSED — 携程内部使用。
+MIT © double-coding-lab
