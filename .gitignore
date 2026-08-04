@@ -1,1 +1,16 @@
+# Flow2Spec update check cache
 .Knowledge/update-check.json
+
+# macOS
+.DS_Store
+
+# Runtime caches / temp dirs created by pp-d2c SKILLs
+.d2c-cache/
+.d2c-tmp/
+
+# npm
+node_modules/
+*.tgz
+
+# Local project config (may contain figma.token — never commit)
+pp-d2c.config.json
