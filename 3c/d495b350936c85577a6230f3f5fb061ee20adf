@@ -1,0 +1,14 @@
+package.json
+  h_02deff59416ae5 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "3cd495b350936c85577a6230f3f5fb061ee20adf",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  }
+}
