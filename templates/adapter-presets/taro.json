@@ -1,0 +1,40 @@
+{
+  "id": "taro",
+  "name": "Taro (@tarojs/components)",
+  "description": "6 大 RN 标签映射到 @tarojs/components;Pressable 归到 View(View 自身可点击);Image.source → src(taro Image 用 src);TextInput → Input;rpx helper 走 Taro.getSystemInfoSync from @tarojs/taro",
+  "helperTemplate": "taro.rpx.ts",
+  "referenceDoc": "taro.reference.md",
+  "adapter": {
+    "enabled": true,
+    "tagMap": {
+      "View": "View",
+      "Text": "Text",
+      "Image": "Image",
+      "Pressable": "View",
+      "TextInput": "Input",
+      "ScrollView": "ScrollView"
+    },
+    "importMap": {
+      "View": "@tarojs/components",
+      "Text": "@tarojs/components",
+      "Image": "@tarojs/components",
+      "Input": "@tarojs/components",
+      "ScrollView": "@tarojs/components"
+    },
+    "propMap": {
+      "Image": {
+        "source": "src"
+      },
+      "TextInput": {
+        "maxLength": "maxlength",
+        "secureTextEntry": "password",
+        "autoFocus": "focus",
+        "onSubmitEditing": "onConfirm"
+      },
+      "ScrollView": {
+        "onEndReached": "onScrollToLower"
+      }
+    },
+    "reactImport": "react"
+  }
+}

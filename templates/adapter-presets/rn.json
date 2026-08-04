@@ -1,0 +1,28 @@
+{
+  "id": "rn",
+  "name": "pure React Native / Expo",
+  "description": "6 大 RN 原生标签保留原名(View / Text / Image / Pressable / TextInput / ScrollView),全部从 react-native 导入。适合纯 RN / Expo 项目;想用 xtaro / taro / native-base 请选对应预设",
+  "helperTemplate": "rn.rpx.ts",
+  "referenceDoc": "rn.reference.md",
+  "adapter": {
+    "enabled": true,
+    "tagMap": {
+      "View": "View",
+      "Text": "Text",
+      "Image": "Image",
+      "Pressable": "Pressable",
+      "TextInput": "TextInput",
+      "ScrollView": "ScrollView"
+    },
+    "importMap": {
+      "View": "react-native",
+      "Text": "react-native",
+      "Image": "react-native",
+      "Pressable": "react-native",
+      "TextInput": "react-native",
+      "ScrollView": "react-native"
+    },
+    "propMap": {},
+    "reactImport": "react"
+  }
+}

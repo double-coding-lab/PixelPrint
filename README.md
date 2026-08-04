@@ -56,7 +56,7 @@ $ npx @double-coding/pixel-print init
   [2b/8] 预处理语法: ● scss  less  css                  # h5 分支才问
   [2c/8] 是否启用 css-modules: ● No  Yes                # h5 分支才问
   [2.1/8] 启用 adapter(把 6 大 RN 标签映射到目标框架)?  ● Yes  No   # rn 分支才问
-  [2.2/8] 选择预设 adapter: ● 携程 xtaro  自定义         # rn 分支才问
+  [2.2/8] 选择预设 adapter: ● pure RN  xtaro  taro  自定义   # rn 分支才问
   [2.3/8] rpx 响应式包装启用?  ● Yes  No                # rn 分支才问
   [3/8] 合并模式: ● component  flat
   [4/8] 图片输出目录 [static/]:                          # h5 默认;rn 写死 src/Images/
@@ -250,28 +250,30 @@ h5 分支 `health.enabled: true` 时(默认),主 SKILL 在生成代码前会自�
 
 ---
 
-## RN / xtaro adapter(v0.3+)
+## RN 分支 adapter(v0.3+)
 
 RN 分支的核心机制:**内核以 6 大 RN 原生标签描述一切,再通过 config 映射到具体框架标签**。这样一套 SKILL 同时覆盖 pure React Native / Expo / xtaro / taro / 组织内部 RN 组件库。
 
-**内置 xtaro 预设**(`templates/adapter-presets/xtaro.json`):
+**内置 3 个预设**(`templates/adapter-presets/`):
 
-```
-View / Text / Image / Pressable / TextInput / ScrollView
-  ↓                     ↓                       ↓
-XView / XText / XImage / XView / XInput / XScrollView   from '@ctrip/xtaro'
-```
+| 预设 | 目标 | 映射示意 |
+|---|---|---|
+| `rn` | pure React Native / Expo | 保留原名(identity),`from 'react-native'`;适合"我不做替换"场景 |
+| `xtaro` | 携程 `@ctrip/xtaro` | `View→XView / Text→XText / Image→XImage / Pressable→XView / TextInput→XInput / ScrollView→XScrollView`,`from '@ctrip/xtaro'` |
+| `taro` | Taro `@tarojs/components` | `View→View / Text→Text / Image→Image / Pressable→View / TextInput→Input / ScrollView→ScrollView`,`from '@tarojs/components'` |
+
+每个预设 3 件套:`<id>.json`(映射规则)+ `<id>.rpx.ts`(专属屏宽 helper)+ `<id>.reference.md`(超改名的复杂差异手册)。
 
 **adapter 分工**:
 
 | 差异形态 | 承载文件 | SKILL 阶段 |
 |---|---|---|
-| prop 名不同、值和语义一样(如 `Image.source → src`) | `xtaro.json` `propMap` | §5.5.3b 声明式改名 |
-| 值域映射(如 `resizeMode='contain' → mode='aspectFit'`) | `xtaro.reference.md` §一 | §5.5.3c 查手册 |
-| 布尔取反(如 `editable → disabled` 取反) | `xtaro.reference.md` §二 | §5.5.3c |
-| 事件签名转换(如 `onChangeText(text) → onInput(e.detail.value)`) | `xtaro.reference.md` §三 | §5.5.3c |
-| 结构变化(如 `ScrollView.horizontal → scrollX + scrollY`) | `xtaro.reference.md` §四 | §5.5.3c |
-| 无跨端支持,需删属性 + warn | `xtaro.reference.md` §五 | §5.5.3c |
+| prop 名不同、值和语义一样(如 `Image.source → src`) | `<id>.json` `propMap` | §5.5.3b 声明式改名 |
+| 值域映射(如 `resizeMode='contain' → mode='aspectFit'`) | `<id>.reference.md` §一 | §5.5.3c 查手册 |
+| 布尔取反(如 `editable → disabled` 取反) | `<id>.reference.md` §二 | §5.5.3c |
+| 事件签名转换(如 `onChangeText(text) → onInput(e.detail.value)`) | `<id>.reference.md` §三 | §5.5.3c |
+| 结构变化(如 `ScrollView.horizontal → scrollX + scrollY`) | `<id>.reference.md` §四 | §5.5.3c |
+| 无跨端支持,需删属性 + warn | `<id>.reference.md` §五 | §5.5.3c |
 
 **加自己的预设**:见 [`templates/adapter-presets/README.md`](./templates/adapter-presets/README.md)。
 
@@ -288,10 +290,10 @@ pixel-print/
 │   ├── code-connect/mappings.json             ← Figma 组件映射模板(可选)
 │   ├── adapter-presets/                       ← RN adapter 预设目录
 │   │   ├── README.md                          ← 加预设的说明
-│   │   ├── xtaro.json                         ← 携程 xtaro 预设映射
-│   │   ├── xtaro.rpx.ts                       ← xtaro 版 rpx helper
-│   │   └── xtaro.reference.md                 ← xtaro 复杂差异手册
-│   ├── rn-helpers/rpx.ts                      ← pure RN 版 rpx helper(默认兜底)
+│   │   ├── xtaro.{json,rpx.ts,reference.md}   ← 携程 xtaro 预设(3 件套)
+│   │   ├── taro.{json,rpx.ts,reference.md}    ← Taro (@tarojs/components) 预设
+│   │   └── rn.{json,rpx.ts,reference.md}      ← pure React Native / Expo 预设
+│   ├── rn-helpers/rpx.ts                      ← 兜底 rpx helper(用户选"自定义"无预设时用)
 │   └── skills/
 │       ├── pp-d2c/SKILL.md                    ← 主 D2C 流程(h5 分支,~1200 行)
 │       ├── pp-d2c-rn/SKILL.md                 ← 主 D2C 流程(rn 分支,~2000 行)

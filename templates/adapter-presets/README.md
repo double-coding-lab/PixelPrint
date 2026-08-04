@@ -4,11 +4,19 @@ D2C RN skill 的 adapter 预设目录。每个 `.json` 文件是一个"框架预
 
 ## 现有预设
 
-| 文件 | 目标框架 | 说明 |
-|-----|---------|------|
-| `xtaro.json` + `xtaro.rpx.ts` + `xtaro.reference.md` | 携程 xtaro | 6 大 RN 标签映射到 `@ctrip/xtaro`;`Pressable → XView`(XView 自身可点击,不引 XClickableSimplified);`Image.source → src`(xtaro 走 taro 语义);自带 rpx helper 走 `xGetSystemInfoSync from @ctrip/xtaro`(xtaro H5 端 webpack 不解析 react-native Flow 语法);**xtaro.reference.md** 承载"prop 名机械改名之外"的复杂差异(值域映射 / 布尔取反 / 事件签名 / 结构变化 / 丢弃属性),SKILL 在 §5.5.3c 时读取应用 |
+| 预设 id | 名称 | 目标框架 | 说明 |
+|---|---|---|---|
+| `xtaro` | 携程 xtaro | `@ctrip/xtaro` | 6 大 RN 标签映射到 xtaro 组件;`Pressable → XView`(XView 自身可点击);`Image.source → src`;rpx helper 走 `xGetSystemInfoSync from @ctrip/xtaro`(xtaro H5 端 webpack 不解析 react-native Flow 语法) |
+| `taro` | Taro (@tarojs/components) | `@tarojs/components` | 6 大 RN 标签映射到 taro 组件;`Pressable → View`;`TextInput → Input`;`Image.source → src`;rpx helper 走 `Taro.getSystemInfoSync from @tarojs/taro`(taro 覆盖多端时统一屏蔽) |
+| `rn` | pure React Native / Expo | `react-native` | 6 大 RN 原生标签保留原名(identity 映射);全部从 `react-native` 导入;rpx helper 走 `Dimensions.get('window').width`。适合纯 RN / Expo,不做跨组件库替换 |
 
-CLI 里始终有个 `自定义` 兜底选项 — 选它写空 adapter,用户后续在 `pp-d2c.config.json` 手改 tagMap / importMap / propMap 即可,不必先建 preset 文件。
+每个预设由 3 个文件组成:
+
+- `<id>.json` — 映射规则(tagMap / importMap / propMap)
+- `<id>.rpx.ts` — 该预设专属的 rpx helper(不同框架屏宽 API 不同)
+- `<id>.reference.md` — 超出 propMap 声明式改名的复杂差异手册(SKILL §5.5.3c 读取)
+
+CLI 里始终有一个 `自定义` 兜底选项 — 选它写空 adapter,用户后续在 `pp-d2c.config.json` 手改 tagMap / importMap / propMap 即可,不必先建 preset 文件。
 
 ## 加自己的预设
 
@@ -65,36 +73,39 @@ CLI 里始终有个 `自定义` 兜底选项 — 选它写空 adapter,用户后�
 - **referenceDoc**(可选):值是相对本目录的 md 文件名;文件不存在 → CLI init 时 warn(不阻塞),SKILL 侧 §5.5.3c 静默跳过 + QA warn。
 - **reactImport**:极少数场景需要覆盖(如自家 React fork),默认 `react`,不填也行。
 
-### 举例:接 `taro` 的预设
+### 举例:接 `native-base` 的预设(假想,示意结构)
 
 ```json
 {
-  "id": "taro",
-  "name": "Taro",
-  "description": "映射到 @tarojs/components,复用 taro Image 语义(source → src)",
+  "id": "native-base",
+  "name": "NativeBase (@native-base)",
+  "description": "映射到 native-base 组件库,提供 Box / VStack / HStack / Image / Pressable / Input / ScrollView 等",
   "adapter": {
     "enabled": true,
     "tagMap": {
-      "View": "View",
+      "View": "Box",
       "Text": "Text",
       "Image": "Image",
-      "Pressable": "View",
+      "Pressable": "Pressable",
       "TextInput": "Input",
       "ScrollView": "ScrollView"
     },
     "importMap": {
-      "View": "@tarojs/components",
-      "Text": "@tarojs/components",
-      "Image": "@tarojs/components",
-      "Input": "@tarojs/components",
-      "ScrollView": "@tarojs/components"
+      "Box": "native-base",
+      "Text": "native-base",
+      "Image": "native-base",
+      "Pressable": "native-base",
+      "Input": "native-base",
+      "ScrollView": "native-base"
     },
     "propMap": {
-      "Image": { "source": "src" }
+      "Image": { "source": "source" }
     }
   }
 }
 ```
+
+> **想接的框架已有预设**?先看 `现有预设` 表,直接选就行。上面示例只演示"如何加一个新框架"。真实 taro / xtaro / pure RN 见目录里现成的 3 个预设。
 
 ## 加了预设之后的生效路径
 
