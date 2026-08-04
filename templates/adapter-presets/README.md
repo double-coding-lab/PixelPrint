@@ -6,7 +6,7 @@ D2C RN skill 的 adapter 预设目录。每个 `.json` 文件是一个"框架预
 
 | 文件 | 目标框架 | 说明 |
 |-----|---------|------|
-| `xtaro.json` + `xtaro.rpx.ts` | 携程 xtaro | 6 大 RN 标签映射到 `@ctrip/xtaro`;`Pressable → XView`(XView 自身可点击,不引 XClickableSimplified);`Image.source → src`(xtaro 走 taro 语义);自带 rpx helper 走 `xGetSystemInfoSync from @ctrip/xtaro`(xtaro H5 端 webpack 不解析 react-native Flow 语法) |
+| `xtaro.json` + `xtaro.rpx.ts` + `xtaro.reference.md` | 携程 xtaro | 6 大 RN 标签映射到 `@ctrip/xtaro`;`Pressable → XView`(XView 自身可点击,不引 XClickableSimplified);`Image.source → src`(xtaro 走 taro 语义);自带 rpx helper 走 `xGetSystemInfoSync from @ctrip/xtaro`(xtaro H5 端 webpack 不解析 react-native Flow 语法);**xtaro.reference.md** 承载"prop 名机械改名之外"的复杂差异(值域映射 / 布尔取反 / 事件签名 / 结构变化 / 丢弃属性),SKILL 在 §5.5.3c 时读取应用 |
 
 CLI 里始终有个 `自定义` 兜底选项 — 选它写空 adapter,用户后续在 `ctrip-train-d2c.config.json` 手改 tagMap / importMap / propMap 即可,不必先建 preset 文件。
 
@@ -20,6 +20,7 @@ CLI 里始终有个 `自定义` 兜底选项 — 选它写空 adapter,用户后�
   "name": "<CLI 里显示的名字>",
   "description": "<一句话说清映射策略,给自己或其他人看>",
   "helperTemplate": "<framework-id>.rpx.ts",
+  "referenceDoc": "<framework-id>.reference.md",
   "adapter": {
     "enabled": true,
     "tagMap": {
@@ -48,11 +49,20 @@ CLI 里始终有个 `自定义` 兜底选项 — 选它写空 adapter,用户后�
 - **helper 文件里必须导出**一个函数,名字与 `install.js` init 时用户填的 `helperName`(默认 `rpx`)一致;`DESIGN_BASE` 常量会被 CLI 替换成 `unit.figmaBase` 的实际值
 - 不写 helperTemplate → CLI 回退到 `templates/rn-helpers/rpx.ts`(pure RN 版)
 
+**referenceDoc 说明**(可选字段):
+
+- 值是相对本目录的 md 文件名(如 `xtaro.reference.md`)。SKILL 在 §5.5.3c 步骤 Read 该文件,处理**超出 propMap 声明式改名**的复杂差异
+- 分工原则:**prop 名不同、值和语义一样** → 写 `propMap`(JSON 声明式);**任何超出机械改名的差异**(值域映射 / 布尔取反 / 事件签名转换 / 结构变化 / 丢弃属性)→ 写 md
+- md 结构建议按 5 类章节:`一、值域映射` / `二、布尔取反` / `三、事件签名转换` / `四、结构变化` / `五、无跨端支持`。末尾建议加一节 `六、agent 快速参考` 给出 checklist 顺序
+- md **不复制**到项目,只留在 preset 目录作为 SKILL 输入(与 preset JSON 本身一样,用户项目 config 已经是"应用后的结果",不留副本)
+- 不写 referenceDoc → SKILL 跳过 §5.5.3c(所有映射只走 propMap 声明式)
+
 ### 字段约束(CLI 和 SKILL 都会校验,不合规会被 QA 告警丢弃)
 
 - **tagMap**:key **必须**是 6 大 RN 标签(`View / Text / Image / Pressable / TextInput / ScrollView`)之一;value 必须匹配 `/^[A-Z][A-Za-z0-9]*$/`(合法 JSX 大写标识符)。不需要映射的标签**留空即可**,留空 = 保持 RN 原名。
 - **importMap**:key 必须是"tagMap 里出现过的目标标签名"或"6 大 RN 原生标签",value 是任意非空字符串(import from 路径)。未列的映射后标签自动 fallback 到 `react-native`。
-- **propMap**:key **必须**是 6 大 RN 原生标签(不是 tagMap 映射后的名字);value 是 `{ 原 prop: 新 prop }`;禁止重命名 `style` / `key` / `ref` / `children` / `className`。
+- **propMap**:key **必须**是 6 大 RN 原生标签(不是 tagMap 映射后的名字);value 是 `{ 原 prop: 新 prop }`(**只字符串**,不接受 v2 object 语法);禁止重命名 `style` / `key` / `ref` / `children` / `className`。复杂差异请走 `referenceDoc`。
+- **referenceDoc**(可选):值是相对本目录的 md 文件名;文件不存在 → CLI init 时 warn(不阻塞),SKILL 侧 §5.5.3c 静默跳过 + QA warn。
 - **reactImport**:极少数场景需要覆盖(如自家 React fork),默认 `react`,不填也行。
 
 ### 举例:接 `taro` 的预设
