@@ -1,11 +1,11 @@
 # skill_add_input_prefix Context
 
 ## Involved Files
-- `templates/skills/ctrip-train-d2c/SKILL.md`(4 处)
-- `templates/skills/ctrip-train-d2c-doctor/SKILL.md`(5 处)
-- `templates/skills/ctrip-train-d2c-style/SKILL.md`(1 处)
-- `.Knowledge/topics/ctrip-train-d2c.md`(2 处)
-- `.Knowledge/matchers/m-ctrip-train-d2c.json`(加关键词)
+- `templates/skills/pp-d2c/SKILL.md`(4 处)
+- `templates/skills/pp-doctor/SKILL.md`(5 处)
+- `templates/skills/pp-style/SKILL.md`(1 处)
+- `.Knowledge/topics/pp-d2c.md`(2 处)
+- `.Knowledge/matchers/m-pp-d2c.json`(加关键词)
 - 测试项目同步 3 份 SKILL
 
 ## Related Materials

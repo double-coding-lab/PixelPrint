@@ -1,6 +1,6 @@
 # Acceptance — skill_add_autolayout_and_spacing_rules
 
-> 逐项核对通过即可归档。所有改动集中在 `templates/skills/ctrip-train-d2c/SKILL.md` 单文件，4 段。
+> 逐项核对通过即可归档。所有改动集中在 `templates/skills/pp-d2c/SKILL.md` 单文件，4 段。
 
 ## 一、SKILL.md 静态核对（agent 已自查通过，用户可复核）
 
@@ -31,7 +31,7 @@
 **测试用例 1**：`https://www.figma.com/design/dKc9NQvjTgHe9sZzg4zFOL/?node-id=163-2085`
 （D3C-有票未填写，测试项目 `figma-plugin-test-function/`）
 
-- [ ] 把新版 SKILL 覆盖到测试项目 `.claude/skills/ctrip-train-d2c/SKILL.md`
+- [ ] 把新版 SKILL 覆盖到测试项目 `.claude/skills/pp-d2c/SKILL.md`
 - [ ] 重跑 SKILL，观察产物 `view/D3cYouPiaoWeiTianXie/index.module.scss`：
   - [ ] `position: absolute` 数量从 8 处降到 ≤ 3 处（预计只剩 cardImg 叠 cardContent 那一处；其余 bgHead/bgBody/notice/card/pinxuan 都改成 flex column + gap/margin）
   - [ ] `.statusBar` 保留 `position: fixed`（fixed- 前缀）

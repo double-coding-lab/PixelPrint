@@ -4,8 +4,8 @@
 - [x] 1. 主 SKILL.md §4.1.1 §A 表:`layoutSizingVertical: FIXED` 行加"页面根容器例外"说明(min-height: max(...px, 100vh))
 - [x] 2. 主 SKILL.md §4.3 判定优先级新增第 6 条(页面根容器识别 3 信号 AND + 覆写规则)
 - [x] 3. 主 SKILL.md §6.0 checklist 新增第 9 项(根容器用死值 height 检测)
-- [x] 4. .Knowledge/topics/ctrip-train-d2c.md 新增第 9 段 + 关键前缀清单加一条
-- [x] 5. .Knowledge/matchers/m-ctrip-train-d2c.json 加 min-height/vh/根容器等关键词
+- [x] 4. .Knowledge/topics/pp-d2c.md 新增第 9 段 + 关键前缀清单加一条
+- [x] 5. .Knowledge/matchers/m-pp-d2c.json 加 min-height/vh/根容器等关键词
 - [x] 6. 同步主 SKILL 到测试项目(保留 init 尾部段)
 - [x] 7. 交叉验证 grep + 写 acceptance.md 终稿
 

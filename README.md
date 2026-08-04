@@ -1,4 +1,4 @@
-# @ctrip/train-d2c
+# @double-coding/pixel-pilot
 
 携程火车票 Figma D2C（Design-to-Code）工具——把 Figma 设计稿一键还原成可运行的 React/SCSS 代码。
 
@@ -10,14 +10,14 @@
 
 ```bash
 # 在你的业务项目根目录下执行
-npx @ctrip/train-d2c init
+npx @double-coding/pixel-pilot init
 ```
 
 `init` 会引导你完成 8 题交互式配置（项目框架、样式方案、单位换算等），并生成：
 
-- `ctrip-train-d2c.config.json`：项目配置
-- `.claude/skills/ctrip-train-d2c/`：主 SKILL（D2C 生成）
-- `.claude/skills/ctrip-train-d2c-doctor/`：体检 SKILL
+- `pp-d2c.config.json`：项目配置
+- `.claude/skills/pp-d2c/`：主 SKILL（D2C 生成）
+- `.claude/skills/pp-doctor/`：体检 SKILL
 - `code-connect/mappings.json`：Figma 组件 → 代码组件映射表
 - `static/`、`pages/`（默认路径，可配置）：图片资产 / 输出目录
 
@@ -30,7 +30,7 @@ npx @ctrip/train-d2c init
 ### 1. 完成 init 交互
 
 ```bash
-$ npx @ctrip/train-d2c init
+$ npx @double-coding/pixel-pilot init
 
 ─── 阶段一：Figma MCP 安装提示 ──────────────────────
   ⚠️  init 脚本运行在终端进程里,无法直接验证 Claude Code 内的 MCP 状态。
@@ -105,9 +105,9 @@ Claude 会自动：
 
 ---
 
-## 配置文件 `ctrip-train-d2c.config.json`
+## 配置文件 `pp-d2c.config.json`
 
-完整字段说明见主 SKILL `templates/skills/ctrip-train-d2c/SKILL.md` §0。关键字段：
+完整字段说明见主 SKILL `templates/skills/pp-d2c/SKILL.md` §0。关键字段：
 
 ```jsonc
 {
@@ -151,9 +151,9 @@ Claude 会自动：
 
 ```bash
 # 在业务项目根目录下使用
-npx @ctrip/train-d2c init      # 交互式初始化（推荐）
-npx @ctrip/train-d2c install   # 仅复制模板文件，不交互
-npx @ctrip/train-d2c help      # 显示帮助
+npx @double-coding/pixel-pilot init      # 交互式初始化（推荐）
+npx @double-coding/pixel-pilot install   # 仅复制模板文件，不交互
+npx @double-coding/pixel-pilot help      # 显示帮助
 ```
 
 ---
@@ -201,13 +201,13 @@ Figma 官方 MCP 需要在 Claude Code 中**手动安装**，install.js 脚本�
 ## 项目结构
 
 ```
-ctrip-train-d2c/
+pp-d2c/
 ├── bin/install.js                    ← npx 入口（init / install / help 三命令）
 ├── templates/
 │   ├── skills/
-│   │   ├── ctrip-train-d2c/SKILL.md  ← 主 D2C 流程（~1100 行执行手册）
-│   │   └── ctrip-train-d2c-doctor/SKILL.md  ← 体检流程
-│   ├── ctrip-train-d2c.config.json   ← 配置文件模板
+│   │   ├── pp-d2c/SKILL.md  ← 主 D2C 流程（~1100 行执行手册）
+│   │   └── pp-doctor/SKILL.md  ← 体检流程
+│   ├── pp-d2c.config.json   ← 配置文件模板
 │   └── code-connect/mappings.json    ← Figma 组件映射模板
 ├── docs/
 │   ├── design-guide.md               ← 给设计师的命名规范指南
@@ -229,7 +229,7 @@ ctrip-train-d2c/
 | `position: fixed` 元素跟着祖先滚动 | 祖先链有 `transform` / `filter` / `blur` 导致 fixed 退化（doctor LAY013） |
 | `doctor.run()` 函数找不到 | SKILL.md 是 LLM 操作手册（自然语言），不是可执行代码——任何 `doctor.run({...})` 都是伪代码（主 SKILL 顶部「执行模型说明」） |
 
-更多详见 [`.Knowledge/topics/ctrip-train-d2c.md`](./.Knowledge/topics/ctrip-train-d2c.md) 的「已知历史 bug 与修订」表。
+更多详见 [`.Knowledge/topics/pp-d2c.md`](./.Knowledge/topics/pp-d2c.md) 的「已知历史 bug 与修订」表。
 
 ---
 
@@ -238,7 +238,7 @@ ctrip-train-d2c/
 ### 仓库结构
 
 - **本仓库**：D2C 工具源码（SKILL 模板、install.js、文档、规则）
-- **业务项目**：通过 `npx @ctrip/train-d2c init` 拉取 SKILL 到 `.claude/skills/`
+- **业务项目**：通过 `npx @double-coding/pixel-pilot init` 拉取 SKILL 到 `.claude/skills/`
 
 ### 版本号
 

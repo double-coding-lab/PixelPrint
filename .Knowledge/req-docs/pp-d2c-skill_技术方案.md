@@ -1,4 +1,4 @@
-# ctrip-train-d2c Skill 技术方案
+# pp-d2c Skill 技术方案
 
 ## Requirement Overview
 
@@ -31,14 +31,14 @@
 - **Figma MCP**：`get_metadata`、`get_design_context`、`get_screenshot` — 读取图层结构、属性与截图
 - **Claude Code 内置能力**：Agent 工具（sub-agent 分发）、Read/Write/Edit（文件操作）、settings.json 写入（MCP 配置安装）
 - **code-connect/mappings.json**：`comp-*` 图层的组件映射查找
-- **ctrip-train-d2c.config.json**：所有配置读取入口
+- **pp-d2c.config.json**：所有配置读取入口
 - **环境变量 `FIGMA_ACCESS_TOKEN`**：Figma PAT，由用户设置，MCP 配置中引用
 
 ---
 
 ## Configuration
 
-### ctrip-train-d2c.config.json（v2 完整结构）
+### pp-d2c.config.json（v2 完整结构）
 
 ```json
 {
@@ -132,7 +132,7 @@ Figma MCP 未安装，已自动写入配置。请按以下步骤完成认证：
 #### 步骤 0：读取配置
 
 ```
-Read("ctrip-train-d2c.config.json")
+Read("pp-d2c.config.json")
 ```
 
 提取并缓存：`framework`、`styleFormat`、`merge.mode`、`images`、`output.dir`、`codeConnect.mappingFile`。
@@ -307,11 +307,11 @@ export default function ComponentName() {
 
 ---
 
-### ctrip-train-d2c-init Skill
+### pp-d2c-init Skill
 
 独立 Skill，负责环境检测、MCP 安装、PAT 引导、config 交互式配置。每次执行都会重新走完整配置流程，可用于初次安装或重置配置。
 
-**触发方式**：用户执行 `/ctrip-train-d2c-init`，或主 Skill 预检失败时提示用户执行。
+**触发方式**：用户执行 `/pp-d2c-init`，或主 Skill 预检失败时提示用户执行。
 
 **执行流程**：
 
@@ -343,12 +343,12 @@ export default function ComponentName() {
   1. 前往 Figma → 账户设置 → Personal Access Tokens → 创建 Token
   2. 在终端执行：export FIGMA_ACCESS_TOKEN=your_token_here
   3. 将上述命令加入 ~/.zshrc 或 ~/.bashrc 以持久生效
-  4. 完成后重新执行 /ctrip-train-d2c-init 继续配置
+  4. 完成后重新执行 /pp-d2c-init 继续配置
   ```
   → 终止，等待用户处理后重新执行
 - 有效 → 继续阶段三
 
-**阶段三：交互式配置 ctrip-train-d2c.config.json**
+**阶段三：交互式配置 pp-d2c.config.json**
 
 逐项询问用户，每项显示当前值（若已有 config），回车保持不变：
 
@@ -369,7 +369,7 @@ export default function ComponentName() {
 代码输出目录 [当前: src/components/generated]：
 ```
 
-所有配置确认后，写入 `ctrip-train-d2c.config.json`（完整覆盖）。
+所有配置确认后，写入 `pp-d2c.config.json`（完整覆盖）。
 
 **阶段四：初始化 code-connect/mappings.json**
 
@@ -380,7 +380,7 @@ export default function ComponentName() {
 
 ```
 ✅ Figma MCP 已就绪
-✅ ctrip-train-d2c.config.json 已更新
+✅ pp-d2c.config.json 已更新
 ✅ code-connect/mappings.json 已就绪
 
 现在可以执行：把这份设计稿转成代码：https://figma.com/design/xxx
@@ -388,7 +388,7 @@ export default function ComponentName() {
 
 若阶段一写入了新 MCP 配置，在完成输出前额外提示：
 ```
-⚠️  MCP 配置已写入，需重启 Claude Code 后生效。重启后重新执行 /ctrip-train-d2c-init 完成配置。
+⚠️  MCP 配置已写入，需重启 Claude Code 后生效。重启后重新执行 /pp-d2c-init 完成配置。
 ```
 
 ---
@@ -397,7 +397,7 @@ export default function ComponentName() {
 
 init 独立后，主 Skill 的预检步骤 -1 只做一件事：
 - 检测 Figma MCP 是否可用
-- 不可用 → 提示「请先执行 /ctrip-train-d2c-init 完成环境配置」，终止
+- 不可用 → 提示「请先执行 /pp-d2c-init 完成环境配置」，终止
 - 可用 → 继续
 
 不再在主 Skill 中内置安装和引导逻辑。
@@ -466,9 +466,9 @@ init 独立后，主 Skill 的预检步骤 -1 只做一件事：
 
 | 文件 | 操作 | 说明 |
 |------|------|------|
-| `ctrip-train-d2c.config.json` | **重写** | 升级为 v2 结构，移除 designTokens/conventions |
-| `skills/ctrip-train-d2c/SKILL.md` | **重写** | 按本方案七步流程重写，预检简化为一行提示 |
-| `skills/ctrip-train-d2c-init/SKILL.md` | **新增** | init 独立 Skill，负责安装/认证/配置全流程 |
+| `pp-d2c.config.json` | **重写** | 升级为 v2 结构，移除 designTokens/conventions |
+| `skills/pp-d2c/SKILL.md` | **重写** | 按本方案七步流程重写，预检简化为一行提示 |
+| `skills/pp-d2c-init/SKILL.md` | **新增** | init 独立 Skill，负责安装/认证/配置全流程 |
 | `code-connect/mappings.json` | **微调** | 新增 `figmaPrefix` 字段 |
 | `docs/design-conventions.md` | **保留或删除** | 不再作为前提依赖，可选保留作参考 |
 
@@ -484,6 +484,6 @@ init 独立后，主 Skill 的预检步骤 -1 只做一件事：
 6. `merge.mode=flat` 时所有 JSX/样式合并到单文件；`component` 时主文件 import 各 block
 7. 两种模式下 blocks/ 目录均保留不删除
 8. 更换 `framework`/`styleFormat` 后重新执行，输出代码语法正确切换
-9. `/ctrip-train-d2c-init` 每次执行均重走全部配置流程，可用于初次安装或重置
+9. `/pp-d2c-init` 每次执行均重走全部配置流程，可用于初次安装或重置
 10. MCP 未安装时 init 自动写入配置；PAT 未设置时输出引导并终止，不静默跳过
-11. 主 Skill 预检失败只提示「请先执行 /ctrip-train-d2c-init」，不自行处理安装逻辑
+11. 主 Skill 预检失败只提示「请先执行 /pp-d2c-init」，不自行处理安装逻辑

@@ -2,9 +2,9 @@
 
 > 目的：在 D2C 生成代码**之前**，对 Figma 设计稿做一次自动体检，提前暴露命名、布局、结构、样式、资产等层面的问题。
 >
-> 对象：所有送入 `ctrip-train-d2c` 还原流程的设计稿。
+> 对象：所有送入 `pp-d2c` 还原流程的设计稿。
 >
-> 关系：与 `templates/skills/ctrip-train-d2c/SKILL.md` 同源，规则前缀完全沿用 `ctrip-train-d2c.config.json` 的 `layers` 段。
+> 关系：与 `templates/skills/pp-d2c/SKILL.md` 同源，规则前缀完全沿用 `pp-d2c.config.json` 的 `layers` 段。
 
 ---
 
@@ -16,7 +16,7 @@
 |---|---|---|---|
 | A | 规则范围 | **完整版**（6 个维度共 ~30 条规则），但每条标 P0/P1/P2，**首期只实现 P0**（命名 + AL + 结构核心 ~12 条） | 仅基础版 / 全量首期上 |
 | B | 集成方式 | **独立 SKILL，协议向 D2C 主流程兼容**（独立可跑，主流程也能调用并阻塞致命错误） | 仅独立 / 仅集成 |
-| C | 阈值与开关 | **全部走 `ctrip-train-d2c.config.json` 的 `health` 段**，每条规则三态 `off / warn / error`，阈值可调；规则 ID 写死 | 阈值写死 / 单独 health.config.json |
+| C | 阈值与开关 | **全部走 `pp-d2c.config.json` 的 `health` 段**，每条规则三态 `off / warn / error`，阈值可调；规则 ID 写死 | 阈值写死 / 单独 health.config.json |
 | D | 报告归档 | **同时输出** `.d2c-health-{slug}-{timestamp}.md`（人读）+ `.d2c-health-{slug}-{timestamp}.json`（机器读，供未来仪表盘），同步刷新 `.d2c-health-latest.*` 指针 | 仅 md / 仅 json |
 
 > 下文按 A=完整版/首期 P0、B=独立可集成、C=config 化、D=md+json 写。如有调整，spec 主体相应章节会改。
@@ -27,16 +27,16 @@
 
 ### 1.1 SKILL 名称
 
-`ctrip-train-d2c-doctor`
+`pp-doctor`
 
-理由：跟 `ctrip-train-d2c` 同前缀，`doctor` 比 `lint` / `check` 更直观（"体检"），且与 ESLint 风格规则区分（避免误以为是代码 lint）。
+理由：跟 `pp-d2c` 同前缀，`doctor` 比 `lint` / `check` 更直观（"体检"），且与 ESLint 风格规则区分（避免误以为是代码 lint）。
 
 ### 1.2 触发条件
 
 - 用户提供 Figma 设计稿 URL 并说：
   - 「体检一下」「健康检测」「检查设计稿」「跑个 d2c 体检」「看看这个稿能不能还原」
-  - 直接 `$ctrip-train-d2c-doctor`
-- 被 `ctrip-train-d2c` 主 SKILL 在步骤 0 之后调用（B 模式集成）
+  - 直接 `$pp-doctor`
+- 被 `pp-d2c` 主 SKILL 在步骤 0 之后调用（B 模式集成）
 
 ### 1.3 与生成 SKILL 的关系
 
@@ -45,7 +45,7 @@
    用户                     用户
     │                        │
     ▼                        ▼
-  doctor                  ctrip-train-d2c
+  doctor                  pp-d2c
     │                       │
     ▼                       ├─ 步骤 -1 MCP 预检
   报告 md+json              ├─ 步骤 0 读 config
@@ -100,7 +100,7 @@
 
 **现象**：原步骤 2 是"一次性同步拉全树 + 遍历打标 + 后置阈值判断"，超过 2000 节点的稿子在外部表现为"卡住数十秒到几分钟"，且 5000 阈值的提前止损被埋在打标之后才生效。
 
-**对策**（已落地到 `templates/skills/ctrip-train-d2c-doctor/SKILL.md`）：
+**对策**（已落地到 `templates/skills/pp-doctor/SKILL.md`）：
 
 1. **步骤 2.0**：进入 `get_metadata` 之前必须输出可见进度提示（`📥 正在拉取图层树 ...`），让用户能区分"程序卡死 / 程序在干活"。
 2. **步骤 2.1**：`get_metadata` 不重试，失败直接终止（重试会让用户多等一倍）。
@@ -113,11 +113,11 @@
 
 ### 2.4 不递归子树前置过滤（v0.2 修订）
 
-**现象**：原 NAM001 / LAY001 / LAY009 / STR001 等"形态/容器"类规则只显式排除了 `sub-` 祖先，对 `img-` / `bg-` / `bgc-` / `x-` 子树内的子孙节点照报不误。但主 SKILL（`templates/skills/ctrip-train-d2c/SKILL.md` §412/429/705）已经明文约定：这四类前缀命中即"整体导出 / 忽略"、**不再向内递归**。给这些子孙报"加 sub-"等于让设计师改一个永远不会被读到的图层。
+**现象**：原 NAM001 / LAY001 / LAY009 / STR001 等"形态/容器"类规则只显式排除了 `sub-` 祖先，对 `img-` / `bg-` / `bgc-` / `x-` 子树内的子孙节点照报不误。但主 SKILL（`templates/skills/pp-d2c/SKILL.md` §412/429/705）已经明文约定：这四类前缀命中即"整体导出 / 忽略"、**不再向内递归**。给这些子孙报"加 sub-"等于让设计师改一个永远不会被读到的图层。
 
 典型 false positive：`img-kv` 里有个 `step` 容器 → doctor 报"NAM001：建议改 `sub-step`"。这是错的，整个 `img-kv` 子树会作为单张 PNG 导出，里面叫什么都无所谓。
 
-**对策**（已落地到 `templates/skills/ctrip-train-d2c-doctor/SKILL.md`）：
+**对策**（已落地到 `templates/skills/pp-doctor/SKILL.md`）：
 
 1. **步骤 2.3**：每个节点新增一个布尔标 `inNonRecursiveSubtree`，定义为"祖先链上存在 `img` / `bg` / `bgc` / `x` 前缀节点"。`sub-` 和 `btn-` 不算（这两类内部仍然要继续解析）。
 2. **步骤 3 全局过滤**：执行任何规则前先看这个标。`true` 且节点本身不带不递归前缀 → 整批跳过 NAM001 / NAM002 / LAY001 / LAY009 / STR001 / STR002 / AST002。
@@ -132,7 +132,7 @@
 
 **现象 2：NAM001 fix 写"加 `sub-` 或 `block-`"**。但 `block-` 是主 SKILL §409 定义的"顶层独立布局块（命名空间隔离）"，没有"嵌套使用"的定义；在 `block-banner` 里再加 `block-` 没有任何语义。
 
-**对策**（已落地到 `templates/skills/ctrip-train-d2c-doctor/SKILL.md` §3.1）：
+**对策**（已落地到 `templates/skills/pp-doctor/SKILL.md` §3.1）：
 
 1. NAM001 触发条件追加："**父节点不是 `scrollx-` / `scrolly-` 列表容器**"。如果父就是滚动容器、且子节点数 ≥ 2，跳过本规则。如果只有 1 个子节点（不是列表，是 wrapper），仍然报。
 2. NAM001 fix 改为"加 `sub-` 前缀"，不再提 `block-`。
@@ -142,7 +142,7 @@
 
 ### 2.6 NAM/LAY 规则补全（v0.2 修订）
 
-补全 doctor 与主 SKILL（`templates/skills/ctrip-train-d2c/SKILL.md`）约定不一致的几条规则：
+补全 doctor 与主 SKILL（`templates/skills/pp-d2c/SKILL.md`）约定不一致的几条规则：
 
 #### NAM003 冲突表补全
 
@@ -181,7 +181,7 @@ SKILL.md 已实现这两条规则，但 spec §3.2 LAY 表只列到 LAY010，文
 
 > 例：`sub-content`（整个内容主区）含两个内层独立模块 `sub-card`（票卡轮播）+ `sub-scrolly-车票列表`（滚动列表）。两个内层异构、各自复杂度都值得独立 agent，展平会让外层 sub-agent 同时处理两类完全不同的实现，违反"每层独立上下文"原则。Component/Instance 也不适用——两个内层不是同构。
 
-**对策**（已落地到主 SKILL `templates/skills/ctrip-train-d2c/SKILL.md` §107-145 / §385-455 / §707-820 / 禁止项）：
+**对策**（已落地到主 SKILL `templates/skills/pp-d2c/SKILL.md` §107-145 / §385-455 / §707-820 / 禁止项）：
 
 1. **主 SKILL §107**：明确"sub- 允许嵌套"，描述执行模型：主 agent 派发 + sub-agent 上报，深度上限 3 层
 2. **主 SKILL §385**：sub-agent 进入子层解析前**必须** §4.0.5 扫一遍直接子层的 sub-，写 `<__SUBSLOT__>` placeholder + `subslots.json`，自己**不处理**内层 sub- 内容
@@ -425,7 +425,7 @@ Figma `/v1/images` API 不支持切图时排除某个子节点，这是 API 层�
 
 ## 5. config schema 扩展
 
-在 `ctrip-train-d2c.config.json` 顶层新增 `health` 段：
+在 `pp-d2c.config.json` 顶层新增 `health` 段：
 
 ```jsonc
 {
@@ -581,7 +581,7 @@ Figma `/v1/images` API 不支持切图时排除某个子节点，这是 API 层�
 ```js
 doctor.run({
   fileKey, nodeId,
-  config,                  // 完整 ctrip-train-d2c.config.json
+  config,                  // 完整 pp-d2c.config.json
   mode: 'integrated'       // 'integrated' | 'standalone'
 })
 ```
@@ -635,7 +635,7 @@ if (warn > 0) {
 - [ ] **C** config 化：`health` 段 schema 是否可接受？阈值默认值是否合理？
 - [ ] **D** 输出：md + json 双输出，文件名 `.d2c-health-{slug}-{timestamp}.md` / `.d2c-health-{slug}-{timestamp}.json` + `.d2c-health-latest.*` 指针，是否 OK？
 - [ ] **E** 评分权重：30/25/15/10/10/10 是否需要调整？
-- [ ] **F** SKILL 名称：`ctrip-train-d2c-doctor` 还是另起一个？
+- [ ] **F** SKILL 名称：`pp-doctor` 还是另起一个？
 - [ ] **G** 报告输出目录：默认与 `output.dir` 同，还是放项目根 `.d2c/`？
 
-确认后我再写正式的 `templates/skills/ctrip-train-d2c-doctor/SKILL.md`，并按 P0 列表开始实现。
+确认后我再写正式的 `templates/skills/pp-doctor/SKILL.md`，并按 P0 列表开始实现。

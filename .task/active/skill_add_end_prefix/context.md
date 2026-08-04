@@ -1,12 +1,12 @@
 # skill_add_end_prefix Context
 
 ## Involved Files
-- `templates/skills/ctrip-train-d2c/SKILL.md`(主档,4 处改动)
-- `templates/skills/ctrip-train-d2c-doctor/SKILL.md`(doctor 校验)
-- `templates/skills/ctrip-train-d2c-style/SKILL.md`(速查手册)
+- `templates/skills/pp-d2c/SKILL.md`(主档,4 处改动)
+- `templates/skills/pp-doctor/SKILL.md`(doctor 校验)
+- `templates/skills/pp-style/SKILL.md`(速查手册)
 - `.Knowledge/stock-docs/end-prefix.md`(新增)
 - `.Knowledge/index.md`(补行)
-- 测试项目同步:`figma-plugin-test-function/.claude/skills/{ctrip-train-d2c,ctrip-train-d2c-doctor,ctrip-train-d2c-style}/SKILL.md`
+- 测试项目同步:`figma-plugin-test-function/.claude/skills/{pp-d2c,pp-doctor,pp-style}/SKILL.md`
 
 ## Related Materials
 - 触发场景:`img-pinxuan` 底部品宣,设备高度大于设计稿 812 时想让 pinxuan 贴屏底显示

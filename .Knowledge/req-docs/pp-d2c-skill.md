@@ -1,4 +1,4 @@
-# ctrip-train-d2c Skill 需求澄清文档
+# pp-d2c Skill 需求澄清文档
 
 ## 背景与目标
 

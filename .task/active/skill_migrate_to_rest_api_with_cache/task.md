@@ -15,13 +15,13 @@
 - [x] 12. install.js:新初始化项目自动写 `.gitignore` 追加 `.d2c-cache/` 和 `.d2c-tmp/`
 - [x] 13. SKILL 兜底:老项目首次跑时自动追加 `.gitignore`
 - [x] 14. 交叉验证:重读 SKILL.md 检查所有 `mcp__plugin_figma_figma__*` 引用是否全部替换
-- [x] 15. 【追加】新建 `templates/skills/ctrip-train-d2c/bin/figma.mjs` CLI 脚本(verify-token / cache-check / fetch-node / export-image / screenshot / cleanup-tmp)
+- [x] 15. 【追加】新建 `templates/skills/pp-d2c/bin/figma.mjs` CLI 脚本(verify-token / cache-check / fetch-node / export-image / screenshot / cleanup-tmp)
 - [x] 16. 【追加】SKILL.md 瘦身:把裸 curl + python3 一行式 + 缓存读写伪代码全换成 `figma.mjs xxx` 命令
 
 ## Notes
-- 脚本位置:`templates/skills/ctrip-train-d2c/bin/figma.mjs`
-- 分发路径:install.js 会通过 copyDir 同步到 `.claude/skills/ctrip-train-d2c/bin/figma.mjs`
-- 调用统一:`node .claude/skills/ctrip-train-d2c/bin/figma.mjs <cmd> [args] [--flags]`
+- 脚本位置:`templates/skills/pp-d2c/bin/figma.mjs`
+- 分发路径:install.js 会通过 copyDir 同步到 `.claude/skills/pp-d2c/bin/figma.mjs`
+- 调用统一:`node .claude/skills/pp-d2c/bin/figma.mjs <cmd> [args] [--flags]`
 - 脚本输出:stdout 一行 JSON `{ok, data|error}`,退出码 0/非 0
 - Node 18+ 内置 fetch,零 npm install
 - SKILL.md 保留 LLM 需要判断的部分(前缀规则、切图源自检、bg- CSS-able 判断、视觉对比 QA);删除所有机械动作(curl 拼串、缓存目录管理、nodeId 冒号转义、指数退避重试等)

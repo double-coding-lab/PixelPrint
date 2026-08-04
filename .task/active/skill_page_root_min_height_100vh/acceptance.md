@@ -4,7 +4,7 @@
 
 ## 一、SKILL 静态核对
 
-### 主 SKILL `templates/skills/ctrip-train-d2c/SKILL.md`
+### 主 SKILL `templates/skills/pp-d2c/SKILL.md`
 
 - [ ] §4.1.1 §A 表 "容器自身尺寸行为" 行末尾出现 "**页面根容器例外**（v0.3.3 新增）" 说明
 - [ ] §4.3 判定优先级新增第 6 条 "**页面根容器（v0.3.3 新增,特殊覆写规则）**",含:
@@ -17,13 +17,13 @@
 
 ### 知识库
 
-- [ ] `.Knowledge/topics/ctrip-train-d2c.md` 新增 §9 "页面根容器 min-height: max(..., 100vh)(v0.3.3 新增)"
+- [ ] `.Knowledge/topics/pp-d2c.md` 新增 §9 "页面根容器 min-height: max(..., 100vh)(v0.3.3 新增)"
 - [ ] 同 topic "关键前缀清单" 段(约 line 285)新增一条 v0.3.3 说明
-- [ ] `.Knowledge/matchers/m-ctrip-train-d2c.json` 加 12 个 v0.3.3 关键词(页面根容器/根容器/100vh/min-height 等);JSON 语法有效
+- [ ] `.Knowledge/matchers/m-pp-d2c.json` 加 12 个 v0.3.3 关键词(页面根容器/根容器/100vh/min-height 等);JSON 语法有效
 
 ### 测试项目
 
-- [ ] `figma-plugin-test-function/.claude/skills/ctrip-train-d2c/SKILL.md` 已同步(1578 行,保留 init 尾部段)
+- [ ] `figma-plugin-test-function/.claude/skills/pp-d2c/SKILL.md` 已同步(1578 行,保留 init 尾部段)
 
 ## 二、端到端回归验证(用户执行)
 

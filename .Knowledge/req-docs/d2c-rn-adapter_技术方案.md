@@ -8,7 +8,7 @@
 
 ## 需求概览
 
-- 新增独立 SKILL `ctrip-train-d2c-rn`,和现有 `ctrip-train-d2c`(H5)平行,能出 React Native 原生代码
+- 新增独立 SKILL `pp-d2c-rn`,和现有 `pp-d2c`(H5)平行,能出 React Native 原生代码
 - 支持用户在 config 里配置 adapter(tagMap + importMap),把 RN 标签映射到 xtaro / taro / expo / react-native-web 等任意 RN-like 框架
 - 现有 H5 SKILL、doctor SKILL、style SKILL、strip-nodeid SKILL **一字不改**,零回归
 - **非目标**:不做 preset(含 xtaro preset)、不做行为组件(Modal/Switch)、不做动画、不做增量生成/产物缓存、不为 rn 侧新建 doctor/style 卫星
@@ -38,18 +38,18 @@
 
 ```
 templates/skills/
-├── ctrip-train-d2c/               ← 现有 h5 SKILL,一字不改
+├── pp-d2c/               ← 现有 h5 SKILL,一字不改
 │   ├── SKILL.md
 │   └── bin/figma.mjs
-├── ctrip-train-d2c-doctor/        ← 现有卫星,一字不改
+├── pp-doctor/        ← 现有卫星,一字不改
 │   └── SKILL.md
-├── ctrip-train-d2c-style/         ← 现有卫星,一字不改
+├── pp-style/         ← 现有卫星,一字不改
 │   └── SKILL.md
-├── ctrip-train-d2c-strip-nodeid/  ← 现有卫星,一字不改
+├── pp-strip-nodeid/  ← 现有卫星,一字不改
 │   └── SKILL.md
-└── ctrip-train-d2c-rn/            ← 【新增】
-    ├── SKILL.md                     ← 从 ctrip-train-d2c/SKILL.md 复制起步,按下节改造
-    └── bin/figma.mjs                ← 从 ctrip-train-d2c/bin/figma.mjs 复制,零改动
+└── pp-d2c-rn/            ← 【新增】
+    ├── SKILL.md                     ← 从 pp-d2c/SKILL.md 复制起步,按下节改造
+    └── bin/figma.mjs                ← 从 pp-d2c/bin/figma.mjs 复制,零改动
 ```
 
 ### rn SKILL 内容 = h5 SKILL 复制 + 定点改造
@@ -409,7 +409,7 @@ function installFiles(forceSkills = false, skipConfig = false, options = {}) {
   const skillsDst = path.join(CWD, '.claude/skills')
 
   fs.readdirSync(skillsSrc).forEach(name => {
-    if (skipRn && name === 'ctrip-train-d2c-rn') return
+    if (skipRn && name === 'pp-d2c-rn') return
     copyDir(path.join(skillsSrc, name), path.join(skillsDst, name), forceSkills)
   })
 
@@ -481,12 +481,12 @@ const newConfig = {
 
 ### 改动 5:模板 config 文件同步
 
-**位置**:`templates/ctrip-train-d2c.config.json`
+**位置**:`templates/pp-d2c.config.json`
 
 **改动**:
 
 - **不动主模板**(现有 h5 版本保持不变)
-- **新增** `templates/ctrip-train-d2c.rn.config.json`,内容是 rn 默认 config(含空的 adapter 段)。install.js 在 rn 分支下改从这个模板读默认值
+- **新增** `templates/pp-d2c.rn.config.json`,内容是 rn 默认 config(含空的 adapter 段)。install.js 在 rn 分支下改从这个模板读默认值
 
 ---
 
@@ -494,9 +494,9 @@ const newConfig = {
 
 ### D1:rn SKILL 主文档
 
-**路径**:`templates/skills/ctrip-train-d2c-rn/SKILL.md`
+**路径**:`templates/skills/pp-d2c-rn/SKILL.md`
 
-**产出方式**:从 `templates/skills/ctrip-train-d2c/SKILL.md` 复制,按 SKILL 独立性拆分 里的"改造(共 6 处)"逐条修改
+**产出方式**:从 `templates/skills/pp-d2c/SKILL.md` 复制,按 SKILL 独立性拆分 里的"改造(共 6 处)"逐条修改
 
 **验证方式**:
 
@@ -507,13 +507,13 @@ const newConfig = {
 
 ### D2:rn SKILL 的 figma.mjs
 
-**路径**:`templates/skills/ctrip-train-d2c-rn/bin/figma.mjs`
+**路径**:`templates/skills/pp-d2c-rn/bin/figma.mjs`
 
-**产出方式**:从 `templates/skills/ctrip-train-d2c/bin/figma.mjs` **原封复制**,内容一字不改
+**产出方式**:从 `templates/skills/pp-d2c/bin/figma.mjs` **原封复制**,内容一字不改
 
 ### D3:rn 模板 config
 
-**路径**:`templates/ctrip-train-d2c.rn.config.json`
+**路径**:`templates/pp-d2c.rn.config.json`
 
 **产出方式**:全新写入,内容见 install.js 改造 - 改动 5
 
@@ -525,24 +525,24 @@ const newConfig = {
 
 **验证方式**:
 
-- `node bin/install.js` 交互式跑一遍,选 rn framework,确认 `.claude/skills/ctrip-train-d2c-rn/` 被复制
-- 再跑一遍选 react framework,确认 `.claude/skills/ctrip-train-d2c-rn/` **不**被复制
+- `node bin/install.js` 交互式跑一遍,选 rn framework,确认 `.claude/skills/pp-d2c-rn/` 被复制
+- 再跑一遍选 react framework,确认 `.claude/skills/pp-d2c-rn/` **不**被复制
 - 生成的 config 里 adapter 段合法
 
 ### D5:Topic 与 matcher
 
 **路径**:
 
-- `.Knowledge/topics/ctrip-train-d2c-rn.md`(新增)
-- `.Knowledge/matchers/m-ctrip-train-d2c-rn.json`(新增)
+- `.Knowledge/topics/pp-d2c-rn.md`(新增)
+- `.Knowledge/matchers/m-pp-d2c-rn.json`(新增)
 - `.Knowledge/manifest-routing.json`(增量修改)
 - `.Knowledge/index.md`(增量修改)
 
 **产出方式**:
 
-- **topics/ctrip-train-d2c-rn.md**:参考现有 `topics/ctrip-train-d2c.md` 结构,但内容聚焦"rn 分支特有的规则"(前缀识别 / 布局判定 / 图片处理引用原 topic,不重复;style 字典 / 退化表 / adapter 应用步骤是本 topic 独占内容)
-- **matchers/m-ctrip-train-d2c-rn.json**:关键词包括 "d2c rn / react native d2c / xtaro / RN 生成代码 / StyleSheet / adapter / tagMap / importMap / Pressable / TextInput ScrollView RN / D2C 多端"
-- **manifest-routing.json**:`taskToTopicRules` 新增一条 rn 匹配规则;`topicPaths` 新增 rn topic 路径;`topicMetadata` 新增 `ctrip-train-d2c-rn: { primary: 'feature', tags: ['module'], confidence: 'manual' }`
+- **topics/pp-d2c-rn.md**:参考现有 `topics/pp-d2c.md` 结构,但内容聚焦"rn 分支特有的规则"(前缀识别 / 布局判定 / 图片处理引用原 topic,不重复;style 字典 / 退化表 / adapter 应用步骤是本 topic 独占内容)
+- **matchers/m-pp-d2c-rn.json**:关键词包括 "d2c rn / react native d2c / xtaro / RN 生成代码 / StyleSheet / adapter / tagMap / importMap / Pressable / TextInput ScrollView RN / D2C 多端"
+- **manifest-routing.json**:`taskToTopicRules` 新增一条 rn 匹配规则;`topicPaths` 新增 rn topic 路径;`topicMetadata` 新增 `pp-d2c-rn: { primary: 'feature', tags: ['module'], confidence: 'manual' }`
 - **index.md**:topic overview 表新增一行
 
 ---
@@ -551,8 +551,8 @@ const newConfig = {
 
 用户视角,一次典型的 rn 项目 D2C 流程:
 
-1. 用户 `npx ctrip-train-d2c init`,选 framework=rn → CLI 复制 `ctrip-train-d2c-rn` SKILL 到 `.claude/skills/`,写 config(含 adapter 段)
-2. 用户在 Claude Code 里说"帮我把这个 Figma 稿还原成 xtaro 代码" → agent 匹配到 `ctrip-train-d2c-rn` topic,读 rn SKILL
+1. 用户 `npx pp-d2c init`,选 framework=rn → CLI 复制 `pp-d2c-rn` SKILL 到 `.claude/skills/`,写 config(含 adapter 段)
+2. 用户在 Claude Code 里说"帮我把这个 Figma 稿还原成 xtaro 代码" → agent 匹配到 `pp-d2c-rn` topic,读 rn SKILL
 3. rn SKILL 步骤 -1 验 Token → 步骤 0.3 缓存 → 步骤 1-4 前缀识别 + 布局判定 + 图片处理(与 h5 逻辑等价) → 步骤 5 生成原生 RN JSX + StyleSheet
 4. 步骤 5.5 读 config.adapter,若 `enabled=true` 则应用 tagMap + importMap 重写 JSX 与 import
 5. 步骤 6 QA 段落输出退化告警(fixed 已 absolute / vh 已 Dimensions / 渐变已退化 / ...)
@@ -587,7 +587,7 @@ const newConfig = {
 | 异常 | 处理 |
 |------|------|
 | 用户在 h5 项目 `install.js` 交互中选了 rn,但项目里已有 h5 config | 不合并,提示用户"选了 rn 但项目已配置 h5,建议开新项目 / 新 config 文件" |
-| `.claude/skills/` 已有 `ctrip-train-d2c` SKILL,再装 rn SKILL | 允许两者共存 |
+| `.claude/skills/` 已有 `pp-d2c` SKILL,再装 rn SKILL | 允许两者共存 |
 
 ---
 
@@ -597,7 +597,7 @@ const newConfig = {
 
 | 验收组 | 项 | 通过条件 |
 |--------|----|---------|
-| **独立性** | 6.1.1 | `templates/skills/ctrip-train-d2c-rn/SKILL.md` 存在且完整可读 |
+| **独立性** | 6.1.1 | `templates/skills/pp-d2c-rn/SKILL.md` 存在且完整可读 |
 | | 6.1.2 | 现有 h5 SKILL / doctor / style / strip-nodeid **一字未改** |
 | | 6.1.3 | 只调用 rn SKILL 时不依赖 h5 SKILL 任何文件 |
 | **功能** | 6.2.1 | adapter 未启用时,产物 `npx react-native run-ios` 可跑通 |
@@ -606,13 +606,13 @@ const newConfig = {
 | | 6.2.4 | RN 无对应特性按退化表处理,QA 段落有告警 |
 | | 6.2.5 | 前缀识别 / 布局判定与 h5 SKILL 决策等价(拿同一份 Figma 稿分别跑 h5 / rn,前缀识别结果一致) |
 | **CLI** | 6.3.1 | install.js 新增 rn 引导题目 |
-| | 6.3.2 | 选 rn 时 `.claude/skills/ctrip-train-d2c-rn/` 被复制 |
-| | 6.3.3 | 选 react 时 `.claude/skills/ctrip-train-d2c-rn/` **不**被复制 |
+| | 6.3.2 | 选 rn 时 `.claude/skills/pp-d2c-rn/` 被复制 |
+| | 6.3.3 | 选 react 时 `.claude/skills/pp-d2c-rn/` **不**被复制 |
 | | 6.3.4 | rn config 字段(`adapter` 段)以 spread merge 写入 |
 | | 6.3.5 | 三种模式(只 h5 / 只 rn / 两者共存)都能跑通 |
-| **文档** | 6.4.1 | `.Knowledge/topics/ctrip-train-d2c-rn.md` 存在 |
+| **文档** | 6.4.1 | `.Knowledge/topics/pp-d2c-rn.md` 存在 |
 | | 6.4.2 | `.Knowledge/manifest-routing.json` 新增 rn topic 路由 |
-| | 6.4.3 | `.Knowledge/matchers/m-ctrip-train-d2c-rn.json` 存在且关键词覆盖场景 |
+| | 6.4.3 | `.Knowledge/matchers/m-pp-d2c-rn.json` 存在且关键词覆盖场景 |
 | | 6.4.4 | `.Knowledge/index.md` topic overview 表有 rn 行 |
 
 ---

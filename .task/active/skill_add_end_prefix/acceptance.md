@@ -4,7 +4,7 @@
 
 ## 一、SKILL 静态核对（Agent 已自查通过，用户复核）
 
-### 主 SKILL `templates/skills/ctrip-train-d2c/SKILL.md`
+### 主 SKILL `templates/skills/pp-d2c/SKILL.md`
 
 - [ ] Config 字段速查表出现 `layers.end` 行（默认 `end-`），紧挨 `layers.fixed`
 - [ ] §4.3 图层前缀总表新增 `end-` 行，描述"逆向布局（贴父末端）"及叠加规则
@@ -19,7 +19,7 @@
 - [ ] §6.0 checklist 第 8 项："end- 前缀未生成 wrapper + space-between 结构"检测
 - [ ] §6.0 修复方向表新增一行：`end-` 触发被误用 margin-auto / absolute+bottom / gap 模拟 → 唯一实现 wrapper + space-between
 
-### doctor `templates/skills/ctrip-train-d2c-doctor/SKILL.md`
+### doctor `templates/skills/pp-doctor/SKILL.md`
 
 - [ ] Config 表新增 `layers.end` 行（顺便补了漏掉的 `layers.fixed` 一行）
 - [ ] 前缀识别段例子加 `end-img-pinxuan → [end, img]`
@@ -31,23 +31,23 @@
 - [ ] §3.9h LAY019：父不是 autoLayout（error）
 - [ ] §3.9i LAY020：end- 与 fixed- 同现（warn）
 
-### style `templates/skills/ctrip-train-d2c-style/SKILL.md`
+### style `templates/skills/pp-style/SKILL.md`
 
 - [ ] Config 表新增 `layers.end` 行
 
 ### 知识库
 
-- [ ] `.Knowledge/topics/ctrip-train-d2c.md` 第 8 段"end- 逆向布局（贴父末端，v0.3.2 新增）"存在
+- [ ] `.Knowledge/topics/pp-d2c.md` 第 8 段"end- 逆向布局（贴父末端，v0.3.2 新增）"存在
 - [ ] 同 topic 关键前缀清单段新增 end- 一条（紧挨 fixed- 说明）
-- [ ] `.Knowledge/index.md` topic overview 表 `ctrip-train-d2c` 行的前缀清单补 `end-`
-- [ ] `.Knowledge/matchers/m-ctrip-train-d2c.json` 新增 12 个关键词：end-, end 前缀, 逆向布局, 贴底, 贴右, 贴父末端, space-between wrapper, LAY017/018/019/020, NAM016
+- [ ] `.Knowledge/index.md` topic overview 表 `pp-d2c` 行的前缀清单补 `end-`
+- [ ] `.Knowledge/matchers/m-pp-d2c.json` 新增 12 个关键词：end-, end 前缀, 逆向布局, 贴底, 贴右, 贴父末端, space-between wrapper, LAY017/018/019/020, NAM016
 - [ ] JSON 语法有效（`node -e` 已验证过）
 
 ### 测试项目同步（用户可 diff 核对）
 
-- [ ] `figma-plugin-test-function/.claude/skills/ctrip-train-d2c/SKILL.md`（1533 行，含 init 尾部）
-- [ ] `figma-plugin-test-function/.claude/skills/ctrip-train-d2c-doctor/SKILL.md`（937 行）
-- [ ] `figma-plugin-test-function/.claude/skills/ctrip-train-d2c-style/SKILL.md`（391 行）
+- [ ] `figma-plugin-test-function/.claude/skills/pp-d2c/SKILL.md`（1533 行，含 init 尾部）
+- [ ] `figma-plugin-test-function/.claude/skills/pp-doctor/SKILL.md`（937 行）
+- [ ] `figma-plugin-test-function/.claude/skills/pp-style/SKILL.md`（391 行）
 
 ## 二、端到端回归验证（用户执行）
 

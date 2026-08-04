@@ -1,28 +1,28 @@
 # Acceptance — skill_add_rn_skill
 
-> 新增独立 SKILL `ctrip-train-d2c-rn`,以 React Native 原生标签(View/Text/Image/Pressable/TextInput/ScrollView + StyleSheet)为内核,通过 `config.adapter`(tagMap + importMap)映射到 xtaro / taro / 其他 RN-like 框架。h5 SKILL 一字不改。
+> 新增独立 SKILL `pp-d2c-rn`,以 React Native 原生标签(View/Text/Image/Pressable/TextInput/ScrollView + StyleSheet)为内核,通过 `config.adapter`(tagMap + importMap)映射到 xtaro / taro / 其他 RN-like 框架。h5 SKILL 一字不改。
 
 ## 一、SKILL 独立性验收
 
 ### 新增文件
 
-- [ ] `templates/skills/ctrip-train-d2c-rn/SKILL.md`
-- [ ] `templates/skills/ctrip-train-d2c-rn/bin/figma.mjs`(与 h5 版一模一样)
-- [ ] `templates/ctrip-train-d2c.rn.config.json`
-- [ ] `.Knowledge/topics/ctrip-train-d2c-rn.md`
-- [ ] `.Knowledge/matchers/m-ctrip-train-d2c-rn.json`
+- [ ] `templates/skills/pp-d2c-rn/SKILL.md`
+- [ ] `templates/skills/pp-d2c-rn/bin/figma.mjs`(与 h5 版一模一样)
+- [ ] `templates/pp-d2c.rn.config.json`
+- [ ] `.Knowledge/topics/pp-d2c-rn.md`
+- [ ] `.Knowledge/matchers/m-pp-d2c-rn.json`
 
 ### h5 SKILL 零回归
 
-- [ ] `git diff --stat -- templates/skills/ctrip-train-d2c/ templates/skills/ctrip-train-d2c-doctor/ templates/skills/ctrip-train-d2c-style/ templates/skills/ctrip-train-d2c-strip-nodeid/` 返回空(除本次任务前的已有改动外无新增)
+- [ ] `git diff --stat -- templates/skills/pp-d2c/ templates/skills/pp-doctor/ templates/skills/pp-style/ templates/skills/pp-strip-nodeid/` 返回空(除本次任务前的已有改动外无新增)
 - [ ] `.claude/skills/f2s-*` 未动
-- [ ] `templates/ctrip-train-d2c.config.json`(h5 模板)未改
+- [ ] `templates/pp-d2c.config.json`(h5 模板)未改
 
 ## 二、功能验收(rn SKILL 内容)
 
 ### 2.1 顶部说明
 
-- [ ] `# ctrip-train-d2c-rn Skill`(独立标题)
+- [ ] `# pp-d2c-rn Skill`(独立标题)
 - [ ] 说明段:独立 SKILL、目标是 RN + 各 RN-like 框架、通过 adapter 映射
 - [ ] 执行模型说明表:删除 `doctor.run` 一行
 - [ ] 触发条件明确要求 `project.framework === 'rn'`
@@ -116,14 +116,14 @@
 ### 3.1 install.js `installFiles`
 
 - [ ] 签名扩展为 `installFiles(forceSkills, skipConfig, options = {})`
-- [ ] `options.skipRn` 控制是否复制 ctrip-train-d2c-rn 目录
+- [ ] `options.skipRn` 控制是否复制 pp-d2c-rn 目录
 - [ ] 逐个 SKILL 目录复制,通过 `readdirSync + isDirectory` 遍历
 
 ### 3.2 install.js `runInit` 顺序
 
 - [ ] 先问 framework(react/rn),再调 `installFiles(true, true, { skipRn: framework !== 'rn' })`
-- [ ] react 分支:`.claude/skills/ctrip-train-d2c-rn/` 不被复制
-- [ ] rn 分支:`.claude/skills/ctrip-train-d2c-rn/` 被复制
+- [ ] react 分支:`.claude/skills/pp-d2c-rn/` 不被复制
+- [ ] rn 分支:`.claude/skills/pp-d2c-rn/` 被复制
 
 ### 3.3 rn 分支 adapter 引导
 
@@ -142,7 +142,7 @@
 
 ### 3.5 SKILL 个性化规则注入
 
-- [ ] `skillPath` 按 framework 分叉:react → `.claude/skills/ctrip-train-d2c/SKILL.md`;rn → `.claude/skills/ctrip-train-d2c-rn/SKILL.md`
+- [ ] `skillPath` 按 framework 分叉:react → `.claude/skills/pp-d2c/SKILL.md`;rn → `.claude/skills/pp-d2c-rn/SKILL.md`
 - [ ] 单位规则注入到正确的 SKILL
 
 ### 3.6 dry-run
@@ -155,33 +155,33 @@
 
 ### 4.1 topic 新增
 
-- [ ] `.Knowledge/topics/ctrip-train-d2c-rn.md` 完整可读
+- [ ] `.Knowledge/topics/pp-d2c-rn.md` 完整可读
 - [ ] 内容涵盖:适用场景/触发词 / 与 h5 SKILL 分工 / RN 六件套 / adapter 配置 / 样式方案 / 退化表 / 与 h5 共享规则 / rn 特有执行步骤 / 边界与禁止
 
 ### 4.2 matcher 新增
 
-- [ ] `.Knowledge/matchers/m-ctrip-train-d2c-rn.json` 存在
+- [ ] `.Knowledge/matchers/m-pp-d2c-rn.json` 存在
 - [ ] `includeAny` 包含 70+ 关键词,覆盖 rn/xtaro/adapter/StyleSheet/RN 内核/退化 等场景
 - [ ] JSON 语法有效
 
 ### 4.3 manifest-routing.json 更新
 
-- [ ] `topicPaths` 新增 `ctrip-train-d2c-rn` 键
-- [ ] `taskToTopicRules` 新增一条(matcherId `m-ctrip-train-d2c-rn`,topics `ctrip-train-d2c-rn`)
-- [ ] `topicMetadata` 新增 `ctrip-train-d2c-rn: { primary: 'feature', tags: ['module', 'config'], confidence: 'manual' }`
+- [ ] `topicPaths` 新增 `pp-d2c-rn` 键
+- [ ] `taskToTopicRules` 新增一条(matcherId `m-pp-d2c-rn`,topics `pp-d2c-rn`)
+- [ ] `topicMetadata` 新增 `pp-d2c-rn: { primary: 'feature', tags: ['module', 'config'], confidence: 'manual' }`
 - [ ] JSON 语法有效
 
 ### 4.4 index.md 更新
 
-- [ ] Topic Overview 表新增一行 `ctrip-train-d2c-rn`
+- [ ] Topic Overview 表新增一行 `pp-d2c-rn`
 - [ ] 描述提及 6 大 RN 内核标签 + adapter + StyleSheet
-- [ ] `关联: [[ctrip-train-d2c]]` 交叉引用
+- [ ] `关联: [[pp-d2c]]` 交叉引用
 
 ## 五、端到端回归(用户执行)
 
 - [ ] 用户手动跑 `node bin/install.js init`,选 framework=rn,确认:
-  - [ ] `.claude/skills/ctrip-train-d2c-rn/` 被复制
-  - [ ] `.claude/skills/ctrip-train-d2c/` 也被复制(现有行为,五个 SKILL 都装)
+  - [ ] `.claude/skills/pp-d2c-rn/` 被复制
+  - [ ] `.claude/skills/pp-d2c/` 也被复制(现有行为,五个 SKILL 都装)
   - [ ] 交互中出现 `[2.1/8] 是否启用 adapter 映射` 题目
   - [ ] 选携程 xtaro,config 里 adapter 段是完整 xtaro 映射
   - [ ] config `health.enabled` 是 `false`
@@ -193,7 +193,7 @@
   - [ ] 启用 xtaro adapter 后,产物是 `<XView>` from `@ctrip/xtaro`
   - [ ] QA 段落有退化告警(fixed / gradient 之类的常见退化)
 - [ ] 用户手动跑一次 react 项目 D2C(回归确认):
-  - [ ] `install.js` 选 react,`.claude/skills/ctrip-train-d2c-rn/` 不被复制
+  - [ ] `install.js` 选 react,`.claude/skills/pp-d2c-rn/` 不被复制
   - [ ] Figma 稿产物与之前完全一致(h5 SKILL 未回归)
 
 ## 六、归档条件

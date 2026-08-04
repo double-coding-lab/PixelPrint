@@ -1,7 +1,7 @@
 # skill_migrate_to_rest_api_with_cache Context
 
 ## Involved Files
-- `templates/skills/ctrip-train-d2c/SKILL.md`
+- `templates/skills/pp-d2c/SKILL.md`
 - `bin/install.js`
 
 ## Related Materials

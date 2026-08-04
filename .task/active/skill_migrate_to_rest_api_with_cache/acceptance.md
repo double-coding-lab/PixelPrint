@@ -4,7 +4,7 @@
 
 ## 一、SKILL.md v0.3 核对
 
-- [ ] 打开 `templates/skills/ctrip-train-d2c/SKILL.md`，用编辑器查找 `mcp__plugin_figma_figma`，剩余 4 处全部在"解释为什么废弃 MCP"的说明性引用里，没有一处是要求 agent 实际调用 MCP 工具
+- [ ] 打开 `templates/skills/pp-d2c/SKILL.md`，用编辑器查找 `mcp__plugin_figma_figma`，剩余 4 处全部在"解释为什么废弃 MCP"的说明性引用里，没有一处是要求 agent 实际调用 MCP 工具
 - [ ] 步骤 -1 变成 token 探针（`GET /v1/me`），失败提示是"Figma Token 探针失败"（不再是 MCP 未装/未认证/无权限三档）
 - [ ] 步骤 0.3（新增）出现在步骤 0 与步骤 0.5 之间，含 `.d2c-cache/{fileKey}/` 目录结构、`lastModified` 校验、gitignore 兜底、缓存读写约定、禁止项
 - [ ] 步骤 2 调用 `GET /v1/files/:key/nodes?ids=xxx&depth=2`，前面说"先查缓存"
@@ -19,9 +19,9 @@
 
 ## 二、figma.mjs 脚本核对（v0.3 追加）
 
-- [ ] 存在 `templates/skills/ctrip-train-d2c/bin/figma.mjs`，`node --check` 语法通过
+- [ ] 存在 `templates/skills/pp-d2c/bin/figma.mjs`，`node --check` 语法通过
 - [ ] `node figma.mjs --help` 输出 6 个子命令：verify-token / cache-check / fetch-node / export-image / screenshot / cleanup-tmp
-- [ ] 脚本内置：自动向上查找 `ctrip-train-d2c.config.json`、3 次指数退避、`use_absolute_bounds=true` 默认开、两步式下载、`images.json` 回写、nodeId 冒号转下划线
+- [ ] 脚本内置：自动向上查找 `pp-d2c.config.json`、3 次指数退避、`use_absolute_bounds=true` 默认开、两步式下载、`images.json` 回写、nodeId 冒号转下划线
 - [ ] 输出统一为 stdout 一行 JSON（`{ok, data|error}`），退出码 0/非 0
 - [ ] Node 18+ 原生 fetch，无 npm install 依赖
 
@@ -35,11 +35,11 @@
 
 ## 四、端到端跑一遍（用户执行）
 
-- [ ] 在一个测试项目里 `npx @ctrip/train-d2c init`，确认：
+- [ ] 在一个测试项目里 `npx @double-coding/pixel-pilot init`，确认：
   - [ ] 阶段一显示 token 生成引导，没有 MCP 提示
   - [ ] 阶段五输出 gitignore 追加日志
   - [ ] 项目根 `.gitignore` 里能看到 `.d2c-cache/` 和 `.d2c-tmp/`
-- [ ] 把测试项目原有 `.claude/skills/ctrip-train-d2c/SKILL.md` 换成新版，跑一次真实设计稿：
+- [ ] 把测试项目原有 `.claude/skills/pp-d2c/SKILL.md` 换成新版，跑一次真实设计稿：
   - [ ] SKILL 步骤 -1 用 curl 打 `/v1/me`（观察 token 探针是否正常返回 200）
   - [ ] 步骤 0.3 生成 `.d2c-cache/{fileKey}/meta.json`，含 `lastModified` 和 `cachedAt`
   - [ ] 步骤 2 后 `.d2c-cache/{fileKey}/nodes/{rootNodeId_safe}.json` 有内容

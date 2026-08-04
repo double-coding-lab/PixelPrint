@@ -37,7 +37,7 @@
   {
     "name": "skill_add_rn_skill",
     "folder": ".task/active/skill_add_rn_skill/",
-    "keywords": ["rn skill", "d2c-rn", "ctrip-train-d2c-rn", "xtaro adapter", "adapter tagMap importMap", "React Native d2c", "StyleSheet d2c", "独立 rn skill", "RN 生成代码", "多端 d2c"],
+    "keywords": ["rn skill", "d2c-rn", "pp-d2c-rn", "xtaro adapter", "adapter tagMap importMap", "React Native d2c", "StyleSheet d2c", "独立 rn skill", "RN 生成代码", "多端 d2c"],
     "linkedSkill": "f2s-req-plan",
     "createdAt": "2026-07-31"
   }

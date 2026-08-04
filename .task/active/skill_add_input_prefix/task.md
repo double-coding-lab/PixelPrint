@@ -7,8 +7,8 @@
 - [x] 4. 主 SKILL §6.0 checklist 加第 10 项 + 修复方向表加行
 - [x] 5. doctor: config 表 / 前缀识别例 / 规则总览表 4 行 / NAM003 冲突表 / 3.6f-i NAM017-020 四条规则
 - [x] 6. style: config 速查表加 layers.input 行
-- [x] 7. .Knowledge/topics/ctrip-train-d2c.md 新增 §10 段 + 关键前缀清单加行
-- [x] 8. .Knowledge/matchers/m-ctrip-train-d2c.json 加关键词
+- [x] 7. .Knowledge/topics/pp-d2c.md 新增 §10 段 + 关键前缀清单加行
+- [x] 8. .Knowledge/matchers/m-pp-d2c.json 加关键词
 - [x] 9. 同步 3 份 SKILL 到测试项目(主 SKILL 保留 init 尾部段)
 - [x] 10. 交叉验证 grep + acceptance.md 终稿
 

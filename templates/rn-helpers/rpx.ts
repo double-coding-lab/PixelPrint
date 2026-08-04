@@ -3,7 +3,7 @@ import { Dimensions } from 'react-native'
 /**
  * 响应式尺寸包装 — 把设计稿数值按屏幕宽度线性缩放。
  *
- * 由 ctrip-train-d2c-rn SKILL 生成的代码使用。SKILL 只对 layout / spacing / borderRadius / fontSize 类属性调用 rpx(),
+ * 由 pp-d2c-rn SKILL 生成的代码使用。SKILL 只对 layout / spacing / borderRadius / fontSize 类属性调用 rpx(),
  * 对 opacity / flex / color / fontWeight 这类"非像素属性"保持原始数值。
  *
  * 命名说明: rpx 沿用小程序 / uni-app 的 responsive px 惯例。默认基准 375(iPhone Mini 类竖屏宽度),

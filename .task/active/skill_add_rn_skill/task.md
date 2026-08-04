@@ -2,17 +2,17 @@
 
 ## Steps
 
-- [x] 1. 创建 rn 模板 config: `templates/ctrip-train-d2c.rn.config.json`(D3)
+- [x] 1. 创建 rn 模板 config: `templates/pp-d2c.rn.config.json`(D3)
 - [x] 2. install.js 改造:`installFiles` 增加 `options.skipRn`(D4 改动 1)
 - [x] 3. install.js 改造:`runInit` 顺序调整,先问 framework 再决定 skipRn(D4 改动 2)
 - [x] 4. install.js 改造:rn 分支新增 adapter 引导 3 题 + 内置 xtaro adapter 常量(D4 改动 3)
 - [x] 5. install.js 改造:写 config 时分叉 h5/rn,合并 adapter 段(D4 改动 4)
-- [x] 6. 骨架:复制 `templates/skills/ctrip-train-d2c/` → `templates/skills/ctrip-train-d2c-rn/`,含 SKILL.md 和 bin/figma.mjs(D1+D2)
+- [x] 6. 骨架:复制 `templates/skills/pp-d2c/` → `templates/skills/pp-d2c-rn/`,含 SKILL.md 和 bin/figma.mjs(D1+D2)
 - [x] 7. rn SKILL 改造 M2a:顶部说明段落改成 RN 独立;config 字段表新增 adapter 段说明;删除步骤 0.5 doctor 调用;删除步骤 2.5 样式方案探测
 - [x] 8. rn SKILL 改造 M2b:步骤 4 §A 表从"Figma → CSS"改成"Figma → RN StyleSheet"(尺寸/布局/颜色/装饰/文字五类);步骤 4.3 追加 RN 特性退化表(fixed/vh/bg-image/gradient/blur/box-shadow)
 - [x] 9. rn SKILL 改造 M2c:步骤 5 合并输出用 RN 六件套(View/Text/Image/Pressable/TextInput/ScrollView);新增步骤 5.5 adapter 应用(tag 替换 + import 分组);步骤 6/7 QA 段落追加退化告警格式
-- [x] 10. 知识库同步 D5.a:新增 `.Knowledge/topics/ctrip-train-d2c-rn.md`(参考现有 topic 结构,rn 独有内容:style 字典/退化表/adapter 应用)
-- [x] 11. 知识库同步 D5.b:新增 `.Knowledge/matchers/m-ctrip-train-d2c-rn.json`(关键词覆盖 rn/xtaro/adapter/StyleSheet/RN 生成等)
+- [x] 10. 知识库同步 D5.a:新增 `.Knowledge/topics/pp-d2c-rn.md`(参考现有 topic 结构,rn 独有内容:style 字典/退化表/adapter 应用)
+- [x] 11. 知识库同步 D5.b:新增 `.Knowledge/matchers/m-pp-d2c-rn.json`(关键词覆盖 rn/xtaro/adapter/StyleSheet/RN 生成等)
 - [x] 12. 知识库同步 D5.c:更新 `.Knowledge/manifest-routing.json`(新增 taskToTopicRules 条目 + topicPaths + topicMetadata)
 - [x] 13. 知识库同步 D5.d:更新 `.Knowledge/index.md` topic overview 表新增 rn 行
 - [x] 14. 交叉验证:grep + 行数核对 rn SKILL 是否满足验收清单 6.1/6.2/6.4

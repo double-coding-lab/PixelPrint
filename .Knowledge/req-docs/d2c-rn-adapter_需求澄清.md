@@ -1,15 +1,15 @@
 # D2C RN 独立 SKILL + 可配置 Adapter 需求澄清
 
-> 文档定位:让 ctrip-train-d2c 生态从"只能出 H5"扩展到"能出 React Native 原生代码,并通过配置映射到 xtaro / taro / 其他 RN-like 框架"。写给后续技术方案 (`f2s-req-tech`) 作输入。
+> 文档定位:让 pp-d2c 生态从"只能出 H5"扩展到"能出 React Native 原生代码,并通过配置映射到 xtaro / taro / 其他 RN-like 框架"。写给后续技术方案 (`f2s-req-tech`) 作输入。
 
 ## 一、背景与目标
 
-**背景**:当前 `ctrip-train-d2c` SKILL 只支持把 Figma 设计稿翻译成 Web (H5) 代码。业务场景已扩展到需要出 React Native 端代码,以及基于 RN 的携程内部封装 `@ctrip/xtaro`,后续可能还有其他 RN-like 框架(通用 taro / react-native-web / expo 等)。
+**背景**:当前 `pp-d2c` SKILL 只支持把 Figma 设计稿翻译成 Web (H5) 代码。业务场景已扩展到需要出 React Native 端代码,以及基于 RN 的携程内部封装 `@ctrip/xtaro`,后续可能还有其他 RN-like 框架(通用 taro / react-native-web / expo 等)。
 
 **目标**:
-1. 新增独立 SKILL `ctrip-train-d2c-rn`,以 React Native 原生语义为内核,输出可直接跑通的 RN 代码
+1. 新增独立 SKILL `pp-d2c-rn`,以 React Native 原生语义为内核,输出可直接跑通的 RN 代码
 2. 通过用户可配置的 adapter 层,把 RN 代码映射到 xtaro / taro / 其他框架
-3. 现有 `ctrip-train-d2c` (H5) SKILL 完全不受影响,继续独立演进
+3. 现有 `pp-d2c` (H5) SKILL 完全不受影响,继续独立演进
 
 **非目标**:
 - 不做 RN 官方以外的行为交互组件(Modal / Switch / ActivityIndicator 等)
@@ -21,7 +21,7 @@
 
 ### 包含
 
-1. **新增独立 SKILL 目录 `templates/skills/ctrip-train-d2c-rn/`**,包含 `SKILL.md`,不复用现有 h5 SKILL 文件
+1. **新增独立 SKILL 目录 `templates/skills/pp-d2c-rn/`**,包含 `SKILL.md`,不复用现有 h5 SKILL 文件
 2. **RN 内核标签清单**:View / Text / Image / Pressable / TextInput / ScrollView 六个,对应现有六个前缀槽位
 3. **StyleSheet 样式方案**:强制使用 `StyleSheet.create` + `style={styles.xxx}`,camelCase 属性名,数字无单位
 4. **Adapter 配置层**:用户可通过 config 自定义 tagMap + importMap,把 RN 标签映射到任意目标框架
@@ -29,7 +29,7 @@
 
 ### 排除
 
-1. **不改动现有 `ctrip-train-d2c` (H5) SKILL 及其卫星 SKILL**(doctor / style),保持零回归
+1. **不改动现有 `pp-d2c` (H5) SKILL 及其卫星 SKILL**(doctor / style),保持零回归
 2. **不预置任何 preset**(包括不预置 xtaro preset):用户需要 xtaro / taro / expo / react-native-web,自己在 config 里写 adapter
 3. **不纳入行为类 RN 组件**:FlatList / SectionList / Modal / Switch / ActivityIndicator / SafeAreaView / KeyboardAvoidingView 等
 4. **不做代码后处理脚本**(codemod / babel plugin):使用实时映射机制,一次生成即输出目标代码
@@ -39,7 +39,7 @@
 
 ### 3.1 使用流程
 
-用户在 config 里指定 `d2c-rn` 相关字段,直接调用 `ctrip-train-d2c-rn` SKILL(与 h5 SKILL 是并列关系,不通过 target 参数切换)。CLI 在 `runInit()` 时引导用户选择安装哪套 SKILL。
+用户在 config 里指定 `d2c-rn` 相关字段,直接调用 `pp-d2c-rn` SKILL(与 h5 SKILL 是并列关系,不通过 target 参数切换)。CLI 在 `runInit()` 时引导用户选择安装哪套 SKILL。
 
 ### 3.2 生成流程
 
@@ -175,7 +175,7 @@ export default function Index() {
 
 | 术语 | 定义 |
 |------|------|
-| **rn SKILL** | 新增的独立 SKILL `ctrip-train-d2c-rn`,路径 `templates/skills/ctrip-train-d2c-rn/SKILL.md`。以 RN 原生标签和 StyleSheet 为输出规范 |
+| **rn SKILL** | 新增的独立 SKILL `pp-d2c-rn`,路径 `templates/skills/pp-d2c-rn/SKILL.md`。以 RN 原生标签和 StyleSheet 为输出规范 |
 | **RN 内核标签清单** | View / Text / Image / Pressable / TextInput / ScrollView。这六个覆盖当前六个前缀槽位,是 rn SKILL 唯一认识的组件集合 |
 | **Adapter** | 用户在 config 里定义的映射规则,把 RN 标签转成任意 RN-like 框架代码。由两张声明式表组成:`tagMap` 和 `importMap` |
 | **前缀槽位** | 沿用 h5 SKILL 的前缀体系(sub- / img- / bg- / bgc- / btn- / input- / scrollx- / scrolly- / fixed- / end- 等),识别逻辑复制到 rn SKILL |
@@ -185,8 +185,8 @@ export default function Index() {
 
 ### 6.1 SKILL 独立性验收
 
-1. `templates/skills/ctrip-train-d2c-rn/SKILL.md` 独立存在,完整可读
-2. 现有 `templates/skills/ctrip-train-d2c/SKILL.md` 及其卫星 SKILL 一字未改
+1. `templates/skills/pp-d2c-rn/SKILL.md` 独立存在,完整可读
+2. 现有 `templates/skills/pp-d2c/SKILL.md` 及其卫星 SKILL 一字未改
 3. 只调用 rn SKILL 时,不依赖 h5 SKILL 的任何文件
 
 ### 6.2 功能验收
@@ -200,14 +200,14 @@ export default function Index() {
 ### 6.3 CLI 验收
 
 1. `bin/install.js runInit()` 新增"是否安装 rn SKILL"的引导题目
-2. 用户选安装 rn 时,`templates/skills/ctrip-train-d2c-rn/` 被复制到项目的 `.claude/skills/` 下
+2. 用户选安装 rn 时,`templates/skills/pp-d2c-rn/` 被复制到项目的 `.claude/skills/` 下
 3. rn 引导题目独立于 h5 引导题目,不改动 h5 引导逻辑
 4. rn config 字段(`d2cRn.*`)以 spread merge 方式写入 config,不影响 h5 字段
 5. 用户可以只装 h5、只装 rn、两者都装(三种模式都能跑通)
 
 ### 6.4 文档验收
 
-1. `.Knowledge/topics/` 新增独立 topic 文档描述 rn SKILL(不并入 `ctrip-train-d2c` topic)
+1. `.Knowledge/topics/` 新增独立 topic 文档描述 rn SKILL(不并入 `pp-d2c` topic)
 2. `.Knowledge/manifest-routing.json` 新增 rn topic 路由,不改动 h5 topic 路由
 3. `.Knowledge/matchers/` 新增 rn SKILL 的 matcher 关键词
 4. `.Knowledge/index.md` topic overview 表新增 rn topic 行

@@ -1,10 +1,10 @@
 # skill_page_root_min_height_100vh Context
 
 ## Involved Files
-- `templates/skills/ctrip-train-d2c/SKILL.md`(3 处)
-- `.Knowledge/topics/ctrip-train-d2c.md`(2 处)
-- `.Knowledge/matchers/m-ctrip-train-d2c.json`(加关键词)
-- 测试项目同步:`figma-plugin-test-function/.claude/skills/ctrip-train-d2c/SKILL.md`
+- `templates/skills/pp-d2c/SKILL.md`(3 处)
+- `.Knowledge/topics/pp-d2c.md`(2 处)
+- `.Knowledge/matchers/m-pp-d2c.json`(加关键词)
+- 测试项目同步:`figma-plugin-test-function/.claude/skills/pp-d2c/SKILL.md`
 
 ## Related Materials
 - 触发场景:`pages/D3CTicketFillIn/index.scss` `.d3c-ticket-fillin` 用 `min-height: 1624px` 死值,设备高度 >812pt 时底下露白

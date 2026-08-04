@@ -4,7 +4,7 @@
 
 ## 一、SKILL 静态核对
 
-### 主 SKILL `templates/skills/ctrip-train-d2c/SKILL.md`
+### 主 SKILL `templates/skills/pp-d2c/SKILL.md`
 
 - [ ] Config 表新增 `layers.input` 行(line 94),默认 `input-`
 - [ ] §4.3 图层前缀总表新增 `input-` 行(line 683),说明独立前缀 + 不可叠加 bg/bgc/x/img/btn + 可叠加 fixed/end/sub
@@ -19,7 +19,7 @@
 - [ ] §6.0 checklist 第 10 项(line 1546)
 - [ ] §6.0 修复方向表最后一行(input- 生成 div+span 而不是 input)
 
-### doctor `templates/skills/ctrip-train-d2c-doctor/SKILL.md`
+### doctor `templates/skills/pp-doctor/SKILL.md`
 
 - [ ] Config 表新增 `layers.input` 行(line 54)
 - [ ] 前缀识别段例子加 `input-people` + `fixed-input-search`
@@ -30,16 +30,16 @@
 - [ ] §3.6h NAM019 与 bg/bgc/x 叠加(error) — line 461
 - [ ] §3.6i NAM020 与 img/btn 叠加(error) — line 474
 
-### style `templates/skills/ctrip-train-d2c-style/SKILL.md`
+### style `templates/skills/pp-style/SKILL.md`
 
 - [ ] Config 速查表新增 `layers.input` 行
 
 ### 知识库
 
-- [ ] `.Knowledge/topics/ctrip-train-d2c.md` §10 段"input- 输入框(v0.3.4 新增)"完整
+- [ ] `.Knowledge/topics/pp-d2c.md` §10 段"input- 输入框(v0.3.4 新增)"完整
 - [ ] 同 topic 关键前缀清单段追加 input- 说明行
 - [ ] `.Knowledge/index.md` topic overview 表前缀清单补 `input-`
-- [ ] `.Knowledge/matchers/m-ctrip-train-d2c.json` 加 11 个关键词(input-,输入框,input 标签,placeholder,text field,表单输入,NAM017/018/019/020,input 前缀),JSON 语法有效
+- [ ] `.Knowledge/matchers/m-pp-d2c.json` 加 11 个关键词(input-,输入框,input 标签,placeholder,text field,表单输入,NAM017/018/019/020,input 前缀),JSON 语法有效
 
 ### 测试项目
 

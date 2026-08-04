@@ -1,7 +1,7 @@
 # skill_add_autolayout_and_spacing_rules Context
 
 ## Involved Files
-- `templates/skills/ctrip-train-d2c/SKILL.md`（主改动，4 段）
+- `templates/skills/pp-d2c/SKILL.md`（主改动，4 段）
 
 ## Related Materials
 - 触发用例：Figma `dKc9NQvjTgHe9sZzg4zFOL / 163:2085`（D3C-有票未填写）

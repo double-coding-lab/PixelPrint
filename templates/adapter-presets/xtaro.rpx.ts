@@ -8,7 +8,7 @@ import { xGetSystemInfoSync } from '@ctrip/xtaro'
  * xtaro 自己封装了 xGetSystemInfoSync (对 @tarojs/taro getSystemInfoSync 做了 xtaro 侧一致化),
  * 优先用它而不是绕道 @tarojs/taro,项目侧只依赖 @ctrip/xtaro 一个包。
  *
- * 由 ctrip-train-d2c-rn SKILL 生成的代码使用。SKILL 只对 layout / spacing / borderRadius / fontSize 类属性调用 rpx(),
+ * 由 pp-d2c-rn SKILL 生成的代码使用。SKILL 只对 layout / spacing / borderRadius / fontSize 类属性调用 rpx(),
  * 对 opacity / flex / color / fontWeight 这类"非像素属性"保持原始数值。
  *
  * 命名说明: rpx 沿用小程序 / uni-app 的 responsive px 惯例。默认基准 375(iPhone Mini 类竖屏宽度),

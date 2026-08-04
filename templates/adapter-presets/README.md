@@ -8,7 +8,7 @@ D2C RN skill 的 adapter 预设目录。每个 `.json` 文件是一个"框架预
 |-----|---------|------|
 | `xtaro.json` + `xtaro.rpx.ts` + `xtaro.reference.md` | 携程 xtaro | 6 大 RN 标签映射到 `@ctrip/xtaro`;`Pressable → XView`(XView 自身可点击,不引 XClickableSimplified);`Image.source → src`(xtaro 走 taro 语义);自带 rpx helper 走 `xGetSystemInfoSync from @ctrip/xtaro`(xtaro H5 端 webpack 不解析 react-native Flow 语法);**xtaro.reference.md** 承载"prop 名机械改名之外"的复杂差异(值域映射 / 布尔取反 / 事件签名 / 结构变化 / 丢弃属性),SKILL 在 §5.5.3c 时读取应用 |
 
-CLI 里始终有个 `自定义` 兜底选项 — 选它写空 adapter,用户后续在 `ctrip-train-d2c.config.json` 手改 tagMap / importMap / propMap 即可,不必先建 preset 文件。
+CLI 里始终有个 `自定义` 兜底选项 — 选它写空 adapter,用户后续在 `pp-d2c.config.json` 手改 tagMap / importMap / propMap 即可,不必先建 preset 文件。
 
 ## 加自己的预设
 
@@ -101,8 +101,8 @@ CLI 里始终有个 `自定义` 兜底选项 — 选它写空 adapter,用户后�
 1. 项目里跑 `node bin/install.js init`
 2. framework 选 `rn`,adapter 选 `Yes`
 3. `[2.2/8] 选择预设 adapter` 出现你新加的 `<name>` 选项
-4. 选中后,该预设的 `adapter` 段完整写入项目根的 `ctrip-train-d2c.config.json`
-5. SKILL(`.claude/skills/ctrip-train-d2c-rn`)在生成代码合并阶段(§5.5)读 config.adapter 应用映射
+4. 选中后,该预设的 `adapter` 段完整写入项目根的 `pp-d2c.config.json`
+5. SKILL(`.claude/skills/pp-d2c-rn`)在生成代码合并阶段(§5.5)读 config.adapter 应用映射
 
 ## 不做的事
 
