@@ -1,0 +1,30 @@
+templates/adapter-presets/xtaro.json
+  s_2843f3def1e163::t_462f41b23e2c5f 6,25-36
+templates/adapter-presets/xtaro.reference.md
+  s_2843f3def1e163::t_6869391b1ce17b 1-249
+templates/skills/ctrip-train-d2c-rn/SKILL.md
+  s_2843f3def1e163::t_bacbb4a8d6038f 1615-1655
+  s_2843f3def1e163::t_838158d45430c0 108-110
+  s_2843f3def1e163::t_3f3f3173f95945 1920
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "d20ba3fc1d3c0ca4498a2c1b025aee451bfb8356",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "unknown"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
