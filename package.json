@@ -1,9 +1,9 @@
 {
-  "name": "@ctrip/train-d2c",
-  "version": "0.3.0",
-  "description": "携程火车票 Figma D2C 工具 —— 一键安装 Claude Code Skill,自动将 Figma 设计稿转换为前端代码",
+  "name": "@double-coding/pixel-pilot",
+  "version": "0.4.0",
+  "description": "PixelPilot —— Figma D2C 工具,一键安装 Claude Code Skill,自动将 Figma 设计稿转换为前端代码(H5 / React Native / xtaro)",
   "bin": {
-    "ctrip-train-d2c": "bin/install.js"
+    "pp-d2c": "bin/install.js"
   },
   "scripts": {
     "init": "node bin/install.js init"
@@ -18,11 +18,13 @@
   "keywords": [
     "figma",
     "d2c",
-    "ctrip",
-    "train",
+    "design-to-code",
+    "pixel-pilot",
     "claude-code",
-    "skill"
+    "skill",
+    "react-native",
+    "xtaro"
   ],
-  "author": "兰涛",
+  "author": "double-coding",
   "license": "MIT"
 }
