@@ -35,7 +35,7 @@
 
 ## 四、端到端跑一遍（用户执行）
 
-- [ ] 在一个测试项目里 `npx @double-coding/pixel-pilot init`，确认：
+- [ ] 在一个测试项目里 `npx @double-coding/pixel-print init`，确认：
   - [ ] 阶段一显示 token 生成引导，没有 MCP 提示
   - [ ] 阶段五输出 gitignore 追加日志
   - [ ] 项目根 `.gitignore` 里能看到 `.d2c-cache/` 和 `.d2c-tmp/`

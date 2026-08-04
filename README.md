@@ -1,4 +1,4 @@
-# @double-coding/pixel-pilot
+# @double-coding/pixel-print
 
 携程火车票 Figma D2C（Design-to-Code）工具——把 Figma 设计稿一键还原成可运行的 React/SCSS 代码。
 
@@ -10,7 +10,7 @@
 
 ```bash
 # 在你的业务项目根目录下执行
-npx @double-coding/pixel-pilot init
+npx @double-coding/pixel-print init
 ```
 
 `init` 会引导你完成 8 题交互式配置（项目框架、样式方案、单位换算等），并生成：
@@ -30,7 +30,7 @@ npx @double-coding/pixel-pilot init
 ### 1. 完成 init 交互
 
 ```bash
-$ npx @double-coding/pixel-pilot init
+$ npx @double-coding/pixel-print init
 
 ─── 阶段一：Figma MCP 安装提示 ──────────────────────
   ⚠️  init 脚本运行在终端进程里,无法直接验证 Claude Code 内的 MCP 状态。
@@ -151,9 +151,9 @@ Claude 会自动：
 
 ```bash
 # 在业务项目根目录下使用
-npx @double-coding/pixel-pilot init      # 交互式初始化（推荐）
-npx @double-coding/pixel-pilot install   # 仅复制模板文件，不交互
-npx @double-coding/pixel-pilot help      # 显示帮助
+npx @double-coding/pixel-print init      # 交互式初始化（推荐）
+npx @double-coding/pixel-print install   # 仅复制模板文件，不交互
+npx @double-coding/pixel-print help      # 显示帮助
 ```
 
 ---
@@ -238,7 +238,7 @@ pp-d2c/
 ### 仓库结构
 
 - **本仓库**：D2C 工具源码（SKILL 模板、install.js、文档、规则）
-- **业务项目**：通过 `npx @double-coding/pixel-pilot init` 拉取 SKILL 到 `.claude/skills/`
+- **业务项目**：通过 `npx @double-coding/pixel-print init` 拉取 SKILL 到 `.claude/skills/`
 
 ### 版本号
 

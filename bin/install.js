@@ -516,7 +516,7 @@ async function runInit() {
       : outputUnit === 'vw'
       ? `Figma \`${outputBase}px\` → 代码写 \`${(outputBase * scale / outputBase * 100).toFixed(3)}vw\``
       : `Figma \`${outputBase}px\` → 代码写 \`1rem\``
-    const section = `\n## 项目个性化规则\n> 由 npx @double-coding/pixel-pilot init 生成，重新执行可更新。\n\n### 单位换算\n- 设计稿基准：${figmaBase}px\n- 代码单位：${outputUnit}，基准：${outputBase}\n- 换算倍数：×${scale}\n- 示例：${unitExample}\n`
+    const section = `\n## 项目个性化规则\n> 由 npx @double-coding/pixel-print init 生成，重新执行可更新。\n\n### 单位换算\n- 设计稿基准：${figmaBase}px\n- 代码单位：${outputUnit}，基准：${outputBase}\n- 换算倍数：×${scale}\n- 示例：${unitExample}\n`
     const marker = '\n## 项目个性化规则'
     skillContent = skillContent.includes(marker)
       ? skillContent.slice(0, skillContent.indexOf(marker)) + section
@@ -561,9 +561,9 @@ const cmd = process.argv[2]
 function printHelp() {
   console.log(`
 Usage:
-  npx @double-coding/pixel-pilot init      交互式初始化项目（推荐）
-  npx @double-coding/pixel-pilot install   仅复制模板文件，不进入交互
-  npx @double-coding/pixel-pilot help      显示本帮助
+  npx @double-coding/pixel-print init      交互式初始化项目（推荐）
+  npx @double-coding/pixel-print install   仅复制模板文件，不进入交互
+  npx @double-coding/pixel-print help      显示本帮助
 `)
 }
 
@@ -571,7 +571,7 @@ if (cmd === 'init') {
   runInit().catch(err => { console.error(err); process.exit(1) })
 } else if (cmd === 'install') {
   installFiles()
-  console.log('done. 运行 npx @double-coding/pixel-pilot init 完成环境配置。\n')
+  console.log('done. 运行 npx @double-coding/pixel-print init 完成环境配置。\n')
 } else if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
   printHelp()
 } else {
