@@ -1,0 +1,36 @@
+README.md
+  s_2843f3def1e163::t_2c2076f31a39c3 293-296
+  s_2843f3def1e163::t_d6e094eb1dcd3b 59
+  s_2843f3def1e163::t_3fc22cae5e9e41 253,257,259-265,271-276
+templates/adapter-presets/README.md
+  s_2843f3def1e163::t_ec70a26e0b321d 76,80-82,86,89,94-99,102,108
+  s_2843f3def1e163::t_5489257802ba91 7-11,13-19
+templates/adapter-presets/taro.json
+  s_2843f3def1e163::t_3b9e430d0811b0 1-40
+templates/adapter-presets/rn.reference.md
+  s_2843f3def1e163::t_6af4746d48b9ea 1-74
+templates/adapter-presets/taro.reference.md
+  s_2843f3def1e163::t_466b80251c604e 1-247
+templates/adapter-presets/rn.rpx.ts
+  s_2843f3def1e163::t_d7785ad4b88dbc 1-30
+templates/adapter-presets/taro.rpx.ts
+  s_2843f3def1e163::t_edb76755ccf13c 1-42
+templates/adapter-presets/rn.json
+  s_2843f3def1e163::t_ce50fb45980e80 1-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "55749f6f69cee9b833b499fc88d9669d67ce304a",
+  "prompts": {},
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
