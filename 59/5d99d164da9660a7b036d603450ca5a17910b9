@@ -1,0 +1,30 @@
+bin/install.js
+  s_2843f3def1e163::t_ea6aa57c285e12 519,564-566,574
+package.json
+  s_2843f3def1e163::t_ea6aa57c285e12 2,4,22
+.task/active/skill_migrate_to_rest_api_with_cache/acceptance.md
+  s_2843f3def1e163::t_ea6aa57c285e12 38
+README.md
+  s_2843f3def1e163::t_ea6aa57c285e12 1,13,33,154-156,241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "595d99d164da9660a7b036d603450ca5a17910b9",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
