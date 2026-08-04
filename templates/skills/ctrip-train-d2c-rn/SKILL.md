@@ -105,7 +105,9 @@ Read("ctrip-train-d2c.config.json")
 | `adapter.enabled` | 是否启用 adapter 映射(把 RN 原生标签替换为其他框架标签),默认 `false` |
 | `adapter.tagMap` | RN 标签 → 目标框架标签 的映射表(如 `{ View: "MyView" }`),仅 6 大 RN 标签作为 key 合法 |
 | `adapter.importMap` | 目标标签 → import from 路径(如 `{ MyView: "my-rn-lib" }`),未列的标签走 `react-native` |
-| `adapter.propMap` | RN 原标签 → prop 名重命名规则(如 `{ Image: { source: "src" } }`),用于目标框架 prop 语义与 RN 不一致的场景;key 是 RN 原标签名(不是 tagMap 映射后的名字) |
+| `adapter.propMap` | RN 原标签 → prop 名重命名规则(如 `{ Image: { source: "src" } }`),用于目标框架 prop 语义与 RN 不一致的场景;key 是 RN 原标签名(不是 tagMap 映射后的名字);**只做纯改名**,不改 prop 值 |
+| `adapter.referenceDoc` | 可选,预设参考手册的相对文件名(如 `xtaro.reference.md`,相对于 preset 目录);SKILL 在 §5.5.3c 读该文件处理**超出改名**的复杂差异(值域映射 / 布尔取反 / 事件签名 / 结构变化 / 丢弃属性);未声明或文件不存在 → 跳过 §5.5.3c |
+| `adapter._presetSource` | CLI init 阶段自动写入(不必手改),值是选中的 preset 目录绝对路径(如 `<repo>/templates/adapter-presets/`),SKILL 用它拼接 referenceDoc 的实际路径 |
 | `adapter.reactImport` | React 本体 import 源,默认 `"react"` |
 
 #### 样式方案标识符(`project.styleFormat` 取值表)
@@ -1610,6 +1612,47 @@ import { <helperName> } from '<helperImport>'
 <MyImage src={require('./assets/icon.png')} style={styles.icon} resizeMode="contain" />
 ```
 
+**步骤 5.5.3c 查预设参考手册(处理复杂差异)**
+
+`propMap`(§5.5.3b)只做**声明式的 prop 名机械改名**(左侧 → 右侧,不动值,不改回调体,不动结构)。目标框架与 RN 内核的差异往往超出这个范畴,例如:
+
+- **值域映射**:`Image.resizeMode='contain'` → xtaro `mode='aspectFit'`(prop 值也变)
+- **布尔取反**:`TextInput.editable={false}` → xtaro `disabled={true}`
+- **事件签名转换**:`TextInput.onChangeText={(text)=>...}` → xtaro `onInput={(e)=>...}`,回调体要读 `e.detail.value`
+- **结构变化**:`ScrollView.horizontal={true}` → xtaro `scrollX={true}` + 删除 horizontal + 显式补 `scrollY={true}` for 纵滚场景
+- **无跨端支持**:`Text.numberOfLines` 在某些框架 rn 端不支持,需删除属性 + QA warn
+
+这些"超改名"的差异由**预设参考手册**承载,不进 preset JSON,也不进 SKILL 本体(避免 SKILL 与具体框架耦合)。
+
+**触发条件**:`config.adapter` 命中的 preset(见 §5.5.2 前置)里含 `referenceDoc` 字段,且该字段值指向的 md 文件真实存在。
+
+**执行动作**:
+
+1. 从 `config.adapter._presetSource` 拿到 preset 目录路径(CLI 已在 init 阶段把选中的 preset 完整字段写入 config,SKILL 从 config 读即可)
+2. `Read(<preset 目录>/<referenceDoc>)`——例如 `templates/adapter-presets/xtaro.reference.md`
+3. 按参考手册顶部的"§六 agent 快速参考"给出的顺序,遍历本文件所有 index.tsx 的 JSX 逐条对照:
+   - 值域映射 → 改 prop 值(必要时同步改 prop 名);无 valueMap 命中的值退化为默认值 + QA warn
+   - 布尔取反 → 改 prop 名 + 值取反(字面 boolean 对换、变量引用加 `!`)
+   - 事件签名转换 → 改 prop 名 + 改回调函数体(例如 `(text)=>...` 改成 `(e)=>...,e.detail.value` 替代 `text`)
+   - 结构变化 → 按手册规则重塑 JSX(拆 prop / 包 XView / 删 prop)
+   - 无跨端支持 → 直接删属性 + 写入 §7 QA warn 段(列文件名 + 行号 + 属性名 + 手册对应节号)
+4. 未在参考手册出现的属性**一律保留原样**;`style / key / ref / children / className` 永远不改(与 §5.5.3b 兜底一致)
+
+**若 preset 未声明 referenceDoc 或文件不存在**:跳过本步(§5.5.3c 无副作用),继续 §5.5.4;若声明但读取失败,写入 §7 QA warn:"预设 <name> 声明 referenceDoc=<path> 但读取失败,已跳过复杂差异处理"。
+
+**与 §5.5.3b 的分工**:
+
+| 差异形态 | 处理载体 | 生效步骤 |
+|---|---|---|
+| prop 名不同,值和语义一样(如 `maxLength → maxlength`) | `xtaro.json` `propMap` | §5.5.3b(声明式) |
+| prop 名可能相同,取值域不同 | `xtaro.reference.md` §一 值域映射 | §5.5.3c(查手册) |
+| 值需要布尔取反(如 `editable → disabled`) | `xtaro.reference.md` §二 布尔取反 | §5.5.3c |
+| 回调签名不同,回调体要改 | `xtaro.reference.md` §三 事件签名转换 | §5.5.3c |
+| 一个 prop 拆多个 / 需要包一层 | `xtaro.reference.md` §四 结构变化 | §5.5.3c |
+| 目标框架不支持,需删属性 + warn | `xtaro.reference.md` §五 无跨端支持 | §5.5.3c |
+
+**为什么不把复杂差异也放 JSON**:v1 语法保持简单,任何 preset 作者靠看 README 就能写正确;复杂差异走 md 让作者用**表格 + code snippet** 讲清楚,SKILL 读 md 拿到明确的 case + before/after,比"猜 v2 JSON schema 语义"稳。
+
 **步骤 5.5.4 重写 import 段**
 
 原始 import(未启用 adapter 时):
@@ -1874,6 +1917,7 @@ const styles = StyleSheet.create({ /* ... */ })
 - Preset:<预设名>(取自 config 或 CLI 选择,如无预设写"自定义")
 - tagMap 命中标签:View → <目标>, Text → <目标>, ...(共 X 个)
 - propMap 命中属性:Image.source → src(共 X 条,若未启用 propMap 写"未启用")
+- 参考手册命中(§5.5.3c):共 X 条(值域映射 A / 布尔取反 B / 事件签名 C / 结构变化 D / 丢弃属性 E);若 preset 未声明 referenceDoc 写"未启用参考手册"
 - importMap 应用:<import 源>(合并了 X 个 import)
 - 未映射的原生标签:StyleSheet, Dimensions(保留从 react-native 导入)
 - 无效条目:0 条(若有,列出并附 QA warn)

@@ -3,6 +3,7 @@
   "name": "携程 xtaro",
   "description": "6 大 RN 标签映射到 @ctrip/xtaro;Pressable 归到 XView(XView 自身可点击);Image.source → src(xtaro 走 taro 语义);rpx helper 走 xGetSystemInfoSync from @ctrip/xtaro 而非 Dimensions",
   "helperTemplate": "xtaro.rpx.ts",
+  "referenceDoc": "xtaro.reference.md",
   "adapter": {
     "enabled": true,
     "tagMap": {
@@ -21,7 +22,18 @@
       "XScrollView": "@ctrip/xtaro"
     },
     "propMap": {
-      "Image": { "source": "src" }
+      "Image": {
+        "source": "src"
+      },
+      "TextInput": {
+        "maxLength": "maxlength",
+        "secureTextEntry": "password",
+        "autoFocus": "focus",
+        "onSubmitEditing": "onConfirm"
+      },
+      "ScrollView": {
+        "onEndReached": "onScrollToLower"
+      }
     },
     "reactImport": "react"
   }
