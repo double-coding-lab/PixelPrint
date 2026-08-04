@@ -1,0 +1,26 @@
+templates/adapter-presets/README.md
+  s_2843f3def1e163::t_496bc5b12b9d89 23,52-58
+  s_2843f3def1e163::t_66189f918ae3d3 64-65
+  s_2843f3def1e163::t_8927e7d6dbb025 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "9a492516f3a10225c44e853dfc9f954b674305bd",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "unknown"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
