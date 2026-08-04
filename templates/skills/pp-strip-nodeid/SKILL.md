@@ -1,4 +1,4 @@
-# ctrip-train-d2c-strip-nodeid Skill
+# pp-strip-nodeid Skill
 
 > 一键清理 D2C 生成产物里注入的 `data-node-id="..."` 调试锚点。
 >
@@ -7,14 +7,14 @@
 ## 触发条件
 
 - 用户说：「清一下 data-node-id」「去掉 nodeId」「上线前清理调试属性」「D2C 产物清理」
-- 直接 `$ctrip-train-d2c-strip-nodeid`
-- `ctrip-train-d2c` 主流程完成后，用户在 review 通过后主动触发
+- 直接 `$pp-strip-nodeid`
+- `pp-d2c` 主流程完成后，用户在 review 通过后主动触发
 
 ## 执行流程
 
 ### 步骤 0：确认目标目录
 
-从 `ctrip-train-d2c.config.json` 读 `output.dir`（例如 `pages/`）；若配置文件缺失，默认扫描 `pages/`。
+从 `pp-d2c.config.json` 读 `output.dir`（例如 `pages/`）；若配置文件缺失，默认扫描 `pages/`。
 
 允许用户指定其他目录（例如 `components/`），此时用 `--dir <path>` 覆盖。
 
@@ -23,7 +23,7 @@
 **必须**先跑 dry-run，让用户看清将要改动多少文件、共清理多少处：
 
 ```bash
-node .claude/skills/ctrip-train-d2c-strip-nodeid/strip-node-id.mjs --dry-run
+node .claude/skills/pp-strip-nodeid/strip-node-id.mjs --dry-run
 ```
 
 输出示例：
@@ -47,7 +47,7 @@ node .claude/skills/ctrip-train-d2c-strip-nodeid/strip-node-id.mjs --dry-run
 用户确认无误后，去掉 `--dry-run` 重跑：
 
 ```bash
-node .claude/skills/ctrip-train-d2c-strip-nodeid/strip-node-id.mjs
+node .claude/skills/pp-strip-nodeid/strip-node-id.mjs
 ```
 
 ### 步骤 3：产出摘要

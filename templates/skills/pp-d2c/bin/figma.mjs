@@ -33,7 +33,7 @@ function nodeIdSafe(nodeId) {
 function findProjectRoot(startDir = process.cwd()) {
   let dir = path.resolve(startDir)
   while (true) {
-    if (fs.existsSync(path.join(dir, 'ctrip-train-d2c.config.json'))) return dir
+    if (fs.existsSync(path.join(dir, 'pp-d2c.config.json'))) return dir
     const parent = path.dirname(dir)
     if (parent === dir) return null
     dir = parent
@@ -42,8 +42,8 @@ function findProjectRoot(startDir = process.cwd()) {
 
 function loadConfig() {
   const projectRoot = findProjectRoot()
-  if (!projectRoot) throw new Error('ctrip-train-d2c.config.json not found in cwd or ancestors')
-  const cfg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'ctrip-train-d2c.config.json'), 'utf8'))
+  if (!projectRoot) throw new Error('pp-d2c.config.json not found in cwd or ancestors')
+  const cfg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'pp-d2c.config.json'), 'utf8'))
   return { config: cfg, projectRoot }
 }
 
@@ -124,7 +124,7 @@ async function downloadToFile(url, destPath) {
 async function cmdVerifyToken() {
   const { config } = loadConfig()
   const token = config.figma?.token
-  if (!token) return fail('figma.token 未在 ctrip-train-d2c.config.json 配置')
+  if (!token) return fail('figma.token 未在 pp-d2c.config.json 配置')
   try {
     const me = await figmaFetch('/v1/me', token)
     output({ ok: true, data: { email: me.email, handle: me.handle } })
@@ -344,7 +344,7 @@ figma.mjs — Figma REST API helper
   node figma.mjs screenshot <fileKey> <nodeId> [--tag=leaf|whole|block] [--scale=2]
   node figma.mjs cleanup-tmp
 
-所有命令都从 cwd 向上查找 ctrip-train-d2c.config.json 拿 figma.token 和 assetsDir。
+所有命令都从 cwd 向上查找 pp-d2c.config.json 拿 figma.token 和 assetsDir。
 输出统一为 stdout 一行 JSON: {ok: true, data: {...}} 或 {ok: false, error: "..."}。
 退出码 0 表示成功,非零表示失败。
 `)

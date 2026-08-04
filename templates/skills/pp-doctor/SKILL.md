@@ -1,4 +1,4 @@
-# ctrip-train-d2c-doctor Skill
+# pp-doctor Skill
 
 > D2C 设计稿健康检测：在生成代码前对 Figma 设计稿做体检，提前暴露命名、布局、结构、资产层面的问题。
 >
@@ -7,8 +7,8 @@
 ## 触发条件
 
 - 用户提供 Figma 设计稿 URL 并说：「体检一下」「健康检测」「检查设计稿」「跑个 d2c 体检」「看看这个稿能不能还原」
-- 直接 `$ctrip-train-d2c-doctor`
-- 被 `ctrip-train-d2c` 主 SKILL 在步骤 0 之后以集成模式调用
+- 直接 `$pp-doctor`
+- 被 `pp-d2c` 主 SKILL 在步骤 0 之后以集成模式调用
 
 > **执行模型重申**：SKILL.md 是自然语言操作手册，不是代码。"被主 SKILL 调用"实际是**同一个 agent 顺序读两份 SKILL.md 并按步骤执行**——没有真正的函数调用、跨进程通信。"集成模式 return JSON"指的是当前 agent 在对话里输出 §5.4 描述的 JSON 摘要，主 SKILL 后续步骤自己读这段输出继续推进。完整说明见主 SKILL 顶部「执行模型说明」。
 
@@ -35,7 +35,7 @@ Figma MCP 未就绪，请先在 Claude Code 中安装 Figma 官方插件并完�
 ### 步骤 0：读取配置
 
 ```
-Read("ctrip-train-d2c.config.json")
+Read("pp-d2c.config.json")
 ```
 
 读取并缓存以下字段（缺省时使用括号内默认值）：
@@ -300,7 +300,7 @@ inNonRecursiveSubtree(node) =
 
 #### 3.3 NAM003 前缀语义冲突(默认 error)
 
-`prefixes` 命中以下任一组合即报错。**冲突表**与主 SKILL `templates/skills/ctrip-train-d2c/SKILL.md` §428-432 / §448 / §712 完全对齐:
+`prefixes` 命中以下任一组合即报错。**冲突表**与主 SKILL `templates/skills/pp-d2c/SKILL.md` §428-432 / §448 / §712 完全对齐:
 
 | 冲突组合 | 根因(来自主 SKILL) |
 |---------|--------|
@@ -874,7 +874,7 @@ out/
 {passed ? '✅' : '⛔'} **{passed ? '可以' : '不建议'}继续生成**（grade = {grade}）
 
 {若 passed && warn > 0：'⚠️ 但建议至少处理「设计师待办」中的 Top 3 后再生成，否则生成质量会下降。'}
-{若 !passed：'⛔ 必须先处理 error 项，否则 ctrip-train-d2c 主流程将拒绝执行。'}
+{若 !passed：'⛔ 必须先处理 error 项，否则 pp-d2c 主流程将拒绝执行。'}
 ````
 
 #### 5.4 集成模式（integrated）
@@ -983,7 +983,7 @@ doctor 在外部表现"长时间无响应"时，**99% 卡在步骤 2.1**（`get_
 |------|------|------|
 | 输入 `fileKey` | string | 必填，由主 SKILL §1 解析得到 |
 | 输入 `nodeId` | string | 必填，`:` 形式（主 SKILL §1 已经把 URL 里的 `-` 转成 `:`）|
-| 输入 `config` | object | 完整 ctrip-train-d2c.config.json，主 SKILL §0 已读取 |
+| 输入 `config` | object | 完整 pp-d2c.config.json，主 SKILL §0 已读取 |
 | 输入 `mode` | `'integrated'` | 当前 agent 进入 doctor 流程时**自我设定**的执行约束:不写磁盘文件、最后输出 JSON 摘要 |
 | 输出 `passed` | boolean | grade !== 'F' |
 | 输出 `score` | object | 见步骤 4 |

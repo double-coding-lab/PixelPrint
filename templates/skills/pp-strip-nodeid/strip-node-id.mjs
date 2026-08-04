@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// ctrip-train-d2c-strip-nodeid
+// pp-strip-nodeid
 // 清理 D2C 生成产物里注入的 data-node-id="..." 调试锚点。
 //
 // 用法：
-//   node strip-node-id.mjs                # 从 ctrip-train-d2c.config.json 读 output.dir，实际写入
+//   node strip-node-id.mjs                # 从 pp-d2c.config.json 读 output.dir，实际写入
 //   node strip-node-id.mjs --dry-run      # 只预览，不写盘
 //   node strip-node-id.mjs --dir pages    # 覆盖扫描目录
 //   node strip-node-id.mjs --ext tsx,jsx  # 覆盖扫描扩展名（逗号分隔，不带点）
@@ -22,7 +22,7 @@ const extList = (args.ext || 'tsx,jsx,ts,js,html,htm').split(',').map(s => s.tri
 
 let scanDir = args.dir
 if (!scanDir) {
-  const configPath = path.join(CWD, 'ctrip-train-d2c.config.json')
+  const configPath = path.join(CWD, 'pp-d2c.config.json')
   if (fs.existsSync(configPath)) {
     try {
       const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'))
