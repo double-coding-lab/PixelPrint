@@ -1,7 +1,7 @@
 {
   "version": "2.0.0",
   "project": {
-    "name": "ctrip-train-d2c-rn",
+    "name": "pp-d2c-rn",
     "framework": "rn",
     "styleFormat": "stylesheet"
   },

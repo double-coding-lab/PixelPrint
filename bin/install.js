@@ -6,7 +6,7 @@ const readline = require('readline')
 
 const TEMPLATES_DIR = path.join(__dirname, '../templates')
 const CWD = process.cwd()
-const CONFIG_PATH = path.join(CWD, 'ctrip-train-d2c.config.json')
+const CONFIG_PATH = path.join(CWD, 'pp-d2c.config.json')
 const MAPPINGS_PATH = path.join(CWD, 'code-connect/mappings.json')
 
 // ─── 文件操作 ────────────────────────────────────────────────
@@ -45,7 +45,7 @@ function copyDir(srcDir, destDir, force = false) {
 function ensureGitignoreEntries() {
   const gitignorePath = path.join(CWD, '.gitignore')
   const entries = ['.d2c-cache/', '.d2c-tmp/']
-  const header = '# ctrip-train-d2c cache & temp'
+  const header = '# pp-d2c cache & temp'
 
   let existing = ''
   if (fs.existsSync(gitignorePath)) {
@@ -72,16 +72,16 @@ function ensureGitignoreEntries() {
 
 function installFiles(forceSkills = false, skipConfig = false, options = {}) {
   const { skipRn = false } = options
-  console.log('\nctrip-train-d2c: installing files...\n')
+  console.log('\npp-d2c: installing files...\n')
   const skillsSrc = path.join(TEMPLATES_DIR, 'skills')
   const skillsDst = path.join(CWD, '.claude/skills')
   for (const entry of fs.readdirSync(skillsSrc, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue
-    if (skipRn && entry.name === 'ctrip-train-d2c-rn') continue
+    if (skipRn && entry.name === 'pp-d2c-rn') continue
     copyDir(path.join(skillsSrc, entry.name), path.join(skillsDst, entry.name), forceSkills)
   }
   if (!skipConfig) {
-    copyFile(path.join(TEMPLATES_DIR, 'ctrip-train-d2c.config.json'), CONFIG_PATH)
+    copyFile(path.join(TEMPLATES_DIR, 'pp-d2c.config.json'), CONFIG_PATH)
   }
   copyFile(path.join(TEMPLATES_DIR, 'code-connect/mappings.json'), MAPPINGS_PATH)
   console.log('')
@@ -270,7 +270,7 @@ async function runInit() {
 
         if (picked === CUSTOM_LABEL) {
           adapterCfg = { enabled: true, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
-          console.log('  → adapter.enabled=true,请后续在 ctrip-train-d2c.config.json 手动填 tagMap / importMap / propMap')
+          console.log('  → adapter.enabled=true,请后续在 pp-d2c.config.json 手动填 tagMap / importMap / propMap')
         } else {
           const hit = presets.find(p => p.name === picked)
           adapterCfg = { ...hit.adapter }
@@ -453,7 +453,7 @@ async function runInit() {
   }
 
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2))
-  console.log('\n  ✓ ctrip-train-d2c.config.json 已写入')
+  console.log('\n  ✓ pp-d2c.config.json 已写入')
 
   // rn + 响应式启用时,复制 rpx helper 到项目(存在则跳过,不覆盖用户自定义)
   // 落地路径按 helperImport 反推:
@@ -507,8 +507,8 @@ async function runInit() {
 
   // 将单位规则注入主 Skill(按 framework 分叉:react → h5 SKILL;rn → rn SKILL)
   const skillPath = framework === 'rn'
-    ? path.join(CWD, '.claude/skills/ctrip-train-d2c-rn/SKILL.md')
-    : path.join(CWD, '.claude/skills/ctrip-train-d2c/SKILL.md')
+    ? path.join(CWD, '.claude/skills/pp-d2c-rn/SKILL.md')
+    : path.join(CWD, '.claude/skills/pp-d2c/SKILL.md')
   if (fs.existsSync(skillPath)) {
     let skillContent = fs.readFileSync(skillPath, 'utf8')
     const unitExample = outputUnit === 'px'
@@ -516,7 +516,7 @@ async function runInit() {
       : outputUnit === 'vw'
       ? `Figma \`${outputBase}px\` → 代码写 \`${(outputBase * scale / outputBase * 100).toFixed(3)}vw\``
       : `Figma \`${outputBase}px\` → 代码写 \`1rem\``
-    const section = `\n## 项目个性化规则\n> 由 npx @ctrip/train-d2c init 生成，重新执行可更新。\n\n### 单位换算\n- 设计稿基准：${figmaBase}px\n- 代码单位：${outputUnit}，基准：${outputBase}\n- 换算倍数：×${scale}\n- 示例：${unitExample}\n`
+    const section = `\n## 项目个性化规则\n> 由 npx @double-coding/pixel-pilot init 生成，重新执行可更新。\n\n### 单位换算\n- 设计稿基准：${figmaBase}px\n- 代码单位：${outputUnit}，基准：${outputBase}\n- 换算倍数：×${scale}\n- 示例：${unitExample}\n`
     const marker = '\n## 项目个性化规则'
     skillContent = skillContent.includes(marker)
       ? skillContent.slice(0, skillContent.indexOf(marker)) + section
@@ -547,7 +547,7 @@ async function runInit() {
 
   console.log('\n─────────────────────────────────────────────────────')
   console.log('  ✓ v0.3 起完全走 Figma REST API,无需 MCP;确保 figma.token 已配置即可。')
-  console.log('  ✓ ctrip-train-d2c.config.json 已配置')
+  console.log('  ✓ pp-d2c.config.json 已配置')
   console.log('  ✓ code-connect/mappings.json 已就绪')
   console.log('  ✓ .gitignore 已追加 .d2c-cache/ / .d2c-tmp/')
   console.log('\n  把设计稿链接发给 Claude 即可开始生成:')
@@ -561,9 +561,9 @@ const cmd = process.argv[2]
 function printHelp() {
   console.log(`
 Usage:
-  npx @ctrip/train-d2c init      交互式初始化项目（推荐）
-  npx @ctrip/train-d2c install   仅复制模板文件，不进入交互
-  npx @ctrip/train-d2c help      显示本帮助
+  npx @double-coding/pixel-pilot init      交互式初始化项目（推荐）
+  npx @double-coding/pixel-pilot install   仅复制模板文件，不进入交互
+  npx @double-coding/pixel-pilot help      显示本帮助
 `)
 }
 
@@ -571,7 +571,7 @@ if (cmd === 'init') {
   runInit().catch(err => { console.error(err); process.exit(1) })
 } else if (cmd === 'install') {
   installFiles()
-  console.log('done. 运行 npx @ctrip/train-d2c init 完成环境配置。\n')
+  console.log('done. 运行 npx @double-coding/pixel-pilot init 完成环境配置。\n')
 } else if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
   printHelp()
 } else {
