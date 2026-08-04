@@ -1,0 +1,30 @@
+README.md
+  s_2843f3def1e163::t_f2e38be862c45f 67,69,71
+  s_2843f3def1e163::t_42060b55da6afc 164,166,168,170-176,180,184-187
+  s_2843f3def1e163::t_b03ba447ebdb91 26
+  s_2843f3def1e163::t_6d4c15b6f5c034 37-40
+docs/d2c-health-check-spec.md
+  s_2843f3def1e163::t_917c6138eb44fc 88,105-106
+  s_2843f3def1e163::t_346e02707ee8fd 69,74
+  s_2843f3def1e163::t_cb640eccec53ba 110
+templates/skills/pp-doctor/SKILL.md
+  s_2843f3def1e163::t_52a6f0850fe18f 19,21,23-29,31,33-38,41
+  s_2843f3def1e163::t_7053066baf8245 962,969
+  s_2843f3def1e163::t_917c6138eb44fc 106,118,129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "d06c7f2be7865f3cb4741e25ed9a0d22c0142101",
+  "prompts": {},
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
