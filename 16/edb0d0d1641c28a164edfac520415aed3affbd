@@ -1,0 +1,28 @@
+bin/install.js
+  s_2843f3def1e163::t_0f0b8b2ddf616f 9,48,75,80,84,273,456,510-511,519,550,564-566,574
+templates/pp-d2c.rn.config.json
+  s_2843f3def1e163::t_0f0b8b2ddf616f 4
+templates/pp-d2c.config.json
+  s_2843f3def1e163::t_0f0b8b2ddf616f 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "16edb0d0d1641c28a164edfac520415aed3affbd",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
