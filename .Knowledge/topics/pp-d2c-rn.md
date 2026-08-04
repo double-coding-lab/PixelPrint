@@ -1,6 +1,6 @@
-# ctrip-train-d2c-rn
+# pp-d2c-rn
 
-> D2C RN SKILL(`templates/skills/ctrip-train-d2c-rn/`)的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md(约 1700 行),本 topic 是路由摘要 + 关键边界。**与 [[ctrip-train-d2c]](h5)完全独立并列**,共享前缀识别 / 布局判定 / 图片处理决策逻辑,但输出层完全不同。
+> D2C RN SKILL(`templates/skills/pp-d2c-rn/`)的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md(约 1700 行),本 topic 是路由摘要 + 关键边界。**与 [[pp-d2c]](h5)完全独立并列**,共享前缀识别 / 布局判定 / 图片处理决策逻辑,但输出层完全不同。
 
 ## 适用场景 / 触发词
 
@@ -13,8 +13,8 @@
 
 | 层级 | 关注 | 产物 |
 |------|------|------|
-| **h5 SKILL** `ctrip-train-d2c` | Figma → React + CSS/SCSS/Less/Tailwind 等 8 种 web 样式 | web 页面代码 |
-| **rn SKILL** `ctrip-train-d2c-rn`(本文档) | Figma → React Native + StyleSheet(内核)→ 可选 adapter 映射到 xtaro / taro / 其他 | 移动端原生代码 |
+| **h5 SKILL** `pp-d2c` | Figma → React + CSS/SCSS/Less/Tailwind 等 8 种 web 样式 | web 页面代码 |
+| **rn SKILL** `pp-d2c-rn`(本文档) | Figma → React Native + StyleSheet(内核)→ 可选 adapter 映射到 xtaro / taro / 其他 | 移动端原生代码 |
 
 **独立性**:
 
@@ -42,7 +42,7 @@ rn SKILL 内部只知道 6 个 RN 原生标签,对应现有 6 个前缀槽位:
 
 ### Adapter 配置(通过 config 映射到任意框架)
 
-Adapter 是 rn SKILL 独有的机制。用户在 `ctrip-train-d2c.config.json` 里配置三张表(`tagMap` / `importMap` / `propMap`),SKILL 在合并阶段应用到产物 JSX。
+Adapter 是 rn SKILL 独有的机制。用户在 `pp-d2c.config.json` 里配置三张表(`tagMap` / `importMap` / `propMap`),SKILL 在合并阶段应用到产物 JSX。
 
 **预设来源**:CLI 层的预设列表在 `templates/adapter-presets/*.json`(每个 JSON 是一个预设,`install.js init` 扫目录列成选项;新增框架加 preset 文件即可,不用改 SKILL 或 CLI)。SKILL 自身只消费 config 里最终写好的 `adapter` 段。
 
@@ -154,7 +154,7 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 
 ## 不在本 topic 覆盖的内容
 
-- doctor 的体检规则 → 见 [[ctrip-train-d2c-doctor]](rn 不接,但可手动跑一遍 h5 版看规范)
-- h5 版 D2C 完整规则 → 见 [[ctrip-train-d2c]]
+- doctor 的体检规则 → 见 [[pp-doctor]](rn 不接,但可手动跑一遍 h5 版看规范)
+- h5 版 D2C 完整规则 → 见 [[pp-d2c]]
 - 通用 D2C 设计意图(如何写图层名 / Auto Layout 怎么用) → 见 `docs/design-guide.md`
-- 项目级 rn config 示例 → 见 `templates/ctrip-train-d2c.rn.config.json`
+- 项目级 rn config 示例 → 见 `templates/pp-d2c.rn.config.json`

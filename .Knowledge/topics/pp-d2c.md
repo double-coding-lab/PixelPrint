@@ -1,6 +1,6 @@
-# ctrip-train-d2c
+# pp-d2c
 
-> D2C 主 SKILL（`templates/skills/ctrip-train-d2c/`）的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md（共约 770 行），本 topic 是路由摘要 + 关键边界，不重复长篇内容。
+> D2C 主 SKILL（`templates/skills/pp-d2c/`）的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md（共约 770 行），本 topic 是路由摘要 + 关键边界，不重复长篇内容。
 
 ## 适用场景 / 触发词
 
@@ -33,7 +33,7 @@
 
 ## 与 doctor 的分工（必读）
 
-主 SKILL `ctrip-train-d2c` 与 doctor `ctrip-train-d2c-doctor`（见 [[ctrip-train-d2c-doctor]]）是**协作但独立**的两条流程：
+主 SKILL `pp-d2c` 与 doctor `pp-doctor`（见 [[pp-doctor]]）是**协作但独立**的两条流程：
 
 | 层级 | 关注 | 产物 |
 |------|------|------|
@@ -289,7 +289,7 @@ input-{name}              ← Frame,自身 fills(输入框底色) + strokes + co
 
 ```bash
 # 检查项目 config 是否含 health 段、preserveEffectIds、scrollX/fixed 前缀
-cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffectIds|layers\.scrollX|layers\.fixed"
+cat pp-d2c.config.json | grep -E "health\.enabled|images\.preserveEffectIds|layers\.scrollX|layers\.fixed"
 ```
 
 缺任何一个 → re-init 或手动补段。**老项目 `layers.fixed` 缺失最常见**（v0.2.1 才加），重跑一次 `install.js runInit()` 会自动补上。
@@ -301,7 +301,7 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 | `figma.token` | REST API 鉴权 | 缺失/过期触发 L1 兜底 |
 | `images.assetsDir` / `images.imageBaseUrl` | 图片 URL 拼接 | 三段字面拼接铁律，禁止补/删字符（§510-545） |
 | `images.preserveEffectIds` | 例外清单 | 仅当某张图就是要烤 effect 进 PNG 时使用 |
-| `health.enabled` / `health.blockOnError` | 是否在 §0.5 调用 doctor + 是否阻塞 | doctor 内部见 [[ctrip-train-d2c-doctor]] |
+| `health.enabled` / `health.blockOnError` | 是否在 §0.5 调用 doctor + 是否阻塞 | doctor 内部见 [[pp-doctor]] |
 | `unit.figmaBase` / `unit.outputBase` / `unit.scale` | 尺寸换算 | 设计稿 → 输出代码必经路径 |
 | `layers.*` | 11 类前缀（sub/block/img/bg/bgc/font/btn/x/scrollx/scrolly/**fixed**） | 多前缀组合解析见 §398-438；**fixed- 是修饰前缀**，可叠加
 
@@ -336,7 +336,7 @@ cat ctrip-train-d2c.config.json | grep -E "health\.enabled|images\.preserveEffec
 
 ## 不在本 topic 覆盖的内容
 
-- doctor 的体检规则、报告格式、阈值 → 见 [[ctrip-train-d2c-doctor]]
+- doctor 的体检规则、报告格式、阈值 → 见 [[pp-doctor]]
 - 通用 D2C 设计意图（如何写图层名 / Auto Layout 怎么用） → 见 `docs/design-guide.md`
-- 项目级配置示例（`ctrip-train-d2c.config.json` 全字段） → 见 SKILL.md §0
-- `templates/ctrip-train-d2c.config.json` 模板源 → 见 `templates/` 目录
+- 项目级配置示例（`pp-d2c.config.json` 全字段） → 见 SKILL.md §0
+- `templates/pp-d2c.config.json` 模板源 → 见 `templates/` 目录

@@ -1,7 +1,7 @@
 {
-  "id": "m-ctrip-train-d2c",
+  "id": "m-pp-d2c",
   "includeAny": [
-    "ctrip-train-d2c",
+    "pp-d2c",
     "D2C",
     "d2c",
     "还原设计稿",

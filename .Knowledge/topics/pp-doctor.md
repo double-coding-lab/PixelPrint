@@ -1,20 +1,20 @@
-# ctrip-train-d2c-doctor
+# pp-doctor
 
-> D2C 设计稿健康检测 SKILL（`templates/skills/ctrip-train-d2c-doctor/`）的执行约定与卡顿排查路由摘要。完整规则定义见 `docs/d2c-health-check-spec.md`，可执行步骤见同名 SKILL.md。
+> D2C 设计稿健康检测 SKILL（`templates/skills/pp-doctor/`）的执行约定与卡顿排查路由摘要。完整规则定义见 `docs/d2c-health-check-spec.md`，可执行步骤见同名 SKILL.md。
 
 ## 适用场景 / 触发词
 
 - 用户反馈"doctor 卡住"、"步骤 2 卡很久"、"健康检测无响应"、"体检不返回"
 - 维护者修改 doctor 流程、阈值、报告格式时定位读哪份文件
-- 主 SKILL `ctrip-train-d2c` 集成调用 doctor 时排查阻塞原因
+- 主 SKILL `pp-d2c` 集成调用 doctor 时排查阻塞原因
 
 ## 文件分工（读取优先级）
 
 | 文件 | 角色 |
 |------|------|
-| `templates/skills/ctrip-train-d2c-doctor/SKILL.md` | 可执行步骤（步骤 -1 ~ 6），运行时由 Agent 直接遵循 |
+| `templates/skills/pp-doctor/SKILL.md` | 可执行步骤（步骤 -1 ~ 6），运行时由 Agent 直接遵循 |
 | `docs/d2c-health-check-spec.md` | 规则源 / 决策记录（含 P0/P1/P2 优先级、阈值由来） |
-| `templates/skills/ctrip-train-d2c/SKILL.md` 步骤 0.5 | 主 SKILL 的集成调用约定与阻塞决策 |
+| `templates/skills/pp-d2c/SKILL.md` 步骤 0.5 | 主 SKILL 的集成调用约定与阻塞决策 |
 
 ## 步骤 2 子流程（v0.2 已落地）
 
@@ -39,7 +39,7 @@ doctor 表现"长时间无响应"时，**99% 卡在步骤 2.1**。完整 5 行�
 | 同一稿之前能跑、现在卡住 | Figma 服务端波动 / 网络抖动 | 等 30s 重试一次；仍失败按 ESC 改更小 nodeId |
 | 出现"📊 图层树拉取完成：N 个节点"后立刻终止 | `nodeCount > 5000` 硬上限 | 拆稿；或主 SKILL 里只对某个 sub- 单独跑 |
 
-## 关键阈值（由 `ctrip-train-d2c.config.json` 控制）
+## 关键阈值（由 `pp-d2c.config.json` 控制）
 
 | 阈值 | 默认值 | 行为 |
 |------|--------|------|

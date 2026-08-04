@@ -1,9 +1,9 @@
 {
-  "id": "m-ctrip-train-d2c-doctor",
+  "id": "m-pp-doctor",
   "includeAny": [
     "doctor",
     "d2c-doctor",
-    "ctrip-train-d2c-doctor",
+    "pp-doctor",
     "设计稿体检",
     "健康检测",
     "图层检测",

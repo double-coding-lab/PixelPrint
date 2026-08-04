@@ -19,9 +19,9 @@
     "config-precheck": ".Knowledge/topics/f2s-config-precheck.md",
     "f2s-task": ".Knowledge/topics/f2s-task.md",
     "f2s-req-plan": ".Knowledge/topics/f2s-req-plan.md",
-    "ctrip-train-d2c-doctor": ".Knowledge/topics/ctrip-train-d2c-doctor.md",
-    "ctrip-train-d2c": ".Knowledge/topics/ctrip-train-d2c.md",
-    "ctrip-train-d2c-rn": "topics/ctrip-train-d2c-rn.md"
+    "pp-doctor": ".Knowledge/topics/pp-doctor.md",
+    "pp-d2c": ".Knowledge/topics/pp-d2c.md",
+    "pp-d2c-rn": "topics/pp-d2c-rn.md"
   },
   "taskToTopicRules": [
     {
@@ -66,27 +66,27 @@
       ]
     },
     {
-      "task": "ctrip-train-d2c-doctor",
-      "matcherId": "m-ctrip-train-d2c-doctor",
-      "matcherPath": ".Knowledge/matchers/m-ctrip-train-d2c-doctor.json",
+      "task": "pp-doctor",
+      "matcherId": "m-pp-doctor",
+      "matcherPath": ".Knowledge/matchers/m-pp-doctor.json",
       "topics": [
-        "ctrip-train-d2c-doctor"
+        "pp-doctor"
       ]
     },
     {
-      "task": "ctrip-train-d2c",
-      "matcherId": "m-ctrip-train-d2c",
-      "matcherPath": ".Knowledge/matchers/m-ctrip-train-d2c.json",
+      "task": "pp-d2c",
+      "matcherId": "m-pp-d2c",
+      "matcherPath": ".Knowledge/matchers/m-pp-d2c.json",
       "topics": [
-        "ctrip-train-d2c"
+        "pp-d2c"
       ]
     },
     {
-      "task": "ctrip-train-d2c",
-      "matcherId": "m-ctrip-train-d2c-rn",
-      "matcherPath": "matchers/m-ctrip-train-d2c-rn.json",
+      "task": "pp-d2c",
+      "matcherId": "m-pp-d2c-rn",
+      "matcherPath": "matchers/m-pp-d2c-rn.json",
       "topics": [
-        "ctrip-train-d2c-rn"
+        "pp-d2c-rn"
       ]
     }
   ],
@@ -119,7 +119,7 @@
       "primary": "policy",
       "confidence": "manual"
     },
-    "ctrip-train-d2c-doctor": {
+    "pp-doctor": {
       "primary": "policy",
       "confidence": "inferred",
       "tags": [
@@ -127,7 +127,7 @@
         "module"
       ]
     },
-    "ctrip-train-d2c": {
+    "pp-d2c": {
       "primary": "policy",
       "confidence": "inferred",
       "tags": [
@@ -135,7 +135,7 @@
         "config"
       ]
     },
-    "ctrip-train-d2c-rn": {
+    "pp-d2c-rn": {
       "primary": "feature",
       "tags": [
         "module",
