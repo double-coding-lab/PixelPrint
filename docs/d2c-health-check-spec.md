@@ -66,12 +66,12 @@
 ## 2. 执行流程
 
 ```
-步骤 -1：Figma MCP 预检（同主 SKILL）
+步骤 -1：Figma Token 预检（同主 SKILL,调 `figma.mjs verify-token`）
 步骤 0 ：读取 config（含 layers 段 + health 段）
 步骤 1 ：解析 URL → fileKey, nodeId
 步骤 2 ：扫描图层结构（拆为 4 个子步骤，避免大稿"长时间无响应"）
         2.0 输出可见进度提示
-        2.1 调用 get_metadata 拉取完整子树
+        2.1 调用 `figma.mjs fetch-node` 拉取完整子树
         2.2 规模快检（先于任何遍历，nodeCount > 5000 直接终止）
         2.3 属性打标（visible / autoLayout / paddings / itemSpacing 等）
 步骤 3 ：按 health.rules 逐条扫描 → 收集 issues[]
@@ -85,7 +85,7 @@
 
 | 调用 | 用途 |
 |---|---|
-| `get_metadata(fileKey, nodeId)` | 主要数据源。返回完整图层树，含 name / visible / type / 位置尺寸 |
+| `figma.mjs fetch-node <fileKey> <nodeId>` | 主要数据源。返回完整图层树，含 name / visible / type / 位置尺寸 |
 | `get_design_context(fileKey, nodeId)` | 仅当 metadata 不足以判定时按需调用（如读取 fills、styles、variables） |
 | `get_variable_defs(fileKey, nodeId)` | 用于"颜色/字号 token 化覆盖率"维度（P2） |
 
@@ -102,12 +102,12 @@
 
 **对策**（已落地到 `templates/skills/pp-doctor/SKILL.md`）：
 
-1. **步骤 2.0**：进入 `get_metadata` 之前必须输出可见进度提示（`📥 正在拉取图层树 ...`），让用户能区分"程序卡死 / 程序在干活"。
-2. **步骤 2.1**：`get_metadata` 不重试，失败直接终止（重试会让用户多等一倍）。
+1. **步骤 2.0**：进入 `figma.mjs fetch-node` 之前必须输出可见进度提示（`📥 正在拉取图层树 ...`），让用户能区分"程序卡死 / 程序在干活"。
+2. **步骤 2.1**：`figma.mjs fetch-node` 不重试，失败直接终止（重试会让用户多等一倍）。
 3. **步骤 2.2**：metadata 返回后**第一件事**就是统计 `nodeCount` 与 `depthMax`，按 `> 5000 终止 / > 1500 标记 oversizeWarning / 其他放行` 三档分流，**先于任何打标**。
 4. **步骤 2.3**：原有打标逻辑保持不变，只在打标完成后追加一行进度（`🏷  属性打标完成`）。
 
-**为什么不做"先浅扫再全量"**：Figma MCP 的 `get_metadata` 没有 depth/limit 参数，无法做真正的浅扫；多调用一次 `get_screenshot` 做规模预估反而双倍延迟。从输入侧（用户改选更小的 nodeId）规避是更便宜的解。
+**为什么不做"先浅扫再全量"**：Figma REST API `/v1/files/:key/nodes` 没有 depth/limit 参数,无法做真正的浅扫;多调用一次 `export-image`(截图)做规模预估反而双倍延迟。从输入侧(用户改选更小的 nodeId)规避是更便宜的解。
 
 **对应排查清单**：见 SKILL.md 末尾"步骤 2 卡住排查清单"。
 

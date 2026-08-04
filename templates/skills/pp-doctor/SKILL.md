@@ -16,19 +16,29 @@
 
 ## 执行流程
 
-### 步骤 -1（前置预检）：检测 Figma MCP 可用性
+### 步骤 -1（前置预检）：检测 Figma Token 可用性
 
-在任何操作前执行，不可跳过。
+在任何操作前执行，不可跳过。**做法**:调 `figma.mjs verify-token` 探针(与主 SKILL 一致),脚本会自动 Read config、发 `/v1/me`、按状态码判定。
 
-| 结果 | 处理 |
-|------|------|
-| Figma MCP 调用成功 | 继续步骤 0 |
-| 工具不存在 / 调用失败 | 输出失败提示并终止 |
-
-**失败时输出**：
+```bash
+node .claude/skills/pp-d2c/bin/figma.mjs verify-token
 ```
-Figma MCP 未就绪，请先在 Claude Code 中安装 Figma 官方插件并完成认证后再重试。
+
+**返回约定**:
+- 退出码 `0` + stdout `{"ok":true,"data":{"email":...,"handle":...}}` → 继续步骤 0
+- 退出码非 0 + stdout `{"ok":false,"error":"..."}` → 输出失败提示并终止
+
+**失败时输出**:
 ```
+❌ Figma Token 探针失败：<error 内容>
+
+请检查 `pp-d2c.config.json` 里的 `figma.token`：
+1. 是否已配置且未过期（Figma 网页版右上角头像 → Settings → Security → Personal access tokens）
+2. Token 权限是否包含 File content: Read-only
+3. 网络能否访问 api.figma.com
+```
+
+> **变更说明**:自 v0.3 起,本 SKILL 已完全移除 MCP 依赖,所有 Figma 数据读取都走 `figma.mjs` 脚本(内部调 REST API),不再需要在 Claude Code 里装 Figma 插件或走 OAuth。
 
 ---
 
@@ -93,7 +103,7 @@ Read("pp-d2c.config.json")
 
 #### 步骤 2.0：宣告即将进入网络调用
 
-在调用 `get_metadata` 之前，**必须**在对话里输出（仅独立模式输出；集成模式由主 SKILL 自行决定提示形式）：
+在调用 `figma.mjs fetch-node` 之前，**必须**在对话里输出（仅独立模式输出；集成模式由主 SKILL 自行决定提示形式）：
 
 ```
 📥 正在拉取图层树（子树越大耗时越长，预计 5s ~ 2min）...
@@ -105,7 +115,7 @@ Read("pp-d2c.config.json")
 
 #### 步骤 2.1：拉取图层树
 
-调用 `get_metadata(fileKey, nodeId)` 获取目标节点的完整子孙图层树。
+调用 `figma.mjs fetch-node <fileKey> <nodeId>` 获取目标节点的完整子孙图层树。
 
 **调用失败时**：直接输出错误信息并终止 doctor 流程，**不重试**（避免叠加等待）：
 
@@ -116,7 +126,7 @@ Read("pp-d2c.config.json")
 
 #### 步骤 2.2：规模快检（先于任何遍历）
 
-`get_metadata` 返回后**第一件事**：仅统计 `节点总数 nodeCount` 与 `最大深度 depthMax`，不打任何标。
+`figma.mjs fetch-node` 返回后**第一件事**：仅统计 `节点总数 nodeCount` 与 `最大深度 depthMax`，不打任何标。
 
 输出可见进度：
 
@@ -949,14 +959,14 @@ out/
 
 ## 步骤 2 卡住排查清单
 
-doctor 在外部表现"长时间无响应"时，**99% 卡在步骤 2.1**（`get_metadata` 同步拉全树）。Figma MCP 没有 depth/limit 参数，无法做真正的"浅扫"，只能从输入侧规避。按下面顺序自查：
+doctor 在外部表现"长时间无响应"时，**99% 卡在步骤 2.1**（`fetch-node` 同步拉全树）。Figma REST API `/v1/files/:key/nodes` 没有 depth/limit 参数，无法做真正的"浅扫"，只能从输入侧规避。按下面顺序自查：
 
 | 现象 | 多半原因 | 怎么办 |
 |------|---------|--------|
 | 输出"📥 正在拉取..."后超过 1min 无新输出 | nodeId 选中了整页（page）或包含多张稿的大容器 | 在 Figma 里点一个**具体需求 frame**，右键 → Copy link to selection 重新拿 URL 重试 |
 | 同一稿之前能跑、现在卡住 | Figma 服务端波动 / 网络抖动 | 等 30s 重试一次；仍失败按 ESC 中断后换更小的 nodeId |
 | 输出"📊 图层树拉取完成：N 个节点"后立刻终止 | 命中 `nodeCount > 5000` 硬上限 | 按提示拆稿；或在主 SKILL 里**只**对某个 sub- 子节点单独跑 doctor |
-| 步骤 -1 就失败 | Figma MCP 未装 / 未认证 | 按步骤 -1 失败提示安装并认证 |
+| 步骤 -1 就失败 | Figma Token 未配置 / 已过期 / 权限不足 | 按步骤 -1 失败提示重新生成 Personal Access Token 并填入 config |
 | 步骤 2.3 长时间不返回（已看到 "📊 图层树拉取完成"） | 极少见，理论上属性打标不会卡 | 中断后把 fileKey + nodeId 反馈给维护者 |
 
 ---

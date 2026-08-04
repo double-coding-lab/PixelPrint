@@ -23,7 +23,7 @@ npx @double-coding/pixel-print init
 - `code-connect/mappings.json`：Figma 组件 → 代码组件映射表
 - `static/`、`pages/`（默认路径，可配置）：图片资产 / 输出目录
 
-> **前置依赖**：Claude Code（最新版）+ 在 Claude Code 中安装 Figma 官方 MCP 插件并完成 OAuth 认证。详见 [MCP 安装](#前置依赖figma-mcp)。
+> **前置依赖**:Claude Code(最新版)+ 一枚 [Figma Personal Access Token](#前置依赖figma-personal-access-token)(File content: Read-only 权限)。SKILL 通过 Figma REST API 拉设计稿,不需要装任何 MCP 插件、不走 OAuth。
 
 ---
 
@@ -34,9 +34,10 @@ npx @double-coding/pixel-print init
 ```bash
 $ npx @double-coding/pixel-print init
 
-─── 阶段一：Figma MCP 安装提示 ──────────────────────
-  ⚠️  init 脚本运行在终端进程里,无法直接验证 Claude Code 内的 MCP 状态。
-  实际可用性会在 Claude 跑 SKILL 步骤 -1 时调 whoami 探针验证。
+─── 阶段一：安装提示 ────────────────────────────────
+  ℹ️  Figma 数据读取走 REST API（不再需要 MCP 插件 + OAuth）。
+      init 阶段只做配置引导,实际可用性会在 Claude 跑 SKILL 步骤 -1
+      时调 `figma.mjs verify-token` 探针验证 Token 有效性。
 
 ─── 阶段二：交互式配置 ──────────────────────────────
   [1/8] 项目框架: ● react  rn
@@ -63,11 +64,11 @@ $ npx @double-coding/pixel-print init
 把这份设计稿转成代码：https://figma.com/design/abcXyz?node-id=138-1797
 ```
 
-Claude 会自动：
+Claude 会自动:
 
-1. 调 `whoami` 探针确认 MCP 可用
+1. 调 `figma.mjs verify-token` 探针确认 Token 可用
 2. 跑 doctor 体检（命名规范、布局结构、节点数）
-3. 拉取图层树，按 `sub-` 前缀拆分 sub-agent 并行生成
+3. 拉取图层树,按 `sub-` 前缀拆分 sub-agent 并行生成
 4. 通过 Figma REST API 导出图片（带 `use_absolute_bounds=true` 严格按 bbox）
 5. 逐 sub-block 视觉对比设计稿与生成代码
 6. 输出完整可运行的 React + SCSS 文件
@@ -160,27 +161,30 @@ npx @double-coding/pixel-print help      # 显示帮助
 
 ---
 
-## 前置依赖：Figma MCP
+## 前置依赖：Figma Personal Access Token
 
-Figma 官方 MCP 需要在 Claude Code 中**手动安装**，install.js 脚本无法替你装。
+SKILL 通过 Figma REST API 拉取设计稿元数据 + 导出图片,只需要一枚 Personal Access Token。**不需要装任何 MCP 插件、不走 OAuth**。
 
-### 安装步骤
+### 获取 Token
 
-1. 打开 Claude Code
-2. 进入 **Settings → Extensions**，搜索 **Figma**
-3. 找到 Figma 官方插件，点击安装
-4. 按提示完成浏览器 OAuth 认证
+1. 打开 [Figma](https://figma.com) 网页版,右上角头像 → **Settings**
+2. 左侧栏进入 **Security** → 找到 **Personal access tokens**
+3. 点 **Generate new token**,填名称(例如 `pp-d2c`),**Scopes** 勾选 `File content: Read-only`(至少)
+4. 复制生成的 token(格式 `figd_xxxxxxxxxxxxxxxxxxxx`)
+5. `init` 时粘贴到 `[单位4/4] Figma Personal Access Token []:` 那题,或后续手动填 `pp-d2c.config.json` 的 `figma.token` 字段
+
+> **安全提示**:Token 相当于账号密码,不要 commit 到 git。项目 `.gitignore` 已默认忽略 `pp-d2c.config.json`。
 
 ### 可用性验证
 
-跑 SKILL 时 Claude 会在**步骤 -1** 调 `mcp__plugin_figma_figma__whoami` 探针。三种结果会分别给出独立提示：
+跑 SKILL 时 Claude 会在**步骤 -1** 调 `figma.mjs verify-token` 探针,通过 HTTP GET `https://api.figma.com/v1/me` 验证 token:
 
 | 探针结果 | 含义 | 处理 |
 |---------|------|------|
-| 成功 | MCP 已装、已认证、工作正常 | 继续 |
-| `Tool not found` | MCP 完全没装 | 提示按上面 4 步安装 |
-| `Unauthorized` | 装了但未 OAuth | 提示完成浏览器认证 |
-| `Permission denied` | 装了但当前账号无该稿权限 | 提示更换账号或邀请 |
+| 200 + 返回用户信息 | Token 有效 | 继续 |
+| 401 / `invalid_token` | Token 已过期 / 拼错 | 按上面步骤重新生成一枚 |
+| 403 | Token 权限不含 File content: Read-only | 重新生成时勾对 scopes |
+| 网络错误 | 网络不通 api.figma.com | 排查代理/防火墙 |
 
 ---
 
