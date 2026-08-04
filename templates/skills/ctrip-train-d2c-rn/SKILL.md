@@ -1324,23 +1324,34 @@ node .claude/skills/ctrip-train-d2c-rn/bin/figma.mjs export-image <fileKey> <nod
 
 #### 4.5 单位换算
 
-Figma 设计稿的所有尺寸值（宽、高、间距、字号等）在写入代码前必须换算，规则如下：
+Figma 设计稿的所有尺寸值(宽、高、间距、字号等)在写入代码前必须先乘 `unit.scale`,然后按 §4.1.1 §C.1 白名单决定是否用 `rpx()` 包装。
 
-**换算公式**：`输出值 = Figma值 × scale`（`scale = outputBase / figmaBase`）
+**换算公式**:`基准值 = Figma值 × scale`(`scale = outputBase / figmaBase`)
 
-**按 `outputUnit` 决定最终写法**：
+**rn 分支默认配置**(见 `templates/ctrip-train-d2c.rn.config.json`):
 
-| outputUnit | 写法 | 示例（Figma值=16，scale=2） |
-|------------|------|--------------------------|
-| `px` | 直接写 px | `32px` |
-| `vw` | `Figma值 × scale / outputBase × 100` vw | `32 / 750 × 100 = 4.267vw` |
-| `rem` | `Figma值 × scale / outputBase` rem | `32 / 750rem` |
+```
+figmaBase: 375   outputBase: 375   scale: 1   outputUnit: 无(RN 数值单位是逻辑点)
+```
 
-**默认配置**（`figmaBase=375`，`outputBase=750`，`outputUnit=px`，`scale=2`）下：
-- Figma 读到 `16px` → 生成 `32px`
-- Figma 读到 `375px`（满屏宽）→ 生成 `750px`
+**scale=1 的含义**:figma 数值**直接就是**基准值,不做 ×2。RN 的 `StyleSheet` 数字单位是逻辑点(dp/pt),iPhone 上 1 pt ≈ 1 CSS px,天然与 figma 375 稿对齐,不需要像 H5 那样为兼容 750 基准 ×2。
 
-**禁止直接把 Figma 原始值写入代码**，所有尺寸必须经过换算。
+**示例**(响应式启用,`figmaBase=375`,`scale=1`):
+
+| Figma 读到 | × scale | 白名单命中? | 产物 |
+|---|---|---|---|
+| `16` (paddingLeft) | 16 | 是 | `paddingLeft: rpx(16)` |
+| `14` (fontSize) | 14 | 是 | `fontSize: rpx(14)` |
+| `0.8` (opacity) | 0.8 | 否 | `opacity: 0.8` |
+| `'row'` (flexDirection) | — | 否(枚举) | `flexDirection: 'row'` |
+
+**⚠️ 严禁把 figma 值提前 ×2 再传给 `rpx()`**(例如 `paddingLeft: rpx(32)` 表示 figma 16):
+- rn 分支 `scale=1` 是硬约定(config 强制,install.js 已跳过单位选择题)
+- rpx helper 内部基准与 `figmaBase` 联动,helper 会按运行时屏宽做正确缩放
+- 提前 ×2 会**双重缩放**:agent ×2 一次 + helper 按 750 基准缩一次 → 若用户 rpx.ts 是 375 基准则视觉放大 2 倍,若是 750 基准则视觉正确但语义与 config 脱节,后续维护踩坑
+- 例外:h5 分支才走 `scale=2`(见 h5 SKILL §4.5);本 SKILL 只覆盖 rn 分支,不要照抄 h5 惯例
+
+**禁止直接把 Figma 原始值写入代码**——白名单命中的字段必须用 `rpx()` 包装(即使 `scale=1` 值不变,包装形式不能省)。
 
 #### 4.6 框架适配
 
