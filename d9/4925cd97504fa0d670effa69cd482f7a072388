@@ -1,0 +1,38 @@
+templates/skills/pp-strip-nodeid/SKILL.md
+  s_2843f3def1e163::t_2318a025e1d5c7 1,10-11,17,26,50
+templates/skills/pp-d2c-rn/SKILL.md
+  s_2843f3def1e163::t_2318a025e1d5c7 1,5,46,56,69,72,131,203,235,252,435,1140,1143,1146,1177,1262,1333,1755,1880-1882,1928
+templates/skills/pp-strip-nodeid/strip-node-id.mjs
+  s_2843f3def1e163::t_2318a025e1d5c7 2,6,25
+templates/skills/pp-style/SKILL.md
+  s_2843f3def1e163::t_2318a025e1d5c7 1,10
+templates/skills/pp-d2c/bin/figma.mjs
+  s_2843f3def1e163::t_2318a025e1d5c7 36,45-46,127,347
+templates/skills/pp-d2c-rn/bin/figma.mjs
+  s_2843f3def1e163::t_2318a025e1d5c7 36,45-46,127,347
+templates/skills/pp-doctor/SKILL.md
+  s_2843f3def1e163::t_2318a025e1d5c7 1,10-11,38,303,877,986
+templates/skills/pp-d2c/SKILL.md
+  s_2843f3def1e163::t_2318a025e1d5c7 1,17,41,51,64,67,139,174,227,571,1152,1155,1158,1189,1505,1593-1595,1602
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "d94925cd97504fa0d670effa69cd482f7a072388",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "taolan <taolan@trip.com>"
+    }
+  }
+}
