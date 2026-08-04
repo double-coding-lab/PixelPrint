@@ -1,0 +1,14 @@
+package.json
+  h_fd5b122f30645c 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "5e44ca0834300461fa8142e246297b74ed85a416",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  }
+}
