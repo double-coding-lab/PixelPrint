@@ -25,6 +25,18 @@
     "react-native",
     "xtaro"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/double-coding-lab/PixelPrint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/double-coding-lab/PixelPrint/issues"
+  },
+  "homepage": "https://github.com/double-coding-lab/PixelPrint#readme",
   "author": "lands",
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }
