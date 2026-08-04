@@ -1,0 +1,62 @@
+.Knowledge/req-docs/d2c-rn-adapter_需求澄清.md
+  ai_agent 3,7,10,12,24,32,42,178,188-189,203,210
+.task/active/skill_page_root_min_height_100vh/task.md
+  ai_agent 7-8
+.task/todo.json
+  ai_agent 40
+templates/adapter-presets/xtaro.rpx.ts
+  ai_agent 11
+.task/active/skill_add_rn_skill/task.md
+  ai_agent 5,10,14-15
+.task/active/skill_add_input_prefix/task.md
+  ai_agent 10-11
+.task/active/skill_add_input_prefix/context.md
+  ai_agent 4-8
+.task/active/skill_add_autolayout_and_spacing_rules/context.md
+  ai_agent 4
+.Knowledge/req-docs/d2c-rn-adapter_技术方案.md
+  ai_agent 11,41,44,46,48,50-52,412,484,489,497,499,510,512,516,528-529,536-537,543-545,554-555,590,600,609-610,613,615
+.task/active/skill_migrate_to_rest_api_with_cache/acceptance.md
+  ai_agent 7,22,24,38,42
+.task/active/skill_migrate_to_rest_api_with_cache/task.md
+  ai_agent 18,22-24
+.task/active/skill_page_root_min_height_100vh/context.md
+  ai_agent 4-7
+templates/adapter-presets/README.md
+  ai_agent 11,104-105
+README.md
+  ai_agent 1,13,18-20,33,108,110,154-156,204,208-210,232,241
+.task/active/skill_add_rn_skill/context.md
+  ai_agent 6-10,18-21,27
+docs/d2c-health-check-spec.md
+  ai_agent 5,7,19,30,32,38-39,48,103,116,120,135,145,184,428,584,638,641
+.task/active/skill_add_end_prefix/task.md
+  ai_agent 7
+.task/active/skill_add_input_prefix/acceptance.md
+  ai_agent 7,22,33,39,42
+.task/active/skill_page_root_min_height_100vh/acceptance.md
+  ai_agent 7,20,22,26
+templates/rn-helpers/rpx.ts
+  ai_agent 6
+.task/active/skill_add_autolayout_and_spacing_rules/acceptance.md
+  ai_agent 3,34
+.task/active/skill_add_end_prefix/acceptance.md
+  ai_agent 7,22,34,40,42-43,48-50
+.task/active/skill_migrate_to_rest_api_with_cache/context.md
+  ai_agent 4
+.task/active/skill_add_rn_skill/acceptance.md
+  ai_agent 3,9-13,17,19,25,119,125-126,145,158,163,169-171,176,178,183-184,196
+.task/active/skill_add_end_prefix/context.md
+  ai_agent 4-6,9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "3b1a97256c75e90246962d55a6c65db636a4da0e",
+  "prompts": {},
+  "humans": {
+    "h_fd5b122f30645c": {
+      "author": "taolan <taolan@trip.com>"
+    }
+  }
+}
