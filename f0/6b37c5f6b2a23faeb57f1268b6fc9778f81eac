@@ -1,0 +1,23 @@
+templates/adapter-presets/xtaro.json
+  s_e950f5bb09db4d::t_a125a54b633a4f 26-27,33-35
+templates/adapter-presets/xtaro.reference.md
+  s_e950f5bb09db4d::t_b5a39a91f57ac2 348,352
+  s_e950f5bb09db4d::t_a85f62e95a711c 234-236,238-312,314-340
+  s_e950f5bb09db4d::t_ff0d7caea439cb 17,23,25-27,29-42,44,48-50,60,64-66,75,77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "f06b37c5f6b2a23faeb57f1268b6fc9778f81eac",
+  "prompts": {},
+  "sessions": {
+    "s_e950f5bb09db4d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6806bd79-98b5-4478-a405-a91968a356af",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
