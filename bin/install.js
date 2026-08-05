@@ -53,6 +53,7 @@ function readEnvFile() {
 }
 
 // 追加或更新一个 key,保留其他行不动;value 含空格/引号时自动包双引号
+// 原则:.env 已存在就往里写,不覆盖整份;同名 key 就地替换(如果新旧值不同才写 .env.bak,且 bak 不覆盖已有的老 bak)
 function upsertEnvVar(key, value) {
   const exists = fs.existsSync(ENV_PATH)
   const needsQuote = /[\s"'#]/.test(value)
@@ -67,12 +68,15 @@ function upsertEnvVar(key, value) {
   const text = fs.readFileSync(ENV_PATH, 'utf8')
   const lineRe = new RegExp(`^${key}\\s*=.*$`, 'm')
   if (lineRe.test(text)) {
-    // 已有同名 key,做备份再原地替换
+    // 判断新旧值是否真变了,没变就完全不动
+    const oldLine = text.match(lineRe)[0]
+    if (oldLine === targetLine) return { action: 'unchanged' }
+    // 变了才做原地替换;bak 只在不存在时才创建,避免连续跑 init 冲掉真正想恢复的老备份
     const bakPath = ENV_PATH + '.bak'
-    fs.writeFileSync(bakPath, text)
+    if (!fs.existsSync(bakPath)) fs.writeFileSync(bakPath, text)
     const next = text.replace(lineRe, targetLine)
     fs.writeFileSync(ENV_PATH, next)
-    return { action: 'replace', backup: bakPath }
+    return { action: 'replace', backup: fs.existsSync(bakPath) ? bakPath : null }
   }
   // 追加(确保前面有换行)
   const next = text.endsWith('\n') || text.length === 0 ? text + targetLine + '\n' : text + '\n' + targetLine + '\n'
@@ -160,12 +164,22 @@ function installFiles(forceSkills = false, skipConfig = false, options = {}) {
 function select(label, choices, defaultVal) {
   return new Promise(resolve => {
     let idx = Math.max(0, choices.indexOf(defaultVal))
+    let rendered = false
+    // 多行渲染:label 一行 + 每个选项一行。上一版单行平铺遇到长选项会终端硬 wrap,
+    // 只清 \r\x1b[K 清不到 wrap 出来的行 → 方向键切换时堆多行。改成回到起点用 \x1b[0J 清到底。
+    const totalLines = choices.length + 1
 
     function render() {
-      // 清除已渲染的行
-      process.stdout.write(`\r\x1b[K`)
-      const parts = choices.map((c, i) => i === idx ? `\x1b[36m● ${c}\x1b[0m` : `  ${c}`)
-      process.stdout.write(`  ${label}: ${parts.join('  ')}\x1b[0K`)
+      if (rendered) {
+        // 光标上移 totalLines 行,再清到屏幕底部
+        process.stdout.write(`\x1b[${totalLines}A\x1b[0J`)
+      }
+      process.stdout.write(`  ${label}:\n`)
+      for (let i = 0; i < choices.length; i++) {
+        if (i === idx) process.stdout.write(`  \x1b[36m● ${choices[i]}\x1b[0m\n`)
+        else process.stdout.write(`    ${choices[i]}\n`)
+      }
+      rendered = true
     }
 
     render()
@@ -182,7 +196,9 @@ function select(label, choices, defaultVal) {
         process.stdin.setRawMode(false)
         process.stdin.removeListener('data', onData)
         process.stdin.pause()
-        process.stdout.write(`\r\x1b[K  ${label}: \x1b[36m${choices[idx]}\x1b[0m\n`)
+        // 确认后擦掉多行菜单,换成单行 "label: 选中值"
+        process.stdout.write(`\x1b[${totalLines}A\x1b[0J`)
+        process.stdout.write(`  ${label}: \x1b[36m${choices[idx]}\x1b[0m\n`)
         resolve(choices[idx])
       }
     }
@@ -501,9 +517,13 @@ async function runInit() {
   // 落盘 .env + 保证 .gitignore 屏蔽 .env
   if (figmaToken) {
     const r = upsertEnvVar('FIGMA_TOKEN', figmaToken)
-    if (r.action === 'create') console.log('  ✓ 已写入 .env: FIGMA_TOKEN=<hidden>')
-    else if (r.action === 'append') console.log('  ✓ 追加 .env: FIGMA_TOKEN=<hidden>')
-    else console.log(`  ✓ 更新 .env: FIGMA_TOKEN=<hidden>(原值备份到 ${path.relative(CWD, r.backup)})`)
+    if (r.action === 'create') console.log('  ✓ 已创建 .env 并写入 FIGMA_TOKEN=<hidden>')
+    else if (r.action === 'append') console.log('  ✓ 已向现有 .env 追加 FIGMA_TOKEN=<hidden>')
+    else if (r.action === 'unchanged') console.log('  ✓ .env 中 FIGMA_TOKEN 已是最新值,未改动')
+    else {
+      const bakHint = r.backup ? `(原值备份到 ${path.relative(CWD, r.backup)})` : '(存在 .env.bak,保留旧备份)'
+      console.log(`  ✓ 已更新现有 .env 中的 FIGMA_TOKEN=<hidden> ${bakHint}`)
+    }
     ensureGitignoreHasEnv()
     if (legacyTokenInConfig) {
       console.log('  → 检测到旧 pp-d2c.config.json 里的 figma.token,已迁移到 .env,config 中将移除 figma 段')
