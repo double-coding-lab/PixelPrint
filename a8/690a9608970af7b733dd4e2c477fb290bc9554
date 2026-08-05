@@ -1,0 +1,29 @@
+.Knowledge/.last-sync.json
+  s_b85a2a1aaab89e::t_cbc2bf023e415e 2
+.Knowledge/topics/pp-d2c-rn.md
+  s_b85a2a1aaab89e::t_a01a1c1cb944ce 212
+  s_b85a2a1aaab89e::t_95ff3e5f79416c 185
+  s_b85a2a1aaab89e::t_8d9bb52370caf6 121,123,125-137
+  s_b85a2a1aaab89e::t_0f53465ee732bb 163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "a8690a9608970af7b733dd4e2c477fb290bc9554",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_b85a2a1aaab89e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "570715ef-d6c3-4572-9d91-578e9cf8f585",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
