@@ -143,7 +143,7 @@ function ensureGitignoreEntries() {
 }
 
 function installFiles(forceSkills = false, skipConfig = false, options = {}) {
-  const { skipRn = false } = options
+  const { skipRn = false, skipH5 = false } = options
   console.log('\npp-d2c: installing files...\n')
   const skillsSrc = path.join(TEMPLATES_DIR, 'skills')
   const skillsDst = path.join(CWD, '.claude/skills')
@@ -153,7 +153,11 @@ function installFiles(forceSkills = false, skipConfig = false, options = {}) {
   const OPT_IN_ONLY = new Set(['pp-style', 'pp-doctor'])
   for (const entry of fs.readdirSync(skillsSrc, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue
+    // 按 framework 对称过滤:h5 项目跳 pp-d2c-rn,rn 项目跳 pp-d2c
+    // 目的是避免另一分支的主 SKILL 污染当前项目.claude/skills/,让 Claude Code
+    // 只看到匹配当前 framework 的主 SKILL(pp-strip-nodeid 等辅助 SKILL 两端通用,继续装)
     if (skipRn && entry.name === 'pp-d2c-rn') continue
+    if (skipH5 && entry.name === 'pp-d2c') continue
     if (OPT_IN_ONLY.has(entry.name)) continue
     copyDir(path.join(skillsSrc, entry.name), path.join(skillsDst, entry.name), forceSkills)
   }
@@ -363,8 +367,8 @@ async function runInit() {
   const selectedOpt = flatOptions.find(o => o.label === selectedLabel)
   const framework = selectedOpt.framework
 
-  // 选完 framework 才复制 SKILL(react 不装 rn skill,反之亦然)
-  installFiles(true, true, { skipRn: framework !== 'rn' })
+  // 选完 framework 才复制 SKILL(h5 项目跳 pp-d2c-rn,rn 项目跳 pp-d2c;避免另一分支主 SKILL 污染)
+  installFiles(true, true, { skipRn: framework !== 'rn', skipH5: framework === 'rn' })
 
   let styleFormat
   let adapterCfg = null
