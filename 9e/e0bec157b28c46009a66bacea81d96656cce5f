@@ -1,0 +1,53 @@
+.task/550947002/completed/20260805-refactor_rn_skill_pure_rn/context.md
+  ai_agent 1-18
+.Knowledge/.last-sync.json
+  s_b85a2a1aaab89e::t_92ab0ec0f05998 2-3
+.task/550947002/completed/20260805-refactor_rn_skill_pure_rn/task.md
+  ai_agent 1-21
+templates/skills/pp-d2c-rn/SKILL.md
+  s_b85a2a1aaab89e::t_edcc54a094e60d 1382,1387,1390,1396-1397,1402,1404,1408,1415-1416,1419-1430
+  s_b85a2a1aaab89e::t_86420cb9960864 348-349,351-352,356,358-359,361,367-369,371,373
+  s_b85a2a1aaab89e::t_625969cf094fe9 1453,1456
+  s_b85a2a1aaab89e::t_ab70a4eb855344 1023
+  s_b85a2a1aaab89e::t_28db9dbfd343fa 589
+  s_b85a2a1aaab89e::t_63676779bc6329 2182
+  s_b85a2a1aaab89e::t_3c0aa2b35afb94 1252-1254
+  s_b85a2a1aaab89e::t_e9344a3d8fee8c 1273-1274
+  s_b85a2a1aaab89e::t_adeb02480f6943 574
+  s_b85a2a1aaab89e::t_de975400b02ec0 460,471-473
+  s_b85a2a1aaab89e::t_875e0f77085d39 2043
+  s_b85a2a1aaab89e::t_1a21d81b536234 342
+  s_b85a2a1aaab89e::t_a874aff17a003c 409,412-413,416-420,439,451
+.Knowledge/index.md
+  s_b85a2a1aaab89e::t_fea49f361aaec0 33
+.Knowledge/topics/pp-d2c-rn.md
+  s_b85a2a1aaab89e::t_0239e86c64fab4 165-167
+  s_b85a2a1aaab89e::t_4546ce1116c75a 187
+  s_b85a2a1aaab89e::t_906b1938097359 101,103,106-109,111-113,116-118,121,123-125,137,139,143
+  s_b85a2a1aaab89e::t_1107a6eae02abf 214
+.task/550947002/completed/20260805-refactor_rn_skill_pure_rn/user-todos.md
+  ai_agent 1-5
+.task/550947002/completed/20260805-refactor_rn_skill_pure_rn/acceptance.md
+  ai_agent 1-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "9ee0bec157b28c46009a66bacea81d96656cce5f",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_b85a2a1aaab89e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "570715ef-d6c3-4572-9d91-578e9cf8f585",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
