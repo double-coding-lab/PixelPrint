@@ -155,7 +155,7 @@ function installFiles(forceSkills = false, skipConfig = false, options = {}) {
     if (!entry.isDirectory()) continue
     // 按 framework 对称过滤:h5 项目跳 pp-d2c-rn,rn 项目跳 pp-d2c
     // 目的是避免另一分支的主 SKILL 污染当前项目.claude/skills/,让 Claude Code
-    // 只看到匹配当前 framework 的主 SKILL(pp-strip-nodeid 等辅助 SKILL 两端通用,继续装)
+    // 只看到匹配当前 framework 的主 SKILL(pp-strip-nodeid / pp-fix-partial 等辅助 SKILL 两端通用,继续装)
     if (skipRn && entry.name === 'pp-d2c-rn') continue
     if (skipH5 && entry.name === 'pp-d2c') continue
     if (OPT_IN_ONLY.has(entry.name)) continue
@@ -671,6 +671,45 @@ async function runInit() {
   console.log('  把这份设计稿转成代码:https://figma.com/design/xxx?node-id=1-2\n')
 }
 
+// ─── clean-cache ─────────────────────────────────────────────
+// 递归删除 .d2c-cache/(figma / images / anchors / last-page.json)。
+// 用途:hash 对比坏了、缓存污染,或用户想彻底重来。
+// 与主 SKILL "SKILL 结束时的清理动作"分工:主 SKILL 只清 .d2c-tmp/screenshots/,
+// 本命令是 .d2c-cache/ 的显式手动清理入口。
+
+function rmDirRecursive(dir) {
+  if (!fs.existsSync(dir)) return { removed: false }
+  fs.rmSync(dir, { recursive: true, force: true })
+  return { removed: true }
+}
+
+function runCleanCache() {
+  const cacheDir = path.join(CWD, '.d2c-cache')
+  console.log('\npp-d2c clean-cache: 清理 .d2c-cache/ 目录\n')
+  if (!fs.existsSync(cacheDir)) {
+    console.log(`  info  ${path.relative(CWD, cacheDir) || '.d2c-cache'} 不存在,无需清理\n`)
+    return
+  }
+  // 列一下清理前的内容,让用户知道删了什么
+  const items = []
+  for (const sub of ['figma', 'images', 'anchors']) {
+    const p = path.join(cacheDir, sub)
+    if (fs.existsSync(p)) {
+      const count = fs.readdirSync(p).length
+      items.push(`  · ${sub}/ (${count} 项)`)
+    }
+  }
+  const lastPage = path.join(cacheDir, 'last-page.json')
+  if (fs.existsSync(lastPage)) items.push('  · last-page.json')
+  if (items.length > 0) {
+    console.log('  待清理内容:')
+    items.forEach(l => console.log(l))
+  }
+  rmDirRecursive(cacheDir)
+  console.log(`\n  ✓ 已清理 ${path.relative(CWD, cacheDir) || '.d2c-cache'} 及其全部内容\n`)
+  console.log('  info  下次跑 pp-d2c / pp-d2c-rn 会重新拉 figma 元数据 + 重导图片(不复用旧缓存)\n')
+}
+
 // ─── 入口 ────────────────────────────────────────────────────
 
 const cmd = process.argv[2]
@@ -678,9 +717,10 @@ const cmd = process.argv[2]
 function printHelp() {
   console.log(`
 Usage:
-  npx @double-coding/pixel-print init      交互式初始化项目（推荐）
-  npx @double-coding/pixel-print install   仅复制模板文件，不进入交互
-  npx @double-coding/pixel-print help      显示本帮助
+  npx @double-coding/pixel-print init          交互式初始化项目（推荐）
+  npx @double-coding/pixel-print install       仅复制模板文件，不进入交互
+  npx @double-coding/pixel-print clean-cache   清理 .d2c-cache/(figma / images / anchors / last-page.json)
+  npx @double-coding/pixel-print help          显示本帮助
 `)
 }
 
@@ -689,6 +729,8 @@ if (cmd === 'init') {
 } else if (cmd === 'install') {
   installFiles()
   console.log('done. 运行 npx @double-coding/pixel-print init 完成环境配置。\n')
+} else if (cmd === 'clean-cache') {
+  runCleanCache()
 } else if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
   printHelp()
 } else {
