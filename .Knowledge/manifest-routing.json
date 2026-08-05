@@ -10,6 +10,9 @@
     ],
     "f2s-req-plan": [
       "f2s-task"
+    ],
+    "pp-fix-partial": [
+      "pp-d2c"
     ]
   },
   "topicPaths": {
@@ -21,7 +24,8 @@
     "f2s-req-plan": ".Knowledge/topics/f2s-req-plan.md",
     "pp-doctor": ".Knowledge/topics/pp-doctor.md",
     "pp-d2c": ".Knowledge/topics/pp-d2c.md",
-    "pp-d2c-rn": "topics/pp-d2c-rn.md"
+    "pp-d2c-rn": "topics/pp-d2c-rn.md",
+    "pp-fix-partial": ".Knowledge/topics/pp-fix-partial.md"
   },
   "taskToTopicRules": [
     {
@@ -88,6 +92,14 @@
       "topics": [
         "pp-d2c-rn"
       ]
+    },
+    {
+      "task": "pp-fix-partial",
+      "matcherId": "m-pp-fix-partial",
+      "matcherPath": ".Knowledge/matchers/m-pp-fix-partial.json",
+      "topics": [
+        "pp-fix-partial"
+      ]
     }
   ],
   "pkgRev": 1,
@@ -140,6 +152,14 @@
       "tags": [
         "module",
         "config"
+      ],
+      "confidence": "manual"
+    },
+    "pp-fix-partial": {
+      "primary": "feature",
+      "tags": [
+        "module",
+        "cache"
       ],
       "confidence": "manual"
     }
