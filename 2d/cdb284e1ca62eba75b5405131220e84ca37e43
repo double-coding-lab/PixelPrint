@@ -1,0 +1,26 @@
+bin/install.js
+  s_e950f5bb09db4d::t_7a412938283540 167-170,173-182,199-201
+  s_e950f5bb09db4d::t_c3057b91ce01e8 56,71-74,76,79
+  s_e950f5bb09db4d::t_9f297fb6dcb187 520-526
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "2dcdb284e1ca62eba75b5405131220e84ca37e43",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_e950f5bb09db4d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6806bd79-98b5-4478-a405-a91968a356af",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
