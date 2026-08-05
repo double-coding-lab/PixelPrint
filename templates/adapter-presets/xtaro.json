@@ -23,13 +23,16 @@
     },
     "propMap": {
       "Image": {
-        "source": "src"
+        "source": "src",
+        "resizeMode": "mode"
       },
       "TextInput": {
         "maxLength": "maxlength",
         "secureTextEntry": "password",
         "autoFocus": "focus",
-        "onSubmitEditing": "onConfirm"
+        "onSubmitEditing": "onConfirm",
+        "keyboardType": "type",
+        "returnKeyType": "confirmType"
       },
       "ScrollView": {
         "onEndReached": "onScrollToLower"
