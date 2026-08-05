@@ -489,6 +489,55 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 >
 > **兼容点**:`minHeight` 相较 `height` 只是"下限保底",不影响设计稿本意。旧产物用 `height` 出现的塌陷问题(bg 层跟着塌成一条)全部由本规则统一收敛。
 
+> **冗余嵌套 autoLayout 的属性下穿**(v1.0.2 新增,判定/取值层的隐藏 bug 修复):Figma 里设计师有时为了"分组"多包一层 autoLayout,但内部只有一个真正的顺流子(其他都是 abs 兄弟)。直译成 RN 组件树时**保留双层结构没错**(abs 兄弟需要挂在外层),但**布局属性(padding/gap/align)应该整体下穿到内层**,因为设计师改的是内层。
+>
+> **触发条件(全部满足才命中)**:
+>
+> 1. 外层节点 A 是 autoLayout(`layoutMode ∈ {HORIZONTAL, VERTICAL}`)
+> 2. A 的直接子里,`layoutPositioning !== 'ABSOLUTE'` 的顺流子**只有 1 个**(记为 B),其他兄弟都是 `layoutPositioning === 'ABSOLUTE'`
+> 3. B 也是 autoLayout(否则下穿失去意义)
+> 4. A 和 B **不属于同一个 sub-agent 的边界**(即 A 或 B 中有 `sub-` 前缀时**不下穿**,`sub-` 边界要保持 A/B 各自独立的样式命名空间)
+>
+> **命中后的取值 / 落地规则**:
+>
+> | 属性 | A(外层) | B(内层) |
+> |---|---|---|
+> | `flexDirection` / `flexWrap` | **删除**(A 不再当 flex 容器,RN 里 View 默认 flex 但设置 `flexDirection: 'column'`/`'row'` 是"当 flex 用") | 保留 B 自己的 |
+> | `padding` / `paddingHorizontal` / `paddingVertical` / `gap` / `justifyContent` / `alignItems` | **删除**,值下穿到 B(若 B 已有同名属性→**保留 B 的**,A 的值写入 §7 QA info 段) | 用 B 自己的值;B 没写就用 A 下穿的值 |
+> | `width` / `height` / `minHeight` / `maxWidth` / `maxHeight` | 保留 A 自己的(容器骨架) | 保留 B 自己的 |
+> | `position` / `overflow` / `backgroundColor` / `borderRadius` / `shadowXxx` | 保留 A 自己的(容器骨架) | 保留 B 自己的 |
+> | `position: 'relative'`(为 abs 兄弟挂载) | **强制加**(若 A 有 abs 兄弟) | 不动 |
+>
+> **典型场景**(欧暑二级页面 Frame 703 / 702 tab 滚动列表,RN 版):
+>
+> ```
+> // Figma:
+> Frame 703 (autoLayout HORIZONTAL, gap=0 padding=14 0)                     ← 外层,内容仅 1 顺流子 + 1 abs fade 遮罩
+> ├── Frame 702 (autoLayout HORIZONTAL, gap=112 padding=40 40)              ← 内层,真正排布 tab 项
+> │   ├── tab 1 / tab 2 / ...
+> └── img-xz fade 遮罩 (layoutPositioning: ABSOLUTE)
+> ```
+>
+> ```ts
+> // 命中"冗余嵌套下穿"规则,产物 StyleSheet:
+> tabScroll: {
+>   position: 'relative',                  // 保留(abs 兄弟需要挂载)
+>   width: rpx(720), height: rpx(98),      // 保留(A 骨架)
+>   // ⚠️ 删除:flexDirection / gap / padding / alignItems(全部下穿到 B)
+> }
+> tabList: {
+>   flexDirection: 'row',                  // 来自 B 自己
+>   gap: rpx(112),                         // 来自 B(不是 A 的 0)
+>   paddingHorizontal: rpx(40),            // 来自 B(不是 A 的 14 0)
+>   alignItems: 'center',                  // 来自 B
+> }
+> fade: { position: 'absolute', ... }      // abs 兄弟仍挂 A(tabScroll)
+> ```
+>
+> **不下穿的例外**:A 或 B 命中 `sub-` 前缀 → 不下穿,双层各自输出。`sub-` 是"独立 agent 边界",样式命名空间要各自独立才好维护。
+>
+> **QA 输出**:命中下穿时,§7 报告段追加一行:`<A 节点名>(外层) → <B 节点名>(内层) 触发冗余嵌套下穿,padding/gap 已合并到内层`。若发生"A 和 B 同名属性冲突,以 B 为准",另加一行:`<属性名>: A 值 <VA> 被 B 值 <VB> 覆盖`。
+
 **B. 视觉属性(rn 版:CSS → RN StyleSheet)**
 
 | 目标 RN StyleSheet 属性 | Figma REST 字段 | 取值细节 |
@@ -1840,6 +1889,7 @@ const styles = StyleSheet.create({ /* ... */ })
 9. **页面根容器用死值 `height` 未覆写为 `min-height: max(..., 100vh)`**：入口节点满足"页面根容器"三信号（是入口 nodeId + 父是 Page/Document + 高度接近视口）时，产物根 CSS 是否用了 `height: {figmaH * scale}px` 死值 或 `min-height: {figmaH * scale}px` 死值？必须改成 `min-height: max({figmaH * scale}px, 100vh)`（见 §4.3 判定优先级第 6 条）。同时检查根内部的 `layoutPositioning: ABSOLUTE` 背景层（`bg-`）：`height` 是否死值？应改成 `height: 100%`（或 `inset: 0`），`background-size` 从 `{w}px {h}px` 改成 `cover`。反向查：**信号不全时**（例如 sub-agent 派发进来的 block、URL 指向的是非根子节点、高度不接近视口）不应触发本条覆写，若被误覆写为 `100vh` 也算不合规。
 10. **`input-` 前缀未生成 `<input>` 标签**：图层名带 `input-` 的节点（不含 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加），产物 JSX 是否输出 `<input type="text" placeholder="..." />`？是否漏输出 `<div>` + `<span>` 结构而绕过 `input-` 语义？CSS 是否把左侧图标切图挂在 `background-image`（不生成独立 `<img>` 子节点）？`::placeholder` 颜色是否取自 TEXT 子节点的 `fills[0]`？反向查:图层里没有 `input-` 前缀却被误改成 `<input>` 标签也不合规。同时校验 doctor 侧 4 条 NAM 规则是否触发(NAM017 无 TEXT / NAM018 多 TEXT / NAM019 与 bg 系叠加 / NAM020 与 img/btn 叠加)。
 11. **sub-/block- 容器 FIXED 高度未写 `minHeight` 导致塌陷(v1.0.2 新增)**:图层名带 `sub-` / `block-` 前缀、Figma `layoutSizingVertical: FIXED`,且该容器内部有 `layoutPositioning: 'ABSOLUTE'` + `width/height: '100%'` 的兄弟子节点(典型:`main` 内含 `mainBg` 绝对铺满作背景层),产物 StyleSheet 是否用了 `height: <N>` 死值?必须改成 `minHeight: <N>`(见 §4.1.1 §A 表下方「FIXED 塌陷防御」补充说明)。理由:死高会让容器在内容异步渲染 / 数据少时收缩到 HUG 表现,`height: '100%'` 兄弟层跟着塌成一条,底部露出根容器背景。反向查:叶子/装饰元素(`img-` / `bg-` / `btn-` 等)不应误用 `minHeight`,那些场景仍写 `height`。
+12. **冗余嵌套 autoLayout 的属性未下穿到内层(v1.0.2 新增)**:外层 A 是 autoLayout 且仅有 1 个顺流子 B(其他都是 abs 兄弟),B 也是 autoLayout,且 A/B 都不带 `sub-` 前缀 → 检查产物:A 的 StyleSheet 里是否残留 `flexDirection` / `padding*` / `gap` / `justifyContent` / `alignItems` / `flexWrap`?这些**必须**全部下穿到 B,A 只保留 `position / overflow / width / height / backgroundColor / borderRadius / shadow*` 等骨架属性;A/B 同名冲突时以 B 为准,A 的值写入 §7 QA info。反向查:命中"A 或 B 带 sub- 前缀"时**不该**下穿(sub- 边界要保持样式命名空间独立),若被误下穿也算不合规。参考 §4.1.1 §A 表下方「冗余嵌套 autoLayout 的属性下穿」补充说明。
 
 **任一项命中 → 该叶子 sub-agent 交付不合格,主 agent 必须回退该块重写**(不是自己改 scss 数值糊过去;这是结构性问题,改数值没用)。回退命令:把该叶子 nodeId 重新按 §4.0 派发一次 sub-agent,把本节 checklist 内容作为额外约束附加进去。
 
