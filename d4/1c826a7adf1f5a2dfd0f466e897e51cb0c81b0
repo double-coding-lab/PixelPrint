@@ -1,0 +1,28 @@
+docs/pixel-print-intro.md
+  s_2843f3def1e163::t_398b65ea4e6dfd 4-80
+  s_2843f3def1e163::t_e48922cd4082fe 1-3
+docs/pixel-print-architecture.md
+  s_2843f3def1e163::t_8b0b4cc6f14ad8 2,6-567
+  s_2843f3def1e163::t_4be8a303c789e1 1,3-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "d41c826a7adf1f5a2dfd0f466e897e51cb0c81b0",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
