@@ -1,0 +1,32 @@
+.Knowledge/matchers/m-pp-fix-partial.json
+  s_2843f3def1e163::t_c0b76da90b1341 1-39
+.Knowledge/manifest-routing.json
+  s_2843f3def1e163::t_58be81be1cdf61 13-15,27-28
+  s_2843f3def1e163::t_388e7a422cacd5 95-102
+  s_2843f3def1e163::t_3385c29f88b1db 157-164
+.Knowledge/index.md
+  s_2843f3def1e163::t_050b2efcad8771 34
+.Knowledge/topics/pp-fix-partial.md
+  s_2843f3def1e163::t_666508775732dd 1-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "2623be495fd68e567daa25c3d93d2959db443d3e",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
