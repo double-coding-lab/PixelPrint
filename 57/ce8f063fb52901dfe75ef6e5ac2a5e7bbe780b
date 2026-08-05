@@ -1,0 +1,29 @@
+templates/skills/pp-d2c/bin/figma.mjs
+  s_e950f5bb09db4d::t_49c5acd6a0e0b4 178-179,229-230,272-273,324-325
+  s_e950f5bb09db4d::t_23cb9aea28f8fd 160-162
+  s_e950f5bb09db4d::t_0cee97e9844031 50-84
+  s_e950f5bb09db4d::t_84c9f514c6fb2e 382-383
+templates/skills/pp-d2c-rn/bin/figma.mjs
+  s_e950f5bb09db4d::t_ff853717432231 50-84,160-162,178-179,229-230,272-273,324-325,382-383
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "57ce8f063fb52901dfe75ef6e5ac2a5e7bbe780b",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_e950f5bb09db4d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6806bd79-98b5-4478-a405-a91968a356af",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
