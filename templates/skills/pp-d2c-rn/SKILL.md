@@ -1715,6 +1715,39 @@ import { <helperName> } from '<helperImport>'
 
 **为什么不把复杂差异也放 JSON**:v1 语法保持简单,任何 preset 作者靠看 README 就能写正确;复杂差异走 md 让作者用**表格 + code snippet** 讲清楚,SKILL 读 md 拿到明确的 case + before/after,比"猜 v2 JSON schema 语义"稳。
 
+**步骤 5.5.3d 产物自检(RN 残留属性扫描,防 §5.5.3c 漏执行)**
+
+`propMap`(§5.5.3b) + `referenceDoc`(§5.5.3c) 都跑完后,agent 必须对**每个改写后的 index.tsx** 做一次残留扫描:如果目标框架已经把某个 RN 原生属性/取值改成了别的名字,产物里**不该再出现原 RN 写法**。
+
+**触发条件**:`config.adapter.enabled === true` 且 tagMap 里至少存在一条**目标标签名不是 RN 原名**的映射(例如 `View → XView`,即"启用了非 RN 目标框架";纯 RN preset `rn.json` 全部 tagMap 保持原名 → 不触发本自检)。
+
+**执行动作**:
+
+1. 拉全本次生成的所有 tsx/jsx 文件文本(step 5.5.3c 已完成改写)
+2. 逐文件逐行按下表 grep(允许属性名前后有空格/换行,值形态含字面量 / `{true}` / `{变量}`):
+
+| 命中模式 | 严重级 | 语义 | 应做的处理 |
+|---|---|---|---|
+| `resizeMode=` 出现在目标标签(如 XImage/MyImage) | **error** | §5.5.3b propMap 或 §5.5.3c §1.1 未执行 | 强制回改:按 §1.1 valueMap 改值并按 propMap 改名(preset 未配 propMap.Image.resizeMode 时也要在此步补齐) |
+| `horizontal=` / `horizontal ` / `horizontal>` 出现在目标 ScrollView 标签 | **error** | §5.5.3c §4.1 未执行 | 强制回改:按 §4.1 拆成 `scrollX/scrollY` |
+| `contentContainerStyle=` 出现在目标 ScrollView 标签 | **error** | §5.5.3c §4.2 未执行 | 强制回改:按 §4.2 包一层目标 View 标签 |
+| `showsHorizontalScrollIndicator=` / `showsVerticalScrollIndicator=` | **warn** | §5.5.3c §五(ScrollView 不支持) 未执行 | 删属性 + §7 QA warn |
+| `editable=` 出现在目标 Input 标签 | **error** | §5.5.3c §2.1 未执行 | 强制回改:按 §2.1 改成 `disabled` + 值取反 |
+| `onChangeText=` 出现在目标 Input 标签 | **error** | §5.5.3c §3.1 未执行 | 强制回改:按 §3.1 改成 `onInput` + 回调体读 `e.detail.value` |
+| `onPress=` / `onPressIn=` / `onPressOut=` 出现在目标标签(非 RN 原生 Pressable) | **error** | §5.5.3c §3.2/§3.3 未执行 | 强制回改:按 §3.2/§3.3 改成 `onClick` / `onTouchStart` / `onTouchEnd` |
+| `keyboardType=` 出现在目标 Input 标签 | **error** | §5.5.3b propMap 或 §5.5.3c §1.2 未执行 | 强制回改 |
+| `returnKeyType=` 出现在目标 Input 标签 | **error** | §5.5.3b propMap 或 §5.5.3c §1.3 未执行 | 强制回改 |
+| `source=` 出现在目标 Image 标签 | **error** | §5.5.3b propMap.Image.source→src 未执行 | 强制回改 |
+| `maxLength=` / `secureTextEntry=` / `autoFocus=` / `onSubmitEditing=` / `onEndReached=` / `onEndReachedThreshold=` 出现在目标标签 | **error** | §5.5.3b propMap 未执行 | 强制回改 |
+
+3. 命中 **error** 级 → agent **必须**回到 §5.5.3b/c 对该文件重跑一遍,直到自检干净;若因某种原因确实无法改(例如目标框架实际就叫 `resizeMode`,preset 也没声明改名),必须在 §7 QA 段用 **error** 级列出文件名 + 行号 + 属性名 + 原因,不允许静默留残留。
+4. 命中 **warn** 级 → agent 删属性 + §7 QA 段 warn。
+5. 自检结果无论是否命中都必须在 §7.3 输出**一行汇总**:"§5.5.3d 自检:扫描 X 个文件,发现 error N 条 / warn M 条(具体见 §7 QA 段);已回改 K 条"。
+
+**为什么加这一步**:preset 声明了改名 / reference 声明了值域映射,但 §5.5.3b/c 是"按规则改",没有"改完再验一次"的兜底。历史事故:XImage 保留 `resizeMode="cover"` 与 XScrollView 保留 `horizontal + contentContainerStyle + showsHorizontalScrollIndicator` 三连,都属于 §5.5.3c 阶段直接跳过、产物按 RN 原写法交付。这一步用产物 grep 兜住整个链路,是漏执行的唯一防线,不允许跳过。
+
+**豁免**:若 tagMap 全部保持 RN 原名(如 pure RN preset `rn.json`),整步跳过 —— 此时保留 `resizeMode=` 等属性是正确的。判据是"至少一条 tagMap value ≠ key"。
+
 **步骤 5.5.4 重写 import 段**
 
 原始 import(未启用 adapter 时):
