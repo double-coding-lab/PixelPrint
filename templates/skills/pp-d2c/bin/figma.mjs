@@ -47,6 +47,41 @@ function loadConfig() {
   return { config: cfg, projectRoot }
 }
 
+// 极简 .env 解析:只处理 KEY=VALUE 行,支持引号包裹和 # 注释,不做变量插值
+// 之所以自己写而不引入 dotenv:pp 仓库承诺零 npm 依赖,figma.mjs 现在只用 Node 18+ 内置能力
+function parseEnvFile(text) {
+  const out = {}
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#')) continue
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/)
+    if (!m) continue
+    let val = m[2]
+    // 剥单/双引号(常见于 KEY="xxx" 写法)
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1)
+    }
+    out[m[1]] = val
+  }
+  return out
+}
+
+// token 读取优先级:process.env > 项目根 .env FIGMA_TOKEN > config.figma.token(向后兼容)
+// v1.0.2 起主推 .env,老项目 config 里的 token 由 install.js 迁移;此处保留兼容读取避免旧项目立即断
+function loadFigmaToken(config, projectRoot) {
+  if (process.env.FIGMA_TOKEN) return process.env.FIGMA_TOKEN
+  const envPath = path.join(projectRoot, '.env')
+  if (fs.existsSync(envPath)) {
+    try {
+      const parsed = parseEnvFile(fs.readFileSync(envPath, 'utf8'))
+      if (parsed.FIGMA_TOKEN) return parsed.FIGMA_TOKEN
+    } catch (_) {
+      // .env 读失败不阻塞,继续走 config 兜底
+    }
+  }
+  return config?.figma?.token || ''
+}
+
 function parseFlags(argv) {
   const positional = []
   const flags = {}
@@ -122,9 +157,9 @@ async function downloadToFile(url, destPath) {
 // ─── 命令: verify-token ─────────────────────────────────────────
 
 async function cmdVerifyToken() {
-  const { config } = loadConfig()
-  const token = config.figma?.token
-  if (!token) return fail('figma.token 未在 pp-d2c.config.json 配置')
+  const { config, projectRoot } = loadConfig()
+  const token = loadFigmaToken(config, projectRoot)
+  if (!token) return fail('FIGMA_TOKEN 未配置 (请在项目根 .env 写 FIGMA_TOKEN=xxx)')
   try {
     const me = await figmaFetch('/v1/me', token)
     output({ ok: true, data: { email: me.email, handle: me.handle } })
@@ -140,8 +175,8 @@ async function cmdCacheCheck(positional) {
   if (!fileKey) return fail('用法: figma cache-check <fileKey>')
 
   const { config, projectRoot } = loadConfig()
-  const token = config.figma?.token
-  if (!token) return fail('figma.token 未配置')
+  const token = loadFigmaToken(config, projectRoot)
+  if (!token) return fail('FIGMA_TOKEN 未配置 (请在项目根 .env 写 FIGMA_TOKEN=xxx)')
 
   const paths = cachePaths(projectRoot, fileKey)
 
@@ -191,8 +226,8 @@ async function cmdFetchNode(positional, flags) {
 
   const depth = flags.depth ? parseInt(flags.depth, 10) : undefined
   const { config, projectRoot } = loadConfig()
-  const token = config.figma?.token
-  if (!token) return fail('figma.token 未配置')
+  const token = loadFigmaToken(config, projectRoot)
+  if (!token) return fail('FIGMA_TOKEN 未配置 (请在项目根 .env 写 FIGMA_TOKEN=xxx)')
 
   const paths = cachePaths(projectRoot, fileKey)
   ensureDir(paths.nodesDir)
@@ -234,8 +269,8 @@ async function cmdExportImage(positional, flags) {
   if (!filename) return fail('缺少 --filename=<name>')
 
   const { config, projectRoot } = loadConfig()
-  const token = config.figma?.token
-  if (!token) return fail('figma.token 未配置')
+  const token = loadFigmaToken(config, projectRoot)
+  if (!token) return fail('FIGMA_TOKEN 未配置 (请在项目根 .env 写 FIGMA_TOKEN=xxx)')
 
   const assetsDir = config.images?.assetsDir || 'static/'
   const paths = cachePaths(projectRoot, fileKey)
@@ -286,8 +321,8 @@ async function cmdScreenshot(positional, flags) {
   const scale = flags.scale ? parseInt(flags.scale, 10) : 2
 
   const { config, projectRoot } = loadConfig()
-  const token = config.figma?.token
-  if (!token) return fail('figma.token 未配置')
+  const token = loadFigmaToken(config, projectRoot)
+  if (!token) return fail('FIGMA_TOKEN 未配置 (请在项目根 .env 写 FIGMA_TOKEN=xxx)')
 
   const dir = tmpScreenshotsDir(projectRoot)
   const destPath = path.join(dir, `${tag}-${nodeIdSafe(nodeId)}.png`)
@@ -344,7 +379,8 @@ figma.mjs — Figma REST API helper
   node figma.mjs screenshot <fileKey> <nodeId> [--tag=leaf|whole|block] [--scale=2]
   node figma.mjs cleanup-tmp
 
-所有命令都从 cwd 向上查找 pp-d2c.config.json 拿 figma.token 和 assetsDir。
+所有命令都从 cwd 向上查找 pp-d2c.config.json 拿 assetsDir;
+FIGMA_TOKEN 从项目根 .env 读(优先级 process.env > .env > config.figma.token 兜底)。
 输出统一为 stdout 一行 JSON: {ok: true, data: {...}} 或 {ok: false, error: "..."}。
 退出码 0 表示成功,非零表示失败。
 `)
