@@ -14,3 +14,7 @@ node_modules/
 
 # Local project config (may contain figma.token — never commit)
 pp-d2c.config.json
+
+# Local env (contains FIGMA_TOKEN — never commit)
+.env
+.env.bak

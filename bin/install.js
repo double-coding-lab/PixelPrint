@@ -29,6 +29,74 @@ function copyFileForce(src, dest) {
   console.log(`  overwrite  ${path.relative(CWD, dest)}`)
 }
 
+// ─── .env 读写(极简,不引 dotenv) ─────────────────────────────
+// 只处理 KEY=VALUE,支持 # 注释和引号;不做变量插值。与 figma.mjs::parseEnvFile 语义对齐
+const ENV_PATH = path.join(CWD, '.env')
+
+function readEnvFile() {
+  if (!fs.existsSync(ENV_PATH)) return { lines: [], map: {} }
+  const text = fs.readFileSync(ENV_PATH, 'utf8')
+  const lines = text.split(/\r?\n/)
+  const map = {}
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) continue
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/)
+    if (!m) continue
+    let val = m[2]
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1)
+    }
+    map[m[1]] = val
+  }
+  return { lines, map }
+}
+
+// 追加或更新一个 key,保留其他行不动;value 含空格/引号时自动包双引号
+function upsertEnvVar(key, value) {
+  const exists = fs.existsSync(ENV_PATH)
+  const needsQuote = /[\s"'#]/.test(value)
+  const rendered = needsQuote ? `"${value.replace(/"/g, '\\"')}"` : value
+  const targetLine = `${key}=${rendered}`
+
+  if (!exists) {
+    fs.writeFileSync(ENV_PATH, targetLine + '\n')
+    return { action: 'create' }
+  }
+
+  const text = fs.readFileSync(ENV_PATH, 'utf8')
+  const lineRe = new RegExp(`^${key}\\s*=.*$`, 'm')
+  if (lineRe.test(text)) {
+    // 已有同名 key,做备份再原地替换
+    const bakPath = ENV_PATH + '.bak'
+    fs.writeFileSync(bakPath, text)
+    const next = text.replace(lineRe, targetLine)
+    fs.writeFileSync(ENV_PATH, next)
+    return { action: 'replace', backup: bakPath }
+  }
+  // 追加(确保前面有换行)
+  const next = text.endsWith('\n') || text.length === 0 ? text + targetLine + '\n' : text + '\n' + targetLine + '\n'
+  fs.writeFileSync(ENV_PATH, next)
+  return { action: 'append' }
+}
+
+// 项目根 .gitignore 保证有 .env 行(否则 token 会被 git 追踪)
+function ensureGitignoreHasEnv() {
+  const gitignorePath = path.join(CWD, '.gitignore')
+  const line = '.env'
+  if (!fs.existsSync(gitignorePath)) {
+    fs.writeFileSync(gitignorePath, `# Local env (contains FIGMA_TOKEN — never commit)\n${line}\n`)
+    console.log('  → 创建 .gitignore 并加入 .env')
+    return
+  }
+  const text = fs.readFileSync(gitignorePath, 'utf8')
+  const hasLine = text.split(/\r?\n/).some(l => l.trim() === line || l.trim() === line + '/')
+  if (hasLine) return
+  const next = text.endsWith('\n') ? text + `\n# Local env (contains FIGMA_TOKEN — never commit)\n${line}\n` : text + `\n\n# Local env (contains FIGMA_TOKEN — never commit)\n${line}\n`
+  fs.writeFileSync(gitignorePath, next)
+  console.log('  → .gitignore 追加 .env 行')
+}
+
 function copyDir(srcDir, destDir, force = false) {
   for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
     const src = path.join(srcDir, entry.name)
@@ -419,16 +487,34 @@ async function runInit() {
     }
   }
 
+  // Figma Token 现在存 .env FIGMA_TOKEN,不再写入 pp-d2c.config.json
+  // 默认值优先级:process.env > 项目根 .env > 旧 config.figma.token(迁移场景)
+  const envCurrent = readEnvFile().map.FIGMA_TOKEN || ''
+  const legacyTokenInConfig = fig.token || ''
+  const defaultToken = process.env.FIGMA_TOKEN || envCurrent || legacyTokenInConfig
   const figmaToken = await inputOrUse(
-    isRn ? '[单位2/2] Figma Personal Access Token(用于导出透明图片,回车跳过)'
-         : '[单位4/4] Figma Personal Access Token(用于导出透明图片,回车跳过)',
-    fig.token, ''
+    isRn ? '[单位2/2] Figma Personal Access Token(存到项目根 .env,回车跳过)'
+         : '[单位4/4] Figma Personal Access Token(存到项目根 .env,回车跳过)',
+    defaultToken, ''
   )
+
+  // 落盘 .env + 保证 .gitignore 屏蔽 .env
+  if (figmaToken) {
+    const r = upsertEnvVar('FIGMA_TOKEN', figmaToken)
+    if (r.action === 'create') console.log('  ✓ 已写入 .env: FIGMA_TOKEN=<hidden>')
+    else if (r.action === 'append') console.log('  ✓ 追加 .env: FIGMA_TOKEN=<hidden>')
+    else console.log(`  ✓ 更新 .env: FIGMA_TOKEN=<hidden>(原值备份到 ${path.relative(CWD, r.backup)})`)
+    ensureGitignoreHasEnv()
+    if (legacyTokenInConfig) {
+      console.log('  → 检测到旧 pp-d2c.config.json 里的 figma.token,已迁移到 .env,config 中将移除 figma 段')
+    }
+  } else {
+    console.log('  ⚠️  未填 FIGMA_TOKEN,后续切图会失败;可手动编辑项目根 .env 补上')
+  }
 
   const config = {
     version: '2.0.0',
     project: { name: path.basename(CWD), framework, styleFormat },
-    figma: { token: figmaToken },
     merge: { mode: mergeMode },
     unit: framework === 'rn'
       ? { figmaBase, outputUnit, outputBase, scale, responsive: responsiveCfg }
@@ -566,7 +652,7 @@ async function runInit() {
   ensureGitignoreEntries()
 
   console.log('\n─────────────────────────────────────────────────────')
-  console.log('  ✓ v0.3 起完全走 Figma REST API,无需 MCP;确保 figma.token 已配置即可。')
+  console.log('  ✓ v0.3 起完全走 Figma REST API,无需 MCP;确保项目根 .env 里 FIGMA_TOKEN 已配置即可。')
   console.log('  ✓ pp-d2c.config.json 已配置')
   console.log('  ✓ code-connect/mappings.json 已就绪')
   console.log('  ✓ .gitignore 已追加 .d2c-cache/ / .d2c-tmp/')

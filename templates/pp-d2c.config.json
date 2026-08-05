@@ -5,9 +5,6 @@
     "framework": "react",
     "styleFormat": "scss"
   },
-  "figma": {
-    "token": ""
-  },
   "merge": {
     "mode": "component"
   },
