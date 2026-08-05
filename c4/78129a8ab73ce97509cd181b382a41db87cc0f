@@ -1,0 +1,30 @@
+templates/skills/pp-strip-nodeid/strip-node-id.mjs
+  s_2843f3def1e163::t_722002bcee570b 10-14,26,53-56,63-67,74,83-95,125-128,134-191,197
+templates/skills/pp-strip-nodeid/SKILL.md
+  s_2843f3def1e163::t_2c559246708632 3,5,35,54-63,70,80,95-110,115-117
+templates/skills/pp-d2c-rn/SKILL.md
+  s_2843f3def1e163::t_a108aa8379584c 2087-2119
+templates/skills/pp-d2c/SKILL.md
+  s_2843f3def1e163::t_88e224eda7fe61 1651-1683
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "c478129a8ab73ce97509cd181b382a41db87cc0f",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
