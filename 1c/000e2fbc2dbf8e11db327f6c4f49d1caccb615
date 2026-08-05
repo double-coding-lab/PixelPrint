@@ -1,0 +1,25 @@
+bin/install.js
+  s_2843f3def1e163::t_a5ce429cb9d1a4 370-371
+  s_2843f3def1e163::t_dce9290b0bf4fa 146,156-158,160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "1c000e2fbc2dbf8e11db327f6c4f49d1caccb615",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "unknown"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
