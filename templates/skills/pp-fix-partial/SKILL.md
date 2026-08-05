@@ -32,8 +32,8 @@ Read `.d2c-cache/last-page.json`,拿最近一次成功出码的元数据:
 
 ```json
 {
-  "figmaUrl": "https://figma.com/design/6hE7oGDVaLV74c7o5YalFD?node-id=138-1797",
-  "fileKey": "6hE7oGDVaLV74c7o5YalFD",
+  "figmaUrl": "https://figma.com/design/<fileKey>?node-id=138-1797",
+  "fileKey": "<fileKey>",
   "rootNodeId": "138:1797",
   "outputDir": "pages/Italo",
   "outputEntryFile": "pages/Italo/index.jsx",
@@ -240,9 +240,9 @@ grep -rn 'data-node-id="138:1830"' pages/Italo/
 ```
 ✅ 局部修复完成:sub-tab-list (138:1830)
 📁 改动文件:pages/Italo/blocks/sub-tab-list/index.jsx (行 12-45)
-🖼️  新增图片:static/6hE7oGDVaLV74c7o5YalFD-138-1830-1.png
+🖼️  新增图片:static/<fileKey>-138-1830-1.png
 🗑️  可能弃用的老图(不自动删,请人工确认):
-     · static/6hE7oGDVaLV74c7o5YalFD-138-1830-0.png
+     · static/<fileKey>-138-1830-0.png
 💾 缓存复用情况:figma JSON 复用 / 图片 1 张新导 / 1 张复用
 📐 anchor 档案已更新:.d2c-cache/anchors/pages_Italo.json
 👀 请 git diff 复核,视觉验收通过再 commit
