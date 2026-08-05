@@ -1,6 +1,6 @@
 {
   "name": "@double-coding/pixel-print",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "PixelPrint —— Figma D2C 工具,一键安装 Claude Code Skill,自动将 Figma 设计稿转换为前端代码(H5 / React Native / xtaro)",
   "bin": {
     "pp-d2c": "bin/install.js"
