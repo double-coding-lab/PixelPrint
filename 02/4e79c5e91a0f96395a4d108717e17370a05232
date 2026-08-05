@@ -1,0 +1,28 @@
+package.json
+  h_02deff59416ae5 3
+  s_2843f3def1e163::t_f89ff2ed345ba2 4
+README.md
+  s_2843f3def1e163::t_9e818269fe79c6 3,7,9-19,23-25,28,32-68,70,72-74,76-80,84-88,92,94-119,122-126,129,131-135,138-141,144-147,149,151,153,155-158,160,162-174,176-186,192,197-199,201,203-206,209-211,213-215,219,225-227,231-235,240,244,246,248,250-254,256,258,260-263,265,273,275-283,285-290,292-295,305-315,319,323-325,327-331,333-335,337-339
+  s_2843f3def1e163::t_8e2c863eb390f6 1,4-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "024e79c5e91a0f96395a4d108717e17370a05232",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
