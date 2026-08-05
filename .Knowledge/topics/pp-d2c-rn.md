@@ -96,15 +96,66 @@ rn SKILL 内不做 styleFormat 探测,统一走 `StyleSheet.create({...})` + `st
 
 老 config 里若 `styleFormat` 是 `scss` 等 h5 值,自动降级到 `stylesheet` + QA info 告警。
 
+## rn 页面根强制骨架 + fixed-* 分层(v1.0.3 关键补丁)
+
+**背景**:agent 无法在生成阶段可靠判断"内容是否超过视口"——figmaBase 与视口高度不联动、顶层 frame 高度不总等于内容真实高度、运行时视口值 D2C 拿不到。历史"三信号 AND 页面根覆写"(入口 nodeId + 父是 Page + 高度接近视口容差列表)在 rn 侧屡屡失灵:设计稿 1579px 长图不匹配容差 → 走普通 FIXED → 产物根 `<XView>` + `minHeight: rpx(1579)` 死高 → **RN/xtaro 的 View 天然不滚**,内容被裁,用户看不到底部。
+
+**结论**:rn 分支 SKILL **不判视口**,所有 rn 页面顶层入口一律套用固定骨架:
+
+```tsx
+<XView style={styles.root}>              {/* flex:1 + position:relative,承接 fixed-* */}
+  <XScrollView style={styles.scroll} showScrollbar={false}>
+    <XView style={styles.scrollContent}>  {/* width + minHeight + paddingTop + alignItems + alignSelf:center */}
+      <XImage src={require('...bg-body.png')} style={styles.bgBody} />
+      {/* 顶层 frame 顺流子... */}
+      <XView style={styles.bottomPadding} />  {/* 给屏底 fixed-btn 让位 */}
+    </XView>
+  </XScrollView>
+
+  {/* fixed-* 放外层,真贴屏 */}
+  <XImage style={styles.fixedNavbar} />   {/* top: 0 */}
+  <XView style={styles.fixedBtnHit}>...</XView>  {/* bottom: 0 */}
+</XView>
+```
+
+### fixed-* 分层(放外 vs 放内)
+
+| 判定 | 放 XScrollView **外**(真 fixed) | 放 XScrollView **内**(跟随滚动) |
+|-----|---------------------------------|-------------------------------|
+| 触发 | 图层名带 `fixed-` **且** constraints `vertical` ∈ `{TOP, BOTTOM}` | `layoutPositioning: ABSOLUTE` 但**不带** `fixed-` 前缀,或设计语义就是"跟内容动"(如视频角标) |
+| 典型 | fixed-navbar / 状态栏 back-share / fixed-btn 底部购票按钮 | 视频卡角上的抽奖胶囊 / 装饰性角标 |
+| CSS | `top: 0` 或 `bottom: 0`(**不是** Figma 原 top=1505 页面坐标) | 保留 Figma 原 top/left 值 |
+| zIndex | 100+ | 不需要 |
+
+**核心机制**:`<XScrollView>` 内的 `position: 'absolute'` 元素相对 `scrollContent` 定位,滚动时会一起动 → 对"抽奖胶囊挂视频角"是对的,对"贴屏底购票按钮"是错的。`<XScrollView>` 外的 `position: 'absolute'` 相对根 `<XView>` (`flex:1` 撑满屏)定位 → 真贴屏。
+
+### bg- 铺满层用 Figma 事实尺寸
+
+历史写法 `<XImage style={StyleSheet.absoluteFillObject} />` 或 `width/height: '100%'` **在父用 `minHeight` 时会跟着塌陷**——`%` 值引用父的**计算高度**(可能小于 Figma 设计稿高度)。改为写 Figma 事实固定尺寸 + 精确定位:
+
+```ts
+bgBody: {
+  position: 'absolute',
+  top: 0, left: 0,
+  width: rpx(<figmaW>),
+  height: rpx(<figmaH>),   // 不用 '100%',不用 absoluteFillObject
+}
+```
+
+### §6.0 checklist 相应变更
+
+- **第 9 项(重写)**:检查顶层入口节点是否套用强制 ScrollView 骨架(不套 / `overflow:hidden` / `fixed-` 放内部 / scrollContent 用 `height` 而非 `minHeight`,四种都是硬错);sub-agent 派发进来的内层 block **不应**套骨架,反向查也校验
+- **第 11 项(补 b 分支)**:除了原 `sub-/block-` 容器 FIXED 用 `minHeight` 防塌陷,再校验其内部铺满兄弟层是否用了 `%` 或 `absoluteFillObject`(应改为 Figma 事实尺寸)
+
 ## RN 特性退化表(与 h5 SKILL 的关键差异)
 
 Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化并输出告警:
 
 | Figma / h5 语义 | rn 退化策略 | 告警级别 |
 |-----------------|-----------|--------|
-| `fixed-` 前缀 | `position: 'absolute'` + 数值定位(滚动时随内容动,不保持屏幕位置) | warn |
-| 页面根 `min-height: max(x, 100vh)` | `minHeight: Dimensions.get('window').height`(需 import Dimensions);xtaro 项目改 `xGetSystemInfoSync().windowHeight`(from `@ctrip/xtaro`),taro 项目改 `getSystemInfoSync().windowHeight`(from `@tarojs/taro`),见 SKILL §SCREEN-API | info |
-| `bg-` 背景图 | 拆成独立 `<Image>` + `StyleSheet.absoluteFillObject` | info |
+| `fixed-` 前缀 | 按上文「fixed-* 分层」放 `<XScrollView>` **外**;constraints `vertical` 决定用 `top: 0`(TOP) 或 `bottom: 0`(BOTTOM),**不写 Figma 原 y 坐标**(那是页面坐标不是屏坐标) | info |
+| 页面滚动骨架 | 所有 rn 页面一律套 XScrollView 骨架,不判视口 | info |
+| `bg-` 背景图 | 拆成独立 `<XImage>` 挂 `scrollContent` 内头部;**用 Figma 事实固定尺寸而非 `absoluteFillObject` / `%`**(父 `minHeight` 时 `%` 会塌陷) | info |
 | GRADIENT_LINEAR / GRADIENT_RADIAL | 退化为纯色(第一个 stop),提示接 `react-native-linear-gradient` | warn |
 | box-shadow | 拆成 `shadowColor` / `shadowOffset` / `shadowRadius` / `shadowOpacity` / `elevation` | 无(rn 原生支持) |
 | INNER_SHADOW / LAYER_BLUR / BACKGROUND_BLUR | 不出 style,注释 TODO,提示接第三方库 | error |
@@ -124,7 +175,7 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 - **`bgc-` 覆盖父元素全套盒级 CSS 属性**:rn 侧改为覆盖 `borderColor` / `borderWidth` / `borderRadius` / `shadow*`,GRADIENT 走退化
 - **`bg-` 内嵌 `bgc-` 的"摘出来"处理**:同 h5,只是"摘出来"后写到父 View 的 style 属性(不是 CSS 类)
 - **`bg-` 切图前的 CSS-able 自检**:同 h5,命中条件后**改用 bgc- 规则**(rn 侧走 style 属性)
-- **`fixed-` / `end-` / `input-` 前缀语义**:同 h5,只是输出退化(fixed → absolute,end- 仍走 wrapper + space-between)
+- **`fixed-` / `end-` / `input-` 前缀语义**:同 h5,只是输出退化(见上文「rn 页面根强制骨架 + fixed-* 分层」;`end-` 仍走 wrapper + space-between)
 
 ## rn SKILL 特有的执行步骤
 
@@ -151,6 +202,8 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 - **禁止**:对 StyleSheet / Dimensions / Fragment 应用 tagMap
 - **禁止**:rn 侧 config 里出现 `scss` / `scss-modules` 等 h5 值不做降级处理
 - **禁止**:rn 侧生成"字符串 + px 后缀"的样式属性(`'20px'`),必须写数字 `20`
+- **禁止**:让根 `<XView>` 直接装内容而不套 `<XScrollView>`;禁止把根或 `scrollContent` 写 `overflow: 'hidden'`(会阻止滚动);禁止把带 `fixed-` 前缀(constraints TOP/BOTTOM 贴屏语义)的节点放进 `<XScrollView>` 内部(会跟着内容滚动而非贴屏)
+- **禁止**:`bg-` 铺满层用 `StyleSheet.absoluteFillObject` 或 `width/height: '100%'`(父 `minHeight` 时 `%` 值会引用父计算高度跟着塌陷);必须写 Figma 事实固定尺寸 `width: rpx(w), height: rpx(h)` + `top: 0, left: 0`
 
 ## 不在本 topic 覆盖的内容
 
