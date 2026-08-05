@@ -311,141 +311,123 @@ async function runInit() {
 
   console.log('─── 阶段二：交互式配置 ──────────────────────────────\n')
 
-  const framework = await pickOrUse('[1/8] 项目框架', p.framework, ['react', 'rn'], 'react')
+  // ─── 平铺项目框架 + 方案 ──────────────────────────────
+  // 把 H5(React)的样式方案 + RN 的 adapter 预设全部铺开成同一层选项,
+  // 用户一次选中就同时敲定 framework / styleFormat(H5)/ adapterCfg(RN),
+  // 后续 [2a/2b/2c] 或 [2.1] 子问题不再分开问。
+  const presets = loadAdapterPresets()
+  const flatOptions = []
+  // H5 stylesheet 变体:三种预处理语法 × 两种 modules(scss/less/css × 是否 modules)
+  for (const syn of ['scss', 'less', 'css']) {
+    flatOptions.push({ label: `React / ${syn.toUpperCase()}`, framework: 'react', styleFormat: syn })
+    flatOptions.push({ label: `React / ${syn.toUpperCase()} Modules`, framework: 'react', styleFormat: `${syn}-modules` })
+  }
+  flatOptions.push({ label: 'React / Tailwind', framework: 'react', styleFormat: 'tailwind' })
+  flatOptions.push({ label: 'React / Inline Style', framework: 'react', styleFormat: 'inline' })
+  // RN 各 preset,再加"自定义"/"不启用"两个兜底
+  for (const preset of presets) {
+    flatOptions.push({ label: `RN / ${preset.name}`, framework: 'rn', adapterKind: 'preset', preset })
+  }
+  flatOptions.push({ label: 'RN / 自定义标签映射(后续手填)', framework: 'rn', adapterKind: 'custom' })
+  flatOptions.push({ label: 'RN / 不启用组件映射(保留 RN 原写法)', framework: 'rn', adapterKind: 'off' })
 
-  // 先问完 framework 再复制 SKILL 文件:react 项目不需要装 rn SKILL,反之亦然
-  installFiles(true, true, { skipRn: framework !== 'rn' })  // init: 强制覆盖 skill 文件；跳过 config 复制
-
-  // 样式方案分两个维度问：方式 + (仅 stylesheet 时) 预处理语法 + 是否走 module
-  // 最终 styleFormat 落值规范见 SKILL §0「样式方案标识符」
-  let styleFormat
-  let adapterCfg = null  // rn 分支下才会填,react 分支保持 null(config 不写 adapter 段)
-  let pickedPreset = null  // 若走预设分支,记录命中的 preset 对象;供 helper 复制阶段选源
-  if (framework === 'rn') {
-    // rn 分支样式方案写死 StyleSheet.create + 行内 style,不再询问
-    // 理由:styled-components / nativewind 需要额外依赖且 SKILL 侧未落地生成模板,现阶段只支持 stylesheet
-    styleFormat = 'stylesheet'
-    console.log('  [2/8] 样式方案: \x1b[36mstylesheet\x1b[0m \x1b[90m(rn 分支固定用 StyleSheet.create + 行内 style)\x1b[0m')
-
-    // ─── 【新增】组件框架映射引导 ─────────────────────────
-    // adapter 把 RN 原生标签映射到 xtaro / taro / 其他框架
-    // 已有完整 adapter 配置 → 直接沿用,不再询问
-    // 没配置过 → 一层选择:不启用 / xtaro / taro / pure RN / 自定义
-    const existingAdapter = existing.adapter || {}
-    const hasExistingMap = existingAdapter.tagMap && Object.keys(existingAdapter.tagMap).length > 0
-    if (hasExistingMap) {
-      logUseExisting('[2.1/8] 组件框架映射', `${Object.keys(existingAdapter.tagMap).length} 条(沿用)`)
-      adapterCfg = {
-        enabled: true,
-        tagMap: existingAdapter.tagMap || {},
-        importMap: existingAdapter.importMap || {},
-        propMap: existingAdapter.propMap || {},
-        reactImport: existingAdapter.reactImport || 'react'
-      }
-      // 沿用旧 tagMap/propMap,但 referenceDoc + _presetSource 需要以最新 preset 为准
-      // 老 config 里可能根本没这两字段(v1.0.1 之前 install.js 漏写),必须现在补上,
-      // 否则 SKILL §5.5.3c 拿不到手册路径 → 复杂差异处理全部 no-op
-      if (existingAdapter.referenceDoc) adapterCfg.referenceDoc = existingAdapter.referenceDoc
-      if (existingAdapter._presetSource) adapterCfg._presetSource = existingAdapter._presetSource
-      // 兜底回填:按 tagMap 反查匹配的 preset(用 View→? 这条最能定位框架)
-      if (!adapterCfg.referenceDoc || !adapterCfg._presetSource) {
-        const presets = loadAdapterPresets()
-        const viewTarget = adapterCfg.tagMap.View
-        const hit = viewTarget
-          ? presets.find(p => p.adapter && p.adapter.tagMap && p.adapter.tagMap.View === viewTarget)
-          : null
-        if (hit) {
-          if (!adapterCfg.referenceDoc && hit.referenceDoc) adapterCfg.referenceDoc = hit.referenceDoc
-          if (!adapterCfg._presetSource) adapterCfg._presetSource = PRESETS_DIR
-          console.log(`  → 补齐 adapter.referenceDoc / _presetSource(反查匹配 ${hit.name} 预设)`)
-        } else {
-          console.log('  ⚠️  未能反查到匹配的 preset,adapter.referenceDoc / _presetSource 保持缺失;SKILL §5.5.3c 复杂差异处理将 no-op')
-        }
-      }
+  // 反推现有 config 对应的平铺项 label(能命中就走"沿用",避免每次 init 都重选)
+  let existingLabel = null
+  if (p.framework === 'react') {
+    const found = flatOptions.find(o => o.framework === 'react' && o.styleFormat === p.styleFormat)
+    if (found) existingLabel = found.label
+  } else if (p.framework === 'rn') {
+    const ad = existing.adapter || {}
+    const hasMap = ad.tagMap && Object.keys(ad.tagMap).length > 0
+    if (ad.enabled === false) {
+      existingLabel = flatOptions.find(o => o.adapterKind === 'off')?.label
+    } else if (!hasMap) {
+      existingLabel = flatOptions.find(o => o.adapterKind === 'custom')?.label
     } else {
-      // 扫 templates/adapter-presets/ 目录,把 preset.name 与"不启用"/"自定义"平铺在同一层选择
-      const presets = loadAdapterPresets()
-      const OFF_LABEL = '不启用(保留 RN 原写法)'
-      const CUSTOM_LABEL = '自定义(后续手填 tagMap/importMap/propMap)'
-      const choices = [OFF_LABEL, ...presets.map(p => p.name), CUSTOM_LABEL]
-      // 默认值:优先取第一个 preset(通常是 xtaro),没预设时用 OFF
-      const defaultChoice = presets[0]?.name || OFF_LABEL
-      const picked = await select('[2.1/8] 选择组件框架映射', choices, defaultChoice)
+      // 按 View 目标标签反查匹配 preset
+      const viewTarget = ad.tagMap.View
+      const hit = flatOptions.find(o => o.preset && o.preset.adapter && o.preset.adapter.tagMap && o.preset.adapter.tagMap.View === viewTarget)
+      if (hit) existingLabel = hit.label
+    }
+  }
 
-      if (picked === OFF_LABEL) {
-        adapterCfg = { enabled: false, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
-      } else if (picked === CUSTOM_LABEL) {
-        adapterCfg = { enabled: true, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
-        console.log('  → adapter.enabled=true,请后续在 pp-d2c.config.json 手动填 tagMap / importMap / propMap')
-      } else {
-        const hit = presets.find(p => p.name === picked)
-        adapterCfg = { ...hit.adapter }
-        // 把 preset 顶层的 referenceDoc + preset 目录绝对路径写入 adapter 段
-        // SKILL §5.5.3c 靠这两字段拼参考手册路径;缺任一 → §5.5.3c 直接 no-op 跳过复杂差异处理
-        if (hit.referenceDoc) adapterCfg.referenceDoc = hit.referenceDoc
-        adapterCfg._presetSource = PRESETS_DIR
-        pickedPreset = hit
-        console.log(`  → 已写入 ${hit.name} 预设(${hit.description || '见 templates/adapter-presets/README.md'})`)
+  let selectedLabel, isReused = false
+  const flatLabels = flatOptions.map(o => o.label)
+  if (existingLabel) {
+    logUseExisting('[1/8] 项目框架 + 方案', existingLabel)
+    selectedLabel = existingLabel
+    isReused = true
+  } else {
+    selectedLabel = await select('[1/8] 项目框架 + 方案', flatLabels, flatLabels[0])
+  }
+  const selectedOpt = flatOptions.find(o => o.label === selectedLabel)
+  const framework = selectedOpt.framework
+
+  // 选完 framework 才复制 SKILL(react 不装 rn skill,反之亦然)
+  installFiles(true, true, { skipRn: framework !== 'rn' })
+
+  let styleFormat
+  let adapterCfg = null
+  let pickedPreset = null
+  let responsiveCfg = null
+
+  if (framework === 'rn') {
+    // rn 分支样式方案写死 stylesheet(StyleSheet.create + 行内 style)
+    styleFormat = 'stylesheet'
+
+    // 从平铺项组装 adapterCfg
+    // 若是沿用已有 config 且 adapter 存在 → 保留用户可能的手动定制(propMap/importMap)
+    if (isReused && existing.adapter && (existing.adapter.tagMap || existing.adapter.enabled === false)) {
+      const oldAd = existing.adapter
+      adapterCfg = {
+        enabled: oldAd.enabled !== false,
+        tagMap: oldAd.tagMap || {},
+        importMap: oldAd.importMap || {},
+        propMap: oldAd.propMap || {},
+        reactImport: oldAd.reactImport || 'react'
       }
+      if (oldAd.referenceDoc) adapterCfg.referenceDoc = oldAd.referenceDoc
+      if (oldAd._presetSource) adapterCfg._presetSource = oldAd._presetSource
+      // 兜底补齐 referenceDoc / _presetSource(v1.0.1 之前 install.js 漏写)
+      if (selectedOpt.preset && (!adapterCfg.referenceDoc || !adapterCfg._presetSource)) {
+        if (!adapterCfg.referenceDoc && selectedOpt.preset.referenceDoc) adapterCfg.referenceDoc = selectedOpt.preset.referenceDoc
+        if (!adapterCfg._presetSource) adapterCfg._presetSource = PRESETS_DIR
+        console.log(`  → 补齐 adapter.referenceDoc / _presetSource(匹配 ${selectedOpt.preset.name} 预设)`)
+      }
+      if (selectedOpt.preset) pickedPreset = selectedOpt.preset
+    } else if (selectedOpt.adapterKind === 'off') {
+      adapterCfg = { enabled: false, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
+    } else if (selectedOpt.adapterKind === 'custom') {
+      adapterCfg = { enabled: true, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
+      console.log('  → adapter.enabled=true,请后续在 pp-d2c.config.json 手动填 tagMap / importMap / propMap')
+    } else {
+      const hit = selectedOpt.preset
+      adapterCfg = { ...hit.adapter }
+      if (hit.referenceDoc) adapterCfg.referenceDoc = hit.referenceDoc
+      adapterCfg._presetSource = PRESETS_DIR
+      pickedPreset = hit
+      console.log(`  → 已写入 ${hit.name} 预设(${hit.description || '见 templates/adapter-presets/README.md'})`)
     }
 
-    // ─── 【新增】响应式 rpx() 包装引导 ──────────────────
-    // RN 数值默认是 dp/pt(iOS pt / Android dp),不同屏宽下同一数值物理尺寸不同。
-    // 启用 rpx 包装 → SKILL 在 layout / spacing / borderRadius / fontSize 类属性上调用 rpx(),
-    // 由 helper 按 Dimensions.get('window').width / figmaBase 线性缩放。
+    // ─── 响应式 rpx() 包装引导 ─────────────────────────
     const existingUnit = existing.unit || {}
     const existingResp = existingUnit.responsive || {}
     const existingRespYn = existingResp.enabled === true ? 'Yes' : existingResp.enabled === false ? 'No' : null
     const enableRespYn = await pickOrUse(
-      '[2.2/8] 是否启用响应式 rpx() 包装(按屏宽线性缩放尺寸)',
+      '[2/8] 是否启用响应式 rpx() 包装(按屏宽线性缩放尺寸)',
       existingRespYn, ['Yes', 'No'], 'Yes'
     )
-    var responsiveCfg = null  // 到 config 阶段合并到 unit 段
     if (enableRespYn === 'Yes') {
-      const helperImport = await inputOrUse(
-        '[2.3/8] rpx helper import 路径',
-        existingResp.helperImport, '@/utils/rpx'
-      )
-      const helperName = await inputOrUse(
-        '[2.4/8] rpx helper 导出函数名',
-        existingResp.helperName, 'rpx'
-      )
+      const helperImport = await inputOrUse('[2.1/8] rpx helper import 路径', existingResp.helperImport, '@/utils/rpx')
+      const helperName = await inputOrUse('[2.2/8] rpx helper 导出函数名', existingResp.helperName, 'rpx')
       responsiveCfg = { enabled: true, helperImport, helperName }
     } else {
       responsiveCfg = { enabled: false, helperImport: '@/utils/rpx', helperName: 'rpx' }
     }
-    // RN 分支后面 mergeMode 等步骤标号顺延
   } else {
-    // 从现有 styleFormat 反推三个维度的当前值（兼容老 config）
-    const existing2a = (() => {
-      if (p.styleFormat === 'tailwind') return 'tailwind'
-      if (p.styleFormat === 'inline') return 'inline'
-      if (p.styleFormat && /^(scss|less|css)(-modules)?$/.test(p.styleFormat)) return 'stylesheet'
-      return null
-    })()
-    const existing2b = (() => {
-      if (!p.styleFormat) return null
-      const m = p.styleFormat.match(/^(scss|less|css)(-modules)?$/)
-      return m ? m[1] : null
-    })()
-    const existing2c = (() => {
-      if (!p.styleFormat) return null
-      return /-modules$/.test(p.styleFormat) ? 'Yes' : 'No'
-    })()
-
-    const styleMode = await pickOrUse('[2a/8] 样式方式', existing2a,
-      ['stylesheet', 'tailwind', 'inline'], 'stylesheet')
-
-    if (styleMode === 'stylesheet') {
-      const syntax = await pickOrUse('[2b/8] 预处理语法', existing2b,
-        ['scss', 'less', 'css'], 'scss')
-      const useModulesYn = await pickOrUse('[2c/8] 是否启用 css-modules', existing2c,
-        ['No', 'Yes'], 'No')
-      const useModules = useModulesYn === 'Yes'
-      styleFormat = useModules ? `${syntax}-modules` : syntax
-    } else {
-      styleFormat = styleMode
-    }
+    // react 分支的 styleFormat 已在 [1/8] 里选完,这里只做展示不再交互
+    styleFormat = selectedOpt.styleFormat
+    console.log(`  [2/8] 样式方案: \x1b[36m${styleFormat}\x1b[0m \x1b[90m(在 [1/8] 里已选定,不再单独询问)\x1b[0m`)
   }
 
   const mergeMode = await pickOrUse('[3/8] 合并模式', m.mode, ['component', 'flat'], 'component')
