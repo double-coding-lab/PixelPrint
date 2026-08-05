@@ -53,7 +53,7 @@ node .claude/skills/pp-d2c-rn/bin/figma.mjs verify-token
   ```
   ❌ Figma Token 探针失败：<error 内容>
 
-  请检查 `pp-d2c.config.json` 里的 `figma.token`：
+  请检查项目根 `.env` 里的 `FIGMA_TOKEN`：
   1. 是否已配置且未过期（Figma 网页版右上角头像 → Settings → Security → Personal access tokens）
   2. Token 权限是否包含 File content: Read-only
   3. 网络能否访问 api.figma.com
@@ -77,7 +77,7 @@ Read("pp-d2c.config.json")
 |------|------|
 | `project.framework` | 生成代码的目标框架（react / rn） |
 | `project.styleFormat` | 样式方案标识符（取值见下表） |
-| `figma.token` | Figma Personal Access Token，用于 REST API 导出图片 |
+| `FIGMA_TOKEN` (项目根 `.env`) | Figma Personal Access Token，用于 REST API 导出图片（v1.0.2 起从 config 迁到 .env） |
 | `merge.mode` | 合并模式（flat / component） |
 | `images.assetsDir` | 图片下载目录 |
 | `images.imageBaseUrl` | 代码中图片 src 前缀 |
@@ -1219,7 +1219,7 @@ stdout 返回 `{"ok":true,"data":{"path":"<绝对路径>","reused":<bool>,"forma
 - 图层为矢量（Vector / Icon / 无栅格内容）→ `--format=svg`
 - 其他 → 默认 PNG 2 倍图
 
-**前提**：`figma.token` 必须在 config 中配置。**当 token 缺失或过期时（HTTP 403 / 401 / `invalid_token`）**，本 SKILL  起**不再有 MCP 兜底路径**——直接终止并要求用户补 token 后重跑。原因见下文 §4.4.1。
+**前提**：项目根 `.env` 里 `FIGMA_TOKEN` 必须已配置（v1.0.2 起从 `pp-d2c.config.json` 迁到 `.env`）。**当 token 缺失或过期时（HTTP 403 / 401 / `invalid_token`）**，本 SKILL  起**不再有 MCP 兜底路径**——直接终止并要求用户补 token 后重跑。原因见下文 §4.4.1。
 
 #### 4.4.1 Token 过期 / 缺失时的处理
 
@@ -1236,7 +1236,7 @@ stdout 返回 `{"ok":true,"data":{"path":"<绝对路径>","reused":<bool>,"forma
 ```
 ❌ 图片导出失败：Figma Token 无效或过期
 
-请检查 `pp-d2c.config.json` 里的 `figma.token`：
+请检查项目根 `.env` 里的 `FIGMA_TOKEN`：
 1. Token 是否已过期或被撤销
 2. Token 权限是否包含 File content: Read-only
 3. Token 对应的账号是否有该 fileKey 的访问权限
@@ -2063,7 +2063,7 @@ const styles = StyleSheet.create({ /* ... */ })
 - 禁止 `scrollx-` / `scrolly-` 与 `img-` / `bg-` / `bgc-` / `x-` / `btn-` 共存（语义冲突）；禁止同一节点同时含 `scrollx-` 和 `scrolly-`（一个元素只能一个滚动方向）；禁止省略隐藏滚动条样式（`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`）
 - 禁止把 `sub-scrollx-` / `sub-scrolly-` 节点**整体导出为单张背景图**作为容器 `background-image`：scroll 容器必须**继续递归子层**（§416-417），子层是同构列表项；只有标了 `bgc-` / `bg-` 的子节点才作为背景。即便子层结构复杂、识别困难，也不允许"省事 fallback 到整体导出"——需要时把识别失败的子树标 `x-` 或拆分稿子，不能用整体导出绕过。
 - 禁止调用 Figma `/v1/images` 时省略 `use_absolute_bounds=true`：不带此参数会把图层 effect（drop-shadow / outer-stroke / blur）和父背景色一起 render 进 PNG，导致"图都带画板背景色"+"对齐用的 gap / margin 算不准（视觉外扩）"两个 bug 同时发生。仅当某张图明确要把 effect 烤进位图（在 config `images.preserveEffectIds` 列出 nodeId）时才省略。
-- 禁止 `figma.token` 无效时直接跳过图片下载或用 Figma S3 临时链接占位（约 30 分钟过期，代码上线就 404）； 起 token 失败即终止，由用户补 token 后重跑，不再有 MCP 兜底路径
+- 禁止 `FIGMA_TOKEN` 无效时直接跳过图片下载或用 Figma S3 临时链接占位（约 30 分钟过期，代码上线就 404）； 起 token 失败即终止，由用户补 token 后重跑，不再有 MCP 兜底路径
 - 禁止调用任何 `mcp__plugin_figma_figma__*` 工具；禁止把 MCP `get_design_context` 返回的"参考代码"字段作为渲染依据——项目前缀规则（§4.0 / §4.3）的优先级永远高于任何"AI 生成的通用 D2C 参考代码"
 - 禁止跳过步骤 0.3 缓存初始化；禁止绕过 `.d2c-cache/{fileKey}/meta.json` 的 `lastModified` 校验直接读旧缓存（设计稿改过必须整份作废重拉）；禁止 sub-agent 独立校验 `lastModified`（主 agent 校验一次即可）；禁止把 QA 临时截图写进 `.d2c-cache/`（该目录只放跨会话可复用的数据，QA 截图属于 `.d2c-tmp/screenshots/`）
 - 禁止 SKILL 结束时不清理 `.d2c-tmp/screenshots/`（跨会话不保留 QA 对比截图，避免污染仓库和 `git status`）

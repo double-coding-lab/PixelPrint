@@ -13,7 +13,7 @@
 |------|------|
 | `project.framework` | 目标框架（react / rn） |
 | `project.styleFormat` | 样式方案（见下表） |
-| `figma.token` | Figma Personal Access Token（REST API 切图用） |
+| `FIGMA_TOKEN` (项目根 `.env`) | Figma Personal Access Token（REST API 切图用；v1.0.2 起从 config 迁到 .env） |
 | `images.assetsDir` | 图片下载目录 |
 | `images.imageBaseUrl` | 代码中图片 src 前缀 |
 | `images.preserveEffectIds` | 导出时**保留** effect / 父背景的 nodeId 列表（默认空 = 全部按 bbox 严格导出） |
@@ -213,16 +213,16 @@
 
 ## 七、图片导出
 
-### L0 主路径（figma.token 非空时，必须走此路径）
+### L0 主路径（`FIGMA_TOKEN` 非空时，必须走此路径）
 
 ```bash
 # PNG 2倍图，严格按 bbox（不含 effect / 父背景色）
-curl -H "X-Figma-Token: {figma.token}" \
+curl -H "X-Figma-Token: {FIGMA_TOKEN}" \
   "https://api.figma.com/v1/images/{fileKey}?ids={nodeId}&format=png&scale=2&use_absolute_bounds=true" \
   -o {projectRoot}/{assetsDir}/{filename}.png
 
 # SVG（矢量图层优先）
-curl -H "X-Figma-Token: {figma.token}" \
+curl -H "X-Figma-Token: {FIGMA_TOKEN}" \
   "https://api.figma.com/v1/images/{fileKey}?ids={nodeId}&format=svg&use_absolute_bounds=true" \
   -o {projectRoot}/{assetsDir}/{filename}.svg
 ```
@@ -374,7 +374,7 @@ Bold / Heavy 统一使用固定 CDN，不下载到本地：
 - 禁止把 `bgc-` 节点切成 PNG（永远只取属性写 CSS）
 - 禁止只取 `bgc-` 节点的 fills 而忽略 strokes/cornerRadius/effects
 - 禁止父容器同时有 `bgc-` 和 `bg-` 时只写 `background-image` 不写 bgc- 的其他属性
-- 禁止 `figma.token` 存在且非空时使用 MCP `download_assets` 导出图片（token 有效必须走 L0）
+- 禁止 `FIGMA_TOKEN` 存在且非空时使用 MCP `download_assets` 导出图片（token 有效必须走 L0）
 - 禁止调用 `/v1/images` 时省略 `use_absolute_bounds=true`（除非 nodeId 在 `preserveEffectIds` 中）
 - 禁止把 `bg-` 节点的父容器当成切图源（切图源 nodeId 必须是 `bg-` 节点自己）
 - 禁止 `scrollx-` / `scrolly-` 与 `img-` / `bg-` / `bgc-` / `x-` / `btn-` 共存

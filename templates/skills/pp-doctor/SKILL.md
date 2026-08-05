@@ -32,7 +32,7 @@ node .claude/skills/pp-d2c/bin/figma.mjs verify-token
 ```
 ❌ Figma Token 探针失败：<error 内容>
 
-请检查 `pp-d2c.config.json` 里的 `figma.token`：
+请检查项目根 `.env` 里的 `FIGMA_TOKEN`：
 1. 是否已配置且未过期（Figma 网页版右上角头像 → Settings → Security → Personal access tokens）
 2. Token 权限是否包含 File content: Read-only
 3. 网络能否访问 api.figma.com
