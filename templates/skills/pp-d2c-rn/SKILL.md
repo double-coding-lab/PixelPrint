@@ -337,34 +337,140 @@ img-*   → 主 agent 处理，生成 <img>
 
 ---
 
-### 步骤 2.5:页面级背景处理(rn SKILL 简化版)
+### 步骤 2.5:页面级背景 + 根骨架(rn SKILL 简化版)
 
-**与 h5 SKILL 不同**:rn 侧没有 `body` 概念,不存在"页面根容器有固定 750px 会露白"的问题。设计稿顶层 frame 的 `backgroundColor` / `fills` 直接写到**根 View 的 style** 上即可:
+**与 h5 SKILL 不同**:rn 侧没有 `body` 概念,不存在"页面根容器有固定 750px 会露白"的问题。但 rn 有另一个 h5 没有的问题:**RN/xtaro 的 `<View>` 天然不滚**,内容比屏高时会被裁掉,用户看不到底部。所以 rn 页面必须**强制**采用 XScrollView 骨架。
 
-```jsx
-<View style={styles.root}>
-  {/* ... */}
-</View>
+#### 页面根骨架(rn 强制,一律套用,无判定分支)
+
+**agent 无法准确判断"内容是否超过视口"**(视口高度是运行时值,figmaBase 与视口高度不联动;顶层 frame 高度也不总等于内容真实高度)。所以本 SKILL **不做判断**——**所有 rn 页面**产物,顶层入口节点(用户 URL 的 `node-id` 指向的那一层)**一律**按下方骨架生成,不看设计稿高度、不看 layoutMode、不看视口尺寸。
+
+```tsx
+import { XImage, XScrollView, XView } from '@ctrip/xtaro'  // adapter 阶段自动转换
+import { rpx } from '@Utils/rpx'  // 或项目 alias
+import { StyleSheet } from 'react-native'
+
+export default function PageName() {
+  return (
+    <XView style={styles.root}>
+      {/* 主滚动区:承载所有顺流内容 + layoutPositioning:ABSOLUTE 但跟随内容滚动的角标(如 djs 抽奖胶囊) */}
+      <XScrollView style={styles.scroll} showScrollbar={false}>
+        <XView style={styles.scrollContent}>
+          {/* bg-body 全屏背景层(ABSOLUTE 铺满 scrollContent 头部) */}
+          <XImage src={require('...bg-body.png')} style={styles.bgBody} mode="aspectFill" />
+
+          {/* Figma 顶层 frame 的所有顺流子在这里(sub-*、img-*、Rectangle spacer 等) */}
+          {/* ...按 §4.3 判定优先级正常生成... */}
+
+          {/* 底部占位:给屏底 fixed-* 让空间避免遮挡末尾内容 */}
+          <XView style={styles.bottomPadding} />
+        </XView>
+      </XScrollView>
+
+      {/* 真 fixed 层:navbar / 状态栏图标 / 底部购票按钮等 → 放 XScrollView 外贴屏 */}
+      {/* ...fixed-* 按下方"fixed-* 分层规则"生成... */}
+    </XView>
+  )
+}
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1,
-    backgroundColor: '#ff6600',      // 顶层 frame 的 fills[0]
-    // 或渐变(RN 无原生支持,退化为纯色 + QA 告警,详见 §4.3 退化表)
-  }
+    flex: 1,               // 撑满 SafeAreaView / 屏幕
+    position: 'relative',  // 承接 fixed-* 绝对定位
+    backgroundColor: '<顶层 frame fills[0] 转 hex>',  // 顶层 frame 的 fills → 根背景色
+  },
+  scroll: {
+    flex: 1,               // 撑满剩余空间
+  },
+  scrollContent: {
+    position: 'relative',  // 承接内部 layoutPositioning:ABSOLUTE 子层(如 bg-body、跟随滚动的角标)
+    width: rpx(<figmaW>),
+    minHeight: rpx(<figmaH>),  // 内容不足时至少这么高;超出自动增高
+    paddingTop: rpx(<顶层 frame paddingTop>),
+    alignItems: '<顶层 frame counterAxisAlignItems 映射>',
+    alignSelf: 'center',   // 移动端画布水平居中(适配大屏)
+  },
+  bgBody: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: rpx(<figmaW>),
+    height: rpx(<figmaH>),  // 事实值,不用 '100%'(见 §4.1.1 §A FIXED 塌陷防御)
+  },
+  bottomPadding: {
+    height: rpx(80),       // 常量:留给屏底 fixed-btn 之类;若页面无屏底 fixed 可省略
+  },
 })
 ```
 
-**关键差异**:
-- h5 SKILL 步骤 2.5.3 的 P-A / P-B / M-A / M-B / J 五档策略在 rn 侧**全部不适用**,rn 只有一种写法:根 View 加 `backgroundColor`
-- 顶层 frame 有背景图(`fills[0].type === 'IMAGE'`)时,拆成独立 `<Image>` + `StyleSheet.absoluteFillObject` 分层,详见 §4.3 退化表
-- 顶层 frame 是 GRADIENT 时,退化为纯色(第一个 stop)+ QA warn 告警"渐变需接 `react-native-linear-gradient` 手改"
-- **顶层 frame 一般设 `flex: 1`**,让根容器撑满 SafeAreaView / 屏幕高度
+#### fixed-* 分层规则(rn 强制)
+
+Figma 里所有 `fixed-*` / `layoutPositioning: ABSOLUTE` 且贴屏语义的节点(navbar / 底部购票按钮 / 状态栏 back/share 图标),**必须**放在 `<XScrollView>` **外面**,作为根 `<XView>` 的直接子:
+
+```tsx
+<XView style={styles.root}>
+  <XScrollView>...主滚动区...</XScrollView>
+
+  {/* 真 fixed:navbar 贴屏顶,按钮贴屏底 */}
+  <XImage src={...} style={styles.fixedNavbar} />  {/* top: 0 */}
+  <XView style={styles.fixedBtnHit} onClick={...}>  {/* bottom: 0 */}
+    <XImage src={...} style={styles.fixedBtn} />
+  </XView>
+</XView>
+```
+
+对应 styles:
+```ts
+fixedNavbar: {
+  position: 'absolute',
+  top: 0, left: 0,
+  width: rpx(375), height: rpx(<navbarH>),
+  zIndex: 100,   // 高于 ScrollView 内容
+},
+fixedBtnHit: {
+  position: 'absolute',
+  bottom: 0, left: 0,      // 贴屏底(不是 Figma 里的 top=1505,那是相对页面高度)
+  width: rpx(375), height: rpx(<btnH>),
+  zIndex: 100,
+},
+```
+
+**判定放外 vs 内的两条铁律**:
+
+| 判定 | 放 XScrollView **外**(真 fixed) | 放 XScrollView **内**(跟随滚动) |
+|-----|---------------------------------|-------------------------------|
+| 触发条件 | 图层名带 `fixed-` 前缀 **且** Figma constraints `vertical` ∈ `{TOP, BOTTOM}` | `layoutPositioning: ABSOLUTE` 但**不带** `fixed-` 前缀,或 fixed- 但设计语义就是"跟内容动"(如视频右上角角标) |
+| 典型 | fixed-状态栏 / fixed-navbar / fixed-btn 底部购票按钮 | fixed-djs 抽奖胶囊(挂在视频卡角) / 内容层的装饰性角标 |
+| CSS | `top: 0` 或 `bottom: 0`(不是 Figma 原 top=1505,那是页面坐标不是屏坐标) | 保留 Figma 原 top/left 值 |
+| zIndex | 100+ | 不需要 |
+
+**为什么这样分层**:
+
+- `<XScrollView>` 内的 `position: 'absolute'` 元素**跟随滚动内容**——因为它们相对 `scrollContent` 定位,滚动时会一起动。这对"抽奖胶囊挂在视频角"是对的,对"底部购票按钮"是错的。
+- `<XScrollView>` 外的 `position: 'absolute'` 相对根 `<XView>` 定位,根 View `flex: 1` 撑满屏幕,所以真贴屏。
+- **不用 Portal / Modal 层**——xtaro/RN 里 Portal 会破坏 zIndex 语义,不如 JSX 顺序直观。
+
+#### 顶层 frame 属性映射
+
+Figma 顶层 frame 的属性 → 根骨架各处:
+
+| Figma 字段 | 落到 | 说明 |
+|-----------|------|------|
+| `fills[0].type === 'SOLID'` | `styles.root.backgroundColor` | 转 HEX |
+| `fills[0].type === 'IMAGE'` | 拆独立 bg-body `<XImage>` 挂 `scrollContent` 内头部 | 见上骨架 |
+| `fills[0].type === 'GRADIENT_*'` | 退化纯色(gradientStops[0]) → `styles.root.backgroundColor` + QA warn | 见 §4.3.rn 退化表 |
+| `paddingTop/Right/Bottom/Left` | `styles.scrollContent.padding*` | 常见 rn 顶层 frame 有 paddingTop 给状态栏留位 |
+| `counterAxisAlignItems` | `styles.scrollContent.alignItems` | CENTER → 'center' |
+| `absoluteBoundingBox.width` | `styles.scrollContent.width` / `styles.bgBody.width` | rpx 包装 |
+| `absoluteBoundingBox.height` | `styles.scrollContent.minHeight` / `styles.bgBody.height` | rpx 包装;用 `minHeight` 让内容可撑开 |
 
 **禁止**:
 - 禁止在 rn 侧写 `body { ... }`(RN 无 body 概念)
 - 禁止在 rn 侧写 `:global`(RN 无 CSS 作用域概念)
 - 禁止在 rn 侧引用 `css-modules` / `scss` / `less` 类 h5 概念
+- **禁止让根 `<XView>` 直接装内容而不套 XScrollView**——即便设计稿高度 < 视口高度,也强制套用(套了不滚也没副作用;不套则超长内容被裁)
+- **禁止把贴屏 fixed-* 放进 `<XScrollView>` 内部**——那会导致它们跟着内容滚动,变成"贴内容顶/底"而不是"贴屏顶/底",视觉硬伤
+- **禁止把根 View 或 scrollContent 写 `overflow: 'hidden'`**——这会阻止 XScrollView 滚动
 
 ---
 
@@ -914,6 +1020,8 @@ btnLogin: { flexDirection: 'row', paddingLeft: rpx(16), paddingRight: rpx(16), p
 
 6. **页面根容器**
 
+   > **rn 分支不走本条覆写规则**——rn 侧顶层入口节点一律套用 §2.5「页面根骨架」的强制 XScrollView 结构(根 `<XView>` flex:1 + 内部 `<XScrollView>` + `scrollContent` 用 `minHeight`),不做"高度是否接近视口"的判定,不写 `Dimensions.get('window').height`。本条完整保留仅供 h5 SKILL 参考(rn 侧忽略)。
+
    判定"当前节点是页面根容器"—— **三信号 AND，缺一不成立**：
 
    - 信号 A：**该节点是 sub-agent（或主 agent）此次流程入口的 nodeId 本身**（不是它的孙子）。等价说法：处理的是 `fetchNode` 的目标节点，不是子树里更深的节点
@@ -1141,9 +1249,9 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 
 | Figma / h5 语义 | 触发条件 | rn 退化策略 | QA 告警级别 |
 |-----------------|---------|-----------|-----------|
-| `fixed-` 前缀 | 图层名带 `fixed-` | 生成 `position: 'absolute'`,constraints 转 `top` / `left` / `right` / `bottom` 数值;**不引入 Portal**,层级由 JSX 顺序决定 | warn(说明 RN 端 fixed 语义不完全等价 — 滚动时随内容一起动) |
-| 页面根 `min-height: max(x, 100vh)` | 3 信号 AND 命中(§4.3 判定优先级第 6 条) | 顶部 import `Dimensions`;根 View style 加 `minHeight: Dimensions.get('window').height`;同时保留 `flex: 1`。**xtaro 项目**改用 `import { xGetSystemInfoSync } from '@ctrip/xtaro'` + `minHeight: xGetSystemInfoSync().windowHeight`,见 §SCREEN-API | info |
-| `bg-` 背景图 | 图层名带 `bg-` 或 fills 是 IMAGE | 拆成独立 `<Image source={require('./xxx.png')} style={StyleSheet.absoluteFillObject} />`,置于父兄弟节点最前;父容器加 `position: 'relative'`;bg 图不生成为 style 属性 | info |
+| `fixed-` 前缀 | 图层名带 `fixed-` | 按 §2.5「fixed-* 分层规则」放 `<XScrollView>` **外**作为根 `<XView>` 直接子;`position: 'absolute'` + Figma constraints `vertical` 决定用 `top: 0`(TOP) 或 `bottom: 0`(BOTTOM),**不写 Figma 原 y 坐标**(那是页面坐标不是屏坐标) | info(rn 侧默认策略) |
+| 页面滚动骨架 | 所有 rn 页面 | 顶层入口节点一律套用 §2.5 强制 XScrollView 结构(根 flex:1 + XScrollView + scrollContent minHeight),不判定"高度是否超视口",一律套用 | info |
+| `bg-` 背景图 | 图层名带 `bg-` 或 fills 是 IMAGE | 拆成独立 `<XImage src={require(...)} style={styles.bgBody} mode="aspectFill" />`,放 `scrollContent` 内头部;**不用 `StyleSheet.absoluteFillObject` 或 `width/height: '100%'`**,而是写 Figma 事实固定尺寸 `width: rpx(w), height: rpx(h)` + `top: 0, left: 0`(避免父 minHeight 时 % 值跟着塌陷);父容器加 `position: 'relative'` | info |
 | GRADIENT_LINEAR / GRADIENT_RADIAL | `fills[0].type` 是 GRADIENT_* | 退化为纯色 `backgroundColor: <gradientStops[0].color 转 hex>` | warn:"渐变已退化为纯色,如需真渐变请手动接 `react-native-linear-gradient`(裸 RN)或 `expo-linear-gradient`(Expo),或使用你所在框架的等价渐变组件" |
 | `overflow: scroll` 容器 | `scrollx-` / `scrolly-` 前缀 | 标签强制换 `<ScrollView>`,加 `horizontal={true}`(scrollx)或不加(scrolly);无 `overflow` CSS 属性 | 无(这是 rn 的正确写法) |
 | `box-shadow` | effect DROP_SHADOW | 拆成:`shadowColor`, `shadowOffset: { width, height }`, `shadowRadius`, `shadowOpacity`, `elevation`(Android) | 无(rn 原生支持) |
@@ -1162,8 +1270,8 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 ```markdown
 ### RN 端退化告警
 
-- [warn] nodeId 163:2321 `fixed-btn-回顶`:fixed 已退化为 absolute,滚动时不保持屏幕位置
-- [info] nodeId 163:2300 页面根:已使用 Dimensions.get('window').height 作 minHeight
+- [info] nodeId 163:2321 `fixed-btn-回顶`:已按 §2.5「fixed-* 分层规则」放 XScrollView 外,constraints=BOTTOM 用 bottom:0 贴屏底
+- [info] nodeId 163:2300 页面根:已套用 rn 强制 XScrollView 骨架
 - [warn] nodeId 163:2350 `bg-page-gradient`:线性渐变已退化为纯色 #ff6600,如需真渐变请手动接 react-native-linear-gradient
 - [error] nodeId 163:2400 `sub-blur-modal`:effect LAYER_BLUR 在 RN 无原生对应,请手动接 @react-native-community/blur
 ```
@@ -1919,9 +2027,9 @@ const styles = StyleSheet.create({ /* ... */ })
 6. **`layoutPositioning` 未落地**：是否存在 Figma `layoutPositioning === 'ABSOLUTE'` 的子节点，输出的 CSS 却没写 `position: absolute` + `top` / `left`（结果被塞进父 flex 顺流，视觉错位）？或反之：`layoutPositioning === 'AUTO'` / 缺失的子节点被误加 `position: absolute`？
 7. **子节点 `FILL` / `STRETCH` 未落地**：是否存在 Figma 子节点 `layoutSizingHorizontal === 'FILL'` 或 `layoutAlign === 'STRETCH'`，输出的 CSS 却没写 `width: 100%` / `align-self: stretch`？典型表现：子内容明明该撑满父可用宽（Figma 里子和父同宽或仅差 padding），实际渲染却按内容宽度收缩，父上还常常错配 `align-items: center` 挡着——**父视角必须**用 `align-items: stretch` 或**删除** `align-items` 行让 flex column 走默认（stretch），子视角**加 `width: 100%`**（一并加 `box-sizing: border-box` 让 padding 不撑破容器）。反向也查：`FIXED` / `INHERIT` 的子被误加 `width: 100%` 也算错。
 8. **`end-` 前缀未生成 wrapper + `space-between` 结构**：图层名带 `end-` 的节点（不含 `bg-` / `bgc-` / `x-` 叠加，且不含 `fixed-` 叠加），产物 JSX 里其父容器是否有虚拟 wrapper 包裹前面兄弟、父 CSS 是否设置 `justify-content: space-between`？若父 layoutMode = `VERTICAL` 但产物用 `absolute + bottom: 0` / `margin-top: auto` 等其他手段模拟，也算不合规（本方案唯一实现路径是 wrapper + space-between，见 §4.3）。反向查：`end-` 节点是否是父的最后一个子（不是则不合规）、父是否 autoLayout（不是则不合规）。
-9. **页面根容器用死值 `height` 未覆写为 `min-height: max(..., 100vh)`**：入口节点满足"页面根容器"三信号（是入口 nodeId + 父是 Page/Document + 高度接近视口）时，产物根 CSS 是否用了 `height: {figmaH * scale}px` 死值 或 `min-height: {figmaH * scale}px` 死值？必须改成 `min-height: max({figmaH * scale}px, 100vh)`（见 §4.3 判定优先级第 6 条）。同时检查根内部的 `layoutPositioning: ABSOLUTE` 背景层（`bg-`）：`height` 是否死值？应改成 `height: 100%`（或 `inset: 0`），`background-size` 从 `{w}px {h}px` 改成 `cover`。反向查：**信号不全时**（例如 sub-agent 派发进来的 block、URL 指向的是非根子节点、高度不接近视口）不应触发本条覆写，若被误覆写为 `100vh` 也算不合规。
+9. **rn 页面根未套用强制 XScrollView 骨架**（本项 rn 分支强制）：顶层入口节点（用户 URL `node-id` 指向的那一层，非 sub-agent 派发进来的 block）产物是否是 `<XView flex:1 relative> > <XScrollView flex:1> > <XView scrollContent minHeight> > 内容 + fixed-* 兄弟`？是否漏套 XScrollView 让根 `<XView>` 直接装内容？是否把 `overflow: 'hidden'` 写到根或 scrollContent（会阻止滚动）？是否把带 `fixed-` 前缀（constraints TOP/BOTTOM）的节点放进 XScrollView 内部（会跟着内容滚动而非贴屏）？scrollContent 是否用 `minHeight: rpx(figmaH)` 而非 `height`（用 `height` 会硬裁）？见 §2.5「页面根骨架」+「fixed-* 分层规则」。反向查：sub-agent 派发进来的内层 block **不应**套 XScrollView 骨架（那是主入口才做的事），若被误套也算不合规。
 10. **`input-` 前缀未生成 `<input>` 标签**：图层名带 `input-` 的节点（不含 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加），产物 JSX 是否输出 `<input type="text" placeholder="..." />`？是否漏输出 `<div>` + `<span>` 结构而绕过 `input-` 语义？CSS 是否把左侧图标切图挂在 `background-image`（不生成独立 `<img>` 子节点）？`::placeholder` 颜色是否取自 TEXT 子节点的 `fills[0]`？反向查:图层里没有 `input-` 前缀却被误改成 `<input>` 标签也不合规。同时校验 doctor 侧 4 条 NAM 规则是否触发(NAM017 无 TEXT / NAM018 多 TEXT / NAM019 与 bg 系叠加 / NAM020 与 img/btn 叠加)。
-11. **sub-/block- 容器 FIXED 高度未写 `minHeight` 导致塌陷(v1.0.2 新增)**:图层名带 `sub-` / `block-` 前缀、Figma `layoutSizingVertical: FIXED`,且该容器内部有 `layoutPositioning: 'ABSOLUTE'` + `width/height: '100%'` 的兄弟子节点(典型:`main` 内含 `mainBg` 绝对铺满作背景层),产物 StyleSheet 是否用了 `height: <N>` 死值?必须改成 `minHeight: <N>`(见 §4.1.1 §A 表下方「FIXED 塌陷防御」补充说明)。理由:死高会让容器在内容异步渲染 / 数据少时收缩到 HUG 表现,`height: '100%'` 兄弟层跟着塌成一条,底部露出根容器背景。反向查:叶子/装饰元素(`img-` / `bg-` / `btn-` 等)不应误用 `minHeight`,那些场景仍写 `height`。
+11. **sub-/block- 容器 FIXED 高度未写 `minHeight` 导致塌陷 / 绝对定位背景层用了 `%` 而非 Figma 事实尺寸**：两方面同查——**a) 容器高度**：图层名带 `sub-` / `block-` 前缀、Figma `layoutSizingVertical: FIXED`,且该容器内部有 `layoutPositioning: 'ABSOLUTE'` 且铺满的兄弟子节点(典型:`main` 内含 `mainBg` 绝对铺满作背景层),产物 StyleSheet 是否用了 `height: <N>` 死值? 必须改成 `minHeight: <N>`。**b) 背景层尺寸**：铺满兄弟层是否用了 `width/height: '100%'` 或 `StyleSheet.absoluteFillObject`? 当父用 `minHeight` 时,`%` 值会引用父的**计算高度**（可能小于 Figma 设计稿高度）,导致背景层跟着塌陷或与父尺寸不同步。必须写 Figma 事实固定尺寸 `width: rpx(w), height: rpx(h)` + `top: 0, left: 0`。反向查:叶子/装饰元素(`img-` / `bg-` / `btn-` 等)不应误用 `minHeight`,那些场景仍写 `height`。参见 §4.1.1 §A 表下方「FIXED 塌陷防御」+ §4.3.rn 退化表 `bg-` 条目。
 12. **冗余嵌套 autoLayout 的属性未下穿到内层(v1.0.2 新增)**:外层 A 是 autoLayout 且仅有 1 个顺流子 B(其他都是 abs 兄弟),B 也是 autoLayout,且 A/B 都不带 `sub-` 前缀 → 检查产物:A 的 StyleSheet 里是否残留 `flexDirection` / `padding*` / `gap` / `justifyContent` / `alignItems` / `flexWrap`?这些**必须**全部下穿到 B,A 只保留 `position / overflow / width / height / backgroundColor / borderRadius / shadow*` 等骨架属性;A/B 同名冲突时以 B 为准,A 的值写入 §7 QA info。反向查:命中"A 或 B 带 sub- 前缀"时**不该**下穿(sub- 边界要保持样式命名空间独立),若被误下穿也算不合规。参考 §4.1.1 §A 表下方「冗余嵌套 autoLayout 的属性下穿」补充说明。
 
 **任一项命中 → 该叶子 sub-agent 交付不合格,主 agent 必须回退该块重写**(不是自己改 scss 数值糊过去;这是结构性问题,改数值没用)。回退命令:把该叶子 nodeId 重新按 §4.0 派发一次 sub-agent,把本节 checklist 内容作为额外约束附加进去。
@@ -2058,7 +2166,8 @@ const styles = StyleSheet.create({ /* ... */ })
 - 禁止只匹配第一个前缀就停止，必须扫描完整图层名提取所有已知前缀
 - 禁止脱离 `images.imageBaseUrl + images.assetsDir + filename` 公式拼接图片 URL；禁止补/删任何字符（包括末尾 `/`）；禁止在 SCSS 中分散硬编码完整 URL，必须先定义 `$asset-prefix` 变量再引用
 - 禁止用相对路径下载图片：`curl -o` 落地路径必须是 `{projectRoot}/{assetsDir}/{filename}.{ext}` 绝对路径（`projectRoot` = 步骤 0 缓存的 config 文件所在目录绝对路径）。禁止写 `-o {assetsDir}/{filename}.png` 或 `-o ./static/xxx.png` 等相对形式——sub-agent 的 cwd 未必是项目根，相对路径会把图片落到代码产出目录下的错误相对位置，导致 URL 拼接后 404
-- 禁止跳过步骤 2.5 页面级背景采集；禁止把顶层 frame 的页面级背景写到组件根容器；禁止改动项目已有的全局样式文件（base.scss / global.css / app.less 等）；禁止凭印象判定项目特征（必须 Read/Grep 实证后选 P-A / P-B / M-A / M-B / J 策略）；禁止多页面项目使用 P-B / M-B（单页策略，会互相污染）；**禁止在普通 stylesheet（非 module 的 scss/less/css）里写 `:global(...)`、禁止在 `*.module.{scss,less,css}` 里直接写 `body { ... }`（写错则 body 背景百分百不生效）**
+- 禁止跳过步骤 2.5「页面根骨架」的强制 XScrollView 结构：所有 rn 页面顶层入口一律 `<XView flex:1> > <XScrollView> > <XView scrollContent minHeight>`，不判定"高度是否超视口"；禁止让根 `<XView>` 直接装内容而不套 XScrollView；禁止把根或 scrollContent 写 `overflow: 'hidden'`（会阻止滚动）；禁止把带 `fixed-` 前缀（constraints TOP/BOTTOM 贴屏语义）的节点放进 XScrollView 内部（会跟着内容滚动而非贴屏）；禁止在根骨架里用 `Dimensions.get('window').height` / `xGetSystemInfoSync().windowHeight`（那是旧的"三信号 AND 页面根覆写"规则，rn 分支已删）；禁止改动项目已有的 rpx helper 文件（`unit.responsive.helperImport` 指向的路径）
+- 禁止 `bg-` 铺满层用 `StyleSheet.absoluteFillObject` 或 `width/height: '100%'`：父容器用 `minHeight` 时，`%` 值引用父的**计算高度**（可能小于 Figma 设计稿高度）会跟着塌陷；必须写 Figma 事实固定尺寸 `width: rpx(w), height: rpx(h)` + `top: 0, left: 0`（见 §4.3.rn 退化表 `bg-` 条目）
 - 禁止"sub- 只有 1 个就退化为主 agent 处理"；任何 `sub-` 节点都必须分发独立 sub-agent，**单 sub 也必须拆**（分块是质量保证而非性能优化）
 - 禁止 `scrollx-` / `scrolly-` 与 `img-` / `bg-` / `bgc-` / `x-` / `btn-` 共存（语义冲突）；禁止同一节点同时含 `scrollx-` 和 `scrolly-`（一个元素只能一个滚动方向）；禁止省略隐藏滚动条样式（`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`）
 - 禁止把 `sub-scrollx-` / `sub-scrolly-` 节点**整体导出为单张背景图**作为容器 `background-image`：scroll 容器必须**继续递归子层**（§416-417），子层是同构列表项；只有标了 `bgc-` / `bg-` 的子节点才作为背景。即便子层结构复杂、识别困难，也不允许"省事 fallback 到整体导出"——需要时把识别失败的子树标 `x-` 或拆分稿子，不能用整体导出绕过。
