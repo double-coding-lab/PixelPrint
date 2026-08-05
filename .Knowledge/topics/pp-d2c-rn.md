@@ -118,16 +118,23 @@ rn SKILL 内不做 styleFormat 探测,统一走 `StyleSheet.create({...})` + `st
 </XView>
 ```
 
-### fixed-* 分层(放外 vs 放内)
+### fixed-* 铁律:所有一律放 XScrollView 外
 
-| 判定 | 放 XScrollView **外**(真 fixed) | 放 XScrollView **内**(跟随滚动) |
-|-----|---------------------------------|-------------------------------|
-| 触发 | 图层名带 `fixed-` **且** constraints `vertical` ∈ `{TOP, BOTTOM}` | `layoutPositioning: ABSOLUTE` 但**不带** `fixed-` 前缀,或设计语义就是"跟内容动"(如视频角标) |
-| 典型 | fixed-navbar / 状态栏 back-share / fixed-btn 底部购票按钮 | 视频卡角上的抽奖胶囊 / 装饰性角标 |
-| CSS | `top: 0` 或 `bottom: 0`(**不是** Figma 原 top=1505 页面坐标) | 保留 Figma 原 top/left 值 |
-| zIndex | 100+ | 不需要 |
+RN 里根本没有 CSS `position: fixed`,`<XScrollView>` 内部的 `position: 'absolute'` 元素**相对 `scrollContent` 定位**,滚动时会一起动。要模拟"贴屏"只有一条路:放外层。所以规则极简——**只要图层名带 `fixed-` 前缀,就放根 `<XView>` 直接子层**,不区分 constraints、不区分设计语义、不 agent 推断"这个 fixed- 是不是本意贴屏"。设计师主动加 `fixed-` 前缀 = 明确表达"这个元素相对屏幕定位",agent 尊重前缀即可。
 
-**核心机制**:`<XScrollView>` 内的 `position: 'absolute'` 元素相对 `scrollContent` 定位,滚动时会一起动 → 对"抽奖胶囊挂视频角"是对的,对"贴屏底购票按钮"是错的。`<XScrollView>` 外的 `position: 'absolute'` 相对根 `<XView>` (`flex:1` 撑满屏)定位 → 真贴屏。
+位置按 constraints 换算三档:
+
+| Figma constraints `vertical` | CSS 写法 |
+|---|---|
+| `TOP`(默认) | `top: rpx(<Figma y - 顶层frame y>)` — 相对屏顶偏移 |
+| `BOTTOM` | `bottom: rpx(<顶层frame 底 - Figma 节点底>)` — 常见 `bottom: 0` |
+| `CENTER` | `top: 50%` + `transform: [{ translateY: -<h/2> }]` — 少见 |
+
+zIndex 100+ 高于 ScrollView 内容。
+
+**反例**:`<XScrollView>` 内的绝对定位元素**相对 scrollContent 定位**,滚动时会跟着动 → 不适合"贴屏"语义。若设计师**不带 `fixed-` 前缀**但用 `layoutPositioning: ABSOLUTE`(如视频卡角标 / 装饰徽章),这类才走"跟内容滚"路径,留在父容器内即可(不属于 fixed-* 分层规则的管辖范围)。
+
+**不用 Portal / Modal 层**——xtaro/RN 里 Portal 会破坏 zIndex 语义,不如 JSX 顺序直观。
 
 ### bg- 铺满层用 Figma 事实尺寸
 
@@ -153,7 +160,7 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 
 | Figma / h5 语义 | rn 退化策略 | 告警级别 |
 |-----------------|-----------|--------|
-| `fixed-` 前缀 | 按上文「fixed-* 分层」放 `<XScrollView>` **外**;constraints `vertical` 决定用 `top: 0`(TOP) 或 `bottom: 0`(BOTTOM),**不写 Figma 原 y 坐标**(那是页面坐标不是屏坐标) | info |
+| `fixed-` 前缀 | **一律**放 `<XScrollView>` **外**作为根 `<XView>` 直接子(不区分 constraints,不 agent 推断"是不是本意贴屏");`position: 'absolute'` + zIndex 100+;位置按 constraints 换算(TOP → 相对顶偏移 / BOTTOM → 相对底偏移) | info |
 | 页面滚动骨架 | 所有 rn 页面一律套 XScrollView 骨架,不判视口 | info |
 | `bg-` 背景图 | 拆成独立 `<XImage>` 挂 `scrollContent` 内头部;**用 Figma 事实固定尺寸而非 `absoluteFillObject` / `%`**(父 `minHeight` 时 `%` 会塌陷) | info |
 | GRADIENT_LINEAR / GRADIENT_RADIAL | 退化为纯色(第一个 stop),提示接 `react-native-linear-gradient` | warn |
@@ -175,7 +182,7 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 - **`bgc-` 覆盖父元素全套盒级 CSS 属性**:rn 侧改为覆盖 `borderColor` / `borderWidth` / `borderRadius` / `shadow*`,GRADIENT 走退化
 - **`bg-` 内嵌 `bgc-` 的"摘出来"处理**:同 h5,只是"摘出来"后写到父 View 的 style 属性(不是 CSS 类)
 - **`bg-` 切图前的 CSS-able 自检**:同 h5,命中条件后**改用 bgc- 规则**(rn 侧走 style 属性)
-- **`fixed-` / `end-` / `input-` 前缀语义**:同 h5,只是输出退化(见上文「rn 页面根强制骨架 + fixed-* 分层」;`end-` 仍走 wrapper + space-between)
+- **`fixed-` / `end-` / `input-` 前缀语义**:同 h5,只是输出退化(见上文「fixed-* 铁律:所有一律放 XScrollView 外」;`end-` 仍走 wrapper + space-between)
 
 ## rn SKILL 特有的执行步骤
 
@@ -202,7 +209,7 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 - **禁止**:对 StyleSheet / Dimensions / Fragment 应用 tagMap
 - **禁止**:rn 侧 config 里出现 `scss` / `scss-modules` 等 h5 值不做降级处理
 - **禁止**:rn 侧生成"字符串 + px 后缀"的样式属性(`'20px'`),必须写数字 `20`
-- **禁止**:让根 `<XView>` 直接装内容而不套 `<XScrollView>`;禁止把根或 `scrollContent` 写 `overflow: 'hidden'`(会阻止滚动);禁止把带 `fixed-` 前缀(constraints TOP/BOTTOM 贴屏语义)的节点放进 `<XScrollView>` 内部(会跟着内容滚动而非贴屏)
+- **禁止**:让根 `<XView>` 直接装内容而不套 `<XScrollView>`;禁止把根或 `scrollContent` 写 `overflow: 'hidden'`(会阻止滚动);**禁止把任何带 `fixed-` 前缀的节点放进 `<XScrollView>` 内部**(RN 无 CSS fixed,ScrollView 内的 absolute 会跟内容滚 → 所有 fixed-* 必须放根 `<XView>` 直接子层,不区分 constraints,不推断设计意图)
 - **禁止**:`bg-` 铺满层用 `StyleSheet.absoluteFillObject` 或 `width/height: '100%'`(父 `minHeight` 时 `%` 值会引用父计算高度跟着塌陷);必须写 Figma 事实固定尺寸 `width: rpx(w), height: rpx(h)` + `top: 0, left: 0`
 
 ## 不在本 topic 覆盖的内容
