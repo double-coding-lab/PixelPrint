@@ -1,0 +1,26 @@
+templates/skills/pp-fix-partial/SKILL.md
+  s_2843f3def1e163::t_2ade0493c539b0 245
+  s_2843f3def1e163::t_d4674d5d27b047 35-36
+  s_2843f3def1e163::t_b4978b405ba28d 243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "fc28958f43c2a2962fe4442c5f1c8329831bbece",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_2843f3def1e163": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fee03da3-6e80-4b86-9490-86b701e1718d",
+        "model": "unknown"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
