@@ -1,0 +1,19 @@
+templates/skills/pp-d2c-rn/SKILL.md
+  s_e950f5bb09db4d::t_9409fae17852c4 1718-1750
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "decf88f06d937918fada679fa4d41e80c3a938fd",
+  "prompts": {},
+  "sessions": {
+    "s_e950f5bb09db4d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6806bd79-98b5-4478-a405-a91968a356af",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
