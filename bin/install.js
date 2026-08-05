@@ -238,45 +238,65 @@ async function runInit() {
     styleFormat = 'stylesheet'
     console.log('  [2/8] 样式方案: \x1b[36mstylesheet\x1b[0m \x1b[90m(rn 分支固定用 StyleSheet.create + 行内 style)\x1b[0m')
 
-    // ─── 【新增】adapter 引导 ─────────────────────────
+    // ─── 【新增】组件框架映射引导 ─────────────────────────
     // adapter 把 RN 原生标签映射到 xtaro / taro / 其他框架
+    // 已有完整 adapter 配置 → 直接沿用,不再询问
+    // 没配置过 → 一层选择:不启用 / xtaro / taro / pure RN / 自定义
     const existingAdapter = existing.adapter || {}
-    const existingEnabledYn = existingAdapter.enabled === true ? 'Yes' : existingAdapter.enabled === false ? 'No' : null
-    const enableAdapterYn = await pickOrUse('[2.1/8] 是否启用 adapter 映射(把 RN 标签映射到 xtaro/taro 等)',
-      existingEnabledYn, ['No', 'Yes'], 'No')
-    const enableAdapter = enableAdapterYn === 'Yes'
-
-    if (!enableAdapter) {
-      adapterCfg = { enabled: false, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
-    } else {
-      // 判断是否已存在完整 adapter 配置,已有则直接沿用
-      const hasExistingMap = existingAdapter.tagMap && Object.keys(existingAdapter.tagMap).length > 0
-      if (hasExistingMap) {
-        logUseExisting('[2.2/8] adapter 映射', `${Object.keys(existingAdapter.tagMap).length} 条(沿用)`)
-        adapterCfg = {
-          enabled: true,
-          tagMap: existingAdapter.tagMap || {},
-          importMap: existingAdapter.importMap || {},
-          propMap: existingAdapter.propMap || {},
-          reactImport: existingAdapter.reactImport || 'react'
-        }
-      } else {
-        // 扫 templates/adapter-presets/ 目录,把每个 preset 的 name 列成选项,末尾追加"自定义"兜底
+    const hasExistingMap = existingAdapter.tagMap && Object.keys(existingAdapter.tagMap).length > 0
+    if (hasExistingMap) {
+      logUseExisting('[2.1/8] 组件框架映射', `${Object.keys(existingAdapter.tagMap).length} 条(沿用)`)
+      adapterCfg = {
+        enabled: true,
+        tagMap: existingAdapter.tagMap || {},
+        importMap: existingAdapter.importMap || {},
+        propMap: existingAdapter.propMap || {},
+        reactImport: existingAdapter.reactImport || 'react'
+      }
+      // 沿用旧 tagMap/propMap,但 referenceDoc + _presetSource 需要以最新 preset 为准
+      // 老 config 里可能根本没这两字段(v1.0.1 之前 install.js 漏写),必须现在补上,
+      // 否则 SKILL §5.5.3c 拿不到手册路径 → 复杂差异处理全部 no-op
+      if (existingAdapter.referenceDoc) adapterCfg.referenceDoc = existingAdapter.referenceDoc
+      if (existingAdapter._presetSource) adapterCfg._presetSource = existingAdapter._presetSource
+      // 兜底回填:按 tagMap 反查匹配的 preset(用 View→? 这条最能定位框架)
+      if (!adapterCfg.referenceDoc || !adapterCfg._presetSource) {
         const presets = loadAdapterPresets()
-        const CUSTOM_LABEL = '自定义'
-        const choices = [...presets.map(p => p.name), CUSTOM_LABEL]
-        const defaultChoice = presets[0]?.name || CUSTOM_LABEL
-        const picked = await select('[2.2/8] 选择预设 adapter', choices, defaultChoice)
-
-        if (picked === CUSTOM_LABEL) {
-          adapterCfg = { enabled: true, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
-          console.log('  → adapter.enabled=true,请后续在 pp-d2c.config.json 手动填 tagMap / importMap / propMap')
+        const viewTarget = adapterCfg.tagMap.View
+        const hit = viewTarget
+          ? presets.find(p => p.adapter && p.adapter.tagMap && p.adapter.tagMap.View === viewTarget)
+          : null
+        if (hit) {
+          if (!adapterCfg.referenceDoc && hit.referenceDoc) adapterCfg.referenceDoc = hit.referenceDoc
+          if (!adapterCfg._presetSource) adapterCfg._presetSource = PRESETS_DIR
+          console.log(`  → 补齐 adapter.referenceDoc / _presetSource(反查匹配 ${hit.name} 预设)`)
         } else {
-          const hit = presets.find(p => p.name === picked)
-          adapterCfg = { ...hit.adapter }
-          pickedPreset = hit
-          console.log(`  → 已写入 ${hit.name} 预设(${hit.description || '见 templates/adapter-presets/README.md'})`)
+          console.log('  ⚠️  未能反查到匹配的 preset,adapter.referenceDoc / _presetSource 保持缺失;SKILL §5.5.3c 复杂差异处理将 no-op')
         }
+      }
+    } else {
+      // 扫 templates/adapter-presets/ 目录,把 preset.name 与"不启用"/"自定义"平铺在同一层选择
+      const presets = loadAdapterPresets()
+      const OFF_LABEL = '不启用(保留 RN 原写法)'
+      const CUSTOM_LABEL = '自定义(后续手填 tagMap/importMap/propMap)'
+      const choices = [OFF_LABEL, ...presets.map(p => p.name), CUSTOM_LABEL]
+      // 默认值:优先取第一个 preset(通常是 xtaro),没预设时用 OFF
+      const defaultChoice = presets[0]?.name || OFF_LABEL
+      const picked = await select('[2.1/8] 选择组件框架映射', choices, defaultChoice)
+
+      if (picked === OFF_LABEL) {
+        adapterCfg = { enabled: false, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
+      } else if (picked === CUSTOM_LABEL) {
+        adapterCfg = { enabled: true, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
+        console.log('  → adapter.enabled=true,请后续在 pp-d2c.config.json 手动填 tagMap / importMap / propMap')
+      } else {
+        const hit = presets.find(p => p.name === picked)
+        adapterCfg = { ...hit.adapter }
+        // 把 preset 顶层的 referenceDoc + preset 目录绝对路径写入 adapter 段
+        // SKILL §5.5.3c 靠这两字段拼参考手册路径;缺任一 → §5.5.3c 直接 no-op 跳过复杂差异处理
+        if (hit.referenceDoc) adapterCfg.referenceDoc = hit.referenceDoc
+        adapterCfg._presetSource = PRESETS_DIR
+        pickedPreset = hit
+        console.log(`  → 已写入 ${hit.name} 预设(${hit.description || '见 templates/adapter-presets/README.md'})`)
       }
     }
 
@@ -288,17 +308,17 @@ async function runInit() {
     const existingResp = existingUnit.responsive || {}
     const existingRespYn = existingResp.enabled === true ? 'Yes' : existingResp.enabled === false ? 'No' : null
     const enableRespYn = await pickOrUse(
-      '[2.3/8] 是否启用响应式 rpx() 包装(按屏宽线性缩放尺寸)',
+      '[2.2/8] 是否启用响应式 rpx() 包装(按屏宽线性缩放尺寸)',
       existingRespYn, ['Yes', 'No'], 'Yes'
     )
     var responsiveCfg = null  // 到 config 阶段合并到 unit 段
     if (enableRespYn === 'Yes') {
       const helperImport = await inputOrUse(
-        '[2.4/8] rpx helper import 路径',
+        '[2.3/8] rpx helper import 路径',
         existingResp.helperImport, '@/utils/rpx'
       )
       const helperName = await inputOrUse(
-        '[2.5/8] rpx helper 导出函数名',
+        '[2.4/8] rpx helper 导出函数名',
         existingResp.helperName, 'rpx'
       )
       responsiveCfg = { enabled: true, helperImport, helperName }
