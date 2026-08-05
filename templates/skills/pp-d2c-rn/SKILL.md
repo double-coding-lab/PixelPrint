@@ -465,7 +465,7 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 | `justifyContent` (主轴对齐) | `primaryAxisAlignItems` | `MIN → 'flex-start'`;`CENTER → 'center'`;`MAX → 'flex-end'`;`SPACE_BETWEEN → 'space-between'`(**两端对齐**) |
 | `alignItems` (交叉轴对齐) | `counterAxisAlignItems` | `MIN → 'flex-start'`;`CENTER → 'center'`;`MAX → 'flex-end'`;`BASELINE → 'baseline'` |
 | `flexWrap` | `layoutWrap` | `WRAP → 'wrap'`;`NO_WRAP` 或缺失 → 不写(RN 默认 `'nowrap'`) |
-| 容器**自身**尺寸行为 | `layoutSizingHorizontal` / `layoutSizingVertical` | `FIXED → width/height: <数字>` 固定值;`HUG → 不写 width/height`(RN 默认按内容 hug);`FILL → flex: 1` 或 `alignSelf: 'stretch'`。**页面根容器例外**(§4.3 判定优先级第 6 条):vertical `FIXED` 时不写 `height: <死值>`,改写 `minHeight: Dimensions.get('window').height`(xtaro 项目改用 `xGetSystemInfoSync().windowHeight`,见 §SCREEN-API) |
+| 容器**自身**尺寸行为 | `layoutSizingHorizontal` / `layoutSizingVertical` | `FIXED → width/height: <数字>` 固定值;`HUG → 不写 width/height`(RN 默认按内容 hug);`FILL → flex: 1` 或 `alignSelf: 'stretch'`。**FIXED 高度的塌陷防御**(v1.0.2 新增,**必读**):当 vertical `FIXED` 且节点带 `sub-` / `block-` 前缀,或节点内部有 `layoutPositioning: 'ABSOLUTE'` 且 `height: '100%'` 的兄弟层(典型 bg- 铺满)→ 写 `minHeight: <N>` 而非 `height: <N>`;死高会因内容异步渲染时收缩,让 `height: '100%'` 兄弟层跟着塌成一条。详见下面「FIXED 塌陷防御」补充。**页面根容器例外**(§4.3 判定优先级第 6 条):vertical `FIXED` 时不写 `height: <死值>`,改写 `minHeight: Dimensions.get('window').height`(xtaro 项目改用 `xGetSystemInfoSync().windowHeight`,见 §SCREEN-API) |
 | **子节点**主轴伸缩 | `layoutGrow` (0 或 1) | `1 → flex: 1`;0 或缺失 → 不写 |
 | **子节点**交叉轴对齐(覆盖父 alignItems) | `layoutAlign` | `STRETCH → alignSelf: 'stretch'`;`INHERIT` / 缺失 → 不写 |
 | **子节点**是否脱离父 autoLayout 顺流 | `layoutPositioning` | `AUTO` 或缺失 → 参与父 flex 顺流,不写 position;`ABSOLUTE` → 子代 `position: 'absolute'` + `top` / `left` 数值(相对父原点,用 `子.absoluteBoundingBox.{x,y} - 父.absoluteBoundingBox.{x,y}` 算得),同时**父容器必须加** `position: 'relative'`。仅当父 `layoutMode ∈ {HORIZONTAL, VERTICAL}` 时此字段有意义 |
@@ -475,6 +475,19 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 > **两端对齐提醒**:`primaryAxisAlignItems === 'SPACE_BETWEEN'` **直接翻译成 `justifyContent: 'space-between'`**,不要用其他手段模拟。
 >
 > **`layoutPositioning` vs `layoutMode`**:一个节点可以自己是 autoLayout 容器(`layoutMode = 'VERTICAL'`),同时又在父的 autoLayout 里绝对定位(`layoutPositioning = 'ABSOLUTE'`)。
+
+> **FIXED 塌陷防御**(v1.0.2 新增,容器高度写法的第 3 个补充规则):Figma `layoutSizingVertical: FIXED N` 到 RN StyleSheet 有 3 种落地方式,按下表选:
+>
+> | 场景 | 高度写法 | 理由 |
+> |---|---|---|
+> | 页面根容器(三信号 AND 命中,见 §4.3 优先级 6) | `minHeight: Dimensions.get('window').height`(xtaro 走 `xGetSystemInfoSync().windowHeight`) | 长屏时撑满视口 |
+> | **`sub-` / `block-` 容器且内部有 `layoutPositioning: 'ABSOLUTE' + height: '100%'` 兄弟层**(典型:`main` 含 `mainBg` 铺满) | **`minHeight: <N>`** | 死高 `height` 会因内容异步渲染 / 数据少时压缩到 HUG 表现,让 `height: '100%'` 兄弟层跟着塌成一条 |
+> | **`sub-` / `block-` 容器普通场景**(无绝对定位背景兄弟) | **`minHeight: <N>`** | 设计师给 FIXED = 兜底"至少这么高",业务内容多时允许撑开;死高会裁切超长内容 |
+> | 叶子/装饰元素(`img-` / `bg-` / `btn-` / 图标 / 卡片装饰等) | `height: <N>` | 尺寸严格匹配设计稿,超出属于设计问题 |
+>
+> **判定顺序**:先看是否命中"页面根容器例外"→ 再看是否命中"sub-/block- 容器"→ 都不是走"叶子/装饰"。
+>
+> **兼容点**:`minHeight` 相较 `height` 只是"下限保底",不影响设计稿本意。旧产物用 `height` 出现的塌陷问题(bg 层跟着塌成一条)全部由本规则统一收敛。
 
 **B. 视觉属性(rn 版:CSS → RN StyleSheet)**
 
@@ -1825,9 +1838,10 @@ const styles = StyleSheet.create({ /* ... */ })
 7. **子节点 `FILL` / `STRETCH` 未落地**：是否存在 Figma 子节点 `layoutSizingHorizontal === 'FILL'` 或 `layoutAlign === 'STRETCH'`，输出的 CSS 却没写 `width: 100%` / `align-self: stretch`？典型表现：子内容明明该撑满父可用宽（Figma 里子和父同宽或仅差 padding），实际渲染却按内容宽度收缩，父上还常常错配 `align-items: center` 挡着——**父视角必须**用 `align-items: stretch` 或**删除** `align-items` 行让 flex column 走默认（stretch），子视角**加 `width: 100%`**（一并加 `box-sizing: border-box` 让 padding 不撑破容器）。反向也查：`FIXED` / `INHERIT` 的子被误加 `width: 100%` 也算错。
 8. **`end-` 前缀未生成 wrapper + `space-between` 结构**：图层名带 `end-` 的节点（不含 `bg-` / `bgc-` / `x-` 叠加，且不含 `fixed-` 叠加），产物 JSX 里其父容器是否有虚拟 wrapper 包裹前面兄弟、父 CSS 是否设置 `justify-content: space-between`？若父 layoutMode = `VERTICAL` 但产物用 `absolute + bottom: 0` / `margin-top: auto` 等其他手段模拟，也算不合规（本方案唯一实现路径是 wrapper + space-between，见 §4.3）。反向查：`end-` 节点是否是父的最后一个子（不是则不合规）、父是否 autoLayout（不是则不合规）。
 9. **页面根容器用死值 `height` 未覆写为 `min-height: max(..., 100vh)`**：入口节点满足"页面根容器"三信号（是入口 nodeId + 父是 Page/Document + 高度接近视口）时，产物根 CSS 是否用了 `height: {figmaH * scale}px` 死值 或 `min-height: {figmaH * scale}px` 死值？必须改成 `min-height: max({figmaH * scale}px, 100vh)`（见 §4.3 判定优先级第 6 条）。同时检查根内部的 `layoutPositioning: ABSOLUTE` 背景层（`bg-`）：`height` 是否死值？应改成 `height: 100%`（或 `inset: 0`），`background-size` 从 `{w}px {h}px` 改成 `cover`。反向查：**信号不全时**（例如 sub-agent 派发进来的 block、URL 指向的是非根子节点、高度不接近视口）不应触发本条覆写，若被误覆写为 `100vh` 也算不合规。
-10. **`input-` 前缀未生成 `<input>` 标签**：图层名带 `input-` 的节点（不含 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加），产物 JSX 是否输出 `<input type="text" placeholder="..." />`？是否漏输出 `<div>` + `<span>` 结构而绕过 `input-` 语义？CSS 是否把左侧图标切图挂在 `background-image`（不生成独立 `<img>` 子节点）？`::placeholder` 颜色是否取自 TEXT 子节点的 `fills[0]`？反向查：图层里没有 `input-` 前缀却被误改成 `<input>` 标签也不合规。同时校验 doctor 侧 4 条 NAM 规则是否触发（NAM017 无 TEXT / NAM018 多 TEXT / NAM019 与 bg 系叠加 / NAM020 与 img/btn 叠加）。
+10. **`input-` 前缀未生成 `<input>` 标签**：图层名带 `input-` 的节点（不含 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加），产物 JSX 是否输出 `<input type="text" placeholder="..." />`？是否漏输出 `<div>` + `<span>` 结构而绕过 `input-` 语义？CSS 是否把左侧图标切图挂在 `background-image`（不生成独立 `<img>` 子节点）？`::placeholder` 颜色是否取自 TEXT 子节点的 `fills[0]`？反向查:图层里没有 `input-` 前缀却被误改成 `<input>` 标签也不合规。同时校验 doctor 侧 4 条 NAM 规则是否触发(NAM017 无 TEXT / NAM018 多 TEXT / NAM019 与 bg 系叠加 / NAM020 与 img/btn 叠加)。
+11. **sub-/block- 容器 FIXED 高度未写 `minHeight` 导致塌陷(v1.0.2 新增)**:图层名带 `sub-` / `block-` 前缀、Figma `layoutSizingVertical: FIXED`,且该容器内部有 `layoutPositioning: 'ABSOLUTE'` + `width/height: '100%'` 的兄弟子节点(典型:`main` 内含 `mainBg` 绝对铺满作背景层),产物 StyleSheet 是否用了 `height: <N>` 死值?必须改成 `minHeight: <N>`(见 §4.1.1 §A 表下方「FIXED 塌陷防御」补充说明)。理由:死高会让容器在内容异步渲染 / 数据少时收缩到 HUG 表现,`height: '100%'` 兄弟层跟着塌成一条,底部露出根容器背景。反向查:叶子/装饰元素(`img-` / `bg-` / `btn-` 等)不应误用 `minHeight`,那些场景仍写 `height`。
 
-**任一项命中 → 该叶子 sub-agent 交付不合格，主 agent 必须回退该块重写**（不是自己改 scss 数值糊过去；这是结构性问题，改数值没用）。回退命令：把该叶子 nodeId 重新按 §4.0 派发一次 sub-agent，把本节 checklist 内容作为额外约束附加进去。
+**任一项命中 → 该叶子 sub-agent 交付不合格,主 agent 必须回退该块重写**(不是自己改 scss 数值糊过去;这是结构性问题,改数值没用)。回退命令:把该叶子 nodeId 重新按 §4.0 派发一次 sub-agent,把本节 checklist 内容作为额外约束附加进去。
 
 **常见触发原因与修复方向**：
 
