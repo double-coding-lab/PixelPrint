@@ -2084,6 +2084,39 @@ const styles = StyleSheet.create({ /* ... */ })
 
 如需跳过，用户可明确说「跳过 QA」。
 
+#### 6.3 记录 last-page(供 pp-fix-partial 定位)
+
+QA 全部通过后,主 agent **必须**把本轮出码的元数据写到 `.d2c-cache/last-page.json`,覆盖旧值(单值语义,不留历史队列)。目的:后续 `pp-fix-partial` 无参调用能定位到"最近实现的那张稿子"。
+
+写入内容(rn 版):
+
+```json
+{
+  "figmaUrl": "<步骤 -1 用户传入的 figma URL 原文>",
+  "fileKey": "<步骤 0.3 解析出的 fileKey>",
+  "rootNodeId": "<步骤 -1 用户传入的 nodeId,注意冒号形式 138:1797>",
+  "outputDir": "<步骤 5 实际写入的组件目录,如 src/pages/Italo>",
+  "outputEntryFile": "<主入口文件,如 src/pages/Italo/index.tsx>",
+  "figmaTreeHash": "<对子树 REST JSON 求 shasum -a 1>",
+  "generatedAt": "<ISO8601,如 2026-08-05T10:23:44Z>",
+  "framework": "rn",
+  "styleFormat": "stylesheet"
+}
+```
+
+写入方式:
+
+```bash
+mkdir -p .d2c-cache
+cat > .d2c-cache/last-page.json <<'EOF'
+{ ... 上面结构 ... }
+EOF
+```
+
+**注意**:
+- 如果 `.d2c-cache/last-page.json` 已存在(用户上次跑过别的页面),**直接覆写**,不追加、不合并
+- 如果本轮 QA 未通过、用户手动终止 → **不写** last-page.json(避免把失败结果标记成"最近实现")
+
 ---
 
 ### 步骤 7:输出交付物清单
