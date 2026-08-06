@@ -1,0 +1,36 @@
+docs/samples/AirportBus/styles.ts
+  s_164506a9a276a1::t_8365d6de8f95b2 1-138
+docs/samples/GiveUpExchange/.d2c-tasks.md
+  s_164506a9a276a1::t_8365d6de8f95b2 1-39
+docs/samples/AirportBus/index.tsx
+  s_164506a9a276a1::t_8365d6de8f95b2 1-62
+docs/samples/AirportBus/.d2c-tasks.md
+  s_164506a9a276a1::t_8365d6de8f95b2 1-24
+docs/samples/GiveUpExchange/styles.ts
+  s_164506a9a276a1::t_8365d6de8f95b2 1-260
+docs/samples/GiveUpExchange/index.tsx
+  s_164506a9a276a1::t_8365d6de8f95b2 1-151
+docs/pixel-print-guide.md
+  s_164506a9a276a1::t_91701dbbd0019e 624,626,628,630-632,634,636-702,704,706-745,747-767,769
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "8297d4d4387d98c0c07c5e9d8f3ce60e6cc52497",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_164506a9a276a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "87f06489-8523-407d-a24e-22ccd4f19a3b",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
