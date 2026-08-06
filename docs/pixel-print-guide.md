@@ -621,25 +621,152 @@ SKILL.md 里所有类似 `doctor.run({...})` / `partial.replace(file, str)` 的�
 
 ## 15. 效果图与代码结构
 
-> 这一节由维护者补充。以下占位块请替换为你要贴的图片与代码结构截图。
+以下是 PixelPrint 在真实业务里跑出来的两个页面产物,均由 `pp-d2c-rn` skill 一次生成(xtaro adapter + `rpx()` 响应式包装)。
 
-### 15.1 视觉对比效果
+### 15.1 案例一:机场巴士(AirportBus)
 
-<!-- 贴一组「Figma 截图 vs 生成产物截图」对照,证明像素级还原效果 -->
+**场景**:接送机业务落地页,含标签切换、优惠券、地址选择、CTA 按钮。
 
-_(占位:替换为效果图)_
+<p align="center">
+  <img src="./assets/effects/AirportBus/preview.jpg" alt="机场巴士页 iPhone 17 模拟器截图" width="360" />
+</p>
 
-### 15.2 生成的代码结构
+**生成的目录结构**(节选自 xtaro 项目 `src/pages/AirportBus/`):
 
-<!-- 贴 tree 命令或截图,展示 pp-d2c 产出的目录组织(pages/xxx/index.tsx + blocks/ + 样式文件) -->
+```
+AirportBus/
+├── index.tsx           ← 页面主入口,含 data-node-id 调试属性,便于回溯 Figma
+├── styles.ts           ← StyleSheet.create + rpx() 响应式包装
+└── .d2c-tasks.md       ← 该次执行的验收清单(每项 sub-agent 都要 [x] 才算完成)
+```
 
-_(占位:替换为代码结构截图 / tree 输出)_
+**核心代码**(`index.tsx` 节选,完整代码见 [`docs/samples/AirportBus/`](./samples/AirportBus/)):
 
-### 15.3 SKILL 落地后的项目文件树
+```tsx
+import { XImage, XText, XView } from '@ctrip/xtaro'
+import { styles } from './styles'
 
-<!-- 贴装完 init 后 .claude/skills/ 的目录结构,证明零侵入 -->
+export default function AirportBus() {
+  return (
+    <XView style={styles.root} data-node-id="1:1459">
+      <XImage style={styles.bgTitle} src={require('@Images/AirportBus/title.png')} data-node-id="1:1460" />
+      <XImage style={styles.tabs} src={require('@Images/AirportBus/tabs.png')} data-node-id="1:1647" />
 
-_(占位:替换为 SKILL 目录截图)_
+      <XView style={styles.card} data-node-id="1:1623">
+        {/* 优惠券条 */}
+        <XView style={styles.coupon} data-node-id="1:1637">
+          <XView style={styles.couponMain} data-node-id="1:1639">
+            <XImage style={styles.couponIcon} src={require('@Images/AirportBus/hongbao.png')} data-node-id="1:1644" />
+            <XView style={styles.couponTextRow} data-node-id="1:1640">
+              <XText style={styles.couponPrefix} data-node-id="1:1641">您有</XText>
+              <XText style={styles.couponMoney} data-node-id="1:1642">¥50接送机券</XText>
+              <XText style={styles.couponSuffix} data-node-id="1:1643">待使用</XText>
+            </XView>
+          </XView>
+          <XImage style={styles.couponArrow} src={require('@Images/AirportBus/arrow-coupon.png')} data-node-id="2:330" />
+        </XView>
+
+        {/* 出发→目的地 */}
+        <XView style={styles.tripRow} data-node-id="6:330"> ... </XView>
+
+        {/* 查询按钮 */}
+        <XView style={styles.btnQuery} data-node-id="6:333">
+          <XText style={styles.btnQueryText}>查询班次</XText>
+        </XView>
+      </XView>
+    </XView>
+  )
+}
+```
+
+**关键观察**:
+
+- 6 大 RN 内核标签(`XView / XText / XImage / ...`)全部走 `@ctrip/xtaro` 导入,一次到位
+- `data-node-id="1:1459"` 反向映射 Figma 节点,`pp-fix-partial` 局部修复靠这个精确定位
+- 尺寸全部 `rpx(...)` 包装,自动按屏宽线性缩放
+- 图片路径统一 `require('@Images/...')` 别名,不走远程 URL
+
+### 15.2 案例二:放弃兑换页(GiveUpExchange)
+
+**场景**:兑奖失败挽留页,含全屏渐变背景、绝对定位卡片、横向 scroll 券卡列表、分页点。
+
+<p align="center">
+  <img src="./assets/effects/GiveUpExchange/preview.jpg" alt="放弃兑换页 iPhone 17 模拟器截图" width="360" />
+</p>
+
+**这个案例展示的 PixelPrint 能力**:
+
+- **图片型背景**:`bg-pic1` 全屏渐变直接切图落到 CDN,不递归子孙
+- **绝对定位卡片**:Figma `layoutPositioning=ABSOLUTE` 精确翻译成 `position: 'absolute'` + top/left
+- **横向滚动列表**:`scrollx-` 前缀自动生成 `<XScrollView horizontal>` + `contentContainerStyle`
+- **分页指示器**:小圆点由 Figma 的 fills + cornerRadius 直接推 CSS,不切图
+
+核心代码见 [`docs/samples/GiveUpExchange/`](./samples/GiveUpExchange/)。片段:
+
+```tsx
+<XScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  style={styles.ticketScroll}
+  contentContainerStyle={styles.ticketScrollContent}
+  data-node-id="192:773"
+>
+  <XView style={styles.ticket} data-node-id="192:774">
+    <XImage style={styles.ticketBg} src="..." data-node-id="192:775" />
+    <XView style={styles.ticketContent} data-node-id="192:782">
+      <XView style={styles.ticketPriceRow}>
+        <XText style={styles.ticketPriceNum}>94</XText>
+        <XText style={styles.ticketPriceUnit}>折</XText>
+      </XView>
+      ...
+    </XView>
+  </XView>
+  <XView style={styles.ticket} data-node-id="192:789"> ... </XView>
+</XScrollView>
+```
+
+### 15.3 案例三:境外火车票落地页(Italo H5)
+
+**场景**:同一套 skill 走 H5 分支(React + SCSS)产出的复杂长图运营页,含全屏背景图、tab 切换、视频、地图路线、CTA。
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="./assets/effects/GiveUpExchange/italo-top.jpg" alt="Italo 顶部区块" />
+      <br/><sub>顶部:tab + 视频 + 主标题</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="./assets/effects/GiveUpExchange/italo-scroll.jpg" alt="Italo 中部区块" />
+      <br/><sub>中部:热门路线地图 + CTA</sub>
+    </td>
+  </tr>
+</table>
+
+**data-node-id 反查设计稿**(DevTools 元素审查):
+
+<p align="center">
+  <img src="./assets/effects/GiveUpExchange/italo-devtools.jpg" alt="Chrome DevTools 显示每个 DOM 节点都带 data-node-id 属性" width="640" />
+</p>
+
+上图截自浏览器 DevTools 元素面板。每个 DOM 节点都带 `data-node-id="126:1114"` 之类的属性,可直接拿回 Figma 定位到对应图层。**上线前**跑一次 `pp-strip-nodeid` 剥掉这些属性 + 落地 anchor 档案(供后续 `pp-fix-partial` 精确定位),生产 bundle 里不会有额外体积。
+
+### 15.4 生成产物的目录组织
+
+`pp-d2c-rn` / `pp-d2c` 两个 skill 出的产物结构一致:
+
+```
+{output.dir}/{PageName}/
+├── index.tsx           ← 页面主入口,含 data-node-id
+├── styles.ts           ← flat 模式下所有子 block 样式聚合在一个 StyleSheet
+├── styles/             ← component 模式才有,子 block 拆到独立目录
+│   └── {subBlock}/
+│       ├── index.tsx
+│       └── styles.ts
+├── .d2c-tasks.md       ← 本次执行的验收清单(所有 sub-agent 都要 [x])
+└── .d2c-health-{...}   ← H5 分支体检报告(可关)
+```
+
+配套图片资产落到 config 声明的 `images.assetsDir`(RN 默认 `assets/`,H5 默认 `static/`),路径不干涉业务已有目录。
 
 ---
 
