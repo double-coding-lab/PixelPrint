@@ -1,0 +1,47 @@
+templates/pp-d2c.rn.config.json
+  s_164506a9a276a1::t_f6c61e31ead860 9
+bin/install.js
+  s_164506a9a276a1::t_35d3a3e5164536 402,446-471,496,498-501
+  s_164506a9a276a1::t_fc2ddc288d0f70 332-339,341-344,352-356,364-368
+  s_164506a9a276a1::t_aff3f2e5912ec2 62-68,72-73,77-78,81,85-86
+  s_164506a9a276a1::t_3e6cb691b244a3 203-205,212,221-222,225,227-233
+  s_164506a9a276a1::t_5a4251053eed71 340,345
+  s_164506a9a276a1::t_36eccca8ac9158 596-597
+  s_164506a9a276a1::t_8dd1a79f6bbe44 806,809-826
+  s_164506a9a276a1::t_0149eaae3233e4 629,642,644,648,652
+  s_164506a9a276a1::t_dd05da7473c0f1 512
+  s_164506a9a276a1::t_b4540623924c72 546-562
+  s_164506a9a276a1::t_4226062a1bdeef 11-58
+  s_164506a9a276a1::t_832a7c17043b1d 237-243,247-249,253-264,272-273,283,286,292,294-297
+  s_164506a9a276a1::t_a80ffd13b8b6ee 497,502,506,579,583-584,590,592,595,611,617,619,622
+  s_164506a9a276a1::t_43f774eb60942f 666
+  s_164506a9a276a1::t_40c855e827ae8a 416-427,429
+  s_164506a9a276a1::t_eb8b0a4346ef1f 576-577,580
+  s_164506a9a276a1::t_4775b2cecb9abe 161,166,168
+  s_164506a9a276a1::t_35de8d4efa5032 598
+  s_164506a9a276a1::t_81577e04e799b6 871,876-901,906-907
+  s_164506a9a276a1::t_5882f5938fb176 388-392
+templates/pp-d2c.config.json
+  s_164506a9a276a1::t_228d98e5d58cec 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "d3c9c181028324ca942bf4a7e5f086540de03943",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_164506a9a276a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "87f06489-8523-407d-a24e-22ccd4f19a3b",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
