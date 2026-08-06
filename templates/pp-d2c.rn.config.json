@@ -6,7 +6,7 @@
     "styleFormat": "stylesheet"
   },
   "merge": {
-    "mode": "component"
+    "mode": "flat"
   },
   "unit": {
     "figmaBase": 375,

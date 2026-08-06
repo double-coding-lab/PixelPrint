@@ -7,26 +7,83 @@ const readline = require('readline')
 const TEMPLATES_DIR = path.join(__dirname, '../templates')
 const CWD = process.cwd()
 const CONFIG_PATH = path.join(CWD, 'pp-d2c.config.json')
-const MAPPINGS_PATH = path.join(CWD, 'code-connect/mappings.json')
+
+// ─── argv 解析 ────────────────────────────────────────────────
+// 支持 --key value / --key=value 两种写法;bool 短开关(--yes)也接受但目前未使用。
+// 未知参数直接忽略,不报错(留给上游 pipeline 传扩展参数)。返回 { flag: value } 对象,
+// 已知参数在 CLI_ARG_MAP 里显式列举,避免出现拼写错误默默失效。
+const CLI_ARG_MAP = {
+  'framework':          'framework',          // react | rn
+  'style-format':       'styleFormat',        // scss / scss-modules / less / less-modules / css / css-modules / tailwind / inline
+  'adapter-preset':     'adapterPreset',      // rn / taro / xtaro / off / custom
+  'merge-mode':         'mergeMode',          // flat | component
+  'figma-token':        'figmaToken',         // Figma Personal Access Token
+  'figma-base':         'figmaBase',          // 设计稿基准宽度(px)
+  'output-unit':        'outputUnit',         // px | vw | rem (仅 react)
+  'output-base':        'outputBase',         // 输出基准宽度
+  'responsive':         'responsive',         // on | off (仅 rn)
+  'assets-dir':         'assetsDir',          // 图片输出目录
+  'image-base-url':     'imageBaseUrl',       // 图片 base URL (仅 react)
+  'output-dir':         'outputDir',          // 代码输出目录
+  'rpx-helper-import':  'rpxHelperImport',    // rpx helper import 路径
+  'rpx-helper-name':    'rpxHelperName',      // rpx helper 导出函数名
+}
+
+function parseArgs(argv) {
+  const out = {}
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i]
+    if (!a.startsWith('--')) continue
+    let key, value
+    const eq = a.indexOf('=')
+    if (eq > -1) {
+      key = a.slice(2, eq)
+      value = a.slice(eq + 1)
+    } else {
+      key = a.slice(2)
+      const next = argv[i + 1]
+      // 下一个 token 如果不是 -- 开头就当作值消费掉
+      if (next !== undefined && !next.startsWith('--')) {
+        value = next
+        i++
+      } else {
+        value = ''
+      }
+    }
+    const mapped = CLI_ARG_MAP[key]
+    if (mapped) out[mapped] = value
+    // 未知的 --xxx 静默忽略
+  }
+  return out
+}
 
 // ─── 文件操作 ────────────────────────────────────────────────
 
-function copyFile(src, dest) {
+// 复制统计:silent=true 时不逐文件打印,只累加计数,由上层统一汇总。
+// installFiles 用 silent 模式,把原来 5-10 行 overwrite/copy 日志收成一行"复制 N 个 skill 文件"。
+// 独立场景(如 install 命令)仍走 silent=false,逐行日志便于排查。
+const _copyStats = { copy: 0, overwrite: 0, skip: 0 }
+function resetCopyStats() { _copyStats.copy = 0; _copyStats.overwrite = 0; _copyStats.skip = 0 }
+
+function copyFile(src, dest, silent = false) {
   const destDir = path.dirname(dest)
   if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true })
   if (fs.existsSync(dest)) {
-    console.log(`  skip  ${path.relative(CWD, dest)} (already exists)`)
+    _copyStats.skip++
+    if (!silent) console.log(`  skip  ${path.relative(CWD, dest)} (already exists)`)
     return
   }
   fs.copyFileSync(src, dest)
-  console.log(`  copy  ${path.relative(CWD, dest)}`)
+  _copyStats.copy++
+  if (!silent) console.log(`  copy  ${path.relative(CWD, dest)}`)
 }
 
-function copyFileForce(src, dest) {
+function copyFileForce(src, dest, silent = false) {
   const destDir = path.dirname(dest)
   if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true })
   fs.copyFileSync(src, dest)
-  console.log(`  overwrite  ${path.relative(CWD, dest)}`)
+  _copyStats.overwrite++
+  if (!silent) console.log(`  overwrite  ${path.relative(CWD, dest)}`)
 }
 
 // ─── .env 读写(极简,不引 dotenv) ─────────────────────────────
@@ -101,14 +158,14 @@ function ensureGitignoreHasEnv() {
   console.log('  → .gitignore 追加 .env 行')
 }
 
-function copyDir(srcDir, destDir, force = false) {
+function copyDir(srcDir, destDir, force = false, silent = false) {
   for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
     const src = path.join(srcDir, entry.name)
     const dest = path.join(destDir, entry.name)
     if (entry.isDirectory()) {
-      copyDir(src, dest, force)
+      copyDir(src, dest, force, silent)
     } else {
-      force ? copyFileForce(src, dest) : copyFile(src, dest)
+      force ? copyFileForce(src, dest, silent) : copyFile(src, dest, silent)
     }
   }
 }
@@ -143,14 +200,16 @@ function ensureGitignoreEntries() {
 }
 
 function installFiles(forceSkills = false, skipConfig = false, options = {}) {
-  const { skipRn = false, skipH5 = false } = options
-  console.log('\npp-d2c: installing files...\n')
+  const { skipRn = false, skipH5 = false, silent = false } = options
+  if (!silent) console.log('\npp-d2c: installing files...\n')
+  resetCopyStats()
   const skillsSrc = path.join(TEMPLATES_DIR, 'skills')
   const skillsDst = path.join(CWD, '.claude/skills')
   // pp-style 是 pp-d2c 的规则速查手册,pp-doctor 是静态体检 skill;两者当前无独立触发入口、
   // 没有工具调用能力、内容与主 SKILL 重复,默认不落到用户项目。需要时把它们从
   // pp 仓 templates/skills/ 手工 cp 过来即可
   const OPT_IN_ONLY = new Set(['pp-style', 'pp-doctor'])
+  const installedSkills = []
   for (const entry of fs.readdirSync(skillsSrc, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue
     // 按 framework 对称过滤:h5 项目跳 pp-d2c-rn,rn 项目跳 pp-d2c
@@ -159,24 +218,50 @@ function installFiles(forceSkills = false, skipConfig = false, options = {}) {
     if (skipRn && entry.name === 'pp-d2c-rn') continue
     if (skipH5 && entry.name === 'pp-d2c') continue
     if (OPT_IN_ONLY.has(entry.name)) continue
-    copyDir(path.join(skillsSrc, entry.name), path.join(skillsDst, entry.name), forceSkills)
+    copyDir(path.join(skillsSrc, entry.name), path.join(skillsDst, entry.name), forceSkills, silent)
+    installedSkills.push(entry.name)
   }
   if (!skipConfig) {
-    copyFile(path.join(TEMPLATES_DIR, 'pp-d2c.config.json'), CONFIG_PATH)
+    copyFile(path.join(TEMPLATES_DIR, 'pp-d2c.config.json'), CONFIG_PATH, silent)
   }
-  copyFile(path.join(TEMPLATES_DIR, 'code-connect/mappings.json'), MAPPINGS_PATH)
-  console.log('')
+  if (silent) {
+    // 汇总一行:动词按主要动作挑(overwrite > copy > skip),文件总数 + skill 列表
+    const total = _copyStats.copy + _copyStats.overwrite + _copyStats.skip
+    const verb = _copyStats.overwrite > 0 ? '刷新' : _copyStats.copy > 0 ? '安装' : '跳过'
+    console.log(`  ${verb} ${installedSkills.length} 个 skill(${installedSkills.join(' / ')}),共 ${total} 个文件到 .claude/skills/`)
+  }
+  if (!silent) console.log('')
 }
 
 // ─── 选择器（方向键 + 回车） ─────────────────────────────────
+// choices 支持两种形态:
+//   1) 字符串数组 ['a', 'b'] —— label 与 value 同源,无 hint
+//   2) 对象数组 [{ value:'flat', hint:'单文件合并…(默认)' }] —— 值和展示文案解耦,hint 用灰色显示在选项右侧
+// 返回值永远是选中项的 value(字符串数组模式下 value === 字符串本身)
+function normalizeChoices(choices) {
+  return choices.map(c => typeof c === 'string' ? { value: c, hint: '' } : { value: c.value, hint: c.hint || '' })
+}
 
 function select(label, choices, defaultVal) {
   return new Promise(resolve => {
-    let idx = Math.max(0, choices.indexOf(defaultVal))
+    const norm = normalizeChoices(choices)
+    let idx = Math.max(0, norm.findIndex(c => c.value === defaultVal))
+    if (idx < 0) idx = 0
     let rendered = false
     // 多行渲染:label 一行 + 每个选项一行。上一版单行平铺遇到长选项会终端硬 wrap,
     // 只清 \r\x1b[K 清不到 wrap 出来的行 → 方向键切换时堆多行。改成回到起点用 \x1b[0J 清到底。
-    const totalLines = choices.length + 1
+    const totalLines = norm.length + 1
+
+    // 计算 value 列宽度,让 hint 对齐
+    const maxValueLen = norm.reduce((m, c) => Math.max(m, c.value.length), 0)
+
+    function renderLine(c, selected) {
+      const marker = selected ? '  \x1b[36m●' : '   '
+      const valueColored = selected ? `\x1b[36m${c.value}\x1b[0m` : c.value
+      const pad = ' '.repeat(maxValueLen - c.value.length + 2)
+      const hint = c.hint ? `\x1b[90m${c.hint}\x1b[0m` : ''
+      return `${marker} ${valueColored}${pad}${hint}\n`
+    }
 
     function render() {
       if (rendered) {
@@ -184,9 +269,8 @@ function select(label, choices, defaultVal) {
         process.stdout.write(`\x1b[${totalLines}A\x1b[0J`)
       }
       process.stdout.write(`  ${label}:\n`)
-      for (let i = 0; i < choices.length; i++) {
-        if (i === idx) process.stdout.write(`  \x1b[36m● ${choices[i]}\x1b[0m\n`)
-        else process.stdout.write(`    ${choices[i]}\n`)
+      for (let i = 0; i < norm.length; i++) {
+        process.stdout.write(renderLine(norm[i], i === idx))
       }
       rendered = true
     }
@@ -196,19 +280,21 @@ function select(label, choices, defaultVal) {
     const onData = buf => {
       const key = buf.toString()
       if (key === '\x1b[D' || key === '\x1b[A') {       // ← ↑
-        idx = (idx - 1 + choices.length) % choices.length
+        idx = (idx - 1 + norm.length) % norm.length
         render()
       } else if (key === '\x1b[C' || key === '\x1b[B') { // → ↓
-        idx = (idx + 1) % choices.length
+        idx = (idx + 1) % norm.length
         render()
       } else if (key === '\r' || key === '\n') {
         process.stdin.setRawMode(false)
         process.stdin.removeListener('data', onData)
         process.stdin.pause()
-        // 确认后擦掉多行菜单,换成单行 "label: 选中值"
+        // 确认后擦掉多行菜单,换成单行 "label: 选中值 灰色hint"
         process.stdout.write(`\x1b[${totalLines}A\x1b[0J`)
-        process.stdout.write(`  ${label}: \x1b[36m${choices[idx]}\x1b[0m\n`)
-        resolve(choices[idx])
+        const chosen = norm[idx]
+        const hintTail = chosen.hint ? ` \x1b[90m${chosen.hint}\x1b[0m` : ''
+        process.stdout.write(`  ${label}: \x1b[36m${chosen.value}\x1b[0m${hintTail}\n`)
+        resolve(chosen.value)
       }
     }
 
@@ -243,15 +329,31 @@ function logUseExisting(label, value) {
   process.stdout.write(`  ${label}: \x1b[36m${value}\x1b[0m \x1b[90m(沿用现有配置)\x1b[0m\n`)
 }
 
-async function pickOrUse(label, currentVal, choices, defaultVal) {
-  if (hasValue(currentVal) && choices.includes(currentVal)) {
+function logUseCli(label, value) {
+  process.stdout.write(`  ${label}: \x1b[36m${value}\x1b[0m \x1b[90m(命令行参数)\x1b[0m\n`)
+}
+
+// 三个 or-use 系列统一 CLI > existing > 交互 的优先级。
+// cliVal 是从 argv 解析出来的字符串,undefined 表示用户没在命令行传这项;传了但等于空字符串
+// 视为"用户想清空",按 hasValue 规则由后续逻辑决定是否落到默认值(具体分支各自处理)。
+async function pickOrUse(label, currentVal, choices, defaultVal, cliVal) {
+  const values = choices.map(c => typeof c === 'string' ? c : c.value)
+  if (hasValue(cliVal) && values.includes(cliVal)) {
+    logUseCli(label, cliVal)
+    return cliVal
+  }
+  if (hasValue(currentVal) && values.includes(currentVal)) {
     logUseExisting(label, currentVal)
     return currentVal
   }
   return await select(label, choices, defaultVal)
 }
 
-async function inputOrUse(label, currentVal, defaultVal) {
+async function inputOrUse(label, currentVal, defaultVal, cliVal) {
+  if (hasValue(cliVal)) {
+    logUseCli(label, cliVal)
+    return cliVal
+  }
   if (hasValue(currentVal)) {
     logUseExisting(label, currentVal)
     return currentVal
@@ -259,7 +361,11 @@ async function inputOrUse(label, currentVal, defaultVal) {
   return await input(label, defaultVal)
 }
 
-async function inputIntOrUse(label, currentVal, defaultVal) {
+async function inputIntOrUse(label, currentVal, defaultVal, cliVal) {
+  if (hasValue(cliVal) && Number.isFinite(Number(cliVal))) {
+    logUseCli(label, cliVal)
+    return Number(cliVal)
+  }
   if (hasValue(currentVal) && Number.isFinite(Number(currentVal))) {
     logUseExisting(label, currentVal)
     return Number(currentVal)
@@ -279,7 +385,11 @@ function loadAdapterPresets() {
     if (!entry.endsWith('.json')) continue
     try {
       const preset = JSON.parse(fs.readFileSync(path.join(PRESETS_DIR, entry), 'utf8'))
-      if (preset && preset.name && preset.adapter) list.push(preset)
+      // _sourceFile 记录 JSON 文件名(含扩展名),供 CLI --adapter-preset 反查 preset id 使用
+      if (preset && preset.name && preset.adapter) {
+        preset._sourceFile = entry
+        list.push(preset)
+      }
     } catch (e) {
       console.warn(`  ⚠️  adapter-presets/${entry} 解析失败,跳过: ${e.message}`)
     }
@@ -289,7 +399,7 @@ function loadAdapterPresets() {
 
 // ─── 交互式配置 ──────────────────────────────────────────────
 
-async function runInit() {
+async function runInit(cliArgs = {}) {
   // 先读现有 config（init 自己生成 config，不能让 installFiles 提前复制 templates 模板污染 existing）
   let existing = {}
   if (fs.existsSync(CONFIG_PATH)) {
@@ -303,17 +413,20 @@ async function runInit() {
   const fig = existing.figma || {}
   const out = existing.output || {}
 
-  console.log('─── 阶段一：Figma Personal Access Token 说明 ─────────\n')
-  console.log('  ⚠️  v0.3 起本 SKILL 完全走 Figma REST API,不再依赖 MCP。')
-  console.log('  你只需要一个 Figma Personal Access Token 即可运行(在后续阶段三输入)。\n')
-  console.log('  Token 生成路径:')
-  console.log('  1. 打开 https://www.figma.com/ 登录')
-  console.log('  2. 右上角头像 → Settings → Security')
-  console.log('  3. 找到 Personal access tokens,点击 "Generate new token"')
-  console.log('  4. 权限勾选 "File content: Read-only" 即可')
-  console.log('  5. 复制 token 后不要关闭窗口(离开后无法再次查看)\n')
+  // 检查已有 token(env / .env / 旧 config / CLI --figma-token),有的话就跳过完整劝导,只留一行提示
+  const preexistingToken = process.env.FIGMA_TOKEN || readEnvFile().map.FIGMA_TOKEN || fig.token || cliArgs.figmaToken
+  if (preexistingToken) {
+    console.log('─── 阶段一:Figma Token ─────────────────────────────\n')
+    console.log('  ✓ 检测到已配置的 FIGMA_TOKEN,阶段三会沿用(如需换 token,重跑并传 --figma-token)\n')
+  } else {
+    console.log('─── 阶段一:Figma Token 生成指南 ────────────────────\n')
+    console.log('  v0.3 起完全走 Figma REST API,只需一个 Personal Access Token(阶段三输入):')
+    console.log('    1. 打开 https://www.figma.com/ 登录 → 头像 → Settings → Security')
+    console.log('    2. Personal access tokens → Generate new token')
+    console.log('    3. 权限勾选 "File content: Read-only",复制 token(离开无法再看)\n')
+  }
 
-  console.log('─── 阶段二：交互式配置 ──────────────────────────────\n')
+  console.log('─── 阶段二:交互式配置 ──────────────────────────────\n')
 
   // ─── 平铺项目框架 + 方案 ──────────────────────────────
   // 把 H5(React)的样式方案 + RN 的 adapter 预设全部铺开成同一层选项,
@@ -330,10 +443,33 @@ async function runInit() {
   flatOptions.push({ label: 'React / Inline Style', framework: 'react', styleFormat: 'inline' })
   // RN 各 preset,再加"自定义"/"不启用"两个兜底
   for (const preset of presets) {
-    flatOptions.push({ label: `RN / ${preset.name}`, framework: 'rn', adapterKind: 'preset', preset })
+    // preset.json 里 name 形如 "pure React Native / Expo",这里取文件名做 CLI 标识(rn / taro / xtaro),
+    // 避免中文 / 特殊字符出现在 --adapter-preset 值里
+    const presetId = path.basename(preset._sourceFile || '', '.json') || preset.name.toLowerCase()
+    flatOptions.push({ label: `RN / ${preset.name}`, framework: 'rn', adapterKind: 'preset', preset, presetId })
   }
-  flatOptions.push({ label: 'RN / 自定义标签映射(后续手填)', framework: 'rn', adapterKind: 'custom' })
-  flatOptions.push({ label: 'RN / 不启用组件映射(保留 RN 原写法)', framework: 'rn', adapterKind: 'off' })
+  flatOptions.push({ label: 'RN / 自定义标签映射(后续手填)', framework: 'rn', adapterKind: 'custom', presetId: 'custom' })
+  flatOptions.push({ label: 'RN / 不启用组件映射(保留 RN 原写法)', framework: 'rn', adapterKind: 'off', presetId: 'off' })
+
+  // CLI 参数反查:优先级最高
+  // --framework=react --style-format=scss → 命中 React / SCSS
+  // --framework=rn --adapter-preset=xtaro → 命中 RN / 携程 xtaro
+  let cliLabel = null
+  if (hasValue(cliArgs.framework)) {
+    if (cliArgs.framework === 'react') {
+      const sf = cliArgs.styleFormat
+      const hit = hasValue(sf) ? flatOptions.find(o => o.framework === 'react' && o.styleFormat === sf) : null
+      if (hit) cliLabel = hit.label
+      else if (hasValue(sf)) console.warn(`  ⚠️  --style-format=${sf} 在 React 分支下没有匹配预设,忽略 CLI 命中,回退交互`)
+    } else if (cliArgs.framework === 'rn') {
+      const pid = cliArgs.adapterPreset
+      const hit = hasValue(pid) ? flatOptions.find(o => o.framework === 'rn' && o.presetId === pid) : null
+      if (hit) cliLabel = hit.label
+      else if (hasValue(pid)) console.warn(`  ⚠️  --adapter-preset=${pid} 无法匹配已加载的 RN 预设(可选值:${flatOptions.filter(o => o.framework === 'rn').map(o => o.presetId).join(' / ')}),忽略 CLI 命中,回退交互`)
+    } else {
+      console.warn(`  ⚠️  --framework=${cliArgs.framework} 无效(可选 react / rn),忽略 CLI 命中,回退交互`)
+    }
+  }
 
   // 反推现有 config 对应的平铺项 label(能命中就走"沿用",避免每次 init 都重选)
   let existingLabel = null
@@ -357,18 +493,23 @@ async function runInit() {
 
   let selectedLabel, isReused = false
   const flatLabels = flatOptions.map(o => o.label)
-  if (existingLabel) {
-    logUseExisting('[1/8] 项目框架 + 方案', existingLabel)
+  if (cliLabel) {
+    logUseCli('[1/6] 项目框架 + 方案', cliLabel)
+    selectedLabel = cliLabel
+    // CLI 命中时 isReused 保持 false,让 rn 分支走"重新按 preset 组装 adapterCfg"分支,
+    // 而不是走"沿用旧 config.adapter"分支——用户显式换 preset 就是要覆盖旧映射
+  } else if (existingLabel) {
+    logUseExisting('[1/6] 项目框架 + 方案', existingLabel)
     selectedLabel = existingLabel
     isReused = true
   } else {
-    selectedLabel = await select('[1/8] 项目框架 + 方案', flatLabels, flatLabels[0])
+    selectedLabel = await select('[1/6] 项目框架 + 方案', flatLabels, flatLabels[0])
   }
   const selectedOpt = flatOptions.find(o => o.label === selectedLabel)
   const framework = selectedOpt.framework
 
   // 选完 framework 才复制 SKILL(h5 项目跳 pp-d2c-rn,rn 项目跳 pp-d2c;避免另一分支主 SKILL 污染)
-  installFiles(true, true, { skipRn: framework !== 'rn', skipH5: framework === 'rn' })
+  installFiles(true, true, { skipRn: framework !== 'rn', skipH5: framework === 'rn', silent: true })
 
   let styleFormat
   let adapterCfg = null
@@ -402,8 +543,23 @@ async function runInit() {
     } else if (selectedOpt.adapterKind === 'off') {
       adapterCfg = { enabled: false, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
     } else if (selectedOpt.adapterKind === 'custom') {
-      adapterCfg = { enabled: true, tagMap: {}, importMap: {}, propMap: {}, reactImport: 'react' }
-      console.log('  → adapter.enabled=true,请后续在 pp-d2c.config.json 手动填 tagMap / importMap / propMap')
+      // 给 6 键 tagMap 骨架 + 空 importMap / propMap,让用户手动填目标标签名 / import 源 / prop 重命名。
+      // 空字符串比缺键更好——config schema 保持稳定,pp-d2c-rn SKILL 检测到空串会报错提示补齐,不会当成 preset 命中。
+      adapterCfg = {
+        enabled: true,
+        tagMap: {
+          View: '',
+          Text: '',
+          Image: '',
+          Pressable: '',
+          TextInput: '',
+          ScrollView: ''
+        },
+        importMap: {},
+        propMap: {},
+        reactImport: 'react'
+      }
+      console.log('  → adapter.enabled=true,已生成 6 键空 tagMap 骨架,请在 pp-d2c.config.json 里填入目标标签 / importMap / propMap')
     } else {
       const hit = selectedOpt.preset
       adapterCfg = { ...hit.adapter }
@@ -417,24 +573,29 @@ async function runInit() {
     const existingUnit = existing.unit || {}
     const existingResp = existingUnit.responsive || {}
     const existingRespYn = existingResp.enabled === true ? 'Yes' : existingResp.enabled === false ? 'No' : null
+    // --responsive on|off 映射到 Yes/No,其他值(包括空字符串)当作未传
+    const cliRespYn = cliArgs.responsive === 'on' ? 'Yes' : cliArgs.responsive === 'off' ? 'No' : undefined
     const enableRespYn = await pickOrUse(
-      '[2/8] 是否启用响应式 rpx() 包装(按屏宽线性缩放尺寸)',
-      existingRespYn, ['Yes', 'No'], 'Yes'
+      '[2/6] 是否启用响应式 rpx() 包装(按屏宽线性缩放尺寸)',
+      existingRespYn, ['Yes', 'No'], 'Yes', cliRespYn
     )
     if (enableRespYn === 'Yes') {
-      const helperImport = await inputOrUse('[2.1/8] rpx helper import 路径', existingResp.helperImport, '@/utils/rpx')
-      const helperName = await inputOrUse('[2.2/8] rpx helper 导出函数名', existingResp.helperName, 'rpx')
+      const helperImport = await inputOrUse('[2.1/6] rpx helper import 路径', existingResp.helperImport, '@/utils/rpx', cliArgs.rpxHelperImport)
+      const helperName = await inputOrUse('[2.2/6] rpx helper 导出函数名', existingResp.helperName, 'rpx', cliArgs.rpxHelperName)
       responsiveCfg = { enabled: true, helperImport, helperName }
     } else {
       responsiveCfg = { enabled: false, helperImport: '@/utils/rpx', helperName: 'rpx' }
     }
   } else {
-    // react 分支的 styleFormat 已在 [1/8] 里选完,这里只做展示不再交互
+    // react 分支的 styleFormat 已在 [1/6] 里选完,这里只做展示不再交互
     styleFormat = selectedOpt.styleFormat
-    console.log(`  [2/8] 样式方案: \x1b[36m${styleFormat}\x1b[0m \x1b[90m(在 [1/8] 里已选定,不再单独询问)\x1b[0m`)
+    console.log(`  [2/6] 样式方案: \x1b[36m${styleFormat}\x1b[0m \x1b[90m(在 [1/6] 里已选定,不再单独询问)\x1b[0m`)
   }
 
-  const mergeMode = await pickOrUse('[3/8] 合并模式', m.mode, ['component', 'flat'], 'component')
+  const mergeMode = await pickOrUse('[3/6] 合并模式', m.mode, [
+    { value: 'flat',      hint: '单文件合并,所有子 block 展开到主文件(默认)' },
+    { value: 'component', hint: '组件化拆分,每个子 block 独立目录' }
+  ], 'flat', cliArgs.mergeMode)
 
   // rn / react 分支的默认值分叉:
   // - rn 项目走 require('./assets/xxx.png') 编译期路径,imageBaseUrl 为空,assetsDir 固定 assets/,代码在 src/pages/
@@ -447,25 +608,25 @@ async function runInit() {
   // 图片输出目录 rn/react 都作为输入题:
   // rn 默认 assets/(项目根 assets),但各家 RN 项目目录组织不同(如 src/assets/、src/Images/<页面>/)
   // 强制写死会绑架用户,保留输入让用户能改。imageBaseUrl 才是真正的 rn 特化项(走 require 不走 URL)。
-  const assetsDir = await inputOrUse('[4/8] 图片输出目录', img.assetsDir, defaultAssetsDir)
+  const assetsDir = await inputOrUse('[4/6] 图片输出目录', img.assetsDir, defaultAssetsDir, cliArgs.assetsDir)
 
   // rn 分支:图片 base URL 固定为空,不再询问
   let imageBaseUrl
   if (isRn) {
     imageBaseUrl = ''
-    console.log(`  [5/8] 图片 base URL: \x1b[36m(空)\x1b[0m \x1b[90m(rn 分支走 require 引用,不用远程 URL)\x1b[0m`)
+    console.log(`  [5/6] 图片 base URL: \x1b[36m(空)\x1b[0m \x1b[90m(rn 分支走 require 引用,不用远程 URL)\x1b[0m`)
   } else {
-    imageBaseUrl = await inputOrUse('[5/8] 图片 base URL', img.imageBaseUrl, defaultImageBaseUrl)
+    imageBaseUrl = await inputOrUse('[5/6] 图片 base URL', img.imageBaseUrl, defaultImageBaseUrl, cliArgs.imageBaseUrl)
   }
 
-  const outputDir = await inputOrUse('[6/8] 代码输出目录', out.dir, defaultOutputDir)
+  const outputDir = await inputOrUse('[6/6] 代码输出目录', out.dir, defaultOutputDir, cliArgs.outputDir)
 
   console.log('\n─── 阶段三：单位换算规则 ────────────────────────────\n')
   console.log('  使用 ← → 方向键选择，输入题直接回车使用默认值\n')
 
   const figmaBase = await inputIntOrUse(
     isRn ? '[单位1/2] 设计稿基准宽度 (px)' : '[单位1/4] 设计稿基准宽度 (px)',
-    u.figmaBase, 375
+    u.figmaBase, 375, cliArgs.figmaBase
   )
 
   let outputUnit, outputBase, scale
@@ -478,17 +639,17 @@ async function runInit() {
     scale = 1
     console.log(`  [单位2/2] 换算:\x1b[36mRN 数字模式(scale=1,figmaBase=${figmaBase} pt)\x1b[0m \x1b[90m(rn 分支固定,不做 px/vw/rem 单位选择)\x1b[0m`)
   } else {
-    outputUnit = await pickOrUse('[单位2/4] 代码使用的单位', u.outputUnit, ['px', 'vw', 'rem'], 'px')
+    outputUnit = await pickOrUse('[单位2/4] 代码使用的单位', u.outputUnit, ['px', 'vw', 'rem'], 'px', cliArgs.outputUnit)
     if (outputUnit === 'px') {
-      outputBase = await inputIntOrUse('[单位3/4] 代码 px 基准宽度(如 postcss px2vw 基于 750 则填 750)', u.outputBase, figmaBase * 2)
+      outputBase = await inputIntOrUse('[单位3/4] 代码 px 基准宽度(如 postcss px2vw 基于 750 则填 750)', u.outputBase, figmaBase * 2, cliArgs.outputBase)
       scale = outputBase / figmaBase
       console.log(`  → 换算倍数:×${scale}(Figma ${figmaBase}px → 代码 ${figmaBase * scale}px)`)
     } else if (outputUnit === 'vw') {
-      outputBase = await inputIntOrUse('[单位3/4] vw 基准宽度(100vw 对应多少 px)', u.outputBase, figmaBase)
+      outputBase = await inputIntOrUse('[单位3/4] vw 基准宽度(100vw 对应多少 px)', u.outputBase, figmaBase, cliArgs.outputBase)
       scale = outputBase / figmaBase
       console.log(`  → 换算:Figma ${figmaBase}px → ${(figmaBase * scale / outputBase * 100).toFixed(3)}vw`)
     } else {
-      outputBase = await inputIntOrUse('[单位3/4] rem 基准(1rem = 多少 px)', u.outputBase, 16)
+      outputBase = await inputIntOrUse('[单位3/4] rem 基准(1rem = 多少 px)', u.outputBase, 16, cliArgs.outputBase)
       scale = 1
       console.log(`  → 换算:Figma 值 / ${outputBase} rem`)
     }
@@ -502,7 +663,7 @@ async function runInit() {
   const figmaToken = await inputOrUse(
     isRn ? '[单位2/2] Figma Personal Access Token(存到项目根 .env,回车跳过)'
          : '[单位4/4] Figma Personal Access Token(存到项目根 .env,回车跳过)',
-    defaultToken, ''
+    defaultToken, '', cliArgs.figmaToken
   )
 
   // 落盘 .env + 保证 .gitignore 屏蔽 .env
@@ -642,33 +803,27 @@ async function runInit() {
     console.log(`  ✓ 单位换算规则已注入 ${path.relative(CWD, skillPath)}`)
   }
 
-  console.log('\n─── 阶段四：mappings.json ───────────────────────────\n')
-  if (fs.existsSync(MAPPINGS_PATH)) {
-    let existingMappings = null
-    try { existingMappings = JSON.parse(fs.readFileSync(MAPPINGS_PATH, 'utf8')) } catch {}
-    const hasComponents = existingMappings && Array.isArray(existingMappings.components) && existingMappings.components.length > 0
-    if (hasComponents) {
-      console.log(`  skip  mappings.json (已有 ${existingMappings.components.length} 条映射，沿用现有配置)`)
-    } else {
-      fs.writeFileSync(MAPPINGS_PATH, JSON.stringify({ components: [] }, null, 2))
-      console.log('  ✓ mappings.json 已重置为空模板（原文件无有效映射）')
-    }
-  } else {
-    fs.mkdirSync(path.dirname(MAPPINGS_PATH), { recursive: true })
-    fs.writeFileSync(MAPPINGS_PATH, JSON.stringify({ components: [] }, null, 2))
-    console.log('  ✓ mappings.json 已初始化')
-  }
-
-  console.log('\n─── 阶段五：追加 .gitignore ─────────────────────────\n')
+  console.log('\n─── 阶段四:追加 .gitignore ─────────────────────────\n')
   ensureGitignoreEntries()
 
-  console.log('\n─────────────────────────────────────────────────────')
-  console.log('  ✓ v0.3 起完全走 Figma REST API,无需 MCP;确保项目根 .env 里 FIGMA_TOKEN 已配置即可。')
-  console.log('  ✓ pp-d2c.config.json 已配置')
-  console.log('  ✓ code-connect/mappings.json 已就绪')
-  console.log('  ✓ .gitignore 已追加 .d2c-cache/ / .d2c-tmp/')
-  console.log('\n  把设计稿链接发给 Claude 即可开始生成:')
-  console.log('  把这份设计稿转成代码:https://figma.com/design/xxx?node-id=1-2\n')
+  console.log('\n─── 完成 ────────────────────────────────────────────\n')
+  console.log(`  ✓ pp-d2c.config.json    framework=${framework} · merge=${mergeMode} · unit=${outputUnit}(base ${outputBase}) · out=${outputDir}`)
+  if (framework === 'rn') {
+    // adapter 摘要:preset 用 preset name,custom 提示 6 键待填,off 说明关闭
+    const ad = config.adapter
+    let adapterLine
+    if (ad.enabled === false) adapterLine = 'off(保留 RN 原写法)'
+    else if (pickedPreset) adapterLine = `${pickedPreset.name}`
+    else adapterLine = '自定义(config.adapter.tagMap 6 键待填)'
+    console.log(`  ✓ adapter               ${adapterLine}`)
+    if (responsiveCfg && responsiveCfg.enabled) {
+      console.log(`  ✓ 响应式 rpx()          ${responsiveCfg.helperImport} · ${responsiveCfg.helperName}()`)
+    }
+  }
+  console.log(`  ✓ .env                  FIGMA_TOKEN ${figmaToken ? '已写入' : '未配置(切图前手动补上)'}`)
+  console.log(`  ✓ .gitignore            .d2c-cache/ · .d2c-tmp/ · .env`)
+  console.log('\n  把设计稿链接发给 Claude 即可开始生成,例:')
+  console.log('    把这份设计稿转成代码:https://figma.com/design/xxx?node-id=1-2\n')
 }
 
 // ─── clean-cache ─────────────────────────────────────────────
@@ -713,19 +868,43 @@ function runCleanCache() {
 // ─── 入口 ────────────────────────────────────────────────────
 
 const cmd = process.argv[2]
+const rest = process.argv.slice(3)
 
 function printHelp() {
   console.log(`
 Usage:
-  npx @double-coding/pixel-print init          交互式初始化项目（推荐）
-  npx @double-coding/pixel-print install       仅复制模板文件，不进入交互
-  npx @double-coding/pixel-print clean-cache   清理 .d2c-cache/(figma / images / anchors / last-page.json)
-  npx @double-coding/pixel-print help          显示本帮助
+  npx @double-coding/pixel-print init [options]   交互式初始化项目（推荐）
+  npx @double-coding/pixel-print install          仅复制模板文件，不进入交互
+  npx @double-coding/pixel-print clean-cache      清理 .d2c-cache/(figma / images / anchors / last-page.json)
+  npx @double-coding/pixel-print help             显示本帮助
+
+init 支持的 CLI 快捷参数（未传的项照常进入交互;CLI > 现有 config > 交互输入）:
+  --framework <react|rn>                  项目框架
+  --style-format <scss|scss-modules|less|less-modules|css|css-modules|tailwind|inline>
+                                          React 分支样式方案(rn 忽略,固定 stylesheet)
+  --adapter-preset <rn|taro|xtaro|off|custom>
+                                          RN 组件映射预设(react 忽略)
+  --merge-mode <flat|component>           合并模式(默认 flat)
+  --figma-token <TOKEN>                   Figma Personal Access Token(写入 .env)
+  --figma-base <PX>                       设计稿基准宽度,默认 375
+  --output-unit <px|vw|rem>               代码单位(仅 react)
+  --output-base <PX>                      输出基准宽度
+  --responsive <on|off>                   是否启用 rpx 响应式包装(仅 rn)
+  --assets-dir <PATH>                     图片输出目录
+  --image-base-url <URL>                  图片 base URL(仅 react)
+  --output-dir <PATH>                     代码输出目录
+  --rpx-helper-import <PATH>              rpx helper import 路径(仅 rn + responsive)
+  --rpx-helper-name <NAME>                rpx helper 导出函数名(仅 rn + responsive)
+
+例:
+  npx @double-coding/pixel-print init --framework rn --adapter-preset xtaro --merge-mode flat
+  npx @double-coding/pixel-print init --framework react --style-format scss --output-unit vw --output-base 750
 `)
 }
 
 if (cmd === 'init') {
-  runInit().catch(err => { console.error(err); process.exit(1) })
+  const cliArgs = parseArgs(rest)
+  runInit(cliArgs).catch(err => { console.error(err); process.exit(1) })
 } else if (cmd === 'install') {
   installFiles()
   console.log('done. 运行 npx @double-coding/pixel-print init 完成环境配置。\n')
