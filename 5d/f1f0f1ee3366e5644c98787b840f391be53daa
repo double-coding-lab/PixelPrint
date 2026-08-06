@@ -1,0 +1,24 @@
+.uniai-project.json
+  s_164506a9a276a1::t_e46bfb04341c4a 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "5df1f0f1ee3366e5644c98787b840f391be53daa",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_164506a9a276a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "87f06489-8523-407d-a24e-22ccd4f19a3b",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
