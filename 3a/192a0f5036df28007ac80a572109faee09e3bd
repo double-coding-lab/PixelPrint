@@ -1,0 +1,94 @@
+templates/skills/pp-style/SKILL.md
+  s_8f566140fc4cb6::t_d2709f992d4d0d 353-377
+  s_8f566140fc4cb6::t_0bf64bc96b7e90 476-478
+  s_8f566140fc4cb6::t_75e06258bb98c2 73
+  s_8f566140fc4cb6::t_f2de5d22d1e126 3-4
+  s_8f566140fc4cb6::t_cb6e4757a5bf34 89-92
+  s_8f566140fc4cb6::t_006b988a093379 173-231
+templates/skills/pp-doctor/SKILL.md
+  s_8f566140fc4cb6::t_a1f4a3c83166b5 275
+  s_8f566140fc4cb6::t_6f2a06c144c691 3-4
+  s_8f566140fc4cb6::t_b0b977ad095282 610-646
+  s_8f566140fc4cb6::t_bd864f9c2fbba0 5-6
+  s_8f566140fc4cb6::t_ca421253b80a7d 273-274
+  s_8f566140fc4cb6::t_3012965fd017ff 7-8
+  s_8f566140fc4cb6::t_a170af7c705e14 270-272
+  s_8f566140fc4cb6::t_e3159b2bad0b8f 647-664
+  s_8f566140fc4cb6::t_504a93035817aa 556-609
+templates/skills/pp-d2c/SKILL.md
+  s_8f566140fc4cb6::t_9ddb1a446bd9d5 5-6
+  s_8f566140fc4cb6::t_1bcab4464d9567 1407-1451
+  s_8f566140fc4cb6::t_c9f682b0ceeb75 751
+  s_8f566140fc4cb6::t_ffa4d55ee86283 1832-1870
+  s_8f566140fc4cb6::t_f5334e35edb843 1361-1406
+  s_8f566140fc4cb6::t_3519b766965c3b 7-8
+  s_8f566140fc4cb6::t_9388ff9df87b10 1725-1743
+  s_8f566140fc4cb6::t_6009e5b329ca19 1346-1360
+  s_8f566140fc4cb6::t_8c0256c3b0e0a6 2132-2136
+  s_8f566140fc4cb6::t_f766c5df9006c8 2142
+  s_8f566140fc4cb6::t_6eac8bcc5fad46 2143
+  s_8f566140fc4cb6::t_f141b550a6be81 3-4
+  s_8f566140fc4cb6::t_9ec7bb7bbb9512 38-85
+  s_8f566140fc4cb6::t_d65b0192e725d9 1707
+  s_8f566140fc4cb6::t_f1fa19c881c141 2137-2141
+  s_8f566140fc4cb6::t_9741b6a2b29dbe 905-947
+  s_8f566140fc4cb6::t_6d29607f4c8e75 1708
+  s_8f566140fc4cb6::t_63717ca5acaae9 2004-2006
+  s_8f566140fc4cb6::t_a01167ff186dc6 871-872
+  s_8f566140fc4cb6::t_e383bdcddef845 9-10
+  s_8f566140fc4cb6::t_ffc123bfc6cd5a 768-790
+  s_8f566140fc4cb6::t_48f5eebd844b66 1454,1462-1463
+  s_8f566140fc4cb6::t_b7aca99fa84850 1701-1706,1709
+  s_8f566140fc4cb6::t_53adeaca8091b2 1956-2003,2007,2013-2016
+  s_8f566140fc4cb6::t_2adcf3e22200f1 2008-2012
+  s_8f566140fc4cb6::t_146f442b89949a 1461
+templates/skills/pp-d2c-rn/SKILL.md
+  s_8f566140fc4cb6::t_a54ff7ce2ffee2 918-919
+  s_8f566140fc4cb6::t_e905505078bab1 732-754
+  s_8f566140fc4cb6::t_1c3825c2f55a51 1469-1510
+  s_8f566140fc4cb6::t_bb8d185aa9e5f1 9-10
+  s_8f566140fc4cb6::t_51f742ad9655ed 2404-2406
+  s_8f566140fc4cb6::t_0d5a9705bcf944 1520
+  s_8f566140fc4cb6::t_9420a6b9e92de1 7-8
+  s_8f566140fc4cb6::t_3ddd6ce08b60ab 5-6
+  s_8f566140fc4cb6::t_c18ce6f926a355 2199-2227
+  s_8f566140fc4cb6::t_33c3f34e6faf72 2348-2403,2407,2413-2416
+  s_8f566140fc4cb6::t_fa0c7b0b35ac6d 952-988
+  s_8f566140fc4cb6::t_0ece78ab2401b0 1808-1813,1816
+  s_8f566140fc4cb6::t_76b5c03ae1fa5e 1815
+  s_8f566140fc4cb6::t_2a0aa80f1c6e9c 2408-2412
+  s_8f566140fc4cb6::t_cb8117e1a36c84 43-87
+  s_8f566140fc4cb6::t_113ce18c9c5403 1396
+  s_8f566140fc4cb6::t_7c88582f29f6c3 1444-1468
+  s_8f566140fc4cb6::t_bd25f9915fa325 3-4
+  s_8f566140fc4cb6::t_12cbad49b2f5e9 2598-2602
+  s_8f566140fc4cb6::t_34bd03b648503e 715
+  s_8f566140fc4cb6::t_401e1214679a5f 1429-1443
+  s_8f566140fc4cb6::t_49fefe18d232ea 2603
+  s_8f566140fc4cb6::t_934103cec46bbb 1513,1521-1522
+  s_8f566140fc4cb6::t_7f8b2d5cd7a4c9 2593-2597
+  s_8f566140fc4cb6::t_d201b23cdc0db7 1814
+  s_8f566140fc4cb6::t_e84dcc84035e80 2604
+  s_8f566140fc4cb6::t_84aac12a8d2626 1832-1850
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "3a192a0f5036df28007ac80a572109faee09e3bd",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "unknown"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
