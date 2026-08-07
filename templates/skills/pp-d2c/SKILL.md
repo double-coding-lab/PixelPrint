@@ -1,6 +1,8 @@
 # pp-d2c Skill
 
-> **v0.3.10（2026-08-08）**：新增 3 组强制溯源证明块（字色 fills 溯源 §4.1.1 / sub 容器 min-height 尺寸源 §4.3 / 页面根 padding-top 尺寸源 §4.3.1）；§2.5.2 判定链补权威兜底（新 page 无既有 import 参考 → `config.styleFormat` 为权威，不允许脑补大类）；§6.0.2 合并忠实度证明块 3 组扩到 6 组；禁止项 +3；配套 doctor CLR030 / DIM031 / DIM032。修复 figmad2c-test2 新稿事故：Frame745「立即抢」字色写 #ffffff（应末位 #864500）、`.baseBackground padding-top:236px`（应 paddingTop=166×2=332px）、`.main min-height:1125px`（应 sub-MAIN 自身 520×2=1040px）、生成 `.module.scss` + `styles.xxx`（应按 config plain scss 走 P-B）。
+> **v0.3.11（2026-08-08）**：新增「bg- 独立切图契约」（§4.3）——每个 `bg-*` 前缀节点必须独立走一次 export-image，**禁止**用祖先 `bg-*` 切图的物理覆盖范围"合并省略"后代 `bg-*` 独立切图；配套 sub-agent QA 段自证格式 + 主 agent grep 断言 + §6.0.2 忠实度证明块 7 组扩到 8 组 + doctor BGP033 error 规则。修复历史事故：sub-agent 看到父 `bg-<A>` 内 SLICE 覆盖了后代 `bg-<B>` 所在物理区域，就"合理省略"了后代的独立切图，产物对应容器空 View、后代装饰完全丢失。
+
+> **v0.3.10（2026-08-08）**：新增 3 组强制溯源证明块（字色 fills 溯源 §4.1.1 / sub 容器 min-height 尺寸源 §4.3 / 页面根 padding-top 尺寸源 §4.3.1）；§2.5.2 判定链补权威兜底（新 page 无既有 import 参考 → `config.styleFormat` 为权威，不允许脑补大类）；§6.0.2 合并忠实度证明块 3 组扩到 6 组；禁止项 +3；配套 doctor CLR030 / DIM031 / DIM032。修复 <下游项目> 新稿事故：Frame745「立即抢」字色写 #ffffff（应末位 #864500）、`.baseBackground padding-top:236px`（应 paddingTop=166×2=332px）、`.main min-height:1125px`（应 sub-MAIN 自身 520×2=1040px）、生成 `.module.scss` + `styles.xxx`（应按 config plain scss 走 P-B）。
 
 > **v0.3.9（2026-08-07）**：新增 §4.4.pre.b「子树结构禁切规则」——对子树含 ≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点的容器**永远禁止**整体切图（结构维度优先于前缀维度）；§4.4 前置自检 5 行 → 7 行（追加子树扫描）；§4.8 checklist + §6.0.2 忠实度证明块 + 禁止项 各追加 1 条；配套 doctor SUB029。修复 v0.3.7/v0.3.8 遗留漏洞：sub-agent 借"无前缀非文本图层兜底"绕过 §4.4.pre 主表，把 Frame 734（含 3 行任务）烤成 task-block.png 大图。
 
@@ -39,7 +41,7 @@
 
 ## 问题边界（v0.3.8 新增，硬约束）
 
-agent 在跑 pp-d2c 全流程时 **只允许问用户业务问题，禁止问 skill 已定死的技术决策问题**。历史事故：跑 figmad2c-test2 时 agent 就"要不要整体切图 / 用不用 CSS 表达 / 合并这块用什么方式"等 skill 已明确规定的技术选择反复打断用户，属于 agent 遇复杂就问用户的偷懒路径。
+agent 在跑 pp-d2c 全流程时 **只允许问用户业务问题，禁止问 skill 已定死的技术决策问题**。历史事故：跑 <下游项目> 时 agent 就"要不要整体切图 / 用不用 CSS 表达 / 合并这块用什么方式"等 skill 已明确规定的技术选择反复打断用户，属于 agent 遇复杂就问用户的偷懒路径。
 
 ### ✅ 允许问的业务问题（设计稿无法推断的产品/交互/数据）
 
@@ -396,7 +398,7 @@ img-*   → 主 agent 处理，生成 <img>
      - `import styles from './index.module.scss'` / `'.module.less'` / `'.module.css'` → **css-modules**
    - 看文件名：`*.module.{scss,less,css}` → css-modules；`*.{scss,less,css}` 且非 module → 普通 stylesheet
    - 看周边页面的引法：如果项目里既有普通形态又有 module 形态，**以本页面实际写法为准**
-   - **新 page 兜底（v0.3.10 新增）**：如果当前正在**创建全新页面**（`output.dir` 下无已存在的目标 `.jsx`/`.tsx` 入口，或该入口存在但**尚未** import 任何样式文件），也没有相邻同 output 目录页面可参考（`output.dir` 下其他 page 一个都没有），此时**必须以 config `project.styleFormat` 为唯一权威**——见下方"新 page 空档"表；**禁止**脑补大类（历史事故：figmad2c-test2 明确配 `"styleFormat":"scss"`（plain P），agent 生成新 page 时脑补成 `.module.scss` + `className={styles.x}` M 大类）。
+   - **新 page 兜底（v0.3.10 新增）**：如果当前正在**创建全新页面**（`output.dir` 下无已存在的目标 `.jsx`/`.tsx` 入口，或该入口存在但**尚未** import 任何样式文件），也没有相邻同 output 目录页面可参考（`output.dir` 下其他 page 一个都没有），此时**必须以 config `project.styleFormat` 为唯一权威**——见下方"新 page 空档"表；**禁止**脑补大类（历史事故：<下游项目> 明确配 `"styleFormat":"scss"`（plain P），agent 生成新 page 时脑补成 `.module.scss` + `className={styles.x}` M 大类）。
    - **结论二选一：`plain stylesheet` / `css-modules`**（预处理语法用什么不影响这个结论）
    > ⚠️ **关键**：`:global(body)` 语法**只在 css-modules 下有效**。在普通 stylesheet（无论 scss/less/css）里写 `:global(...)`，浏览器会原样接收选择器并解析失败，**body 背景不会生效**——这是 D2C 最常见的"我明明写了 body 背景但页面还是白底"的根因。
 
@@ -734,6 +736,56 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 > **典型案例**：`.main { min-height: 1125px }` = bg-main 兄弟层 562.5×2 → 错。应取 sub-MAIN 自身 h=520 → `min-height: 1040px`。理由：设计师给 sub- 打 FIXED = 主内容区高度约束；bg- 兄弟层高度 = 装饰视觉，不代表主内容区高度。这两个尺寸绝大多数情况就是不等的，任何一次"因为兄弟层比自身高就取兄弟层"都是 skill 忠实度事故。
 >
 > **doctor 关联规则**：DIM031（v0.3.10 新增，error）—— sub-/block- 容器 min-height 写入值 = 兄弟 bg 层高度 而非自身高度，参见 pp-doctor §3.6s。
+
+> **bg- 独立切图契约（v0.3.11 强制）**：每个 `bg-*` 前缀节点**必须独立走一次 `figma.mjs export-image`**，即使其**祖先链上已有别的 `bg-*` 前缀节点被整体切图**，且切图物理范围覆盖当前节点。理由：agent 无法准确判断祖先切图产物里是否"精确渲染了"当前 `bg-*` 节点的视觉——只要设计师主动打了 `bg-*` 前缀，就代表"这是一个独立的可替换视觉资产"，必须有自己的 png 落盘 + JSX `<img>` / CSS `background-image` 引用。
+>
+> **禁止的错误逻辑**（agent 常见脑补）：
+> - ❌ "父 `bg-img` 已经整体切了，且切图物理范围覆盖了子 `bg-quan`，所以 `bg-quan` 不用再切"
+> - ❌ "祖先 `bg-` 切图产物里有 SLICE 子节点覆盖了后代 `bg-` 所在物理区域，后代已烤入祖先切图"
+> - ❌ "父的切图物理范围包住了子的 bbox，子视觉已在父切图里"
+>
+> **正确逻辑**：**前缀维度优先于物理覆盖维度**——只要设计师在图层名上打了 `bg-` 前缀，agent 就必须尊重"这是一个独立视觉资产"的设计意图，独立切图、独立引用。祖先与后代的物理重叠区域在最终产物里会叠加渲染（父挂 background 或 `<img>` + 子再挂 `<img>` bg-quan），视觉一致由设计师负责——不是 agent 优化的空间。
+>
+> **sub-agent 交付前必须在 `blocks/{sub}/assets.txt` QA 段末尾追加一段 bg- 独立切图清单证明**：
+>
+> ```
+> ## bg-* 独立切图清单证明（v0.3.11）
+>
+> · 本 block 子树内所有 `bg-*` 前缀节点：{count} 个
+>   - {nodeId1} name="{name1}" bbox={w1×h1}  → 切图 {filename1.png}  ✅ 独立
+>   - {nodeId2} name="{name2}" bbox={w2×h2}  → 切图 {filename2.png}  ✅ 独立
+>   - ...
+> · 所有 bg-* 节点均已独立切图 + 独立产物引用：✅ 通过（0 个被祖先覆盖省略）
+> ```
+>
+> 若某个 `bg-*` 节点被 sub-agent 判定为"祖先已覆盖 → 省略"，**视为忠实度事故**（doctor BGP033 error），必须回滚到"独立切图" 路径重做。
+>
+> **主 agent 合并前 grep 自证命令**（§6.0.2 证明块中「bg- 独立切图契约」段引用）：
+>
+> ```bash
+> # 1. 从各 block 子树 JSON 提取所有 bg-* 前缀节点（图层名以 bg- 开头,或裸词 bg + 分隔符）
+> # 注意：bgc- 不计入，只覆盖 bg- / bg（裸词）
+> grep -Eho '"name":\s*"(bg-[^"]+|bg)"' .d2c-cache/**/nodes/*.json 2>/dev/null \
+>   | sed -E 's/.*"name":\s*"([^"]+)".*/\1/' | sort -u > /tmp/bg-nodes-in-tree.txt
+>
+> # 2. 从 assets.txt 提取所有已切图的 bg-* 文件名（strip 后缀,匹配 bg-{name}.png）
+> grep -Eho '^- +bg-?[A-Za-z0-9_-]+\.(png|svg|jpg|jpeg|webp)' {output.dir}/blocks/**/assets.txt 2>/dev/null \
+>   | sed 's/^- *//' | sed -E 's/\.(png|svg|jpg|jpeg|webp)$//' | sort -u > /tmp/bg-declared.txt
+>
+> # 3. 差集：应切图但没切的 bg-* 节点数
+> MISSING=$(comm -23 /tmp/bg-nodes-in-tree.txt /tmp/bg-declared.txt | wc -l)
+>
+> if [ "$MISSING" = "0" ]; then
+>   echo "✅ bg- 独立切图契约通过：$(wc -l < /tmp/bg-nodes-in-tree.txt) 个 bg-* 节点全部独立切图"
+> else
+>   echo "❌ $MISSING 个 bg-* 节点未独立切图，可能被祖先切图省略（触发 doctor BGP033）："
+>   comm -23 /tmp/bg-nodes-in-tree.txt /tmp/bg-declared.txt
+> fi
+> ```
+>
+> **典型案例**：某父容器 `bg-<A>` 整体切了 `<A-bg>.png`，agent 因为该切图物理覆盖了下方多个同级列表项所在区域，就"省略"了每个列表项里 `bg-<B>` 的独立切图，产物对应容器空 View、后代装饰完全丢失。v0.3.11 后此路径被独立切图契约堵死。
+>
+> **doctor 关联规则**：BGP033（v0.3.11 新增，error）—— `bg-*` 前缀节点在产物中既无对应切图 + 无 `<img>` / `background-image` 引用，参见 pp-doctor §3.6v。
 
 > **冗余嵌套 autoLayout 的属性下穿**（v1.0.2 新增，判定/取值层的隐藏 bug 修复）：Figma 里设计师有时为了"分组"多包一层 autoLayout,但内部只有一个真正的顺流子(其他都是 abs 兄弟)。直译成 DOM 时**保留双层结构没错**(abs 兄弟需要挂在外层),但**布局属性(padding/gap/align)应该整体下穿到内层**，因为设计师改的是内层。
 >
@@ -1871,7 +1923,7 @@ Figma 设计稿的所有尺寸值（宽、高、间距、字号等）在写入�
 
 **核心原则**：sub-agent 已经落盘的 `blocks/{sub}/index.tsx` 是**主 agent 的唯一输入源**。主 agent 合并时**必须**逐字使用 sub-agent 交付的 JSX 结构，**禁止**：
 
-1. **禁止用父容器整体切图（如 `sub-ui-frame734.png` / `sub-{name}.png`）替代 sub-agent 的拆分产物**——sub-agent 已经把 3 行任务/独立按钮/独立文字拆开了，主 agent 不允许"合并阶段觉得复杂"就把这些拆分产物删掉换成一张父容器大图。历史事故：`figmad2c-test2/pages/Home/index.tsx` 里主 agent 用 `sub-ui-frame734.png` 覆盖 sub-UI 的 50 个 data-node-id 拆分产物，最终 "去看看"/"去购票" 匹配 0 次
+1. **禁止用父容器整体切图（如 `sub-ui-frame734.png` / `sub-{name}.png`）替代 sub-agent 的拆分产物**——sub-agent 已经把 3 行任务/独立按钮/独立文字拆开了，主 agent 不允许"合并阶段觉得复杂"就把这些拆分产物删掉换成一张父容器大图。历史事故：`<下游项目>/pages/Home/index.tsx` 里主 agent 用 `sub-ui-frame734.png` 覆盖 sub-UI 的 50 个 data-node-id 拆分产物，最终 "去看看"/"去购票" 匹配 0 次
 2. **禁止在 sub-agent 落盘后再切父容器整体图**——主 agent 步骤 5 阶段不允许调 `figma.mjs export-image` 切任何 `sub-*` / `block-*` 前缀的父容器 nodeId（那属于 sub-agent 范畴，且违反节点整体切图适格性，见 §4.4 前置）
 3. **禁止在 flat 展开时"简化"sub-agent 产物**——不允许把 sub-agent 产出的 `<button>` 结构折叠成 `<img>`，不允许把 `<div><span>去看看</span></button>` 折叠成 `<img src="btn-qukankan.png">`；即使二者视觉等价，也违反守恒律
 
@@ -2171,6 +2223,12 @@ fi
 - 逐页面 `padding-top 写入 == figmaPaddingTop × scale` 断言错项数：{count(errors)}
 - 错项列表（若非零）：{"[页面名] 应写 XXXpx 实写 YYYpx（把 fixed 状态栏高度错写为 padding-top）"}
 - 结果：{✅ 通过 / ❌ 失败}
+
+## bg- 独立切图契约（v0.3.11 新增，§4.3）
+- 子树内所有 `bg-*` / 裸词 `bg` 前缀节点集合大小：{count(bg-nodes)}
+- assets.txt 声明的 `bg-*` 切图集合大小：{count(bg-declared)}
+- 差集 bg-nodes - bg-declared（应切图但没切）：{"空" 或 "missing: bg-quan, bg-btn, ..."}（非空 = sub-agent 因祖先覆盖脑补省略事故，触发 BGP033）
+- 结果：{✅ 通过 / ❌ 失败}
 ```
 
 任意一条 ❌ 失败 → 合并阶段不算完成，主 agent 必须回滚，重新按 sub-agent 产物逐字展开，禁止用父容器整体切图替代。
@@ -2295,7 +2353,7 @@ EOF
 - 禁止 `btn-` 节点必须切图（fills 含 IMAGE / 子树含形状）时，内部 TEXT 仍生成 `<span>` / `<Text>` 并写入相同文字：这会造成"图片里有字 + 代码里 span 也有字"的双写事故（doctor NAM024 error）。此时内部 TEXT 视为图字副产物，默认按 `x-` 忽略
 - 禁止 `img-` / `bg-` / 裸词 `img` / 裸词 `bg` 命中但跳过 REST API 调用：必须按 §4.4.0「切图强制忠实执行」流程走，即使 assetsDir 有同名文件也要按 images.json md5 校验决定复用还是重切。doctor IMG026 命中未记录 nodeId → error
 - 禁止在 assets.txt 中省略 §4.4.0 定义的 3 行溯源（API 参数 / 返回 URL / 落盘尺寸+md5）：这是用户复现 skill 切图忠实度的唯一凭据
-- 禁止 flat 模式合并时用父容器整体切图（如 `sub-{name}.png` / `sub-ui-frame734.png`）替代 sub-agent 的拆分产物：必须逐字读 `blocks/{sub}/index.tsx` 展开到父文件（v0.3.7 §5.0.pre）。历史事故：figmad2c-test2 主 agent 用 sub-ui-frame734.png 覆盖 sub-UI 的 50 个 data-node-id 拆分产物，"去看看"/"去购票"匹配 0 次
+- 禁止 flat 模式合并时用父容器整体切图（如 `sub-{name}.png` / `sub-ui-frame734.png`）替代 sub-agent 的拆分产物：必须逐字读 `blocks/{sub}/index.tsx` 展开到父文件（v0.3.7 §5.0.pre）。历史事故：<下游项目> 主 agent 用 sub-ui-frame734.png 覆盖 sub-UI 的 50 个 data-node-id 拆分产物，"去看看"/"去购票"匹配 0 次
 - 禁止对 `sub-*` / `block-*` 前缀节点调用 `figma.mjs export-image` 整体切图：这两个是分块边界，永远由 sub-agent 递归内部处理，主 agent 不允许把它们当图切（v0.3.7 §4.4.pre 适格性表）
 - 禁止 flat 模式合并跳过「data-node-id 守恒律」的 grep 自证（v0.3.7 §5.1）：必须运行差集比对命令，把 `sub-agent 产物 nodeId 数 / 最终产物 nodeId 数 / 差集` 输出到对话；差集非空即合并失败，必须回滚
 - 禁止跳过「assets.txt 消费契约」的 grep 自证（v0.3.7 §6.0.1）：必须运行差集比对命令，把 `声明切图数 / 引用切图数 / 未引用列表` 输出到对话；未引用即代表主 agent 替代了 sub-agent 产物，触发 SUB027 / IMG028
@@ -2305,4 +2363,5 @@ EOF
 - 禁止 TEXT 节点交付时省略字色 fills 溯源（v0.3.10 §4.1.1）：sub-agent 每个 TEXT 必须在 `blocks/{sub}/assets.txt` QA 段写一行 `· TEXT {nodeId} "..." fills层数=N 可见SOLID列表=[...] 末位可见色=#hexN 最终写入=#final`，且 `#final` 必须严格等于 `#hexN`；产物中 `color: #x` 集合必须包含 declared 集合的每一项。历史事故：Frame745「立即抢」写 `#ffffff`（fills 末位 `#864500`）、`.quan__card-btn-text` 写 `#492b0d`（fills 里根本无此色，幻觉字色）—— doctor CLR030 error
 - 禁止 sub-/block- 容器 min-height 写入值 = 兄弟 bg 层高度而非自身高度（v0.3.10 §4.3）：sub-agent 每个 sub-/block- 容器必须在 assets.txt QA 段写一行 `· SUB容器 {nodeId} name=... 自身h=H1 bg兄弟层h=H2 min-height写入=H1×scale`，且写入值必须严格等于 `H1 × scale`。历史事故：`.main { min-height: 1125px }` = bg-main 兄弟层 562.5×2（错），应取 sub-MAIN 自身 h=520 → 1040px —— doctor DIM031 error
 - 禁止页面根 padding-top 写入值 ≠ `figmaNode.paddingTop × scale`（v0.3.10 §4.3.1）：主 agent 必须在主页面产物同级 assets.txt（或对话）中输出一行 `· PAGE根 {pageNodeId} name=... figmaPaddingTop=P fixed状态栏h=S padding-top写入=P×scale`，禁止用 fixed 状态栏高度替代 `paddingTop` 字段。历史事故：`.baseBackground { padding-top: 236px }` = fixed 状态栏 118×2（错），应取 paddingTop=166 → 332px —— doctor DIM032 error
-- 禁止在"新 page 空档"情形（output.dir 无同名入口、也无相邻 page 参考）脑补样式大类（v0.3.10 §2.5.2）：必须以 config `project.styleFormat` 为唯一权威（plain scss/less/css → P 大类裸类名；scss-modules 等 → M 大类 styles.x）。历史事故：figmad2c-test2 明确配 `"styleFormat":"scss"` 却生成 `styles.module.scss` + `className={styles.container}`（M 大类），既违反 config 也让下游手工整改
+- 禁止在"新 page 空档"情形（output.dir 无同名入口、也无相邻 page 参考）脑补样式大类（v0.3.10 §2.5.2）：必须以 config `project.styleFormat` 为唯一权威（plain scss/less/css → P 大类裸类名；scss-modules 等 → M 大类 styles.x）。历史事故：<下游项目> 明确配 `"styleFormat":"scss"` 却生成 `styles.module.scss` + `className={styles.container}`（M 大类），既违反 config 也让下游手工整改
+- 禁止用祖先 `bg-*` 切图的物理覆盖范围"合并省略"后代 `bg-*` 独立切图（v0.3.11 §4.3 bg- 独立切图契约）：每个 `bg-*` 前缀节点必须独立走一次 `figma.mjs export-image`，前缀维度优先于物理覆盖维度。sub-agent 交付前必须在 `blocks/{sub}/assets.txt` QA 段追加「bg-* 独立切图清单证明」段，列出子树所有 bg-* 节点 + 各自切图文件名；主 agent 合并前 grep 断言子树 bg-* 集合 = assets.txt bg 切图集合。历史事故：sub-agent 因父 `bg-<A>` 整体切图物理覆盖多个同级容器区域，就省略了每个容器里 `bg-<B>` 独立切图，产物对应容器空 View —— doctor BGP033 error
