@@ -1,5 +1,7 @@
 # pp-doctor Skill
 
+> **v0.3.11（2026-08-08）**：新增 BGP033（error）—— `bg-*` 前缀节点在产物中无对应切图 + 无 `<img>` / `<Image>` / `<ImageBackground>` / `background-image` 引用，属 sub-agent 因祖先 `bg-*` 切图物理覆盖而"合并省略"后代 `bg-*` 独立切图的忠实度事故；配套 pp-d2c / pp-d2c-rn §4.3「bg- 独立切图契约」+ §6.0.2 / §6.0.3 忠实度证明块 8 组。修复历史事故：`bg-<B>` 完全丢失、产物对应容器空 View。
+
 > **v0.3.10（2026-08-08）**：新增 3 条规则——CLR030（error，TEXT 字色 fills 溯源事故：assets.txt 声明取末位色 vs 产物实写 `color:` 值不一致，含幻觉字色）、DIM031（error，sub-/block- 容器 minHeight 尺寸源事故：写入值 = 兄弟 bg 层高度而非自身高度）、DIM032（error，页面根 paddingTop 尺寸源事故：写入值 = fixed 状态栏高度而非 Figma 节点 `paddingTop` 字段）。配套 pp-d2c / pp-d2c-rn §4.1.1 / §4.3 / §4.3.1 / §6.0.2 / §6.0.3 溯源证明块。
 
 > **v0.3.9（2026-08-07）**：新增 SUB029（error）——sub-agent 内部对子树含 ≥2 TEXT / ≥2 btn / ≥3 同构子节点的容器整体切图（结构维度禁切规则命中），修复 `task-block.png` 类历史事故。
@@ -278,6 +280,7 @@ inNonRecursiveSubtree(node) =
 | CLR030 | 🤝 共同 | 高（回滚重合并） | v0.3.10 新增：TEXT 字色 fills 溯源事故——assets.txt 声明取末位色 vs 产物实写 `color:` 集合不一致（幻觉字色）；含 `.quan__card-btn-text { color: '#492b0d' }`（fills 无此色）、Frame745「立即抢」`#ffffff`（应末位 `#864500`）类事故 |
 | DIM031 | 🤝 共同 | 高（回滚重切） | v0.3.10 新增：sub-/block- 容器 minHeight 尺寸源事故——写入值 = 兄弟 bg 层高度而非自身高度；含 `.main { min-height: 1125px }`（bg-main 562.5×2）应取 sub-MAIN 自身 520×2 类事故 |
 | DIM032 | 🤝 共同 | 高（回滚重合并） | v0.3.10 新增：页面根 padding-top / paddingTop 尺寸源事故——写入值 = fixed 状态栏高度而非 Figma 节点 `paddingTop` 字段；含 `.baseBackground { padding-top: 236px }`（fixed 118×2）应取 paddingTop=166 类事故 |
+| BGP033 | 🤝 共同 | 高（回滚重切） | v0.3.11 新增：`bg-*` 前缀节点未独立切图 —— sub-agent 因祖先 `bg-*` 切图物理覆盖后代 `bg-*` 区域而"合并省略"后代独立切图；产物中既无对应 png + 无 Image / backgroundImage 引用 |
 | STR001 | 👤 设计师 | 中（拍平 wrapper） | 生成的 DOM 多余嵌套，调试不便（不影响视觉） |
 | STR002 | 👤 设计师 | 低（删壳） | 同上 |
 | AST002 | 👤 设计师 | 低（调 bg- 尺寸） | bg- 露白，背景图未铺满父容器 |
@@ -614,7 +617,7 @@ inNonRecursiveSubtree(node) =
 
 #### 3.6p SUB027 主 agent flat 合并擅自替换 sub-agent 产物（默认 error，v0.3.7 新增）
 
-> **目的**：识别"主 agent flat 合并时用父容器整体切图（如 `sub-ui-frame734.png`）替代 sub-agent 已经落盘的拆分产物"的忠实度事故。历史事故：`figmad2c-test2/pages/Home/index.tsx` 里主 agent 用 `sub-ui-frame734.png` / `sub-ui-frame740.png` / `sub-ui-frame755.png` / `sub-gengduofuli.png` 4 张父容器整体大图覆盖了 sub-UI 的 50 个 data-node-id 拆分产物，最终 "去看看"/"去购票"/"去邀请" 字符串在 Home/index.tsx 中匹配 0 次。
+> **目的**：识别"主 agent flat 合并时用父容器整体切图（如 `sub-ui-frame734.png`）替代 sub-agent 已经落盘的拆分产物"的忠实度事故。历史事故：`<下游项目>/pages/Home/index.tsx` 里主 agent 用 `sub-ui-frame734.png` / `sub-ui-frame740.png` / `sub-ui-frame755.png` / `sub-gengduofuli.png` 4 张父容器整体大图覆盖了 sub-UI 的 50 个 data-node-id 拆分产物，最终 "去看看"/"去购票"/"去邀请" 字符串在 Home/index.tsx 中匹配 0 次。
 
 **子规则 SUB027a**（error）—— data-node-id 守恒律失败：
 
@@ -711,6 +714,26 @@ inNonRecursiveSubtree(node) =
 → problem: `页面根 padding-top / paddingTop 尺寸源错：{子规则 a/b/c 详情}`
 → consequence: `主内容区上方间距不符设计稿；fixed 状态栏可能压住主内容顶部，或主内容与状态栏之间留白过多`
 → fix: `按 pp-d2c §4.3.1：padding-top / paddingTop 取页面 Figma 节点自身 paddingTop 字段值 × scale；fixed 状态栏层因 layoutPositioning: ABSOLUTE 已脱离父 flex 顺流，不参与 padding 计算`
+
+#### 3.6v BGP033 `bg-*` 前缀节点未独立切图（默认 error，v0.3.11 新增）
+
+> **目的**：识别 sub-agent 违反 pp-d2c / pp-d2c-rn §4.3「bg- 独立切图契约」的忠实度事故。历史事故：sub-agent 因父 `bg-<A>` 整体切图物理覆盖了多个同级容器所在区域，就"合理省略"了每个容器里 `bg-<B>` 独立切图，产物对应容器空 View、后代装饰完全丢失。
+
+**背景**：Figma 里父容器 A 打了 `bg-*` 前缀（含 SLICE 或整体切图）、子孙容器 B 也打了 `bg-*` 前缀，两者物理区域重叠（A 覆盖 B 所在区域），这是常见的**"祖先装饰 + 后代局部装饰"**分层设计。sub-agent 一旦看到 A 已经整体切图，就容易脑补出错误规则："B 视觉已烤入 A 的切图，B 无需再切"，跳过 B 的独立切图。这个逻辑是错的——设计师主动打了 `bg-*` 前缀就表示"这是一个独立可替换视觉资产"，必须独立切图、独立引用。
+
+判定条件（对 sub-agent 产物每个 block 执行）：
+
+- 从 sub-agent block 的 subtree JSON 提取所有 `bg-*` 前缀（含裸词 `bg`）的可见节点集合，记为 `B`（不含 `bgc-`）；
+- 从 `blocks/{sub}/assets.txt` 主表提取所有 `bg-*` 切图文件名（strip 后缀），记为 `D`；
+- 从产物文件（`.tsx` / `.jsx` / `.scss` / `.less` / `.css` / `.module.*`）提取所有 `<img src="bg-*.png">` / `background-image: url(bg-*.png)` / RN 5 种 Image 引用形式，记为 `U`；
+
+**子规则 a（missing-declaration）**：存在 `bg-*` 节点 ∈ B 且 ∉ D → sub-agent 未在 assets.txt 声明切图（**error**）；
+**子规则 b（missing-usage）**：存在 `bg-*` ∈ D 且 ∉ U → 切了但产物没引用（**error**）；
+**子规则 c（missing-both）**：存在 `bg-*` ∈ B 且 ∉ D 且 ∉ U → **典型的"祖先覆盖脑补省略"事故**（**error**），历史 bug `bg-quan` 就是此类。
+
+→ problem: `bg-*` 前缀节点未独立切图或未在产物中引用：{子规则 a/b/c 详情，含节点 nodeId + 图层名}
+→ consequence: `设计师主动打了 bg-* 前缀的独立视觉资产在产物中完全丢失；用户看到的画面缺少对应背景装饰；即使 UI 上看不出（父层刚好在同区域画了类似视觉），也无法通过替换该 bg-* 的 png 达成主题化 / 换肤 / A/B 试验`
+→ fix: `按 pp-d2c §4.3「bg- 独立切图契约」：每个 bg-* 前缀节点必须独立走一次 figma.mjs export-image；前缀维度优先于物理覆盖维度；祖先与后代物理重叠区域在最终产物里叠加渲染（父挂 background 或 <img> + 子再挂 <img> bg-quan），视觉一致由设计师负责，不是 agent 优化的空间`
 
 #### 3.7 LAY001 容器缺 Auto Layout（默认 warn）
 
