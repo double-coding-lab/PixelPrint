@@ -1,4 +1,4 @@
-import { XImage, XScrollView, XText, XView } from '@myxx/xtaro'
+import { XImage, XScrollView, XText, XView } from '@ctrip/xtaro'
 import { styles } from './styles'
 
 /**

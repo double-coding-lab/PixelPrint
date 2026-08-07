@@ -1,12 +1,12 @@
-import { xGetSystemInfoSync } from '@myxx/xtaro'
+import { xGetSystemInfoSync } from '@ctrip/xtaro'
 
 /**
  * 响应式尺寸包装(xtaro 版)— 把设计稿数值按屏幕宽度线性缩放。
  *
- * 与 pure RN 版的区别: 用 @myxx/xtaro 导出的 xGetSystemInfoSync 而不是 Dimensions.get('window'),
+ * 与 pure RN 版的区别: 用 @ctrip/xtaro 导出的 xGetSystemInfoSync 而不是 Dimensions.get('window'),
  * 因为 xtaro 的 H5 端 webpack 不解析 react-native 的 Flow 语法, 直接 import 'react-native' 会 crash。
  * xtaro 自己封装了 xGetSystemInfoSync (对 @tarojs/taro getSystemInfoSync 做了 xtaro 侧一致化),
- * 优先用它而不是绕道 @tarojs/taro,项目侧只依赖 @myxx/xtaro 一个包。
+ * 优先用它而不是绕道 @tarojs/taro,项目侧只依赖 @ctrip/xtaro 一个包。
  *
  * 由 pp-d2c-rn SKILL 生成的代码使用。SKILL 只对 layout / spacing / borderRadius / fontSize 类属性调用 rpx(),
  * 对 opacity / flex / color / fontWeight 这类"非像素属性"保持原始数值。

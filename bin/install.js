@@ -763,7 +763,7 @@ async function runInit(cliArgs = {}) {
     } else if (imp.startsWith('/')) {
       destRel = imp.slice(1) + '.ts'
     }
-    // 其他形式(npm 包名如 `@myxx/rpx`)不落地文件,只在 SKILL 里作为 import 源引用
+    // 其他形式(npm 包名如 `@ctrip/rpx`)不落地文件,只在 SKILL 里作为 import 源引用
     if (destRel) {
       const dest = path.join(CWD, destRel)
       if (fs.existsSync(dest)) {

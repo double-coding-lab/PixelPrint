@@ -171,7 +171,7 @@ SKILL 内核默认按 pure React Native 描述,用 `Dimensions.get('window').wid
 | 框架 | 屏宽取法 | 视口高取法 | 落地位置 |
 |-----|---------|-----------|---------|
 | pure React Native / Expo | `Dimensions.get('window').width` | `Dimensions.get('window').height` | rpx helper 内、页面根 minHeight;SKILL 默认举例 |
-| 携程 xtaro | `xGetSystemInfoSync().windowWidth`(降级 `.screenWidth`) | `xGetSystemInfoSync().windowHeight`(降级 `.screenHeight`) | 预设 helperTemplate=`xtaro.rpx.ts`;`import { xGetSystemInfoSync } from '@myxx/xtaro'` — 项目只依赖 @myxx/xtaro 一个包 |
+| 携程 xtaro | `xGetSystemInfoSync().windowWidth`(降级 `.screenWidth`) | `xGetSystemInfoSync().windowHeight`(降级 `.screenHeight`) | 预设 helperTemplate=`xtaro.rpx.ts`;`import { xGetSystemInfoSync } from '@ctrip/xtaro'` — 项目只依赖 @ctrip/xtaro 一个包 |
 | taro / 小程序 | `getSystemInfoSync().windowWidth`(from `@tarojs/taro`) | `getSystemInfoSync().windowHeight` | 自定义预设时参考 xtaro.rpx.ts,改 import 源为 `@tarojs/taro` |
 | react-native-web | `Dimensions.get('window').*`(RN-web 层已 shim) | 同左 | pure RN 默认即可 |
 
@@ -185,9 +185,9 @@ SKILL 内核默认按 pure React Native 描述,用 `Dimensions.get('window').wid
 
 **agent 判定当前项目属于哪类框架**的信号(按优先级):
 
-1. config `adapter.importMap` 里的 value 命中 `@myxx/xtaro` / `@tarojs/*` → 走 Taro API
+1. config `adapter.importMap` 里的 value 命中 `@ctrip/xtaro` / `@tarojs/*` → 走 Taro API
 2. config `adapter.enabled === false` + 项目 `package.json` 有 `expo` 依赖 → pure RN(Expo 兼容 Dimensions)
-3. 都识别不出 → 保守默认 pure RN 写法,但**必须**在 QA 段落 warn 一句"项目未识别到框架类型,页面根 minHeight 用了 Dimensions.get('window'),xtaro 项目请手动改为 `xGetSystemInfoSync from @myxx/xtaro`,taro 项目改为 `getSystemInfoSync from @tarojs/taro`"
+3. 都识别不出 → 保守默认 pure RN 写法,但**必须**在 QA 段落 warn 一句"项目未识别到框架类型,页面根 minHeight 用了 Dimensions.get('window'),xtaro 项目请手动改为 `xGetSystemInfoSync from @ctrip/xtaro`,taro 项目改为 `getSystemInfoSync from @tarojs/taro`"
 
 **本节仅约束"屏宽 / 视口高"这两个值**。其他 RN API(如 `StyleSheet` / `PixelRatio` / `Platform`)不在此约束范围,继续按内核默认 `import from 'react-native'`(若目标框架也不支持,由 adapter 预设的 helperTemplate 内部处理,不由 SKILL 主流程负责)。
 
@@ -1456,7 +1456,7 @@ export default function AirportBus() {
 }
 
 // 启用 xtaro 预设后,§5.5 合并阶段自动改成:
-import { XImage, XView } from '@myxx/xtaro'
+import { XImage, XView } from '@ctrip/xtaro'
 
 export default function AirportBus() {
   return (

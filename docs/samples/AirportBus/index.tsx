@@ -1,4 +1,4 @@
-import { XImage, XText, XView } from '@myxx/xtaro';
+import { XImage, XText, XView } from '@ctrip/xtaro';
 import { styles } from './styles';
 
 export default function AirportBus() {

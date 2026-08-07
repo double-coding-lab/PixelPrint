@@ -61,11 +61,11 @@ Adapter 是 rn SKILL 独有的机制。用户在 `pp-d2c.config.json` 里配置�
       "ScrollView": "XScrollView"
     },
     "importMap": {
-      "XView": "@myxx/xtaro",
-      "XText": "@myxx/xtaro",
-      "XImage": "@myxx/xtaro",
-      "XInput": "@myxx/xtaro",
-      "XScrollView": "@myxx/xtaro"
+      "XView": "@ctrip/xtaro",
+      "XText": "@ctrip/xtaro",
+      "XImage": "@ctrip/xtaro",
+      "XInput": "@ctrip/xtaro",
+      "XScrollView": "@ctrip/xtaro"
     },
     "propMap": {
       "Image": { "source": "src" }

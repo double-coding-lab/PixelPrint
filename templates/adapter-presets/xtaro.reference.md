@@ -2,9 +2,9 @@
 
 > SKILL 在 §5.5.3c 步骤 Read 本文件。**声明式 propMap 已在 xtaro.json 处理的差异不在此重复**,本文只覆盖"prop 名机械改名之外"的复杂差异。
 >
-> 覆盖对象:@myxx/xtaro 6 大组件(XView / XText / XImage / XInput / XScrollView + Pressable→XView 归并)与 RN 内核标签的语义差异。
+> 覆盖对象:@ctrip/xtaro 6 大组件(XView / XText / XImage / XInput / XScrollView + Pressable→XView 归并)与 RN 内核标签的语义差异。
 >
-> 数据来源:`node_modules/@myxx/xtaro-types/types/component/*.d.ts` 官方类型定义。
+> 数据来源:`node_modules/@ctrip/xtaro-types/types/component/*.d.ts` 官方类型定义。
 
 ## 使用约定
 
@@ -22,7 +22,7 @@ xtaro.json propMap 只能改 prop 名,不能改 prop 值。命中下表时,agent
 
 **说明**:xtaro.json propMap 已把 `resizeMode` 改名成 `mode`,agent 在 §5.5.3c 时**只需改属性值**(prop 名已由 §5.5.3b 处理)。
 
-xtaro `XImage.mode` 完整取值来自 `@myxx/xtaro-types/types/component/XImage.d.ts` 的 `XImageProps.Mode`,共 15 个值(4 类缩放 + 9 类裁剪);其中类型注释明确 **`@rn 部分支持 scaleToFill, aspectFit, aspectFill, widthFix`**,其余值 rn 端会退化。
+xtaro `XImage.mode` 完整取值来自 `@ctrip/xtaro-types/types/component/XImage.d.ts` 的 `XImageProps.Mode`,共 15 个值(4 类缩放 + 9 类裁剪);其中类型注释明确 **`@rn 部分支持 scaleToFill, aspectFit, aspectFill, widthFix`**,其余值 rn 端会退化。
 
 | RN `resizeMode` 值 | xtaro `mode` 值 | rn 端行为 |
 |---|---|---|
@@ -231,7 +231,7 @@ RN 事件 payload 与 xtaro 不同,agent 生成时需**改回调函数体**,不�
 
 ## 五、无跨端支持(直接丢弃 + QA warn)
 
-以下属性 xtaro rn 端不支持,agent 在 §5.5.3c 时**删除属性** + 写入 §7 QA warn 段(列出文件名 + 行号 + 属性名)。清单依据 `@myxx/xtaro-types/types/component/*.d.ts` 每个 prop 的 `@supported` 注释,凡是**明确不含 `rn`** 的属性都在此表。
+以下属性 xtaro rn 端不支持,agent 在 §5.5.3c 时**删除属性** + 写入 §7 QA warn 段(列出文件名 + 行号 + 属性名)。清单依据 `@ctrip/xtaro-types/types/component/*.d.ts` 每个 prop 的 `@supported` 注释,凡是**明确不含 `rn`** 的属性都在此表。
 
 ### 5.1 `Text` (RN) → `XText`
 

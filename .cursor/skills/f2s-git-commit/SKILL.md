@@ -1,6 +1,6 @@
 ---
 name: f2s-git-commit
-description: Commit completed code to Git: by default check both changes and knowledge-base coverage; when the user explicitly asks for "快捷提交" / quick commit, skip only the knowledge coverage check; after generating a commit message with an emoji first line, commit directly (the first line must be shown in the same reply; no separate confirmation is required); git pull-like fetch/merge operations require user confirmation first. Triggers: f2s-git-commit、提交代码、快捷提交、git commit、帮我提交、quick commit、commit code
+description: Commit completed code to Git: by default check both changes and knowledge-base coverage; when the user explicitly asks for "快捷提交" / quick commit, skip only the knowledge coverage check; **when the pending changes are pure docs / knowledge-base itself**, or **f2s-kb-sync / kb-feat / kb-fix / kb-add / kb-addRules / kb-distill ran within the last 30 min**, auto-skip the coverage check; after generating a commit message with an emoji first line, commit directly (the first line must be shown in the same reply; no separate confirmation is required); git pull-like fetch/merge operations require user confirmation first. Triggers: f2s-git-commit、提交代码、快捷提交、git commit、帮我提交、quick commit、commit code
 ---
 
 > Execution scope: this skill performs Git operations for the user. Do not use `git add -A` / `git add .`, do not skip hooks (`--no-verify`), and do not push automatically. Before any `git pull` / `git fetch` operation that merges into local work, obtain explicit user confirmation for the "pull". `git commit` does not require a separate confirmation round (see Steps 3-4). When the user explicitly asks for "快捷提交", skip only Step 2, the knowledge-base coverage check; all other safety steps still apply.
@@ -57,7 +57,47 @@ If in **quick commit mode**, skip this step and mention in the Step 5 closing no
 
 - If `.Knowledge/manifest-routing.json` does not exist: skip this step, mention in Step 5 that "the project has not initialized the Flow2Spec knowledge base; consider running flow2spec init", and continue to Step 3.
 
+**Skip rule A: Changes are pure documentation / knowledge base itself** (evaluated before running the coverage check)
+
+If **every** pending file collected in Step 1 matches one of these patterns, skip this step directly (in Step 5, note "changes are pure docs; coverage check skipped"):
+
+- `.Knowledge/**` (you're editing the knowledge base itself; checking coverage against itself is meaningless)
+- `docs/**` / `docs/en/**`
+- `README*.md` / `LICENSE` / `CHANGELOG*`
+- `.claude/**` / `.cursor/**` / `.codex/**` (agent config roots; distributed by `flow2spec init` and unrelated to business capability coverage)
+- `presentations/**` / `assets/**` / other pure static resources
+
+**Any** file falling under `src/` / `lib/` / `cli.js` / `templates/` / business code directories disables this shortcut; continue to the coverage check.
+
+**Skip rule B: A recent knowledge-base sync exists**
+
+Read `.Knowledge/.last-sync.json` (if it does not exist, skip this rule):
+
+```json
+{
+  "syncedAt": "2026-08-04T10:30:00.000Z",
+  "skill": "f2s-kb-sync",
+  "developerId": "<optional>"
+}
+```
+
+- If `Date.now() - Date.parse(syncedAt) < 30 * 60 * 1000` (within 30 minutes) → skip this step directly, and note in Step 5 "skipped coverage check because <skill> ran within the last 30 min".
+- If the timestamp is stale or the file is corrupted → ignore and run the normal coverage check.
+- This file is written by **knowledge-base-writing skills** (`f2s-kb-sync` / `f2s-kb-feat` / `f2s-kb-fix` / `f2s-kb-add` / `f2s-kb-addRules` / `f2s-kb-distill`) on successful completion. `f2s-git-commit` **reads only**, never writes.
+- If the user explicitly says "re-check coverage" / "don't skip coverage check", this rule is disabled and coverage runs regardless.
+
 **When it exists, perform the coverage check:**
+
+**First perform the KB auto-merge preflight (required; do not ask the user to run commands manually):**
+
+1. The agent runs `flow2spec kb check --json` and `flow2spec kb status --json` inside this step, or uses an equivalent built-in KB engine capability. Do not turn these commands into manual pre-commit chores for the user.
+2. If `check` reports knowledge-structure errors, missing matchers, routing drift, or other health issues: stop this commit, report the concrete issues and suggested fix actions, and do not commit a broken knowledge base.
+3. If `status.tasks` contains `kb-delta.json` under the current developer task root:
+   - If the current task line can be uniquely identified and `mergeable=true`: automatically run `plan -> apply -> build -> check` (via CLI or equivalent built-in capability), and include the written `.Knowledge/**` files in the commit file list.
+   - If `mergeable=false`, delta parsing failed, or multiple active deltas exist and the agent cannot determine which one belongs to this commit: stop the automatic write, list `topic / reason / deltaPath`, and tell the user that semantic merge or task-line selection is required. Do not guess the merge.
+4. Only when there is no active `kb-delta.json` for the current task line, continue to the coarse coverage check below.
+
+**When there is no auto-applicable delta, perform the coarse coverage check:**
 
 1. Infer the **functional modules** touched by this change from `git diff HEAD` and untracked file paths (use actual repository directories/package names; do not invent business names that do not appear).
 2. Read the directory lists of `.Knowledge/topics/` and `.Knowledge/stock-docs/`.
@@ -176,6 +216,12 @@ git commit -m "<final full commit message from Step 3>"
 
 [If Step 2 was skipped by quick commit]
 ⚡ The knowledge-base coverage check was skipped according to quick commit mode.
+
+[If skip rule A matched: pure-doc changes]
+📄 Changes are pure docs / knowledge base itself; coverage check skipped.
+
+[If skip rule B matched: recent sync within 30 min]
+🔄 Skipped coverage check because <skill name> ran within the last 30 min (.Knowledge/.last-sync.json).
 ```
 
 ## Constraints
@@ -195,7 +241,7 @@ git commit -m "<final full commit message from Step 3>"
 1. Did Step 1 check merge conflicts? Must be yes.
 2. Were staged / unstaged / untracked files distinguished? Must be yes.
 3. Was `git add -A` / `git add .` used? Must be no.
-4. Was the knowledge-base check performed or skipped with an explicit reason (quick commit / `.Knowledge` missing)? Must be yes.
+4. Was the knowledge-base check performed or skipped with an explicit reason (quick commit / `.Knowledge` missing)? Must be yes. If an active `kb-delta.json` exists, was it automatically planned/applied/built/checked or was a conflict explicitly reported? Must be yes.
 5. Was the Step 3 commit message generated from actual `git diff` content? Must be yes, not only `--stat`.
 6. Was the proposed first line **shown in the same reply** before executing commit? Must be yes; do **not** require the user to separately "confirm commit".
 7. Does the commit-message **first line** match `<emoji> <type>[(scope)]: <summary>`, with emoji and type consistent with the table? Exceptions such as merge revert must be explained when shown.

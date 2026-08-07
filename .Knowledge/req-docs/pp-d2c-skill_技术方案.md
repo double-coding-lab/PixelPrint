@@ -427,7 +427,7 @@ init 独立后，主 Skill 的预检步骤 -1 只做一件事：
       "figmaName": "Button/Primary",
       "figmaNodeId": "",
       "codeComponent": "ActivityButton",
-      "importPath": "@myxx/trn-growth-activity-components",
+      "importPath": "@ctrip/trn-growth-activity-components",
       "propsMapping": {
         "Label": "children",
         "State": "disabled",

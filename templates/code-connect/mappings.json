@@ -5,7 +5,7 @@
       "figmaName": "Button/Primary",
       "figmaNodeId": "",
       "codeComponent": "ActivityButton",
-      "importPath": "@myxx/trn-growth-activity-components",
+      "importPath": "@ctrip/trn-growth-activity-components",
       "propsMapping": {
         "Label": "children",
         "State": "disabled",
@@ -17,7 +17,7 @@
       "figmaName": "Card/Prize",
       "figmaNodeId": "",
       "codeComponent": "PrizeCard",
-      "importPath": "@myxx/trn-growth-activity-components",
+      "importPath": "@ctrip/trn-growth-activity-components",
       "propsMapping": {
         "Title": "title",
         "Cover": "cover",
@@ -29,7 +29,7 @@
       "figmaName": "Countdown",
       "figmaNodeId": "",
       "codeComponent": "ActivityCountdown",
-      "importPath": "@myxx/trn-growth-activity-components",
+      "importPath": "@ctrip/trn-growth-activity-components",
       "propsMapping": {
         "EndTime": "endTime",
         "Format": "format"
