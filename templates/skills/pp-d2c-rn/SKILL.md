@@ -1,5 +1,13 @@
 # pp-d2c-rn Skill
 
+> **v0.3.9（2026-08-07）**：与 pp-d2c 对齐——新增 §4.4.pre.b「子树结构禁切规则」（结构维度优先于前缀维度）；§4.4 前置自检 5 行 → 7 行；§4.8 checklist + §6.0.3 忠实度证明块 + 禁止项 各追加 1 条；配套 doctor SUB029。
+
+> **v0.3.8（2026-08-07）**：与 pp-d2c 对齐——新增「问题边界」章节（顶部执行模型说明内）；配套 §4.8 checklist +1 条 + §6.0.3 忠实度证明块 +「未打断用户核查」段 + 禁止项 +1 条。RN 特有决策（LinearGradient / shadow*+elevation / rpx 包装等）均属"skill 已定死"范畴，禁止问用户。
+
+> **v0.3.7（2026-08-07）**：与 pp-d2c 对齐——新增「flat 合并忠实度契约」（§5.0.pre）、「data-node-id 守恒律」（§5.1）、「节点整体切图适格性」（§4.4.pre）、「assets.txt 消费契约」（§6.0.2）、「合并忠实度证明块」（§6.0.3 强制主 agent 交付前 grep 自证输出）；RN 侧引用形式覆盖 `require` / `source={{uri}}` / `<ImageBackground>` / `<FastImage>` 全套。配套 doctor SUB027 / IMG028。
+
+> **v0.3.6（2026-08-07）**：与 pp-d2c 对齐——新增「父容器盒级装饰兜底」（§4.3，渐变走 `LinearGradient`）、「TEXT 多层 fills 取末位」（§4.1.1）、「切图强制忠实执行 + images.json md5 复用」（§4.4.0）、「`btn-` 内嵌 TEXT 双写防护」（§4.3）；§4.3.rn 退化表更新渐变父容器处理策略。
+
 > **独立 SKILL**:本 SKILL 专为 React Native 端产出代码。目标框架:**React Native**(原生 `react-native`)以及一切 RN-like 框架(如 `@tarojs/components`、`expo`、`react-native-web`,或组织内部的 RN 组件库,通过 adapter 配置接入)。
 >
 > 与现有 h5 SKILL `pp-d2c` **完全独立并列**:h5 SKILL 一字不改。用户根据项目类型选装 h5 SKILL / rn SKILL / 两者共存。
@@ -32,7 +40,51 @@
 
 > 误把伪代码当真函数会卡死流程(等待一个永远不会到来的"返回值")。
 
----
+## 问题边界（v0.3.8 新增，硬约束）
+
+agent 在跑 pp-d2c-rn 全流程时 **只允许问用户业务问题，禁止问 skill 已定死的技术决策问题**。
+
+### ✅ 允许问的业务问题（设计稿无法推断的产品/交互/数据）
+
+| 类型 | 举例 |
+|-----|------|
+| **交互状态** | "登录/未登录态展示不一样，默认展示哪个？"、"已购/未购下卡片状态怎么切换？" |
+| **数据来源** | "这个价格从哪个字段取？"、"埋点参数取什么？" |
+| **跳转链接** | "按钮点击跳哪里？RN 是 navigate 到什么路由？" |
+| **时效规则** | "活动时间外怎么展示？"、"券过期展示什么？" |
+| **命名域 / 依赖** | "组件放哪个 page 目录？"、"用户端有 `react-native-linear-gradient` 依赖吗？"（若已装则默认引；若未装则告知需 install） |
+
+### ❌ 禁止问的技术决策（skill 已在章节里定死）
+
+| 类型 | 举例（对应 skill 章节） |
+|-----|---------------------|
+| **前缀语义** | "`btn-` 要不要切图？" → §4.3 + §4.4.pre 已定；"`bg-` 切自身还是父容器？" → §4.3 `bg-` 切图源约束已定 |
+| **兜底判定** | "纯色父容器要 View style 还是切图？" → §4.3 父容器盒级装饰兜底默认开；"渐变父容器怎么处理？" → §4.3.rn 退化表已定"引 LinearGradient"（不问，直接引） |
+| **合并策略** | "这块要整体切一张图吗？" → §4.4.pre 禁 `sub-*` / `block-*` 整体切图；"flat 合并展开还是简化？" → §5.0.pre 禁"简化" |
+| **尺寸单位** | "要不要包 `rpx()`？" → §4.1.1 §C 已定白名单；"vh 怎么处理？" → §4.3.rn 已定退化 |
+| **切图忠实度** | "同名文件已存在，要复用还是重切？" → §4.4.0 md5 校验复用契约已定 |
+| **RN 特有退化** | "iOS 阴影 vs Android elevation 怎么处理？" → §4.3 父容器兜底已定"两个都写"；"box-shadow inset 怎么办？" → §4.3.rn 退化表已定"注释 TODO + QA error" |
+
+### 遇到 skill 未覆盖的边界情形怎么办（**不打断用户**）
+
+按下面顺序**自主处理**：
+
+1. **先按 skill 最接近的规则兜底**（如未见过的前缀走"无前缀兜底"）
+2. **把决策 + 兜底理由 + 影响范围写入 `assets.txt` QA 段落**：
+   ```
+   [需人工核对] 遇到 skill 未覆盖的情形 X（图层名 {name} nodeId {id}），
+     已按 Y 兜底处理（引用 skill §Z），
+     可能影响 Z（例：视觉差 / 交互失效 / 无障碍缺失），
+     请复核后决定是否补前缀或调整设计稿。
+   ```
+3. **仅当**决策会导致**产物完全不可用**时才停下问用户——严格限定：
+   - Figma Token 缺失 / 过期
+   - Figma 稿完全无法访问
+   - 关键 assets 下载失败超过重试次数
+   - config 缺失或语法错误
+   - RN 缺失关键依赖且用户未预置（如渐变必须引 `react-native-linear-gradient`，若 `package.json` 无此依赖且无法确认用户端是否已装 → 问一次；已装则直接引 + QA 告警）
+
+**其他任何"技术选择犹豫"都不允许打断用户**——不确定就按最接近规则兜底 + 写 QA 告警。
 
 ## 执行流程
 
@@ -660,7 +712,7 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 | backdrop-filter blur | `effects[i].type = 'BACKGROUND_BLUR'` | 同上,QA error |
 | `position: 'fixed'` 定位来源 | `constraints = {horizontal, vertical}` + `absoluteBoundingBox` | **RN 无 fixed**。退化为 `position: 'absolute'` + top/left/right/bottom 数值,QA warn 告警"滚动时不保持屏幕位置" |
 | 字体 / 字号 / 字重 / 行高 | `style.{fontFamily, fontSize, fontWeight, lineHeightPx}`(TEXT 节点) | `fontFamily: '...'`, `fontSize: <数字>`, `fontWeight: '500'`(**字符串!RN 只认 `'normal'/'bold'/'100'-'900'`**), `lineHeight: <数字>` |
-| 文本颜色 | TEXT 节点 `fills[0]` | `color: '#hex'`(在 Text 组件的 style 里,不是父 View) |
+| 文本颜色 | TEXT 节点 `fills[]`——**按下面「TEXT 多层 fills 处理」取值**（禁止直接取 `fills[0]`） | `color: '#hex'`(在 Text 组件的 style 里,不是父 View) |
 | 文本对齐 | `style.textAlignHorizontal` | `LEFT/CENTER/RIGHT/JUSTIFIED → 'left'/'center'/'right'/'justify'`,写作 `textAlign: '<value>'`(仅 Text 组件) |
 | 字间距 | `style.letterSpacing` | `letterSpacing: <数字>` |
 | 是否可见 | `visible`(缺失时视为 `true`) | `false` 直接跳过 |
@@ -676,6 +728,29 @@ def rgb_to_hex(c):
         return f"rgba({r},{g},{b},{a})"
     return f"#{r:02x}{g:02x}{b:02x}"
 ```
+
+**TEXT 多层 fills 处理（v0.3.6 新增）**：
+
+Figma 里一个 TEXT 节点可以叠多层 `fills`。取字色规则（详细同 pp-style §八）：
+
+| fills 情形 | 取值 |
+|-----------|------|
+| 单层 SOLID | 直接取 |
+| 多层 SOLID，都 `visible !== false` | **按 fills[] 顺序取最末位**（Figma 渲染顺序） |
+| 多层 SOLID，部分 `visible === false` | **跳过 visible:false**，取剩下的最末位 |
+| 单层 GRADIENT | RN 无原生渐变文字，退化为末位近似 SOLID + QA 告警（Web 侧走 `background-clip: text`） |
+| 多层混合 | 按渲染顺序合成；最上层是 GRADIENT → 退化为该渐变的近似 SOLID + QA 告警；最上层是 SOLID → 取 SOLID 色 |
+| fills 为空 | 用默认黑 `#000` + QA 告警 |
+
+**反向自检 1 行**（sub-agent 生成 `<Text>` 前必须输出）：
+
+```
+· TEXT 字色：{finalColor}（fills 有 {N} 层可见 SOLID，取末位；例：#492b0d 被 #ffffff 覆盖时最终视觉是白色）
+```
+
+**典型案例**：`136:45728`（"去看看"）fills = `[#492b0d visible:true, #ffffff visible:true]` → 取 `#ffffff`。
+
+**doctor NAM025（v0.3.6 新增）**：TEXT 节点 `fills` 有 ≥2 个可见 SOLID → info 提示。
 
 **C. 单位规则(rn 特有)**
 
@@ -796,6 +871,34 @@ btnLogin: { flexDirection: 'row', paddingLeft: rpx(16), paddingRight: rpx(16), p
 | `end-`（`layers.end`） | 逆向布局（贴父末端） | 让节点在父 autoLayout 里贴向末端：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。**主线机制**：把该 end- 节点前面的兄弟包成一个 wrapper，父 `justify-content: space-between`，天然把 end- 推到末端；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` / `input-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加；具体规则见 §4.3 "`end-` 逆向布局规则" 子章节 |
 | `input-`（`layers.input`） | 输入框（`<input type="text">`） | 生成语义化 `<input type="text">` 标签而非 `<div>`，取子 TEXT 节点 `characters` 作为 `placeholder`，左侧图标（若存在 vector/img 子）切图作为 `background-image` + `padding-left` 腾位置；**独立前缀**（决定生成什么元素，不是修饰），**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加（doctor NAM019/NAM020 error），**可**与 `fixed-` / `end-` / `sub-` 叠加；命中即停止向内递归；具体规则见 §4.3 "`input-` 输入框规则" 子章节 |
 
+**独立裸词规则（v0.3.5 新增）**
+
+图层名与已知前缀的匹配走**三态判定**（whole word 完全匹配，不做子串匹配）：
+
+| 图层名形态 | 判定 | 举例 |
+|------------|------|------|
+| **完全等于**前缀去掉 `-` 后的裸词 | ✅ 等同该前缀语义（**独立前缀**才允许，见下面白名单） | `bg` = `bg-` / `btn` = `btn-` / `bgc` = `bgc-` / `img` = `img-` / `input` = `input-` |
+| **以 `xxx-` 开头**且后面有字符 | ✅ 沿用当前规则 | `bg-header` / `btn-submit` |
+| **含前缀词但不是完全裸词**（如 `background` / `bgheader` / `button`） | ❌ 不识别，按普通图层走无前缀兜底 | `background` → 兜底为 `<Image>` 切图 |
+
+**裸词白名单**（仅这些独立/内容前缀允许裸词形式）：`bg` / `bgc` / `btn` / `img` / `input`
+
+**修饰前缀不允许裸词**：`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end` 这些前缀必须写 `xxx-...` 完整形式，**不允许**独立裸词。理由:修饰前缀本身不表达"内容/角色",脱离被修饰目标没有意义(例如"`sub` 什么?"),语义歧义会诱导 agent 意会。裸词 `sub` / `block` 等一律走无前缀兜底,doctor 会 warn 提示(NAM022)。
+
+**裸词不允许与其他前缀组合**:`sub-bg` / `block-btn` 这类"修饰前缀 + 裸词"命名一律**报错**(doctor NAM023)。要组合就写完整语义 `sub-bg-{purpose}` / `block-btn-{purpose}`——单裸词只服务"就这一个背景/按钮"的直觉命名场景,一旦要组合,已经离开"设计师自然命名"的语境,必须写规范。
+
+**filename 派生规则**(裸词没有"后缀部分"可用做 filename,需要从上下文派生):
+
+| 裸词 | filename 派生 |
+|------|--------------|
+| `bg` | `{父节点 name 或 clean-id}-bg.png` |
+| `btn` | `{子内容主 name 或 clean-id}-btn.{ext}`(btn 里通常含 img 子层,取其 name;无则用 clean-id) |
+| `img` | `{父节点 name 或 clean-id}-img.{ext}`(父命名兜底) |
+| `bgc` | 无 filename(`bgc-` 本来就不切图,只取 fills/strokes/effects 色值) |
+| `input` | `{父节点 name 或 clean-id}-input`(复用当前 input 规则) |
+
+`clean-id` 定义:nodeId 去冒号(例:`189:36862` → `189_36862`),当父名/子名不适合当 filename(含中文特殊字符、空图层名等)时兜底。
+
 **无前缀兜底规则**
 
 | 条件 | 处理 |
@@ -812,7 +915,8 @@ btnLogin: { flexDirection: 'row', paddingLeft: rpx(16), paddingRight: rpx(16), p
 5. 提取 `btn-` → 记录"需要包可点击容器"
 6. 提取 `scrollx-` / `scrolly-` → 记录"需要包滚动容器"（容器层级；继续递归子层）
 7. 无内容前缀 → 走兜底规则
-8. 若有 `btn-`，将渲染结果包裹在可点击容器内
+8. **父容器盒级装饰兜底（v0.3.6 新增，默认开）**：任何会生成 View 容器的节点（含 `btn-` / `sub-` / `block-` / 无前缀 FRAME/GROUP），若命中 §4.3「父容器盒级装饰兜底判定」→ 直接把节点自身的 fills/strokes/cornerRadius/effects 按 §4.1.1 RN 映射（`backgroundColor` / `borderRadius` / `shadowColor` / `shadowOffset` / `shadowOpacity` / `shadowRadius` / `elevation`）写到**当前 View 的 style**；**不切图**、**不要求 `bg-` 子层**
+9. 若有 `btn-`，将渲染结果包裹在可点击容器内（`Pressable` / `TouchableOpacity`，若第 8 步已命中 → 容器 style 已含背景/圆角/投影，不必再建 `bg-*` 子层）
 10. 若有 `scrollx-` / `scrolly-`，给当前容器加 overflow 样式（**不新增 wrapper**，直接作用在当前节点对应的容器上）
 11. 若有 `fixed-`，在最终容器上加 `position: fixed` + 根据 Figma constraints 推断 top/bottom/left/right（详见下文 **`fixed-` 定位规则**）
 
@@ -844,6 +948,43 @@ btnLogin: { flexDirection: 'row', paddingLeft: rpx(16), paddingRight: rpx(16), p
 ```
 
 任意一项答错即停下重做——这是 `card-bg.png` 这类 bug 的唯一防线。
+
+**父容器盒级装饰兜底判定（v0.3.6 新增，默认开）**：
+
+对任何会生成 View 容器的节点（含 `btn-` / `sub-` / `block-` / 无前缀 FRAME/GROUP）执行判定；命中 → **不切图**，把节点自身的 fills/strokes/cornerRadius/effects 按 §4.1.1 RN 字段映射写到 **View 的 style**。
+
+| 检查项 | 命中条件 |
+|-------|---------|
+| 前缀 | 不含 `img-` / `bg-` / `x-` |
+| fills | 空 / 单层或多层 SOLID / 单层 GRADIENT_LINEAR / GRADIENT_RADIAL；**不允许任何一层是 IMAGE** |
+| strokes | 空 / 单层 SOLID |
+| effects | 空 / 全部是 DROP_SHADOW / INNER_SHADOW / LAYER_BLUR |
+| cornerRadius / rectangleCornerRadii | 任意值（含 0） |
+| 子树 | 不含 BOOLEAN_OPERATION / VECTOR / MASK / ELLIPSE 复合形状；不含内层 `img-`/`bg-` 命中的位图节点 |
+
+**RN 特殊处理**：
+
+- **纯色 fills**：`backgroundColor: '#xxx'`（原生支持）
+- **单层 GRADIENT_LINEAR / GRADIENT_RADIAL**：RN 无原生渐变，必须引入 `react-native-linear-gradient`（`import LinearGradient from 'react-native-linear-gradient'`），生成 `<LinearGradient colors={['#a', '#b']} start={{x:0,y:0}} end={{x:1,y:0}} style={...}>` 包裹原 View 内容；同时在 assets.txt / QA 段落输出退化告警："命中渐变父容器，需 `npm install react-native-linear-gradient` 并 iOS `pod install` / Android `gradle sync`"
+- **strokes INSIDE**：`borderWidth` + `borderColor`（RN 只支持 INSIDE 语义）
+- **strokes OUTSIDE / CENTER**：RN 无 outline，退化为 `borderWidth` + QA 告警"设计使用 OUTSIDE stroke，RN 退化为 INSIDE，可能有 1-2px 视觉偏差"
+- **DROP_SHADOW**：iOS 用 `shadowColor` / `shadowOffset` / `shadowOpacity` / `shadowRadius`；Android 用 `elevation`。**两个必须同时写**才能双端一致
+- **INNER_SHADOW / LAYER_BLUR / BACKGROUND_BLUR**：RN 无原生支持 → 退化告警，不生成
+- **cornerRadius**：`borderRadius` 单值 / `borderTopLeftRadius` 等四角分别
+
+**反向自检 3 行**（sub-agent 处理此类容器节点前必须输出）：
+
+```
+· 节点前缀：{prefixes}（非 img-/bg-/x- 才可能命中）
+· fills/strokes/effects/子树是否纯净？{是/否}（对照 5 项条件逐一勾选）
+· 走 style 还是切图？{style / 切图}（命中 → style；若含渐变，还需引 LinearGradient + QA 告警）
+```
+
+**`btn-` 内嵌 TEXT 双写防护（v0.3.6 新增）**：
+
+- **`btn-` 命中兜底** → 内部 TEXT 正常出 `<Text>` + 字色走 §4.1.1 「TEXT 多层 fills 处理」
+- **`btn-` 未命中兜底（fills 含 IMAGE / 子树含复合形状 → 必须切图为 `<Image>`）** → 内部 TEXT 默认 `x-` 忽略，避免图字 + `<Text>` 双写（doctor NAM024 error）
+- **例外**：设计师给内部 TEXT 加了独立前缀（如塞在 `sub-` 里）→ 按前缀语义正常处理
 
 **`bgc-` 取值规则**：
 
@@ -1252,7 +1393,7 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 | `fixed-` 前缀 | 图层名带 `fixed-` | **一律**放 `<ScrollView>` **外**作为根 `<View>` 直接子(RN 无 CSS fixed,ScrollView 内的 absolute 会跟内容滚 → 必须放外);`position: 'absolute'` + zIndex 100+;位置按 constraints 换算:TOP → `top: rpx(<相对顶层 y>)`,BOTTOM → `bottom: rpx(...)`;**agent 不推断"这个 fixed- 是不是本意贴屏"**——只要图层名带前缀就贴屏 | info(rn 侧默认策略) |
 | 页面滚动骨架 | 所有 rn 页面 | 顶层入口节点一律套用 §2.5 强制 ScrollView 结构(根 flex:1 + ScrollView + scrollContent minHeight),不判定"高度是否超视口",一律套用 | info |
 | `bg-` 背景图 | 图层名带 `bg-` 或 fills 是 IMAGE | 拆成独立 `<Image source={require(...)} style={styles.bgBody} resizeMode="cover" />`,放 `scrollContent` 内头部;**不用 `StyleSheet.absoluteFillObject` 或 `width/height: '100%'`**,而是写 Figma 事实固定尺寸 `width: rpx(w), height: rpx(h)` + `top: 0, left: 0`(避免父 minHeight 时 % 值跟着塌陷);父容器加 `position: 'relative'` | info |
-| GRADIENT_LINEAR / GRADIENT_RADIAL | `fills[0].type` 是 GRADIENT_* | 退化为纯色 `backgroundColor: <gradientStops[0].color 转 hex>` | warn:"渐变已退化为纯色,如需真渐变请手动接 `react-native-linear-gradient`(裸 RN)或 `expo-linear-gradient`(Expo),或使用你所在框架的等价渐变组件" |
+| GRADIENT_LINEAR / GRADIENT_RADIAL | `fills[0].type` 是 GRADIENT_* | **v0.3.6 修订**：命中 §4.3「父容器盒级装饰兜底」时 → 生成 `<LinearGradient>`（`react-native-linear-gradient`）包裹原 View 内容，`colors={[...]}`、`start={{x:0,y:0}}`、`end={{x:1,y:0}}`（或按 gradientHandlePositions 推）；未命中兜底（如 fills 是渐变但节点带 `img-`/`bg-` 前缀走切图） → 走原切图流程 | warn:"命中渐变父容器已使用 `<LinearGradient>`（`react-native-linear-gradient`）表达。请 `npm install react-native-linear-gradient` 并 iOS `pod install` / Android `gradle sync`。裸 RN / Expo 用户可能需要选择对应发行版" |
 | `overflow: scroll` 容器 | `scrollx-` / `scrolly-` 前缀 | 标签强制换 `<ScrollView>`,加 `horizontal={true}`(scrollx)或不加(scrolly);无 `overflow` CSS 属性 | 无(这是 rn 的正确写法) |
 | `box-shadow` | effect DROP_SHADOW | 拆成:`shadowColor`, `shadowOffset: { width, height }`, `shadowRadius`, `shadowOpacity`, `elevation`(Android) | 无(rn 原生支持) |
 | `filter: blur(...)` | effect LAYER_BLUR | 不出 style;产物注释 `// TODO: RN needs 'expo-blur' or '@react-native-community/blur'`;继续生成其他属性 | error |
@@ -1285,21 +1426,107 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 
 #### 4.4 图片处理
 
-所有图片（`img-` / `bg-` / 无前缀兜底）通过 `figma.mjs export-image` 导出。脚本内置：两步式下载 / `use_absolute_bounds=true` 默认开 / 存在即跳过 / 3 次指数退避 / 回写 `images.json` / 绝对路径写入 `{projectRoot}/{assetsDir}/{filename}.{ext}`。
+##### 4.4.pre 节点整体切图适格性（v0.3.7 新增，前置约束）
 
-**⚠️ 调脚本前的强制前置自检（sub-agent 每张图都必须做，且必须把 4 行输出到对话，不允许省略）**：
+**目的**：明确"允许整体切图"和"永远禁止整体切图"两类节点的边界，防止主 agent / sub-agent 把父容器（含多个子层）整体切一张大图当替代品。
+
+| 节点前缀 / 类型 | 是否允许整体切图 | 说明 |
+|--------------|--------------|------|
+| `img-` | ✅ 允许 | 命中即整体切图（含节点自身及子树），**不再向内递归** |
+| `bg-` / 裸词 `bg` | ✅ 允许（切**自身**及其子树） | 切图源 nodeId **必须**是 `bg-` 节点自己 |
+| 无前缀非文本图层 | ✅ 允许（兜底） | 命中 §4.3 无前缀兜底规则；命中「父容器盒级装饰兜底」（§4.3）则走 View style，不切图 |
+| **`sub-` / `block-`** | ❌ **永远禁止** | 分块边界节点，**必须递归子层**由 sub-agent 独立处理 |
+| **`btn-`（未命中兜底）** | ❌ 只切自身，禁止吃父容器 | 若 `btn-` 命中兜底走 View style（渐变走 LinearGradient）；否则只切 `btn-` 自身及其子树 |
+| `bgc-` / `x-` | ❌ 禁止 | 均不切图 |
+
+**违反后果**：doctor SUB027（v0.3.7 新增，error），见 pp-doctor §3.6p。
+
+##### 4.4.pre.b 子树结构禁切规则（v0.3.9 新增，前缀维度的**必要补丁**）
+
+**背景**：v0.3.7 §4.4.pre 上表只从**前缀维度**判定"禁切"，只覆盖了 `sub-*` / `block-*` 命名节点。但 sub-agent 内部会遇到**没打前缀但结构上就是内部分块**的节点——这种节点如果落回"无前缀非文本图层兜底整体切图"路径，sub-agent 就能借"figma 图层名字不叫 sub-XXX"绕过 §4.4.pre 主表。
+
+**核心公式**：**只要子树命中以下任一结构信号，即使前缀是"无前缀"或没打 `sub-` / `block-` 也永远禁止整体切图**，必须递归子层。
+
+| 结构信号 | 判定条件 | 理由 |
+|---------|---------|------|
+| **多文本禁切** | 子树含 **≥2 个可见 TEXT** 节点，且**分属不同视觉行**（任两个 TEXT 的 `absoluteBoundingBox.y` 差 ≥ 4px） | 文字必须可选中、可翻译、可无障碍朗读、可埋点、可动态替换（RN 侧 `<Text>` 组件承载） |
+| **多按钮禁切** | 子树含 **≥2 个**下列任一：`btn-` 前缀节点 / 裸词 `btn` 节点 / INSTANCE / COMPONENT 型子节点 | 按钮必须独立生成 `<Pressable>` / `<TouchableOpacity>` 才能挂 `onPress`；烤图后无法点击 |
+| **同构列表禁切** | 子树含 **≥3 个**同层同构子节点（同类型 + bbox 相近 ±10% + 图层名同前缀或数字后缀差 1） | 同构结构应 `.map()` 生成，`<FlatList>` / `<ScrollView>` 等 RN 列表组件才有意义 |
+
+**判定优先级**：结构信号维度**优先于**前缀维度——即使节点前缀允许整体切图（`img-` / `bg-` / 无前缀），只要命中上表任一条件，一律禁止整体切图。**唯一例外**：`img-` / `bg-` 是设计师显式指定"这就是一张图"的信号，agent 应尊重（否则前缀就没意义了）；但此时 doctor SUB029 会告警。
+
+**违反后果**：doctor SUB029（v0.3.9 新增，error），见 pp-doctor §3.6r。
+
+**反向自检**（sub-agent 决定"整体切图"前，除 §4.4 5 行自检外，额外必须扫描子树输出 2 行）：
 
 ```
-· 图层前缀类型：{img- / bg- / 无前缀}
+· 子树可拆分子节点数：{可见 TEXT 数 x / btn 数 y / 同层同构组数 z}
+· 结构维度禁切判定：{通过：均低于阈值 / 命中禁切: 具体条件（多文本 x≥2, 多按钮 y≥2, 同构 z≥3 任一）}
+```
+
+任一命中 → 立即停下重做，回归 §4.3 递归子层解析（RN 侧生成 `<View>` + `<Text>` + `<Pressable>` + `.map(...)` 结构）。
+
+##### 4.4.0 切图强制忠实执行（v0.3.6 新增）
+
+**核心原则**：命中 `img-` / `bg-` / 裸词 `img` / 裸词 `bg` 时，必须调 `figma.mjs export-image`（走 REST API）产出图片；**不允许**"看到 assetsDir 里有同名文件就跳过"或"从其他来源复用"。这是防止"skill 假装切了图，其实用了缓存/上一轮产物/同名老图"这类忠实度事故的核心约束。
+
+**流程（每张 img-/bg-/裸词 类图片必走）**：
+
+1. **查 images.json**：读 `.d2c-cache/<fileKey>/images.json`，看当前 nodeId 是否已有记录：
+   - **无记录** → 直接调 `figma.mjs export-image`
+   - **有记录** → md5 校验
+
+2. **md5 校验复用**（有记录时）：
+   - 读磁盘文件算 md5，与 `images.json` 里记录的 md5 对比
+   - **相等** → 复用；**不等 / 文件不存在** → 强制重切并覆盖旧记录
+
+3. **images.json 写入契约**：
+   ```json
+   {
+     "<nodeId>": {
+       "path": "<绝对路径>",
+       "format": "png | svg",
+       "filename": "<basename>.<ext>",
+       "md5": "<32 位 hex>",
+       "bboxHash": "<nodeId>|<w>x<h>|<scale>|<use_absolute_bounds>"
+     }
+   }
+   ```
+   `bboxHash` 用于识别"同 nodeId 但导出参数变了"的情况（scale/bounds 变化），hash 不同 → 视作缓存失效强制重切。
+
+4. **assets.txt 3 行溯源**（每张图切完必写）：
+   ```
+   - {filename}.{ext}                       ← {figmaNodeName} ({nodeId})
+     · API 参数：ids={nodeId} format={png|svg} scale={2} use_absolute_bounds={true|false}
+     · 返回 URL：{figma S3 临时 URL}
+     · 落盘尺寸：{width}x{height} md5={md5}
+   ```
+
+**doctor IMG026（v0.3.6 新增）**：`img-`/`bg-`/裸词 img/bg 命中，但 images.json 里对应 nodeId 缺失 → **error**（说明本次 skill 没走 REST 就落图，属于严重忠实度事故）。
+
+**为什么加这一小节**：历史事故 `gengduofuli-quan-jinqing.png` 出现"顶部有大片空白"，追查 md5 发现磁盘产物和 API 实测导出根本对不上——skill 那一轮实际上没调 REST，而是从上一轮的 `jingqingqidai.png` 直接改名复用了。
+
+##### 4.4 图片处理（原节，v0.3.6 起以 §4.4.0 为前提）
+
+所有图片（`img-` / `bg-` / 无前缀兜底）通过 `figma.mjs export-image` 导出。脚本内置：两步式下载 / `use_absolute_bounds=true` 默认开 / 存在即跳过 / 3 次指数退避 / 回写 `images.json` / 绝对路径写入 `{projectRoot}/{assetsDir}/{filename}.{ext}`。
+
+**⚠️ 调脚本前的强制前置自检（sub-agent 每张图都必须做，且必须把 7 行输出到对话，不允许省略）**：
+
+```
+· 图层前缀类型：{img- / bg- / 无前缀}（裸词 img / bg 视同对应前缀）
 · 切图源 nodeId：{要写进 --ids 的值}
 · 切图源 name：{该 nodeId 对应节点的图层名}
-· 交叉验证：切图源 name 是否以「{前缀}」开头？{是/否}
+· 交叉验证：切图源 name 是否以「{前缀}」开头，或完全等于「{裸词}」？{是/否}
+· 切图范围：{仅节点自身及子树 / 意图切父容器}（v0.3.7 新增，见 §4.4.pre 适格性表；答"意图切父容器"立即停下重做）
+· 子树可拆分子节点数：{可见 TEXT 数 x / btn 数 y / 同层同构组数 z}（v0.3.9 新增）
+· 结构维度禁切判定：{通过：均低于阈值 / 命中禁切: 具体条件（多文本 x≥2, 多按钮 y≥2, 同构 z≥3 任一）}（v0.3.9 新增，见 §4.4.pre.b；命中即立即停下重做，走 §4.3 递归子层解析）
 ```
 
 **交叉验证判定**：
-- 前缀是 `bg-` → 切图源 name **必须**以 `bg-` 开头（如 `bg-piao` / `bg-body`）。**若为「否」，立即停止**，返回 §4.0.5 重新在 `bg-` 命中节点的子树里定位真正的 `bg-` 节点 id。
-- 前缀是 `img-` → 切图源 name 必须以 `img-` 开头。
+- 前缀是 `bg-` → 切图源 name **必须**以 `bg-` 开头（如 `bg-piao` / `bg-body`），**或完全等于裸词 `bg`**（whole word，不含前后其他字符）。**若为「否」，立即停止**，返回 §4.0.5 重新在 `bg-` 命中节点的子树里定位真正的 `bg-` 节点 id。
+- 前缀是 `img-` → 切图源 name 必须以 `img-` 开头，**或完全等于裸词 `img`**。
 - 无前缀（兜底非文本图层）→ 切图源 name 与当前节点 name 一致。
+- **裸词识别范围**：仅 `bg` / `bgc` / `btn` / `img` / `input` 五个独立/内容前缀允许裸词（见 §4.3「独立裸词规则」），修饰前缀（`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end`）**不允许**裸词，遇到直接走无前缀兜底。
 
 **这是 `card-bg.png` / `piao.png` 把兄弟节点文字烤进 PNG 这类 bug 的唯一防线**——历史事故根因就是 sub-agent 拿了 `bg-` 的**父容器 nodeId** 传给 API，Figma 会把父容器**整棵子树**（含兄弟节点的文字/图标/其他 block）一起 render 成位图。前置自检就是为了让这一步走不通。**脚本不知道你传的 nodeId 是否合法**，这个判断只能 LLM 自己做。
 
@@ -1578,6 +1805,15 @@ figmaBase: 375   outputBase: 375   scale: 1   outputUnit: 无(RN 数值单位是
 - [需手动处理] 字体缺失：...
 ```
 
+**§4.8 独立验收 checklist（v0.3.6 起必查，RN 侧对齐 pp-d2c）**：
+
+- [ ] **NAM024 双写防护**：产物 JSX 里出现 `<Image>` / `<ImageBackground source={btn-*.png}>` 的 `btn-` 节点，其 sibling / child 是否**同时存在**渲染同一段文字的 `<Text>`？若是 → **error**（正确做法：走 §4.3 父容器兜底用 View style 表达按钮背景；渐变按钮加 `LinearGradient` 包裹；`<Text>` 保留文字）
+- [ ] **NAM025 多层 fills 取末位**：产物里所有 `<Text>` 的字色，是否按 §4.1.1「TEXT 多层 fills 处理」取的末位可见 SOLID？
+- [ ] **父容器盒级装饰兜底覆盖率**：产物里所有 `btn-*` / 无前缀 FRAME 是否命中 §4.3 判定时都走了 style？含渐变的父容器是否引入了 `LinearGradient`？QA 是否输出了"需 install react-native-linear-gradient"退化告警？
+- [ ] **IMG026 切图忠实性**：产物 `assets.txt` 里每张图是否都有 §4.4.0 定义的 3 行溯源？images.json 里是否有对应 nodeId 的记录？md5 是否与磁盘文件一致？
+- [ ] **未主动问用户技术决策（v0.3.8 新增）**：sub-agent 本轮跑完是否**没有向用户提任何 skill 已定死的技术决策问题**（切图/兜底/合并/尺寸/RN 特有退化等，见「问题边界」章节）？若遇 skill 未覆盖的边界情形，是否已按最接近规则兜底 + 在 `assets.txt` QA 段落写「[需人工核对]」告警，而**不是**打断用户提问？
+- [ ] **结构维度禁切核查（v0.3.9 新增）**：本 block 是否有任何节点被 sub-agent 决定"整体切图"？若有，其子树是否命中 §4.4.pre.b 任一禁切条件（≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点）？命中即视为 sub-agent 交付不合格，必须回滚该节点，改走 §4.3 递归子层解析（RN 侧生成 `<View>` + `<Text>` + `<Pressable>` + `.map(...)` 结构）
+
 验收通过后 sub-agent **立即将 `.d2c-tasks.md` 中对应的 `[ ]` 改为 `[x]`**，主 agent 方可进入步骤 5。
 
 ---
@@ -1592,6 +1828,25 @@ figmaBase: 375   outputBase: 375   scale: 1   outputUnit: 无(RN 数值单位是
 有任何 `[ ]` 未完成，必须先补齐再合并，不得跳过。
 
 等待所有 sub-agent 完成后，按 `merge.mode` 合并。
+
+#### 5.0.pre flat 模式合并忠实度契约（v0.3.7 新增，最高优先级）
+
+**核心原则**：sub-agent 已经落盘的 `blocks/{sub}/index.tsx` 是**主 agent 的唯一输入源**。主 agent 合并时**必须**逐字使用 sub-agent 交付的 JSX 结构，**禁止**：
+
+1. **禁止用父容器整体切图（如 `sub-ui-frame734.png` / `sub-{name}.png`）替代 sub-agent 的拆分产物**——sub-agent 已经把 3 行任务/独立按钮/独立文字拆开了，主 agent 不允许"合并阶段觉得复杂"就把这些拆分产物删掉换成一张父容器大图
+2. **禁止在 sub-agent 落盘后再切父容器整体图**——主 agent 步骤 5 阶段不允许调 `figma.mjs export-image` 切任何 `sub-*` / `block-*` 前缀的父容器 nodeId（那属于 sub-agent 范畴，且违反节点整体切图适格性，见 §4.4 前置）
+3. **禁止在 flat 展开时"简化"sub-agent 产物**——不允许把 sub-agent 产出的 `<Pressable>` / `<TouchableOpacity>` 结构折叠成 `<Image>`，不允许把 `<View><Text>去看看</Text></Pressable>` 折叠成 `<Image source={require('...btn-qukankan.png')} />`；即使二者视觉等价，也违反守恒律
+
+**反向自检 4 行**（主 agent 每展开一个 sub-block 前必须输出）：
+
+```
+· 待展开 sub-name：{blocks/{sub}/index.tsx 路径}
+· 已读取该文件？{是/否}（如否，立即读，禁止继续）
+· 是否用父容器整体切图替代？{否 / 意图替代}（如"意图替代"，立即停下，回归 sub-agent 产物）
+· sub-agent 已交付的 data-node-id 数：{N}（合并后必须 ≥ N，见 §5.1 data-node-id 守恒律）
+```
+
+任意一项答错即停下重做——这是"主 agent 绕过 sub-agent 产物"这类事故的唯一防线。
 
 #### 5.0 placeholder 展开
 
@@ -1941,6 +2196,35 @@ const styles = StyleSheet.create({ /* ... */ })
 - **禁止对 StyleSheet / Dimensions 等 API 应用 tagMap / propMap**:这些是"工具"不是"标签"
 - **禁止重命名 React 保留 prop**:`style` / `key` / `ref` / `children` / `className` 即便声明在 propMap 里也必须跳过
 
+#### 5.1 data-node-id 守恒律（v0.3.7 新增，flat 模式必查，强制 grep 自证）
+
+**核心公式**：设 sub-agent 全部产物的 `data-node-id` 集合为 S₁，主 agent 合并后最终产物的 `data-node-id` 集合为 S₂，**必须满足** `S₁ ⊆ S₂`（sub-agent 交付的每一个 nodeId 都必须出现在最终产物中；主 agent 可以新增，但不允许丢失）。
+
+**grep 自证命令模板**（主 agent §6.0 前必须运行并把结果输出到对话）：
+
+```bash
+# 1. 提取 sub-agent 全部产物的 data-node-id 集合 S₁
+grep -ho 'data-node-id="[^"]*"' {output.dir}/blocks/**/index.tsx 2>/dev/null | sort -u > /tmp/sub-ids.txt
+
+# 2. 提取最终产物的 data-node-id 集合 S₂
+grep -ho 'data-node-id="[^"]*"' {output.dir}/{ComponentName}/index.tsx | sort -u > /tmp/final-ids.txt
+
+# 3. 差集 S₁ - S₂（必须为空）
+comm -23 /tmp/sub-ids.txt /tmp/final-ids.txt > /tmp/lost-ids.txt
+LOST=$(wc -l < /tmp/lost-ids.txt)
+
+if [ "$LOST" = "0" ]; then
+  echo "✅ data-node-id 守恒律通过：$(wc -l < /tmp/sub-ids.txt) 个 sub-agent 产出的 nodeId 全部保留"
+else
+  echo "❌ 丢失 $LOST 个 data-node-id：$(cat /tmp/lost-ids.txt | tr '\n' ' ')"
+  echo "   合并失败：必须回滚，重新按 sub-agent 产物逐字展开，禁止用父容器整体切图替代"
+fi
+```
+
+**RN 侧特别说明**：RN 产物一样在生成的组件根节点上打 `data-node-id="{figma nodeId}"`（作为 debug 属性，最终由 adapter 阶段或 `pp-strip-nodeid` 清理）；grep 逻辑与 H5 完全一致。
+
+**doctor 关联规则**：SUB027（v0.3.7 新增，error）—— 参见 pp-doctor §3.6p。
+
 ---
 
 ### 步骤 6：主 agent 合并验收
@@ -2060,6 +2344,75 @@ const styles = StyleSheet.create({ /* ... */ })
 | Figma 图层名带 `end-`（表达"贴父末端"），agent 用 `margin-top: auto` / `position: absolute; bottom: 0` / 增大最后一项 gap 等其他方式模拟 | 按 §4.3 "`end-` 逆向布局规则" 唯一实现路径：把前面兄弟包成 wrapper，父加 `justify-content: space-between`。禁止其他实现方式（会绕过 doctor 校验）。父不是 autoLayout / end- 不在末位 / 多个 end- / end- 与 fixed- 同现 → 走 doctor LAY017-020 分支处理，不生成 wrapper |
 | 页面根容器用 `height: 1624px` / `min-height: 1624px` 死值 → 设备高度 >812pt 时底部露白、`end-` 节点无法真正贴屏底 | 判定"页面根容器"三信号 AND（入口 nodeId + 父是 Page/Document + 高度接近视口）通过后，覆写根 CSS：`min-height: max({figmaH * scale}px, 100vh)`；内部 `layoutPositioning: ABSOLUTE` 背景层同步改 `height: 100%` + `background-size: cover`（见 §4.3 判定优先级第 6 条）|
 | Figma 图层名带 `input-`（表达输入框），agent 生成 `<div>` + `<span placeholder-text>` + `<span icon>` 结构而不是 `<input type="text">` → 表单无实际输入能力、语义缺失、无障碍差 | 按 §4.3 "`input-` 输入框规则" 生成 `<input type="text" placeholder="..." />` 单标签,图标切图作 `background-image`,`::placeholder` 颜色取自 TEXT 子节点 fills;不再递归子层。命中 doctor NAM017-020 时按各自 fix 处理(补 TEXT / 保留一个 TEXT / 拆分冲突前缀) |
+
+#### 6.0.2 assets.txt 消费契约（v0.3.7 新增，强制 grep 自证，RN 版）
+
+**核心公式**：设所有 `blocks/*/assets.txt` 声明切了的文件名集合为 F₁，最终产物（`.tsx`/`.jsx`/`.ts`/`.js`）中被引用的文件名集合为 F₂，**必须满足** `F₁ ⊆ F₂`。
+
+**RN 侧引用形式**（比 H5 多两种写法）：
+
+- `<Image source={require('...xxx.png')} />` （静态 require）
+- `<Image source={{uri: `${ASSET_PREFIX}xxx.png`}} />` （动态 URI）
+- `<ImageBackground source={...} />` （同上两种）
+- `<FastImage source={{uri: '...xxx.png'}} />` （第三方库）
+- `require('.../assets/xxx.png')` （单独 require 语句）
+
+**grep 自证命令模板**（主 agent §6.1 前必须运行并把结果输出到对话）：
+
+```bash
+# 1. 从 assets.txt 提取 F₁
+grep -Eho '^- +[^ ]+\.(png|svg|jpg|jpeg|webp)' {output.dir}/blocks/**/assets.txt 2>/dev/null \
+  | sed 's/^- *//' | sort -u > /tmp/declared-assets.txt
+
+# 2. 从产物提取 F₂（RN 版：require + uri + ASSET_PREFIX 模板字面量都覆盖）
+grep -rEho '(require\([`"'\''][^`"'\'']*|source=\{\{uri:\s*[`"'\''][^`"'\'']*|source=\{require\([`"'\''][^`"'\'']*)' {output.dir}/ --include='*.tsx' --include='*.jsx' --include='*.ts' --include='*.js' 2>/dev/null \
+  | grep -oE '[A-Za-z0-9_-]+\.(png|svg|jpg|jpeg|webp)' | sort -u > /tmp/used-assets.txt
+
+# 3. 差集 F₁ - F₂（必须为空）
+comm -23 /tmp/declared-assets.txt /tmp/used-assets.txt > /tmp/unused-assets.txt
+UNUSED=$(wc -l < /tmp/unused-assets.txt)
+
+if [ "$UNUSED" = "0" ]; then
+  echo "✅ assets.txt 消费契约通过：$(wc -l < /tmp/declared-assets.txt) 张切图全部在产物中引用"
+else
+  echo "❌ $UNUSED 张切图未被引用：$(cat /tmp/unused-assets.txt | tr '\n' ' ')"
+  echo "   可能原因：主 agent 用父容器整体切图（如 sub-ui-frame734.png）替代了这些拆分产物 → 触发 SUB027 / IMG028"
+fi
+```
+
+**doctor 关联规则**：IMG028（v0.3.7 新增，error）—— 参见 pp-doctor §3.6q。
+
+#### 6.0.3 合并忠实度证明块（v0.3.7 强制，主 agent 交付前必写）
+
+主 agent 在步骤 7（输出交付物清单）**之前**必须在对话中输出以下证明块，**未输出即视为交付不合格**：
+
+```markdown
+=== 合并阶段忠实度证明（RN 版）===
+
+## data-node-id 守恒律（§5.1）
+- sub-agent 产物 nodeId 数：{count(S₁)}
+- 最终产物 nodeId 数：{count(S₂)}
+- 差集 S₁ - S₂：{"空" 或 "lost: id1, id2, ..."}
+- 结果：{✅ 通过 / ❌ 失败}
+
+## assets.txt 消费契约（§6.0.2）
+- sub-agent 声明切图数：{count(F₁)}
+- 最终产物引用切图数：{count(F₂)}（含 require + uri + ASSET_PREFIX 三种形式）
+- 差集 F₁ - F₂：{"空" 或 "unused: file1.png, file2.png, ..."}
+- 结果：{✅ 通过 / ❌ 失败}
+
+## 节点整体切图适格性核查（§4.4.pre + §4.4.pre.b）
+- 本轮切图节点是否包含 `sub-*` / `block-*` 前缀？{否 / 是: node list}（前缀维度）
+- 本轮切图节点中，是否存在其 Figma 子树含 ≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点？{否 / 是: node list}（v0.3.9 结构维度）
+- 结果：{✅ 通过 / ❌ 失败}
+
+## 未打断用户核查（v0.3.8 新增，§问题边界）
+- 本轮 agent 是否向用户提过任何 skill 已定死的技术决策问题？（切图/兜底/合并/尺寸/RN 退化等）{否 / 是: 问题清单}
+- 若遇 skill 未覆盖的边界情形，是否已按最接近规则兜底 + 写 QA 告警而非打断用户？{是 / 否: 说明}
+- 结果：{✅ 通过 / ❌ 失败}
+```
+
+任意一条 ❌ 失败 → 合并阶段不算完成，主 agent 必须回滚，重新按 sub-agent 产物逐字展开。
 
 #### 6.1 整体视觉验收
 
@@ -2237,3 +2590,15 @@ EOF
 - 禁止 `fixed-` 节点写代码时省略 z-index：fixed 元素脱离文档流，没有 z-index 在不同浏览器栈顺序不稳定；默认 100，多个 fixed- 时按设计稿前后顺序递增（100/101/102…）
 - 禁止 `fixed-` 节点跳过 Figma constraints 读取：top/bottom/left/right 必须按 constraints 推断（详见 §`fixed-` 定位规则）；只在 constraints 缺失时退化为绝对坐标 + 强制 QA 告警
 - 禁止组件函数名、组件文件目录名以 `sub-` / `Sub` 开头：图层名 `sub-foo` 对应的组件函数名必须去掉 `sub-` 前缀后再转 PascalCase（`sub-card` → `Card`，`sub-login-form` → `LoginForm`），目录名保留原始图层名（`blocks/card/`）用于文件系统寻址，函数名严禁带 `sub-` 前缀
+- 禁止 TEXT 节点有多层可见 SOLID fills 时直接取 `fills[0]`：必须按 §4.1.1「TEXT 多层 fills 处理」按 Figma 渲染顺序取末位可见 SOLID
+- 禁止父容器命中「父容器盒级装饰兜底」（§4.3）时仍要求设计师额外建 `bg-*` 子层：默认打开，两种命名都合法；命中渐变时必须引 `LinearGradient` 而不是退化纯色（RN 侧 v0.3.6 修订）
+- 禁止 `btn-` 节点必须切图（fills 含 IMAGE / 子树含形状）时，内部 TEXT 仍生成 `<Text>` 并写入相同文字：造成"图片里有字 + `<Text>` 也有字"双写事故（doctor NAM024 error）
+- 禁止 `img-` / `bg-` / 裸词 `img` / 裸词 `bg` 命中但跳过 REST API 调用：必须按 §4.4.0 走，即使 assetsDir 有同名文件也要按 images.json md5 校验决定复用还是重切。doctor IMG026 未记录 nodeId → error
+- 禁止在 assets.txt 中省略 §4.4.0 定义的 3 行溯源（API 参数 / 返回 URL / 落盘尺寸+md5）
+- 禁止 flat 模式合并时用父容器整体切图（如 `sub-{name}.png` / `sub-ui-frame734.png`）替代 sub-agent 的拆分产物：必须逐字读 `blocks/{sub}/index.tsx` 展开到父文件（v0.3.7 §5.0.pre）
+- 禁止对 `sub-*` / `block-*` 前缀节点调用 `figma.mjs export-image` 整体切图（v0.3.7 §4.4.pre 适格性表）
+- 禁止 flat 模式合并跳过「data-node-id 守恒律」的 grep 自证（v0.3.7 §5.1）：必须运行差集比对命令并把结果输出到对话；差集非空即合并失败必须回滚
+- 禁止跳过「assets.txt 消费契约」的 grep 自证（v0.3.7 §6.0.2）：必须运行差集比对命令并把结果输出到对话；未引用即代表主 agent 替代了 sub-agent 产物，触发 SUB027 / IMG028
+- 禁止跳过步骤 7 之前的「合并忠实度证明块」输出（v0.3.7 §6.0.3）：主 agent 必须在对话里写"data-node-id 守恒律 / assets.txt 消费契约 / 节点整体切图适格性"三组结果；未输出即视为交付不合格
+- 禁止向用户提 skill 已定死的技术决策问题（v0.3.8 §问题边界）：包括但不限于"要不要整体切图 / 用不用 View style 表达 / 渐变引不引 LinearGradient / 多层 fills 取哪个 / 尺寸要不要包 rpx / 合并这块用什么方式"等。遇 skill 未覆盖的边界情形，必须按最接近规则兜底 + 写 QA 告警，禁止打断用户；仅在产物完全不可用时才允许问用户
+- 禁止对子树含 ≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点的容器整体切图（v0.3.9 §4.4.pre.b 结构维度禁切）——即使该节点前缀不是 `sub-*` / `block-*`。sub-agent 每次切图前必须完成 §4.4 前置自检 7 行的最后 2 行子树扫描；命中即立即停下重做，走 §4.3 递归子层解析（RN 侧生成 `<View>` + `<Text>` + `<Pressable>` + `.map(...)` 结构）

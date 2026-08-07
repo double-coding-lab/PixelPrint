@@ -10,5 +10,8 @@
   },
   "updateCheck": {
     "enabled": true
+  },
+  "collaboration": {
+    "enabled": true
   }
 }

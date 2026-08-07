@@ -1,5 +1,5 @@
 {
-  "version": "3.2.6",
+  "version": "3.2.11",
   "knowledgeRoot": ".Knowledge",
   "matcherKey": "matcherId",
   "sourceOfTruth": ".Knowledge/manifest-routing.json",
@@ -24,7 +24,7 @@
     "f2s-req-plan": ".Knowledge/topics/f2s-req-plan.md",
     "pp-doctor": ".Knowledge/topics/pp-doctor.md",
     "pp-d2c": ".Knowledge/topics/pp-d2c.md",
-    "pp-d2c-rn": "topics/pp-d2c-rn.md",
+    "pp-d2c-rn": ".Knowledge/topics/pp-d2c-rn.md",
     "pp-fix-partial": ".Knowledge/topics/pp-fix-partial.md"
   },
   "taskToTopicRules": [
@@ -88,7 +88,7 @@
     {
       "task": "pp-d2c",
       "matcherId": "m-pp-d2c-rn",
-      "matcherPath": "matchers/m-pp-d2c-rn.json",
+      "matcherPath": ".Knowledge/matchers/m-pp-d2c-rn.json",
       "topics": [
         "pp-d2c-rn"
       ]
@@ -102,7 +102,8 @@
       ]
     }
   ],
-  "pkgRev": 1,
+  "pkgRev": 2,
+  "projectRev": 2,
   "topicMetadata": {
     "implement-tech-design": {
       "primary": "policy",
@@ -149,19 +150,18 @@
     },
     "pp-d2c-rn": {
       "primary": "feature",
+      "confidence": "manual",
       "tags": [
         "module",
         "config"
-      ],
-      "confidence": "manual"
+      ]
     },
     "pp-fix-partial": {
       "primary": "feature",
+      "confidence": "manual",
       "tags": [
-        "module",
-        "cache"
-      ],
-      "confidence": "manual"
+        "module"
+      ]
     }
   }
 }

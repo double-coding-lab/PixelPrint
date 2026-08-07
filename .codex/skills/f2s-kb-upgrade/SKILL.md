@@ -102,7 +102,7 @@ This skill executes **`flow2spec init`** in **step 2**. `init` syncs the current
 # 1. Probe whether flow2spec is installed globally on this machine
 flow2spec --version 2>/dev/null || echo __F2S_NOT_INSTALLED__
 # 2. Query the latest version on npm (may fail on restricted networks — allowed)
-npm view @double-codeing/flow2spec version 2>/dev/null || echo __F2S_NPM_UNREACHABLE__
+npm view @double-coding/flow2spec version 2>/dev/null || echo __F2S_NPM_UNREACHABLE__
 # 3. (Backup) if step 1 returned __F2S_NOT_INSTALLED__, confirm npx is available
 command -v npx >/dev/null 2>&1 && echo __NPX_OK__ || echo __NPX_MISSING__
 ```
@@ -112,13 +112,13 @@ command -v npx >/dev/null 2>&1 && echo __NPX_OK__ || echo __NPX_MISSING__
 | Case | Condition | Action | Default step 2 command |
 | --- | --- | --- | --- |
 | **A. Installed & on latest** | Step 1 returned version `V`, step 2 returned version `L`, and `V === L` | **Skip upgrade entirely** — no sub-agent, no `npm i -g` this turn | **`flow2spec init <agents...>`** (use global CLI) |
-| **B. Installed but behind** | Step 1 returned `V`, step 2 returned `L`, and `V !== L` (`V < L` or semver-unequal) | **Dispatch an independent sub-agent (fire-and-forget)** to run `npm i -g @double-codeing/flow2spec@latest` in the background — no wait, no block. Current turn's step 2 still uses `npx @latest` to guarantee this session gets the latest template | **`npx @double-codeing/flow2spec@latest init <agents...>`** |
-| **C. Not installed or latest unknown** | Step 1 hit `__F2S_NOT_INSTALLED__`, OR step 2 hit `__F2S_NPM_UNREACHABLE__` and step 1 also didn't return a version | If A doesn't hold and **not installed**: same as B — dispatch a sub-agent to `npm i -g ...@latest`. If step 2 failed but step 1 shows some installed version: treat as B without a way to compare to latest — **do not** dispatch an upgrade, just note "latest unknown, use npx conservatively" | **`npx @double-codeing/flow2spec@latest init <agents...>`** |
+| **B. Installed but behind** | Step 1 returned `V`, step 2 returned `L`, and `V !== L` (`V < L` or semver-unequal) | **Dispatch an independent sub-agent (fire-and-forget)** to run `npm i -g @double-coding/flow2spec@latest` in the background — no wait, no block. Current turn's step 2 still uses `npx @latest` to guarantee this session gets the latest template | **`npx @double-coding/flow2spec@latest init <agents...>`** |
+| **C. Not installed or latest unknown** | Step 1 hit `__F2S_NOT_INSTALLED__`, OR step 2 hit `__F2S_NPM_UNREACHABLE__` and step 1 also didn't return a version | If A doesn't hold and **not installed**: same as B — dispatch a sub-agent to `npm i -g ...@latest`. If step 2 failed but step 1 shows some installed version: treat as B without a way to compare to latest — **do not** dispatch an upgrade, just note "latest unknown, use npx conservatively" | **`npx @double-coding/flow2spec@latest init <agents...>`** |
 
 **Orchestration (required)**:
 
 - **Branch A**: main agent skips all upgrade actions and **does not** dispatch a sub-agent; step 2's default is `flow2spec init`.
-- **Branch B / C**: only when an upgrade is actually needed (missing or behind), dispatch an **independent sub-agent** fire-and-forget to run `npm i -g @double-codeing/flow2spec@latest`; **do not wait**, **do not block** the main flow. Success/failure does not enter the SKILL summary conclusion. This sub-agent dispatch is **mandatory** and **not subject to** `flow2spec.config.json.subAgent` (a one-off global npm install is not a business split).
+- **Branch B / C**: only when an upgrade is actually needed (missing or behind), dispatch an **independent sub-agent** fire-and-forget to run `npm i -g @double-coding/flow2spec@latest`; **do not wait**, **do not block** the main flow. Success/failure does not enter the SKILL summary conclusion. This sub-agent dispatch is **mandatory** and **not subject to** `flow2spec.config.json.subAgent` (a one-off global npm install is not a business split).
 - **Write permission**: the sub-agent only runs that shell command and **does not** touch any project file (`.Knowledge`, `manifest-routing.json`, `index.md`, etc.). Write-permission constraints remain unchanged.
 - **Probe failure fallback**: if all 3 probes fail (no shell permission, extremely restricted env), treat as branch C and use `npx @latest`; alternatively, skip step -1 entirely and rely on `cli.js`'s `maybeAutoUpdateGlobalInstall()` tail fallback.
 
@@ -163,7 +163,7 @@ Run one of the following in the target project root (**choose the default form b
 1. **Step -1 returned A (installed & on latest)**: use the global CLI directly (**preferred**):
    - `flow2spec init <agents...>`
 2. **Step -1 returned B/C (missing / behind / latest unknown)**: fetch npm latest (**guarantees this session gets the latest template**):
-   - `npx @double-codeing/flow2spec@latest init <agents...>`
+   - `npx @double-coding/flow2spec@latest init <agents...>`
 3. For overwrite reset:
    - Append `--reset-knowledge` to the above command.
 4. If the user explicitly requests a template-language switch:
@@ -238,6 +238,7 @@ After this skill's step 2 `flow2spec init` succeeds, first perform "old file cle
    - `includeAny` has more than **12 terms**.
    - The topic body contains second-level headings covering more than **3 unrelated responsibility domains**.
    - The topic is frequently matched by multiple unrelated task types (can be judged from `taskToTopicRules` and matcher term breadth).
+7. **Automatic old-topic frontmatter repair**: in the full flow, the agent must run `flow2spec kb build --fix-topics` (or the equivalent internal capability) to add `id`, `revision`, and `summary` to existing topics that lack frontmatter / `revision`, and to fill `dependsOn` / `primary` / `confidence` / `tags` from `manifest-routing.json`. Then run `flow2spec kb check --strict`; if strict validation fails, stop and list the concrete topic / reason in the summary. Do not ask the user to manually add topic headers one by one.
 
 ### Step 3b: `index.md` Merge and `template/index.template.md` (Required)
 
@@ -324,6 +325,7 @@ Output:
 - Reference fixes: `updated` / `already consistent` / `not executed on fast path`
 - **index (snapshot + merge)**: `snapshot copied` / `index.md merged` / `not executed on fast path` / `pending (see notes)`
 - **topicMetadata (existing audit)**: `filled` / `pending user confirmation` / `not executed on fast path`; list added / fixed / deleted topicIds
+- **topic frontmatter**: `auto-filled N topics` / `already complete` / `strict validation failed` / `not executed on fast path`
 - **f2s-kb-upgrade SKILL**: `unchanged after init` / `reran N rounds from step 2c per new SKILL (no second init)` / `loop skipped on fast path` / `pending confirmation`
 - **`projectRev` write-back**: `written to project manifest (value=pkgRev)` / `not executed on fast path` / `pkgRev=null, field untouched`
 - manifest-routing / matcher shards: `aligned with template` / `already latest` / `reset overwrite`
@@ -344,7 +346,7 @@ Output:
 
 ## Completion Self-Check
 
-1. **Step -1** was performed: before entering step 0, **3 foreground probes** were run sequentially (`flow2spec --version` / `npm view ... version` / `npx` availability) and one of the A/B/C branches was determined. Only under B/C did an **independent sub-agent** get dispatched to run `npm i -g @double-codeing/flow2spec@latest` in the background (fire-and-forget); under A **no upgrade action** was dispatched. Step 2's default command form was chosen accordingly (A → `flow2spec init`, B/C → `npx @latest init`); the summary clearly states the branch and version comparison.
+1. **Step -1** was performed: before entering step 0, **3 foreground probes** were run sequentially (`flow2spec --version` / `npm view ... version` / `npx` availability) and one of the A/B/C branches was determined. Only under B/C did an **independent sub-agent** get dispatched to run `npm i -g @double-coding/flow2spec@latest` in the background (fire-and-forget); under A **no upgrade action** was dispatched. Step 2's default command form was chosen accordingly (A → `flow2spec init`, B/C → `npx @latest init`); the summary clearly states the branch and version comparison.
 2. **Step 0** was performed: V1 did not skip migrate, and **current repositories (V2+)** did not incorrectly run migrate.
 3. **Before step 2** recorded the project-side `projectRev` (`projectRev`), and **after step 2 `init`** re-read `pkgRev` and executed **step 2c** judgment.
 4. After **step 2 `init`**, **`f2s-kb-upgrade/SKILL.md`** was re-read: on full flow, a change must trigger **a rerun from step 2c per the new literal text** (**no second `init`**); on fast path, the loop can be skipped (see "init and skill self-update" / "fast-path exception").
@@ -352,9 +354,10 @@ Output:
 6. Incremental or reset mode was clearly labeled.
 7. **On full flow**: old topic-file cleanup and `index/manifest` reference fixes were handled (step 3).
 8. **On full flow**: **Step 3a** was executed: `topicMetadata` audited, with no orphan keys / illegal primary / illegal confidence; missing old topics were filled with `inferred` based on evidence or listed as pending confirmation.
-9. **On full flow**: **Step 3b** was executed: `index.md` was **merged** (from **`Topic Overview`** section through before "Match and Execute" is project-maintained; the rest matches the package version), and `topicPaths` were checked; **at the end of full flow**, the project-side `projectRev` was **written back** to `pkgRev` (if `pkgRev=null`, the field was left unchanged).
-10. **On fast path**: steps 3 / 3a / 3b were actually skipped (no unrelated scans), and the summary explicitly labels "not executed on fast path".
-11. Manifest and key-path verification results were output.
-12. If failed, a concrete next command suggestion was provided.
-13. Step 3b `index.md` merge was completed and written by the main agent, with no unauthorized sub-agent write (applies only on full flow).
-14. After successful upgrade, `.Knowledge/update-check.json` was deleted to avoid stale upgrade hints in new sessions that day.
+9. **On full flow**: `flow2spec kb build --fix-topics` or an equivalent internal capability was executed, followed by `flow2spec kb check --strict`, ensuring existing topics have `revision`.
+10. **On full flow**: **Step 3b** was executed: `index.md` was **merged** (from **`Topic Overview`** section through before "Match and Execute" is project-maintained; the rest matches the package version), and `topicPaths` were checked; **at the end of full flow**, the project-side `projectRev` was **written back** to `pkgRev` (if `pkgRev=null`, the field was left unchanged).
+11. **On fast path**: steps 3 / 3a / 3b were actually skipped (no unrelated scans), and the summary explicitly labels "not executed on fast path".
+12. Manifest and key-path verification results were output.
+13. If failed, a concrete next command suggestion was provided.
+14. Step 3b `index.md` merge was completed and written by the main agent, with no unauthorized sub-agent write (applies only on full flow).
+15. After successful upgrade, `.Knowledge/update-check.json` was deleted to avoid stale upgrade hints in new sessions that day.

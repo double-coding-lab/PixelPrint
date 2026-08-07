@@ -190,7 +190,7 @@
   - [ ] 拿一份 Figma 稿(可与 h5 测试稿相同)
   - [ ] 触发 rn SKILL
   - [ ] 验证产物是 `<View>` / `<Text>` 六件套 + StyleSheet.create
-  - [ ] 启用 xtaro adapter 后,产物是 `<XView>` from `@ctrip/xtaro`
+  - [ ] 启用 xtaro adapter 后,产物是 `<XView>` from `@myxx/xtaro`
   - [ ] QA 段落有退化告警(fixed / gradient 之类的常见退化)
 - [ ] 用户手动跑一次 react 项目 D2C(回归确认):
   - [ ] `install.js` 选 react,`.claude/skills/pp-d2c-rn/` 不被复制

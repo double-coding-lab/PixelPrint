@@ -206,8 +206,8 @@ function installFiles(forceSkills = false, skipConfig = false, options = {}) {
   const skillsSrc = path.join(TEMPLATES_DIR, 'skills')
   const skillsDst = path.join(CWD, '.claude/skills')
   // pp-style 是 pp-d2c 的规则速查手册,pp-doctor 是静态体检 skill;两者当前无独立触发入口、
-  // 没有工具调用能力、内容与主 SKILL 重复,默认不落到用户项目。需要时把它们从
-  // pp 仓 templates/skills/ 手工 cp 过来即可
+  // 没有工具调用能力、内容与主 SKILL 重复,**后期准备丢弃**,默认不落到用户项目。
+  // 保留在 templates/skills/ 只为过渡期兼容,不建议引导用户手动启用。
   const OPT_IN_ONLY = new Set(['pp-style', 'pp-doctor'])
   const installedSkills = []
   for (const entry of fs.readdirSync(skillsSrc, { withFileTypes: true })) {

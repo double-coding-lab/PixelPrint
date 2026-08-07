@@ -1,5 +1,13 @@
 # pp-d2c Skill
 
+> **v0.3.9（2026-08-07）**：新增 §4.4.pre.b「子树结构禁切规则」——对子树含 ≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点的容器**永远禁止**整体切图（结构维度优先于前缀维度）；§4.4 前置自检 5 行 → 7 行（追加子树扫描）；§4.8 checklist + §6.0.2 忠实度证明块 + 禁止项 各追加 1 条；配套 doctor SUB029。修复 v0.3.7/v0.3.8 遗留漏洞：sub-agent 借"无前缀非文本图层兜底"绕过 §4.4.pre 主表，把 Frame 734（含 3 行任务）烤成 task-block.png 大图。
+
+> **v0.3.8（2026-08-07）**：新增「问题边界」章节（顶部执行模型说明内）——明确 agent 只能问业务问题，禁止问 skill 已定死的技术决策问题（切图/兜底/合并/尺寸/命名冲突等）；遇 skill 未覆盖的边界情形须按最接近规则兜底 + 写 QA 告警，禁止打断用户；配套 §4.8 checklist +1 条 + §6.0.2 忠实度证明块 +「未打断用户核查」段 + 禁止项 +1 条。
+
+> **v0.3.7（2026-08-07）**：新增「flat 合并忠实度契约」（§5.0.pre）、「data-node-id 守恒律」（§5.1）、「节点整体切图适格性」（§4.4.pre）、「assets.txt 消费契约」（§6.0.1）、「合并忠实度证明块」（§6.0.2 强制主 agent 交付前 grep 自证输出）；配套 doctor SUB027 / IMG028。修复历史事故：主 agent flat 合并擅自替换 sub-agent 产物、用父容器整体切图（sub-ui-frame734.png 等）覆盖拆分产物。
+
+> **v0.3.6（2026-08-07）**：新增「父容器盒级装饰兜底」（§4.3）、「TEXT 多层 fills 取末位」（§4.1.1）、「切图强制忠实执行 + images.json md5 复用」（§4.4.0）、「`btn-` 内嵌 TEXT 双写防护」（§4.3）；配套 doctor NAM024 / NAM025 / IMG026。
+
 ## 触发条件
 - 用户提供 Figma 设计稿 URL
 - 用户说「帮我还原这个设计稿」「D2C」「生成代码」
@@ -27,7 +35,54 @@
 
 > 误把伪代码当真函数会卡死流程（等待一个永远不会到来的"返回值"），或者绕过关键步骤（"既然 SKILL 里说 doctor.run() 就行，那直接跳到 §1"）。
 
----
+## 问题边界（v0.3.8 新增，硬约束）
+
+agent 在跑 pp-d2c 全流程时 **只允许问用户业务问题，禁止问 skill 已定死的技术决策问题**。历史事故：跑 figmad2c-test2 时 agent 就"要不要整体切图 / 用不用 CSS 表达 / 合并这块用什么方式"等 skill 已明确规定的技术选择反复打断用户，属于 agent 遇复杂就问用户的偷懒路径。
+
+### ✅ 允许问的业务问题（设计稿无法推断的产品/交互/数据）
+
+| 类型 | 举例 |
+|-----|------|
+| **交互状态** | "登录/未登录态展示不一样，默认展示哪个？"、"已购/未购下卡片状态怎么切换？" |
+| **数据来源** | "这个价格从哪个字段取？"、"埋点参数取什么？"、"分享文案是什么？" |
+| **跳转链接** | "按钮点击跳哪里？"、"活动结束后按钮跳哪？" |
+| **时效规则** | "活动时间外怎么展示？"、"券过期展示什么？"、"倒计时结束态是什么？" |
+| **命名域** | "组件放哪个 page 目录？"、"用哪个 style 变量前缀？" |
+
+判定要点：**skill 无法从 Figma 设计稿本身推断出答案**（必须问业务方 / PRD / 用户），才允许问。
+
+### ❌ 禁止问的技术决策（skill 已在章节里定死）
+
+| 类型 | 举例（对应 skill 章节） |
+|-----|---------------------|
+| **前缀语义** | "`btn-` 要不要切图？" → §4.3 组合优先级 + §4.4.pre 适格性表已定；"`bg-` 切自身还是父容器？" → §4.3 `bg-` 切图源约束已定 |
+| **兜底判定** | "这个纯色父容器要 CSS 还是切图？" → §4.3 父容器盒级装饰兜底默认开；"多层 fills 取哪个？" → §4.1.1 TEXT 多层 fills 处理已定取末位 |
+| **合并策略** | "这块要整体切一张图吗？" → §4.4.pre 禁 `sub-*` / `block-*` 整体切图；"flat 合并展开还是简化？" → §5.0.pre 禁"简化" sub-agent 产物 |
+| **尺寸单位** | "这个 500px 要不要换算？" → §4.5 单位换算 + `unit.scale` 已定 |
+| **命名冲突** | "类名重了怎么办？" → §5 flat 模式已定"加 block 前缀" |
+| **切图忠实度** | "同名文件已存在，要复用还是重切？" → §4.4.0 md5 校验复用契约已定 |
+
+判定要点：**skill 章节里已经写明"怎么做"** → agent 必须按规则做，不允许问。
+
+### 遇到 skill 未覆盖的边界情形怎么办（**不打断用户**）
+
+按下面顺序**自主处理**：
+
+1. **先按 skill 最接近的规则兜底**——例如遇到未见过的前缀 → 走"无前缀兜底"（TEXT → 文字节点 / 其他 → `<img>`）
+2. **把决策 + 兜底理由 + 影响范围写入 `assets.txt` QA 段落**：
+   ```
+   [需人工核对] 遇到 skill 未覆盖的情形 X（图层名 {name} nodeId {id}），
+     已按 Y 兜底处理（引用 skill §Z），
+     可能影响 Z（例：视觉差 / 交互失效 / 无障碍缺失），
+     请复核后决定是否补前缀或调整设计稿。
+   ```
+3. **仅当**决策会导致**产物完全不可用**时才停下问用户——严格限定：
+   - Figma Token 缺失 / 过期（无法调 REST API）
+   - Figma 稿完全无法访问（HTTP 404 / 403）
+   - 关键 assets 下载失败超过重试次数
+   - config 缺失或语法错误（skill 无法读到必要字段）
+
+**其他任何"技术选择犹豫"都不允许打断用户**——不确定就按最接近规则兜底 + 写 QA 告警。
 
 ## 执行流程
 
@@ -693,6 +748,7 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 | `backdrop-filter: blur(...)` | `effects[i].type = 'BACKGROUND_BLUR'` + `radius` | 背景模糊 |
 | `position: fixed` 定位来源 | `constraints = {horizontal, vertical}` + `absoluteBoundingBox = {x, y, width, height}` | horizontal 取值：`LEFT` / `RIGHT` / `CENTER` / `LEFT_RIGHT` / `SCALE`；vertical 同理加 `TOP` / `BOTTOM`。**注意 REST 里字段就叫 `constraints`，值不是 `position` 而是 `LEFT`/`RIGHT` 等** |
 | `font-family` / `font-size` / `font-weight` / `line-height` | `style.{fontFamily, fontSize, fontWeight, lineHeightPx / lineHeightPercent}`（TEXT 节点） | Figma 字重是数字（400/500/700/900）；`lineHeightPx` 优先，否则用 `lineHeightPercent` |
+| **字色（TEXT 节点，v0.3.6 修订）** | `fills[]`——按下面「TEXT 多层 fills 处理」取值 | **禁止直接取 `fills[0]`**：Figma 允许一个 TEXT 叠多层 fills，设计师改颜色时忘记删旧层是常见情况；正确做法见下 |
 | 是否可见 | `visible`（缺失时视为 `true`） | `false` 直接跳过 |
 | 子树 | `children[]` | 递归结构 |
 
@@ -708,6 +764,29 @@ def rgb_to_hex(c):
 ```
 
 **stroke position 关键区分**：mcp 里叫 `position`（值 `INSIDE`/`OUTSIDE`/`CENTER`），REST 里字段名叫 `strokeAlign`（值一样）。**v0.3 起统一按 REST 字段名 `strokeAlign` 取**。
+
+**TEXT 多层 fills 处理（v0.3.6 新增）**：
+
+Figma 里一个 TEXT 节点可以叠多层 `fills`。取字色遵循下表（详细说明见 pp-style §八「TEXT 多层 fills 处理」）：
+
+| fills 情形 | 取值 |
+|-----------|------|
+| 单层 SOLID | 直接取 |
+| 多层 SOLID，都 `visible !== false` | **按 fills[] 顺序取最末位**（Figma 渲染顺序：后写的覆盖先写的） |
+| 多层 SOLID，部分 `visible === false` | **跳过所有 visible:false**，再取"剩下的最末位" |
+| 单层 GRADIENT | `background-clip: text` + `color: transparent`（RN 侧退化为末位近似 SOLID + QA 告警） |
+| 多层混合（SOLID + GRADIENT） | 按 Figma 渲染顺序合成；若 GRADIENT 在最上层 → `background-clip: text`；SOLID 在最上层 → 取 SOLID 色 |
+| fills 为空 | 用 Figma 默认黑 `#000` + QA 告警 |
+
+**反向自检 1 行**（sub-agent 生成 TEXT 前必须输出）：
+
+```
+· TEXT 字色：{finalColor}（fills 有 {N} 层可见 SOLID，取末位；例：#492b0d 被 #ffffff 覆盖时最终视觉是白色）
+```
+
+**典型案例**：`136:45728`（"去看看"）fills = `[#492b0d visible:true, #ffffff visible:true]` → 取 `#ffffff`，而不是 `#492b0d`。
+
+**doctor NAM025（v0.3.6 新增）**：TEXT 节点 `fills` 有 ≥2 个可见 SOLID → info 提示，防止取错色。
 
 #### 4.2 隐藏图层处理
 
@@ -745,6 +824,34 @@ def rgb_to_hex(c):
 | `end-`（`layers.end`） | 逆向布局（贴父末端） | 让节点在父 autoLayout 里贴向末端：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。**主线机制**：把该 end- 节点前面的兄弟包成一个 wrapper，父 `justify-content: space-between`，天然把 end- 推到末端；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` / `input-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加；具体规则见 §4.3 "`end-` 逆向布局规则" 子章节 |
 | `input-`（`layers.input`） | 输入框（`<input type="text">`） | 生成语义化 `<input type="text">` 标签而非 `<div>`，取子 TEXT 节点 `characters` 作为 `placeholder`，左侧图标（若存在 vector/img 子）切图作为 `background-image` + `padding-left` 腾位置；**独立前缀**（决定生成什么元素，不是修饰），**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加（doctor NAM019/NAM020 error），**可**与 `fixed-` / `end-` / `sub-` 叠加；命中即停止向内递归；具体规则见 §4.3 "`input-` 输入框规则" 子章节 |
 
+**独立裸词规则（v0.3.5 新增）**
+
+图层名与已知前缀的匹配走**三态判定**（whole word 完全匹配，不做子串匹配）：
+
+| 图层名形态 | 判定 | 举例 |
+|------------|------|------|
+| **完全等于**前缀去掉 `-` 后的裸词 | ✅ 等同该前缀语义（**独立前缀**才允许，见下面白名单） | `bg` = `bg-` / `btn` = `btn-` / `bgc` = `bgc-` / `img` = `img-` / `input` = `input-` |
+| **以 `xxx-` 开头**且后面有字符 | ✅ 沿用当前规则 | `bg-header` / `btn-submit` |
+| **含前缀词但不是完全裸词**（如 `background` / `bgheader` / `button`） | ❌ 不识别，按普通图层走无前缀兜底 | `background` → 兜底为 `<img>` 切图 |
+
+**裸词白名单**（仅这些独立/内容前缀允许裸词形式）：`bg` / `bgc` / `btn` / `img` / `input`
+
+**修饰前缀不允许裸词**：`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end` 这些前缀必须写 `xxx-...` 完整形式，**不允许**独立裸词。理由：修饰前缀本身不表达"内容/角色"，脱离被修饰目标没有意义（例如"`sub` 什么？"），语义歧义会诱导 agent 意会。裸词 `sub` / `block` 等一律走无前缀兜底，doctor 会 warn 提示（NAM022）。
+
+**裸词不允许与其他前缀组合**：`sub-bg` / `block-btn` 这类"修饰前缀 + 裸词"命名一律**报错**（doctor NAM023）。要组合就写完整语义 `sub-bg-{purpose}` / `block-btn-{purpose}`——单裸词只服务"就这一个背景/按钮"的直觉命名场景，一旦要组合，已经离开"设计师自然命名"的语境，必须写规范。
+
+**filename 派生规则**（裸词没有"后缀部分"可用做 filename，需要从上下文派生）：
+
+| 裸词 | filename 派生 |
+|------|--------------|
+| `bg` | `{父节点 name 或 clean-id}-bg.png` |
+| `btn` | `{子内容主 name 或 clean-id}-btn.{ext}`（btn 里通常含 img 子层，取其 name；无则用 clean-id） |
+| `img` | `{父节点 name 或 clean-id}-img.{ext}`（父命名兜底） |
+| `bgc` | 无 filename（`bgc-` 本来就不切图，只取 fills/strokes/effects 色值） |
+| `input` | `{父节点 name 或 clean-id}-input`（复用当前 input 规则） |
+
+`clean-id` 定义：nodeId 去冒号（例：`189:36862` → `189_36862`），当父名/子名不适合当 filename（含中文特殊字符、空图层名等）时兜底。
+
 **无前缀兜底规则**
 
 | 条件 | 处理 |
@@ -761,7 +868,8 @@ def rgb_to_hex(c):
 5. 提取 `btn-` → 记录"需要包可点击容器"
 6. 提取 `scrollx-` / `scrolly-` → 记录"需要包滚动容器"（容器层级；继续递归子层）
 7. 无内容前缀 → 走兜底规则
-8. 若有 `btn-`，将渲染结果包裹在可点击容器内
+8. **父容器盒级装饰兜底（v0.3.6 新增，默认开）**：对任何会生成容器的节点（含 `btn-` / `sub-` / `block-` / 无前缀 FRAME/GROUP），检查节点自身 fills/strokes/effects/cornerRadius/子树 是否"CSS 完全可表达"（判定条件与 §4.3「父容器盒级装饰兜底判定」小节保持一致，也见 pp-style §四a）——命中则把这些属性**写到自身容器 CSS**（不是父元素），不切图；未命中则继续走后续步骤
+9. 若有 `btn-`，将渲染结果包裹在可点击容器内（若第 8 步已命中 → `btn-` 容器 CSS 已含背景/圆角/投影，不必再建 `bg-*` 子层）
 10. 若有 `scrollx-` / `scrolly-`，给当前容器加 overflow 样式（**不新增 wrapper**，直接作用在当前节点对应的容器上）
 11. 若有 `fixed-`，在最终容器上加 `position: fixed` + 根据 Figma constraints 推断 top/bottom/left/right（详见下文 **`fixed-` 定位规则**）
 
@@ -793,6 +901,49 @@ def rgb_to_hex(c):
 ```
 
 任意一项答错即停下重做——这是 `card-bg.png` 这类 bug 的唯一防线。
+
+**父容器盒级装饰兜底判定（v0.3.6 新增，默认开）**：
+
+对任何会生成容器的节点（含 `btn-` / `sub-` / `block-` / 无前缀 FRAME/GROUP）执行判定；命中 → **不切图**，把节点自身的 fills/strokes/cornerRadius/effects 按下面「bgc- 取值规则」映射到**自身容器 CSS**（不是父元素）。
+
+| 检查项 | 命中条件 |
+|-------|---------|
+| 前缀 | 不含 `img-` / `bg-` / `x-` |
+| fills | 空 / 单层或多层 SOLID / 单层 GRADIENT_LINEAR / GRADIENT_RADIAL；**不允许任何一层是 IMAGE** |
+| strokes | 空 / 单层 SOLID（gradient stroke 允许，降级 `box-shadow`） |
+| effects | 空 / 全部是 DROP_SHADOW / INNER_SHADOW / LAYER_BLUR / BACKGROUND_BLUR |
+| 子树 | 不含 BOOLEAN_OPERATION / VECTOR / MASK / ELLIPSE 等复合形状；不含内层 `img-` / `bg-` 命中的位图节点（TEXT / 普通嵌套 FRAME / 兄弟 `bgc-` 不算破坏纯净度） |
+
+**反向自检 3 行**（sub-agent 处理此类容器节点前必须输出）：
+
+```
+· 节点前缀：{prefixes}（非 img-/bg-/x- 才可能命中）
+· fills/strokes/effects/子树是否纯净？{是/否}（对照 5 项条件逐一勾选）
+· 走 CSS 还是切图？{CSS / 切图}（命中 → CSS；不命中 → 走 §4.4 切图）
+```
+
+**旧规范兼容**：设计师若主动建了 `bg-*` 子层（老命名）→ 依然按 §4.3 `bg-` 规则走；doctor NAM024 会 warn 建议合并到父容器（不阻断）。
+
+**典型案例**（对照）：
+
+```
+btn-qukankan (FRAME, fills=[GRADIENT_LINEAR], cornerRadius=8)
+  └── TEXT "去看看"
+
+命中：直接生成
+  .btn-qukankan {
+    background-image: linear-gradient(...);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+不需要再建 bg-btn-qukankan 子层切图。
+```
+
+**`btn-` 内嵌 TEXT 双写防护（v0.3.6 新增）**：
+
+- **`btn-` 命中「父容器盒级装饰兜底」** → 内部 TEXT 正常出 `<span>` + 字色走 §4.3「TEXT 多层 fills 处理」（默认场景）
+- **`btn-` 未命中兜底（fills 含 IMAGE / 子树含复合形状 → 必须切图）** → 内部 TEXT 默认视为"图字副产物"，**不生成 `<span>`**，避免出现"图片里有文字 + 代码里 span 里又写一遍文字"的双写问题（doctor NAM024 error）
+- **例外**：若设计师主动给内部 TEXT 加了独立前缀（比如把 TEXT 也塞在 `sub-` 里当独立块），按前缀语义正常处理
 
 **`bgc-` 取值规则（v0.2 修订，覆盖 fills/strokes/cornerRadius/effects 全套盒级 CSS 属性）**：
 
@@ -1192,21 +1343,131 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 
 #### 4.4 图片处理
 
-所有图片（`img-` / `bg-` / 无前缀兜底）通过 `figma.mjs export-image` 导出。脚本内置：两步式下载 / `use_absolute_bounds=true` 默认开 / 存在即跳过 / 3 次指数退避 / 回写 `images.json` / 绝对路径写入 `{projectRoot}/{assetsDir}/{filename}.{ext}`。
+##### 4.4.pre 节点整体切图适格性（v0.3.7 新增，前置约束）
 
-**⚠️ 调脚本前的强制前置自检（sub-agent 每张图都必须做，且必须把 4 行输出到对话，不允许省略）**：
+**目的**：明确"允许整体切图"和"永远禁止整体切图"两类节点的边界，防止主 agent / sub-agent 把父容器（含多个子层）整体切一张大图当替代品，导致 sub-agent 拆分产物被覆盖。
+
+| 节点前缀 / 类型 | 是否允许整体切图 | 说明 |
+|--------------|--------------|------|
+| `img-` | ✅ 允许 | 命中即整体切图（含节点自身及子树），**不再向内递归**；符合 §4.3 组合优先级第 2 步 |
+| `bg-` / 裸词 `bg` | ✅ 允许（切**自身**及其子树） | 切图源 nodeId **必须**是 `bg-` 节点自己，**禁止**用父容器（见 §4.3 「`bg-` 切图源约束」） |
+| 无前缀非文本图层（FRAME/GROUP/VECTOR 等） | ✅ 允许（兜底） | 命中 §4.3 无前缀兜底规则时才走此路径；命中「父容器盒级装饰兜底」（§4.3）则走 CSS，不切图 |
+| **`sub-` / `block-`** | ❌ **永远禁止** | 分块边界节点，**必须递归子层**由 sub-agent 独立处理；主 agent 合并阶段不允许把 `sub-*` / `block-*` 前缀的父容器 nodeId 传给 `figma.mjs export-image`。历史事故：`sub-ui-frame734.png` 就是把 sub-UI 内的 Frame 734（做任务大区）整体切了一张父容器大图 |
+| **`btn-`（未命中兜底）** | ❌ 只切自身，禁止吃父容器 | 若 `btn-` 命中「父容器盒级装饰兜底」（§4.3）走 CSS；否则只切 `btn-` 节点自身及其子树，**禁止**把 `btn-` 的父容器（如 `任务` Frame）一并切图 |
+| `bgc-` / `x-` | ❌ 禁止 | `bgc-` 走 CSS，`x-` 跳过整层，两者都不切图 |
+
+**违反后果**：doctor SUB027（v0.3.7 新增，error）—— 主 agent 或 sub-agent 对 `sub-*` / `block-*` 前缀节点调用 `figma.mjs export-image` 整体切图 → 视为忠实度事故，见 pp-doctor §3.6p。
+
+##### 4.4.pre.b 子树结构禁切规则（v0.3.9 新增，前缀维度的**必要补丁**）
+
+**背景**：v0.3.7 §4.4.pre 上表只从**前缀维度**判定"禁切"，只覆盖了 `sub-*` / `block-*` 命名节点。但 sub-agent 内部会遇到**没打前缀但结构上就是内部分块**的节点（例如 `Frame 734`：含 3+1 行任务 + 独立按钮 + 独立文字，前缀是"无前缀"）——这种节点如果落回"无前缀非文本图层兜底整体切图"路径，sub-agent 就能借"figma 图层名字不叫 sub-XXX"绕过 §4.4.pre 主表，把整片子树烤成一张位图。历史事故 `task-block.png`：Frame 734 (`136:45662`) 就是被 sub-UI sub-agent 按"无前缀兜底"整体切下来的。
+
+**核心公式**：**只要子树命中以下任一结构信号，即使前缀是"无前缀"或没打 `sub-` / `block-` 也永远禁止整体切图**，必须递归子层，各子节点按 §4.3 独立解析。
+
+| 结构信号 | 判定条件 | 理由 |
+|---------|---------|------|
+| **多文本禁切** | 子树含 **≥2 个可见 TEXT** 节点，且**分属不同视觉行**（任两个 TEXT 的 `absoluteBoundingBox.y` 差 ≥ 4px；同一行不算） | 文字必须可选中、可翻译、可无障碍朗读、可埋点、可动态替换；烤成位图后这些能力全废 |
+| **多按钮禁切** | 子树含 **≥2 个**下列任一：`btn-` 前缀节点 / 裸词 `btn` 节点 / INSTANCE / COMPONENT 型子节点 | 按钮是交互原子，必须独立生成 `<button>` / `<Pressable>` 才能挂事件；烤图后无法点击 |
+| **同构列表禁切** | 子树含 **≥3 个**同层同构子节点（**同类型**+**bbox 相近**±10%+**图层名同前缀或数字后缀差 1**） | 同构结构是列表语义，应当 `.map()` 生成，烤图后无法动态渲染、无法数据绑定 |
+
+**判定优先级**：结构信号维度**优先于**前缀维度——即使节点前缀允许整体切图（`img-` / `bg-` / 无前缀），只要命中上表任一条件，一律禁止整体切图，必须递归子层。**唯一例外**：`img-` / `bg-` 是**设计师显式指定"这就是一张图"**的信号，agent 应尊重（否则前缀就没意义了）；但此时 doctor SUB029 会告警"命中结构禁切条件但前缀强制切图，建议设计师复核"，让用户判断。
+
+**违反后果**：doctor SUB029（v0.3.9 新增，error）—— sub-agent / 主 agent 对命中结构禁切条件的节点调用 `figma.mjs export-image` 整体切图，见 pp-doctor §3.6r。
+
+**典型案例**（对照历史事故）：
 
 ```
-· 图层前缀类型：{img- / bg- / 无前缀}
+Frame 734 (136:45662, 无前缀, FRAME, VERTICAL layoutMode)
+  ├── bg (GROUP)                          ← 装饰背景
+  ├── img-biaoti                          ← 标题图
+  ├── Group 9                             ← 任务行容器
+  │   ├── Frame 727 (任务 1: bg + icon + 标题TEXT + 描述TEXT + btn "去看看")
+  │   ├── Frame 728 (任务 2: 结构同上, btn "去购票")
+  │   ├── Frame 731 (任务 3: 结构同上, btn "去购票")
+  │   └── 编组 10   (任务 4: 独立结构, btn "去邀请")
+  └── TEXT "活动时间：2026/6/1~2026/8"
+
+子树信号扫描：
+  - 可见 TEXT 数：≥8（每行任务有标题+描述+按钮文字，加底部时间行）→ 命中「多文本禁切」
+  - btn- / 交互按钮数：4（"去看看"/"去购票"×2/"去邀请"）→ 命中「多按钮禁切」
+  - 同构子节点：3 个 Frame 727/728/731（bbox 相近、结构相同）→ 命中「同构列表禁切」
+
+→ 三项全部命中 → 永远禁止整体切图 → 必须递归子层 → sub-agent 应逐层生成 <div> + 3 个 map <div> + 4 个 <button>
+```
+
+**反向自检**（sub-agent 决定"整体切图"前，除 §4.4 5 行自检外，额外必须扫描子树输出 2 行）：
+
+```
+· 子树可拆分子节点数：{可见 TEXT 数 x / btn 数 y / 同层同构组数 z}
+· 结构维度禁切判定：{通过：均低于阈值 / 命中禁切: 具体条件（多文本 x≥2, 多按钮 y≥2, 同构 z≥3 任一）}
+```
+
+任一命中 → 立即停下重做，回归 §4.3 递归子层解析。
+
+##### 4.4.0 切图强制忠实执行（v0.3.6 新增）
+
+**核心原则**：命中 `img-` / `bg-` / 裸词 `img` / 裸词 `bg` 时，必须调 `figma.mjs export-image`（走 REST API）产出图片；**不允许**"看到 assetsDir 里有同名文件就跳过"或"从其他来源复用"。这是防止"skill 假装切了图，其实用了缓存/上一轮产物/同名老图"这类忠实度事故的核心约束。
+
+**流程（每张 img-/bg-/裸词 类图片必走）**：
+
+1. **查 images.json**：读 `.d2c-cache/<fileKey>/images.json`，看当前 nodeId 是否已有记录：
+   - **无记录** → 直接调 `figma.mjs export-image`，脚本会：(a) 调 REST API 拿临时 URL；(b) 下载到 `{projectRoot}/{assetsDir}/{filename}.{ext}`；(c) 算 md5；(d) 写回 `images.json`
+   - **有记录** → 走下面 md5 校验分支
+
+2. **md5 校验复用**（有记录时）：
+   - 读磁盘文件算 md5
+   - 与 `images.json` 里记录的 md5 对比：
+     - **相等** → 复用（`reused=true`），不重切
+     - **不等 / 文件不存在** → 视作缓存失效，**强制重切**（调 `figma.mjs export-image`，覆盖旧记录）
+
+3. **images.json 写入契约**（每次成功切图后必写）：
+   ```json
+   {
+     "<nodeId>": {
+       "path": "<绝对路径>",
+       "format": "png | svg",
+       "filename": "<basename>.<ext>",
+       "md5": "<32 位 hex>",
+       "bboxHash": "<nodeId>|<w>x<h>|<scale>|<use_absolute_bounds>"
+     }
+   }
+   ```
+   `bboxHash` 用于识别"同 nodeId 但导出参数变了"的情况（比如 scale 从 2 改到 3）；命中 hash 不同 → 也视作缓存失效强制重切。
+
+4. **assets.txt 3 行溯源模板**（每张图切完必写）：
+   ```
+   - {filename}.{ext}                       ← {figmaNodeName} ({nodeId})
+     · API 参数：ids={nodeId} format={png|svg} scale={2} use_absolute_bounds={true|false}
+     · 返回 URL：{figma S3 临时 URL}
+     · 落盘尺寸：{width}x{height} md5={md5}
+   ```
+   这 3 行在 flat 和 component 两种 merge.mode 下都**必须**出现，用户复现时能直接对比 md5 判定 skill 是否忠实执行了 API 调用。
+
+**doctor IMG026（v0.3.6 新增）**：`img-` / `bg-` / 裸词 img/bg 命中，但 images.json 里对应 nodeId 缺失 → **error**（说明本次 skill 没走 REST 就落图，属于严重忠实度事故）。
+
+**为什么加这一小节**：历史事故 `gengduofuli-quan-jinqing.png` 出现"顶部有大片空白"，追查 md5 发现磁盘产物和 API 实测导出根本对不上——skill 那一轮实际上没调 REST，而是从上一轮的 `jingqingqidai.png` 直接改名复用了。此次修订的目的就是让"跳过 API 直接落图"不再可能。
+
+##### 4.4 图片处理（原节，v0.3.6 起以 §4.4.0 为前提）
+
+所有图片（`img-` / `bg-` / 无前缀兜底）通过 `figma.mjs export-image` 导出。脚本内置：两步式下载 / `use_absolute_bounds=true` 默认开 / 存在即跳过 / 3 次指数退避 / 回写 `images.json` / 绝对路径写入 `{projectRoot}/{assetsDir}/{filename}.{ext}`。
+
+**⚠️ 调脚本前的强制前置自检（sub-agent 每张图都必须做，且必须把 7 行输出到对话，不允许省略）**：
+
+```
+· 图层前缀类型：{img- / bg- / 无前缀}（裸词 img / bg 视同对应前缀）
 · 切图源 nodeId：{要写进 --ids 的值}
 · 切图源 name：{该 nodeId 对应节点的图层名}
-· 交叉验证：切图源 name 是否以「{前缀}」开头？{是/否}
+· 交叉验证：切图源 name 是否以「{前缀}」开头，或完全等于「{裸词}」？{是/否}
+· 切图范围：{仅节点自身及子树 / 意图切父容器}（v0.3.7 新增，见 §4.4.pre 适格性表；答"意图切父容器"立即停下重做）
+· 子树可拆分子节点数：{可见 TEXT 数 x / btn 数 y / 同层同构组数 z}（v0.3.9 新增）
+· 结构维度禁切判定：{通过：均低于阈值 / 命中禁切: 具体条件（多文本 x≥2, 多按钮 y≥2, 同构 z≥3 任一）}（v0.3.9 新增，见 §4.4.pre.b；命中即立即停下重做，走 §4.3 递归子层解析）
 ```
 
 **交叉验证判定**：
-- 前缀是 `bg-` → 切图源 name **必须**以 `bg-` 开头（如 `bg-piao` / `bg-body`）。**若为「否」，立即停止**，返回 §4.0.5 重新在 `bg-` 命中节点的子树里定位真正的 `bg-` 节点 id。
-- 前缀是 `img-` → 切图源 name 必须以 `img-` 开头。
+- 前缀是 `bg-` → 切图源 name **必须**以 `bg-` 开头（如 `bg-piao` / `bg-body`），**或完全等于裸词 `bg`**（whole word，不含前后其他字符）。**若为「否」，立即停止**，返回 §4.0.5 重新在 `bg-` 命中节点的子树里定位真正的 `bg-` 节点 id。
+- 前缀是 `img-` → 切图源 name 必须以 `img-` 开头，**或完全等于裸词 `img`**。
 - 无前缀（兜底非文本图层）→ 切图源 name 与当前节点 name 一致。
+- **裸词识别范围**：仅 `bg` / `bgc` / `btn` / `img` / `input` 五个独立/内容前缀允许裸词（见 §4.3「独立裸词规则」），修饰前缀（`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end`）**不允许**裸词，遇到直接走无前缀兜底。
 
 **这是 `card-bg.png` / `piao.png` 把兄弟节点文字烤进 PNG 这类 bug 的唯一防线**——历史事故根因就是 sub-agent 拿了 `bg-` 的**父容器 nodeId** 传给 API，Figma 会把父容器**整棵子树**（含兄弟节点的文字/图标/其他 block）一起 render 成位图。前置自检就是为了让这一步走不通。**脚本不知道你传的 nodeId 是否合法**，这个判断只能 LLM 自己做。
 
@@ -1437,6 +1698,15 @@ Figma 设计稿的所有尺寸值（宽、高、间距、字号等）在写入�
 - [需手动处理] 字体缺失：...
 ```
 
+**§4.8 独立验收 checklist（v0.3.6 起必查）**：
+
+- [ ] **NAM024 双写防护**：产物 JSX 里出现 `<img>` / `background-image: url(btn-*.png)` 的 `btn-` 节点，其 sibling / child 是否**同时存在**渲染同一段文字的 `<span>` / `<Text>`？如果是 → **error**（图带文字 + span 里又写一遍文字是设计事故；正确做法：走 §4.3 父容器盒级装饰兜底用 CSS 表达按钮背景，`<span>` 保留文字；或 `btn-` 内嵌 TEXT 加 `x-` 忽略）
+- [ ] **NAM025 多层 fills 取末位**：产物里所有 TEXT 节点的字色，是否按 §4.1.1「TEXT 多层 fills 处理」取的末位可见 SOLID？（现场典型 bug：设计师叠了 `#492b0d` + `#ffffff`，取了 index 0 出 `#492b0d`）
+- [ ] **父容器盒级装饰兜底覆盖率**：产物里所有 `btn-*` / 无前缀 FRAME 是否命中 §4.3「父容器盒级装饰兜底判定」时都走了 CSS？若产物中出现 `btn-*.png` 图片 → **必须**能在 assets.txt 追溯到该节点确实"fills 含 IMAGE 或子树含形状"（不满足则回滚到 CSS 表达）
+- [ ] **IMG026 切图忠实性**：产物 `assets.txt` 里每张图是否都有 §4.4.0 定义的"3 行溯源"？images.json 里是否有对应 nodeId 的记录？md5 是否与磁盘文件一致？（漏任一 → error）
+- [ ] **未主动问用户技术决策（v0.3.8 新增）**：sub-agent 本轮跑完是否**没有向用户提任何 skill 已定死的技术决策问题**（切图/兜底/合并/尺寸/命名冲突等，见「问题边界」章节）？若遇 skill 未覆盖的边界情形，是否已按最接近规则兜底 + 在 `assets.txt` QA 段落写「[需人工核对]」告警，而**不是**打断用户提问？
+- [ ] **结构维度禁切核查（v0.3.9 新增）**：本 block 是否有任何节点被 sub-agent 决定"整体切图"？若有，其子树是否命中 §4.4.pre.b 任一禁切条件（≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点）？命中即视为 sub-agent 交付不合格，必须回滚该节点，改走 §4.3 递归子层解析。历史事故：`task-block.png` 就是 sub-UI sub-agent 把 Frame 734（含 3 行任务 + 独立按钮 + 独立文字，前缀"无"）当"无前缀非文本图层兜底整体切图"绕过 §4.4.pre 主表，v0.3.9 后此路径被 §4.4.pre.b 堵死
+
 验收通过后 sub-agent **立即将 `.d2c-tasks.md` 中对应的 `[ ]` 改为 `[x]`**，主 agent 方可进入步骤 5。
 
 ---
@@ -1451,6 +1721,25 @@ Figma 设计稿的所有尺寸值（宽、高、间距、字号等）在写入�
 有任何 `[ ]` 未完成，必须先补齐再合并，不得跳过。
 
 等待所有 sub-agent 完成后，按 `merge.mode` 合并。
+
+#### 5.0.pre flat 模式合并忠实度契约（v0.3.7 新增，最高优先级）
+
+**核心原则**：sub-agent 已经落盘的 `blocks/{sub}/index.tsx` 是**主 agent 的唯一输入源**。主 agent 合并时**必须**逐字使用 sub-agent 交付的 JSX 结构，**禁止**：
+
+1. **禁止用父容器整体切图（如 `sub-ui-frame734.png` / `sub-{name}.png`）替代 sub-agent 的拆分产物**——sub-agent 已经把 3 行任务/独立按钮/独立文字拆开了，主 agent 不允许"合并阶段觉得复杂"就把这些拆分产物删掉换成一张父容器大图。历史事故：`figmad2c-test2/pages/Home/index.tsx` 里主 agent 用 `sub-ui-frame734.png` 覆盖 sub-UI 的 50 个 data-node-id 拆分产物，最终 "去看看"/"去购票" 匹配 0 次
+2. **禁止在 sub-agent 落盘后再切父容器整体图**——主 agent 步骤 5 阶段不允许调 `figma.mjs export-image` 切任何 `sub-*` / `block-*` 前缀的父容器 nodeId（那属于 sub-agent 范畴，且违反节点整体切图适格性，见 §4.4 前置）
+3. **禁止在 flat 展开时"简化"sub-agent 产物**——不允许把 sub-agent 产出的 `<button>` 结构折叠成 `<img>`，不允许把 `<div><span>去看看</span></button>` 折叠成 `<img src="btn-qukankan.png">`；即使二者视觉等价，也违反守恒律
+
+**反向自检 4 行**（主 agent 每展开一个 sub-block 前必须输出）：
+
+```
+· 待展开 sub-name：{blocks/{sub}/index.tsx 路径}
+· 已读取该文件？{是/否}（如否，立即读，禁止继续）
+· 是否用父容器整体切图替代？{否 / 意图替代}（如"意图替代"，立即停下，回归 sub-agent 产物）
+· sub-agent 已交付的 data-node-id 数：{N}（合并后必须 ≥ N，见 §5.1 data-node-id 守恒律）
+```
+
+任意一项答错即停下重做——这是"主 agent 绕过 sub-agent 产物"这类事故的唯一防线。
 
 #### 5.0 placeholder 展开（v0.2 新增，嵌套 sub- 必经步骤）
 
@@ -1540,6 +1829,45 @@ export default function Content() {
 - 样式按展开顺序追加，类名保持各自命名空间（命名空间规则不变）
 - 类名冲突时自动加 block 名前缀解决（嵌套 block 用 `parent-child-` 前缀）
 
+#### 5.1 data-node-id 守恒律（v0.3.7 新增，flat 模式必查，强制 grep 自证）
+
+**核心公式**：设 sub-agent 全部产物的 `data-node-id` 集合为 S₁，主 agent 合并后最终产物的 `data-node-id` 集合为 S₂，**必须满足** `S₁ ⊆ S₂`（sub-agent 交付的每一个 nodeId 都必须出现在最终产物中；主 agent 可以新增 data-node-id，但不允许丢失任何一个 sub-agent 的 nodeId）。
+
+**grep 自证命令模板**（主 agent §6.0 前必须运行并把结果输出到对话）：
+
+```bash
+# 1. 提取 sub-agent 全部产物的 data-node-id 集合 S₁
+grep -ho 'data-node-id="[^"]*"' {output.dir}/blocks/**/index.tsx 2>/dev/null | sort -u > /tmp/sub-ids.txt
+
+# 2. 提取最终产物的 data-node-id 集合 S₂
+grep -ho 'data-node-id="[^"]*"' {output.dir}/{ComponentName}/index.tsx | sort -u > /tmp/final-ids.txt
+
+# 3. 差集 S₁ - S₂（必须为空）
+comm -23 /tmp/sub-ids.txt /tmp/final-ids.txt > /tmp/lost-ids.txt
+LOST=$(wc -l < /tmp/lost-ids.txt)
+
+if [ "$LOST" = "0" ]; then
+  echo "✅ data-node-id 守恒律通过：$(wc -l < /tmp/sub-ids.txt) 个 sub-agent 产出的 nodeId 全部保留"
+else
+  echo "❌ 丢失 $LOST 个 data-node-id：$(cat /tmp/lost-ids.txt | tr '\n' ' ')"
+  echo "   合并失败：必须回滚，重新按 sub-agent 产物逐字展开，禁止用父容器整体切图替代"
+fi
+```
+
+**为什么这条规则存在**：`data-node-id` 是主 agent 与 sub-agent 之间的"忠实度锚点"。sub-agent 每处理一个图层节点，都会在生成的 JSX 上打 `data-node-id="{figma nodeId}"`。这个集合就是 sub-agent 对"我处理了哪些节点"的自证。主 agent 合并时如果把 sub-agent 的 `<button data-node-id="136:45727">去看看</button>` 替换成 `<img src="sub-ui-frame734.png">`，`136:45727` 这个 nodeId 就丢了，守恒律立即报错。
+
+**doctor 关联规则**：SUB027（v0.3.7 新增，error）—— sub-agent 产物的 data-node-id 在最终产物中丢失时触发，参见 pp-doctor §3.6p。
+
+**必须输出的证明块**（主 agent 步骤 7 交付前必写到对话，见 §6.0 强制自证输出）：
+
+```
+=== 合并阶段忠实度证明（data-node-id 守恒律）===
+sub-agent 产物 nodeId 数：{count(S₁)}
+最终产物 nodeId 数：{count(S₂)}
+差集 S₁ - S₂：{空 / lost 列表}
+结果：✅ 通过 / ❌ 失败
+```
+
 ---
 
 ### 步骤 6：主 agent 合并验收
@@ -1624,6 +1952,67 @@ export default function Content() {
 | Figma 图层名带 `end-`（表达"贴父末端"），agent 用 `margin-top: auto` / `position: absolute; bottom: 0` / 增大最后一项 gap 等其他方式模拟 | 按 §4.3 "`end-` 逆向布局规则" 唯一实现路径：把前面兄弟包成 wrapper，父加 `justify-content: space-between`。禁止其他实现方式（会绕过 doctor 校验）。父不是 autoLayout / end- 不在末位 / 多个 end- / end- 与 fixed- 同现 → 走 doctor LAY017-020 分支处理，不生成 wrapper |
 | 页面根容器用 `height: 1624px` / `min-height: 1624px` 死值 → 设备高度 >812pt 时底部露白、`end-` 节点无法真正贴屏底 | 判定"页面根容器"三信号 AND（入口 nodeId + 父是 Page/Document + 高度接近视口）通过后，覆写根 CSS：`min-height: max({figmaH * scale}px, 100vh)`；内部 `layoutPositioning: ABSOLUTE` 背景层同步改 `height: 100%` + `background-size: cover`（见 §4.3 判定优先级第 6 条）|
 | Figma 图层名带 `input-`（表达输入框），agent 生成 `<div>` + `<span placeholder-text>` + `<span icon>` 结构而不是 `<input type="text">` → 表单无实际输入能力、语义缺失、无障碍差 | 按 §4.3 "`input-` 输入框规则" 生成 `<input type="text" placeholder="..." />` 单标签,图标切图作 `background-image`,`::placeholder` 颜色取自 TEXT 子节点 fills;不再递归子层。命中 doctor NAM017-020 时按各自 fix 处理(补 TEXT / 保留一个 TEXT / 拆分冲突前缀) |
+
+#### 6.0.1 assets.txt 消费契约（v0.3.7 新增，强制 grep 自证）
+
+**核心公式**：设所有 `blocks/*/assets.txt` 声明切了的文件名集合为 F₁，最终产物（`.tsx`/`.jsx`/`.scss`/`.less`/`.css`/`.module.*`）中被引用的文件名集合为 F₂，**必须满足** `F₁ ⊆ F₂`（sub-agent 声明切了的每一张切图都必须在最终产物中被 `<img src>` / `background-image: url()` 引用；未引用即代表主 agent 用父容器整体切图或其他手段替代了 sub-agent 的产物）。
+
+**grep 自证命令模板**（主 agent §6.1 前必须运行并把结果输出到对话）：
+
+```bash
+# 1. 从 assets.txt 提取 F₁（`- xxx.{png|svg|jpg|webp}` 开头的文件名）
+grep -Eho '^- +[^ ]+\.(png|svg|jpg|jpeg|webp)' {output.dir}/blocks/**/assets.txt 2>/dev/null \
+  | sed 's/^- *//' | sort -u > /tmp/declared-assets.txt
+
+# 2. 从产物提取 F₂（<img src="..." /> + CSS url("...") + `${ASSET_PREFIX}xxx.png` 模板字面量）
+grep -rEho '(src=[`"'\''][^`"'\'']*|url\([`"'\''"]?[^`"'\''")]*)' {output.dir}/ --include='*.tsx' --include='*.jsx' --include='*.scss' --include='*.less' --include='*.css' 2>/dev/null \
+  | grep -oE '[A-Za-z0-9_-]+\.(png|svg|jpg|jpeg|webp)' | sort -u > /tmp/used-assets.txt
+
+# 3. 差集 F₁ - F₂（必须为空）
+comm -23 /tmp/declared-assets.txt /tmp/used-assets.txt > /tmp/unused-assets.txt
+UNUSED=$(wc -l < /tmp/unused-assets.txt)
+
+if [ "$UNUSED" = "0" ]; then
+  echo "✅ assets.txt 消费契约通过：$(wc -l < /tmp/declared-assets.txt) 张切图全部在产物中引用"
+else
+  echo "❌ $UNUSED 张切图未被引用：$(cat /tmp/unused-assets.txt | tr '\n' ' ')"
+  echo "   可能原因：主 agent 用父容器整体切图（如 sub-ui-frame734.png）替代了这些拆分产物 → 触发 SUB027 / IMG028"
+fi
+```
+
+**doctor 关联规则**：IMG028（v0.3.7 新增，error）—— assets.txt 声明的切图文件在最终产物中未被引用，参见 pp-doctor §3.6q。
+
+#### 6.0.2 合并忠实度证明块（v0.3.7 强制，主 agent 交付前必写）
+
+主 agent 在步骤 7（输出交付物清单）**之前**必须在对话中输出以下证明块，作为"我的合并过程未绕过 sub-agent 产物"的自证；**未输出即视为交付不合格**，用户可要求回滚重做：
+
+```markdown
+=== 合并阶段忠实度证明 ===
+
+## data-node-id 守恒律（§5.1）
+- sub-agent 产物 nodeId 数：{count(S₁)}
+- 最终产物 nodeId 数：{count(S₂)}
+- 差集 S₁ - S₂：{"空" 或 "lost: id1, id2, ..."}
+- 结果：{✅ 通过 / ❌ 失败}
+
+## assets.txt 消费契约（§6.0.1）
+- sub-agent 声明切图数：{count(F₁)}
+- 最终产物引用切图数：{count(F₂)}
+- 差集 F₁ - F₂：{"空" 或 "unused: file1.png, file2.png, ..."}
+- 结果：{✅ 通过 / ❌ 失败}
+
+## 节点整体切图适格性核查（§4.4.pre + §4.4.pre.b）
+- 本轮切图节点是否包含 `sub-*` / `block-*` 前缀？{否 / 是: node list}（前缀维度）
+- 本轮切图节点中，是否存在其 Figma 子树含 ≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点？{否 / 是: node list}（v0.3.9 结构维度）
+- 结果：{✅ 通过 / ❌ 失败}
+
+## 未打断用户核查（v0.3.8 新增，§问题边界）
+- 本轮 agent 是否向用户提过任何 skill 已定死的技术决策问题？（切图/兜底/合并/尺寸/命名冲突等）{否 / 是: 问题清单}
+- 若遇 skill 未覆盖的边界情形，是否已按最接近规则兜底 + 写 QA 告警而非打断用户？{是 / 否: 说明}
+- 结果：{✅ 通过 / ❌ 失败}
+```
+
+任意一条 ❌ 失败 → 合并阶段不算完成，主 agent 必须回滚，重新按 sub-agent 产物逐字展开，禁止用父容器整体切图替代。
 
 #### 6.1 整体视觉验收
 
@@ -1740,3 +2129,15 @@ EOF
 - 禁止 `fixed-` 节点写代码时省略 z-index：fixed 元素脱离文档流，没有 z-index 在不同浏览器栈顺序不稳定；默认 100，多个 fixed- 时按设计稿前后顺序递增（100/101/102…）
 - 禁止 `fixed-` 节点跳过 Figma constraints 读取：top/bottom/left/right 必须按 constraints 推断（详见 §`fixed-` 定位规则）；只在 constraints 缺失时退化为绝对坐标 + 强制 QA 告警
 - 禁止组件函数名、组件文件目录名以 `sub-` / `Sub` 开头：图层名 `sub-foo` 对应的组件函数名必须去掉 `sub-` 前缀后再转 PascalCase（`sub-card` → `Card`，`sub-login-form` → `LoginForm`），目录名保留原始图层名（`blocks/card/`）用于文件系统寻址，函数名严禁带 `sub-` 前缀
+- 禁止 TEXT 节点有多层可见 SOLID fills 时直接取 `fills[0]`：必须按 §4.1.1「TEXT 多层 fills 处理」按 Figma 渲染顺序取末位可见 SOLID。历史 bug：`去看看` fills=[#492b0d, #ffffff] 被取成 #492b0d，与设计稿视觉不符
+- 禁止父容器命中「父容器盒级装饰兜底」（§4.3）时仍要求设计师额外建 `bg-*` 子层：默认打开，两种命名都合法，冗余场景由 doctor NAM024 warn（不阻断）
+- 禁止 `btn-` 节点必须切图（fills 含 IMAGE / 子树含形状）时，内部 TEXT 仍生成 `<span>` / `<Text>` 并写入相同文字：这会造成"图片里有字 + 代码里 span 也有字"的双写事故（doctor NAM024 error）。此时内部 TEXT 视为图字副产物，默认按 `x-` 忽略
+- 禁止 `img-` / `bg-` / 裸词 `img` / 裸词 `bg` 命中但跳过 REST API 调用：必须按 §4.4.0「切图强制忠实执行」流程走，即使 assetsDir 有同名文件也要按 images.json md5 校验决定复用还是重切。doctor IMG026 命中未记录 nodeId → error
+- 禁止在 assets.txt 中省略 §4.4.0 定义的 3 行溯源（API 参数 / 返回 URL / 落盘尺寸+md5）：这是用户复现 skill 切图忠实度的唯一凭据
+- 禁止 flat 模式合并时用父容器整体切图（如 `sub-{name}.png` / `sub-ui-frame734.png`）替代 sub-agent 的拆分产物：必须逐字读 `blocks/{sub}/index.tsx` 展开到父文件（v0.3.7 §5.0.pre）。历史事故：figmad2c-test2 主 agent 用 sub-ui-frame734.png 覆盖 sub-UI 的 50 个 data-node-id 拆分产物，"去看看"/"去购票"匹配 0 次
+- 禁止对 `sub-*` / `block-*` 前缀节点调用 `figma.mjs export-image` 整体切图：这两个是分块边界，永远由 sub-agent 递归内部处理，主 agent 不允许把它们当图切（v0.3.7 §4.4.pre 适格性表）
+- 禁止 flat 模式合并跳过「data-node-id 守恒律」的 grep 自证（v0.3.7 §5.1）：必须运行差集比对命令，把 `sub-agent 产物 nodeId 数 / 最终产物 nodeId 数 / 差集` 输出到对话；差集非空即合并失败，必须回滚
+- 禁止跳过「assets.txt 消费契约」的 grep 自证（v0.3.7 §6.0.1）：必须运行差集比对命令，把 `声明切图数 / 引用切图数 / 未引用列表` 输出到对话；未引用即代表主 agent 替代了 sub-agent 产物，触发 SUB027 / IMG028
+- 禁止跳过步骤 7 之前的「合并忠实度证明块」输出（v0.3.7 §6.0.2）：主 agent 必须在对话里写"data-node-id 守恒律 / assets.txt 消费契约 / 节点整体切图适格性"三组结果；未输出即视为交付不合格
+- 禁止向用户提 skill 已定死的技术决策问题（v0.3.8 §问题边界）：包括但不限于"要不要整体切图 / 用不用 CSS 表达 / 多层 fills 取哪个 / 尺寸要不要换算 / 合并这块用什么方式"等。遇 skill 未覆盖的边界情形，必须按最接近规则兜底 + 写 QA 告警，禁止打断用户；仅在产物完全不可用（token 缺失 / Figma 稿无法访问 / 关键 assets 下载失败超重试次数 / config 语法错误）时才允许问用户
+- 禁止对子树含 ≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点的容器整体切图（v0.3.9 §4.4.pre.b 结构维度禁切）——即使该节点前缀不是 `sub-*` / `block-*`（例如无前缀 FRAME/GROUP，或名字叫 `Frame 734` 这类没打前缀但结构上就是内部分块的容器）。sub-agent 每次切图前必须完成 §4.4 前置自检 7 行的最后 2 行子树扫描；命中即立即停下重做，走 §4.3 递归子层解析。历史事故 `task-block.png` 就是走"无前缀非文本图层兜底整体切图"路径把 Frame 734（含 3 行任务 + 独立按钮 + 独立文字）烤成大图，v0.3.9 后此路径被结构维度堵死
