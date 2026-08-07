@@ -1,0 +1,46 @@
+docs/pixel-print-guide.md
+  h_02deff59416ae5 192,206,208,224,235,418,470,646,684
+docs/samples/AirportBus/index.tsx
+  h_02deff59416ae5 1
+docs/samples/GiveUpExchange/.d2c-tasks.md
+  h_02deff59416ae5 30
+templates/adapter-presets/xtaro.rpx.ts
+  h_02deff59416ae5 1,6,9
+templates/code-connect/mappings.json
+  h_02deff59416ae5 8,20,32
+templates/adapter-presets/xtaro.json
+  h_02deff59416ae5 4,18-22
+templates/adapter-presets/README.md
+  h_02deff59416ae5 9,56
+bin/install.js
+  h_02deff59416ae5 766
+.Knowledge/req-docs/d2c-rn-adapter_技术方案.md
+  h_02deff59416ae5 126,306,317,377-381,604
+.Knowledge/req-docs/d2c-rn-adapter_需求澄清.md
+  h_02deff59416ae5 7,93-97,108,195
+.Knowledge/req-docs/pp-d2c-skill_技术方案.md
+  h_02deff59416ae5 430
+.Knowledge/matchers/m-pp-d2c-rn.json
+  h_02deff59416ae5 16
+.task/active/skill_add_rn_skill/acceptance.md
+  h_02deff59416ae5 193
+docs/samples/GiveUpExchange/index.tsx
+  h_02deff59416ae5 1
+.Knowledge/topics/pp-d2c-rn.md
+  h_02deff59416ae5 64-68
+templates/adapter-presets/xtaro.reference.md
+  h_02deff59416ae5 5,7,25,234
+README.md
+  h_02deff59416ae5 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "418621b9402ca714063833a1c424289d1b208766",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  }
+}
