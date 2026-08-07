@@ -1,5 +1,7 @@
 # pp-doctor Skill
 
+> **v0.3.10（2026-08-08）**：新增 3 条规则——CLR030（error，TEXT 字色 fills 溯源事故：assets.txt 声明取末位色 vs 产物实写 `color:` 值不一致，含幻觉字色）、DIM031（error，sub-/block- 容器 minHeight 尺寸源事故：写入值 = 兄弟 bg 层高度而非自身高度）、DIM032（error，页面根 paddingTop 尺寸源事故：写入值 = fixed 状态栏高度而非 Figma 节点 `paddingTop` 字段）。配套 pp-d2c / pp-d2c-rn §4.1.1 / §4.3 / §4.3.1 / §6.0.2 / §6.0.3 溯源证明块。
+
 > **v0.3.9（2026-08-07）**：新增 SUB029（error）——sub-agent 内部对子树含 ≥2 TEXT / ≥2 btn / ≥3 同构子节点的容器整体切图（结构维度禁切规则命中），修复 `task-block.png` 类历史事故。
 
 > **v0.3.7（2026-08-07）**：新增 2 条规则——SUB027（error，主 agent flat 合并擅自替换 sub-agent 产物，含 24a data-node-id 守恒律失败 + 24b 对 sub-*/block-* 前缀节点整体切图）、IMG028（error，assets.txt 声明的切图文件在最终产物中未被引用）。
@@ -273,6 +275,9 @@ inNonRecursiveSubtree(node) =
 | SUB027 | 🤝 共同 | 高（回滚重合并） | v0.3.7 新增：主 agent flat 合并擅自替换 sub-agent 产物（data-node-id 守恒律失败 / 对 sub-* / block-* 前缀节点整体切图） |
 | IMG028 | 🤝 共同 | 高（回滚重合并） | v0.3.7 新增：assets.txt 声明的切图文件在最终产物中未被引用，代表主 agent 用父容器整体切图替代了 sub-agent 产物 |
 | SUB029 | 🤝 共同 | 高（回滚重切） | v0.3.9 新增：sub-agent 内部对子树含 ≥2 TEXT / ≥2 btn / ≥3 同构子节点的容器整体切图（即使无 `sub-*` / `block-*` 前缀）；结构维度禁切规则命中，`task-block.png` 类历史事故的补丁 |
+| CLR030 | 🤝 共同 | 高（回滚重合并） | v0.3.10 新增：TEXT 字色 fills 溯源事故——assets.txt 声明取末位色 vs 产物实写 `color:` 集合不一致（幻觉字色）；含 `.quan__card-btn-text { color: '#492b0d' }`（fills 无此色）、Frame745「立即抢」`#ffffff`（应末位 `#864500`）类事故 |
+| DIM031 | 🤝 共同 | 高（回滚重切） | v0.3.10 新增：sub-/block- 容器 minHeight 尺寸源事故——写入值 = 兄弟 bg 层高度而非自身高度；含 `.main { min-height: 1125px }`（bg-main 562.5×2）应取 sub-MAIN 自身 520×2 类事故 |
+| DIM032 | 🤝 共同 | 高（回滚重合并） | v0.3.10 新增：页面根 padding-top / paddingTop 尺寸源事故——写入值 = fixed 状态栏高度而非 Figma 节点 `paddingTop` 字段；含 `.baseBackground { padding-top: 236px }`（fixed 118×2）应取 paddingTop=166 类事故 |
 | STR001 | 👤 设计师 | 中（拍平 wrapper） | 生成的 DOM 多余嵌套，调试不便（不影响视觉） |
 | STR002 | 👤 设计师 | 低（删壳） | 同上 |
 | AST002 | 👤 设计师 | 低（调 bg- 尺寸） | bg- 露白，背景图未铺满父容器 |
@@ -661,6 +666,51 @@ inNonRecursiveSubtree(node) =
 → fix: `删除该切图产物，按 pp-d2c §4.3 递归子层解析：多行文字 → 生成 <span> / <Text>；按钮 → 生成 <button> / <Pressable>；同构列表 → .map() 生成。主 agent 交付前 §6.0.2 忠实度证明块「节点整体切图适格性核查」段的"结构维度"一行必须显示 ✅ 通过`
 
 **警告版本（warn 而非 error）**：切图源前缀是 `img-` / `bg-` 但子树命中结构禁切条件——设计师主动打了 `img-` / `bg-` 前缀，但其子树含 ≥2 TEXT / ≥2 btn / ≥3 同构子。这种情况提示"设计师意图 vs skill 结构信号冲突"，让用户人工判断是否补拆分。
+
+#### 3.6s CLR030 TEXT 字色 fills 溯源不一致（默认 error，v0.3.10 新增）
+
+> **目的**：识别 sub-agent / 主 agent 违反 pp-d2c / pp-d2c-rn §4.1.1「TEXT 多层 fills 取末位」规则的字色事故。历史事故：Frame745「立即抢」写 `#ffffff`（应末位 `#864500`）、3 张券卡「领！」写 `#492b0d`（幻觉——fills 3 层里根本无此色）、3 张 tab btn 全部写 `#ffffff`（应末位 `#864500`）。
+
+判定条件（对每个含 `<span>` / `<Text>` 且父块有 `assets.txt` 溯源段的产物执行）：
+
+- 从 `blocks/{sub}/assets.txt` 提取所有 `· TEXT {nodeId} "..." fills层数=N 可见SOLID列表=[...] 末位可见色=#hexN 最终写入=#final` 行；
+- **子规则 a（missing）**：如果产物里存在 `<span>` / `<Text>` 但该 block 的 `assets.txt` **完全没有** `· TEXT ` 溯源行 → 视为 sub-agent 交付时省略溯源（**error**）；
+- **子规则 b（inconsistent）**：溯源行 `末位可见色=#hexN` ≠ `最终写入=#final` → sub-agent 声明按 skill 规则末位取色但**又自相矛盾地写了另一个值**（**error**）；
+- **子规则 c（missing-in-product）**：溯源行的 declared 集合中存在**某个** `#final` **不出现**在最终产物 `color:` 集合里 → 主 agent 合并阶段吞掉/替换了该字色，或 sub-agent 声明与实写脱节（**error**）。
+
+→ problem: `TEXT 字色 fills 溯源不一致：{子规则 a/b/c 详情}`
+→ consequence: `按位图渲染顺序应显示的字色未落到产物；用户看到的颜色与设计稿视觉不符；幻觉字色（fills 里根本无此色）无法追溯来源`
+→ fix: `按 pp-d2c §4.1.1「TEXT 多层 fills 处理」规则：跳过所有 visible:false，取剩下的最末位 SOLID；补齐 assets.txt QA 段的 TEXT 溯源行；产物 color 字段值必须严格等于溯源行的"最终写入"字段`
+
+#### 3.6t DIM031 sub-/block- 容器 minHeight 尺寸源错（默认 error，v0.3.10 新增）
+
+> **目的**：识别 sub-agent 违反 pp-d2c / pp-d2c-rn §4.3「sub 容器 min-height 取自身尺寸」规则的尺寸事故。历史事故：`.main { min-height: 1125px }` = bg-main 兄弟层 562.5×2（错），应取 sub-MAIN 自身 h=520 → 1040px。
+
+判定条件（对每个产物中含 `min-height:` / `minHeight:` 属性且对应节点带 `sub-` / `block-` 前缀的 CSS 规则/StyleSheet 项执行）：
+
+- 从 `blocks/{sub}/assets.txt` 提取所有 `· SUB容器 {nodeId} name="..." 自身h=H1 bg兄弟层h=H2 min-height写入=X（scale=S）` 或 `minHeight写入=X（scale=1）` 行；
+- **子规则 a（missing）**：产物含 `sub-` / `block-` 容器 min-height / minHeight 但对应 block 的 `assets.txt` 无 `· SUB容器` 溯源行 → sub-agent 省略溯源（**error**）；
+- **子规则 b（wrong-source）**：溯源行 `写入=X` 且 `X == H2 * S`（h5）或 `X == H2`（RN）且 `H2 != H1` → sub-agent 明确取了兄弟 bg 层高度（**error**）；
+- **子规则 c（arbitrary）**：溯源行 `写入=X` 且 `X != H1 * S`（h5）/ `X != H1`（RN）且 `X != H2 * S` → sub-agent 既没取自身也没取兄弟，值来源不明（**error**，属幻觉尺寸）。
+
+→ problem: `sub-/block- 容器 min-height / minHeight 尺寸源错：{子规则 a/b/c 详情}`
+→ consequence: `主内容区高度与设计稿主内容区不符；bg 兄弟层比 sub 自身高时会撑开父容器留白，比 sub 自身矮时会裁切内容；页面滚动布局易与设计稿脱节`
+→ fix: `按 pp-d2c §4.3 FIXED 塌陷防御表 sub-/block- 行：min-height / minHeight 尺寸源取节点自身 absoluteBoundingBox.height，bg 兄弟层高度只用于装饰视觉（另写 background-size 或 <Image>）不用于父容器约束`
+
+#### 3.6u DIM032 页面根 padding-top / paddingTop 尺寸源错（默认 error，v0.3.10 新增）
+
+> **目的**：识别主 agent 违反 pp-d2c / pp-d2c-rn §4.3.1「页面根 padding-top 取 Figma 节点 paddingTop 字段」规则的尺寸事故。历史事故：`.baseBackground { padding-top: 236px }` = fixed 状态栏 118×2（错），应取页面 `paddingTop=166` × 2 = 332px。
+
+判定条件（对每个产物主页面根节点 CSS / StyleSheet 中的 `padding-top:` / `paddingTop:` 属性执行）：
+
+- 从主页面 assets.txt 或 QA 输出提取 `· PAGE根 {pageNodeId} name="..." figmaPaddingTop=P fixed状态栏h=S padding-top写入=X（scale=Sc）` 或 `paddingTop写入=X（scale=1）` 行；
+- **子规则 a（missing）**：产物存在页面根 padding-top / paddingTop 但**没有**主页面 `· PAGE根` 溯源行 → 主 agent 省略溯源（**error**）；
+- **子规则 b（wrong-source）**：溯源行 `X == S * Sc`（h5）或 `X == S`（RN）且 `S != P` → 主 agent 明确取了 fixed 状态栏高度（**error**）；
+- **子规则 c（arbitrary）**：溯源行 `X != P * Sc`（h5）/ `X != P`（RN）且 `X != S * Sc`（h5）/ `X != S`（RN） → 值来源不明（**error**，属幻觉尺寸）。
+
+→ problem: `页面根 padding-top / paddingTop 尺寸源错：{子规则 a/b/c 详情}`
+→ consequence: `主内容区上方间距不符设计稿；fixed 状态栏可能压住主内容顶部，或主内容与状态栏之间留白过多`
+→ fix: `按 pp-d2c §4.3.1：padding-top / paddingTop 取页面 Figma 节点自身 paddingTop 字段值 × scale；fixed 状态栏层因 layoutPositioning: ABSOLUTE 已脱离父 flex 顺流，不参与 padding 计算`
 
 #### 3.7 LAY001 容器缺 Auto Layout（默认 warn）
 
