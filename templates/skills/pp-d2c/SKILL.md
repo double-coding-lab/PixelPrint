@@ -745,6 +745,34 @@ def rgb_to_hex(c):
 | `end-`（`layers.end`） | 逆向布局（贴父末端） | 让节点在父 autoLayout 里贴向末端：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。**主线机制**：把该 end- 节点前面的兄弟包成一个 wrapper，父 `justify-content: space-between`，天然把 end- 推到末端；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` / `input-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加；具体规则见 §4.3 "`end-` 逆向布局规则" 子章节 |
 | `input-`（`layers.input`） | 输入框（`<input type="text">`） | 生成语义化 `<input type="text">` 标签而非 `<div>`，取子 TEXT 节点 `characters` 作为 `placeholder`，左侧图标（若存在 vector/img 子）切图作为 `background-image` + `padding-left` 腾位置；**独立前缀**（决定生成什么元素，不是修饰），**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加（doctor NAM019/NAM020 error），**可**与 `fixed-` / `end-` / `sub-` 叠加；命中即停止向内递归；具体规则见 §4.3 "`input-` 输入框规则" 子章节 |
 
+**独立裸词规则（v0.3.5 新增）**
+
+图层名与已知前缀的匹配走**三态判定**（whole word 完全匹配，不做子串匹配）：
+
+| 图层名形态 | 判定 | 举例 |
+|------------|------|------|
+| **完全等于**前缀去掉 `-` 后的裸词 | ✅ 等同该前缀语义（**独立前缀**才允许，见下面白名单） | `bg` = `bg-` / `btn` = `btn-` / `bgc` = `bgc-` / `img` = `img-` / `input` = `input-` |
+| **以 `xxx-` 开头**且后面有字符 | ✅ 沿用当前规则 | `bg-header` / `btn-submit` |
+| **含前缀词但不是完全裸词**（如 `background` / `bgheader` / `button`） | ❌ 不识别，按普通图层走无前缀兜底 | `background` → 兜底为 `<img>` 切图 |
+
+**裸词白名单**（仅这些独立/内容前缀允许裸词形式）：`bg` / `bgc` / `btn` / `img` / `input`
+
+**修饰前缀不允许裸词**：`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end` 这些前缀必须写 `xxx-...` 完整形式，**不允许**独立裸词。理由：修饰前缀本身不表达"内容/角色"，脱离被修饰目标没有意义（例如"`sub` 什么？"），语义歧义会诱导 agent 意会。裸词 `sub` / `block` 等一律走无前缀兜底，doctor 会 warn 提示（NAM022）。
+
+**裸词不允许与其他前缀组合**：`sub-bg` / `block-btn` 这类"修饰前缀 + 裸词"命名一律**报错**（doctor NAM023）。要组合就写完整语义 `sub-bg-{purpose}` / `block-btn-{purpose}`——单裸词只服务"就这一个背景/按钮"的直觉命名场景，一旦要组合，已经离开"设计师自然命名"的语境，必须写规范。
+
+**filename 派生规则**（裸词没有"后缀部分"可用做 filename，需要从上下文派生）：
+
+| 裸词 | filename 派生 |
+|------|--------------|
+| `bg` | `{父节点 name 或 clean-id}-bg.png` |
+| `btn` | `{子内容主 name 或 clean-id}-btn.{ext}`（btn 里通常含 img 子层，取其 name；无则用 clean-id） |
+| `img` | `{父节点 name 或 clean-id}-img.{ext}`（父命名兜底） |
+| `bgc` | 无 filename（`bgc-` 本来就不切图，只取 fills/strokes/effects 色值） |
+| `input` | `{父节点 name 或 clean-id}-input`（复用当前 input 规则） |
+
+`clean-id` 定义：nodeId 去冒号（例：`189:36862` → `189_36862`），当父名/子名不适合当 filename（含中文特殊字符、空图层名等）时兜底。
+
 **无前缀兜底规则**
 
 | 条件 | 处理 |
@@ -1197,16 +1225,17 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 **⚠️ 调脚本前的强制前置自检（sub-agent 每张图都必须做，且必须把 4 行输出到对话，不允许省略）**：
 
 ```
-· 图层前缀类型：{img- / bg- / 无前缀}
+· 图层前缀类型：{img- / bg- / 无前缀}（裸词 img / bg 视同对应前缀）
 · 切图源 nodeId：{要写进 --ids 的值}
 · 切图源 name：{该 nodeId 对应节点的图层名}
-· 交叉验证：切图源 name 是否以「{前缀}」开头？{是/否}
+· 交叉验证：切图源 name 是否以「{前缀}」开头，或完全等于「{裸词}」？{是/否}
 ```
 
 **交叉验证判定**：
-- 前缀是 `bg-` → 切图源 name **必须**以 `bg-` 开头（如 `bg-piao` / `bg-body`）。**若为「否」，立即停止**，返回 §4.0.5 重新在 `bg-` 命中节点的子树里定位真正的 `bg-` 节点 id。
-- 前缀是 `img-` → 切图源 name 必须以 `img-` 开头。
+- 前缀是 `bg-` → 切图源 name **必须**以 `bg-` 开头（如 `bg-piao` / `bg-body`），**或完全等于裸词 `bg`**（whole word，不含前后其他字符）。**若为「否」，立即停止**，返回 §4.0.5 重新在 `bg-` 命中节点的子树里定位真正的 `bg-` 节点 id。
+- 前缀是 `img-` → 切图源 name 必须以 `img-` 开头，**或完全等于裸词 `img`**。
 - 无前缀（兜底非文本图层）→ 切图源 name 与当前节点 name 一致。
+- **裸词识别范围**：仅 `bg` / `bgc` / `btn` / `img` / `input` 五个独立/内容前缀允许裸词（见 §4.3「独立裸词规则」），修饰前缀（`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end`）**不允许**裸词，遇到直接走无前缀兜底。
 
 **这是 `card-bg.png` / `piao.png` 把兄弟节点文字烤进 PNG 这类 bug 的唯一防线**——历史事故根因就是 sub-agent 拿了 `bg-` 的**父容器 nodeId** 传给 API，Figma 会把父容器**整棵子树**（含兄弟节点的文字/图标/其他 block）一起 render 成位图。前置自检就是为了让这一步走不通。**脚本不知道你传的 nodeId 是否合法**，这个判断只能 LLM 自己做。
 

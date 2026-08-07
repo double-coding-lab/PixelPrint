@@ -258,6 +258,9 @@ inNonRecursiveSubtree(node) =
 | NAM018 | 👤 设计师 | 低（保留一个 TEXT） | input- 节点内多个 TEXT 子层，只取第一个，其他忽略 |
 | NAM019 | 👤 设计师 | 低（拆分前缀） | input- 与 bg-/bgc-/x- 叠加，不生成节点无法挂 |
 | NAM020 | 👤 设计师 | 低（拆分前缀） | input- 与 img-/btn- 叠加，语义冲突 |
+| NAM021 | ℹ️ 告知 | 无需修改 | 裸词命名识别为独立前缀语义（等同 xxx- 版本处理） |
+| NAM022 | 👤 设计师 | 低（加 `-` 分隔符） | 前缀词后缺 `-`，SKILL 按普通图层兜底，可能不符合设计意图 |
+| NAM023 | 👤 设计师 | 低（补完整语义） | 修饰前缀 + 裸词组合命名，agent 意会歧义，行为不确定 |
 | STR001 | 👤 设计师 | 中（拍平 wrapper） | 生成的 DOM 多余嵌套，调试不便（不影响视觉） |
 | STR002 | 👤 设计师 | 低（删壳） | 同上 |
 | AST002 | 👤 设计师 | 低（调 bg- 尺寸） | bg- 露白，背景图未铺满父容器 |
@@ -492,6 +495,51 @@ inNonRecursiveSubtree(node) =
 → problem: `input- 与 {img/btn}- 叠加在同一节点（{nodeName}），语义冲突`
 → consequence: `生成端只能选一个前缀执行(实际实现里 input- 优先);另一个前缀被忽略,设计意图落空`
 → fix: `二选一:input-btn-search → 拆成"父容器 btn-search 里放子节点 input-search"(点击按钮触发搜索);input-img-avatar → 拆成"input-avatar"(如果是编辑昵称)或"img-avatar"(如果是纯头像展示)`
+
+#### 3.6j NAM021 独立裸词识别（默认 info，v0.3.5 新增）
+
+> **目的**：告知性质规则，不 warn 不 error——设计师用了裸词（`bg` / `bgc` / `btn` / `img` / `input`）命名，主 SKILL 会等同带 `-` 前缀处理，doctor 只输出 info 让设计师知道识别方式。
+
+判定条件（whole word 完全匹配，大小写敏感）：
+
+- 节点 `name` 完全等于 `bg` / `bgc` / `btn` / `img` / `input` 之一
+- `visible !== false`
+
+→ problem: `图层 {nodeName} 使用裸词命名，识别为独立前缀 {prefix}- 语义`
+→ consequence: `等同 {prefix}- 版本处理；filename 从上下文派生（bg → 父名-bg.png / btn → 子内容-btn.ext / img → 父名-img.ext / input → 父名-input）`
+→ fix: `无需修改；如需自定义 filename 后缀，改为 {prefix}-{purpose} 完整命名（例：bg → bg-body）`
+
+**为什么是 info 而不是 warn**：主 SKILL §4.3「独立裸词规则」已明确支持这类命名，doctor 只做告知性提示，避免设计师看到 warn 误以为要改。
+
+#### 3.6k NAM022 前缀词后缺分隔符（默认 warn，v0.3.5 新增）
+
+> **目的**：识别"前缀词 + 名字但缺 `-`"的疑似意图命名（如 `bgheader` / `btnsubmit` / `imgavatar`），提醒设计师规范化——当前 SKILL 会按普通图层走无前缀兜底，很可能不符合设计意图。
+
+判定条件（大小写敏感，仅独立/内容前缀词）：
+
+- 节点 `name` 匹配正则：`^(bg|bgc|btn|img|input)[a-zA-Z0-9]+`（前缀词开头，紧跟字母/数字，无 `-` 分隔）
+- 且 `name` **不完全等于**前缀词本身（避免与 NAM021 重复）
+- 且 `name` **不以 `xxx-` 开头**（避免与正常命名重复）
+- `visible !== false`
+
+→ problem: `图层 {nodeName} 看起来像 {prefix}-{rest} 但缺分隔符 -`
+→ consequence: `当前按普通图层处理（TEXT 走文字，其他走 <img> 兜底切图），可能不符合设计意图`
+→ fix: `若确实想走 {prefix}- 前缀语义，改成 {prefix}-{rest}（例：bgheader → bg-header）；若只是普通图层，忽略此警告`
+
+**修饰前缀词也覆盖**（`sub` / `block` / `scrollx` / `scrolly` / `fixed` / `end`）：主 SKILL §4.3 已声明修饰前缀不允许裸词，但"修饰前缀 + 缺分隔符"命名（如 `subheader` / `blockheader`）仍会误导 agent 意会。此规则同样匹配。扩展正则：`^(bg|bgc|btn|img|input|sub|block|scrollx|scrolly|fixed|end|x)[a-zA-Z0-9]+`。
+
+#### 3.6l NAM023 修饰前缀 + 裸词（默认 error，v0.3.5 新增）
+
+> **目的**：识别"修饰前缀 + 裸词"命名（如 `sub-bg` / `block-btn` / `fixed-img`）。主 SKILL §4.3 声明：裸词只服务"就这一个背景/按钮"的直觉命名，一旦要组合修饰前缀，必须写完整语义。
+
+判定条件：
+
+- 节点 `name` 匹配正则：`^(sub|block|scrollx|scrolly|fixed|end|x)-(bg|bgc|btn|img|input)$`（whole word 匹配到裸词结束，后面不能有其他字符）
+- `visible !== false`
+
+→ problem: `图层 {nodeName} 使用「修饰前缀 + 裸词」命名，语义歧义`
+→ consequence: `agent 无法判断这是"{prefix1}- 修饰的裸词 {prefix2}"还是"名叫 {prefix2} 的 {prefix1}- 块"，可能按前者意会导致行为不确定`
+→ fix: `改成 {prefix1}-{prefix2}-{purpose} 完整命名（例：sub-bg → sub-bg-header / block-btn → block-btn-submit）`
 
 #### 3.7 LAY001 容器缺 Auto Layout（默认 warn）
 
