@@ -1,0 +1,33 @@
+templates/skills/pp-d2c-rn/SKILL.md
+  s_8f566140fc4cb6::t_2391136c9fe7c0 695-699,701-803
+  s_8f566140fc4cb6::t_17a1fc9bc9e7c2 700
+  s_8f566140fc4cb6::t_b66b16348cd7e9 3
+  s_8f566140fc4cb6::t_cbdf2e8cfa7dba 564-613
+  s_8f566140fc4cb6::t_47c75aef52ed65 2302-2303,2306,2309,2319-2324,2331,2333-2334,2339-2340,2343,2346,2358-2363,2366,2368-2369
+  s_8f566140fc4cb6::t_f1e97ec2ab551e 4
+  s_8f566140fc4cb6::t_0ea9013a38ce3d 2206-2274
+  s_8f566140fc4cb6::t_91d74af15b3d90 2278-2279,2283,2286-2287,2289-2290,2296
+  s_8f566140fc4cb6::t_ddb272248cbdf1 2377-2378
+  s_8f566140fc4cb6::t_91e49d3b8a4822 5-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "bdd4febba636eca377fa8129811f77e21353f9c8",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
