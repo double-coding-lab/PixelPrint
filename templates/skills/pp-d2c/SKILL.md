@@ -1,5 +1,7 @@
 # pp-d2c Skill
 
+> **v0.3.15（2026-08-08，h5 独享）**：修复 `bg-*` / 裸词 `bg` 节点落地形式漂移事故——同一份产物里 agent 用了三种不一致方式：(1) `<div class="bg" />` 空 div + scss `background-image`（接近对，但空 div 多余）；(2) `<div style="background-image:url(...)">` inline style（错）；(3) `<img src="bg.png">`（更错，`<img>` 是 `img-*` 独占）。根因是 v0.3.11「JSX `<img>` / CSS `background-image` 引用」的 "/" 让 agent 二选一。改动：(1) 重写 v0.3.11 三处歧义句为明确单选；(2) §4.0 主表 L640 补一句「bg 节点自身不生成任何 DOM」；(3) §4.3 新增「`bg-*` 唯一合法落地形式」——bg 节点被"吸收"进父容器，切图挂父 `background-image`（独立 `.scss`），禁止 `<img>` / 空 div / inline style 三种错法；配 grep 自证。**本次改动只在 pp-d2c 生效**，不同步到 pp-d2c-rn（RN 侧 `<Image>` 无 CSS background 概念，本身无歧义）/ pp-doctor（doctor 暂不加新规则）。
+
 > **v0.3.14（2026-08-08，h5 独享）**：修复 P/M 大类混合事故——某 h5 项目 config 明确 `"styleFormat":"scss"`（P 大类），主入口 `pages/index.jsx` 却生成 `import styles from "./styles.module.scss"` + 全篇 `className={styles.container}`（M 大类），同时 `pages/blocks/main/index.scss` 又是普通 `.scss`（P 大类），两半矛盾导致 css-modules 哈希化的类名跟 blocks 里的普通 scss 完全不通气，页面视觉全部丢样式。改动：§2.5.2 结尾追加「大类一致性硬约束」——主 agent 判定后必须在 `.d2c-tasks.md` 顶部写「大类锁定」段，sub-agent 生成 block 前必须 Read 锁定值严格遵守，禁止各 sub-agent 独立再判；配 grep 自证脚本（P 大类禁 `.module.*` / `styles.xxx` / `import styles from`；M 大类禁裸 `.scss` / 裸 `className="xxx"`）。**本次改动只在 pp-d2c 生效**，不同步到 pp-d2c-rn（RN 侧固定 stylesheet 无 P/M 分歧）。
 
 > **v0.3.11（2026-08-08）**：新增「bg- 独立切图契约」（§4.3）——每个 `bg-*` 前缀节点必须独立走一次 export-image，**禁止**用祖先 `bg-*` 切图的物理覆盖范围"合并省略"后代 `bg-*` 独立切图；配套 sub-agent QA 段自证格式 + 主 agent grep 断言 + §6.0.2 忠实度证明块 7 组扩到 8 组 + doctor BGP033 error 规则。修复历史事故：sub-agent 看到父 `bg-<A>` 内 SLICE 覆盖了后代 `bg-<B>` 所在物理区域，就"合理省略"了后代的独立切图，产物对应容器空 View、后代装饰完全丢失。
@@ -637,7 +639,7 @@ sub-agent 拿到根节点后，**第一步**检查根节点自身的图层名前
 | 根节点剩余前缀 | 处理方式 |
 |--------------|---------|
 | 含 `img-` | 整个节点导出为一张图片，生成单个 `<img>`，**不解析任何子层，直接结束** |
-| 含 `bg-` | **`bg-` 节点自身**（不是父容器！）导出为图片，设为**父容器**的 `background-image`，**不解析任何子层**。**切图源 nodeId 必须是 `bg-` 节点自己的 nodeId**，详见下面 §4.4「`bg-` 切图源约束」；违反这一条会把兄弟节点的文字/图标烤进 PNG |
+| 含 `bg-` | **`bg-` 节点自身**（不是父容器！）导出为图片，切图挂到**父容器**的 CSS `background-image`（写在父容器的独立 `.scss` / `.less` / `.css` 文件里）；**bg 节点自身不生成任何 DOM**（不产 `<div>`、不产 `<img>`、不产 inline style），**不解析任何子层**。**切图源 nodeId 必须是 `bg-` 节点自己的 nodeId**，详见下面 §4.4「`bg-` 切图源约束」；违反这一条会把兄弟节点的文字/图标烤进 PNG。详见「`bg-*` 唯一合法落地形式」（v0.3.15） |
 | 含 `x-` | 跳过，不生成任何代码 |
 | 无上述前缀 | 正常进入 4.0.5 嵌套 sub- 检测 |
 
@@ -778,14 +780,14 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 >
 > **doctor 关联规则**：DIM031（v0.3.10 新增，error）—— sub-/block- 容器 min-height 写入值 = 兄弟 bg 层高度 而非自身高度，参见 pp-doctor §3.6s。
 
-> **bg- 独立切图契约（v0.3.11 强制）**：每个 `bg-*` 前缀节点**必须独立走一次 `figma.mjs export-image`**，即使其**祖先链上已有别的 `bg-*` 前缀节点被整体切图**，且切图物理范围覆盖当前节点。理由：agent 无法准确判断祖先切图产物里是否"精确渲染了"当前 `bg-*` 节点的视觉——只要设计师主动打了 `bg-*` 前缀，就代表"这是一个独立的可替换视觉资产"，必须有自己的 png 落盘 + JSX `<img>` / CSS `background-image` 引用。
+> **bg- 独立切图契约（v0.3.11 强制，v0.3.15 严化）**：每个 `bg-*` 前缀节点**必须独立走一次 `figma.mjs export-image`**，即使其**祖先链上已有别的 `bg-*` 前缀节点被整体切图**，且切图物理范围覆盖当前节点。理由：agent 无法准确判断祖先切图产物里是否"精确渲染了"当前 `bg-*` 节点的视觉——只要设计师主动打了 `bg-*` 前缀，就代表"这是一个独立的可替换视觉资产"，必须有自己的 png 落盘 + **通过 CSS `background-image` 挂在父容器上**（详见下方「唯一合法落地形式」）。
 >
 > **禁止的错误逻辑**（agent 常见脑补）：
 > - ❌ "父 `bg-img` 已经整体切了，且切图物理范围覆盖了子 `bg-quan`，所以 `bg-quan` 不用再切"
 > - ❌ "祖先 `bg-` 切图产物里有 SLICE 子节点覆盖了后代 `bg-` 所在物理区域，后代已烤入祖先切图"
 > - ❌ "父的切图物理范围包住了子的 bbox，子视觉已在父切图里"
 >
-> **正确逻辑**：**前缀维度优先于物理覆盖维度**——只要设计师在图层名上打了 `bg-` 前缀，agent 就必须尊重"这是一个独立视觉资产"的设计意图，独立切图、独立引用。祖先与后代的物理重叠区域在最终产物里会叠加渲染（父挂 background 或 `<img>` + 子再挂 `<img>` bg-quan），视觉一致由设计师负责——不是 agent 优化的空间。
+> **正确逻辑**：**前缀维度优先于物理覆盖维度**——只要设计师在图层名上打了 `bg-` 前缀，agent 就必须尊重"这是一个独立视觉资产"的设计意图，独立切图、独立引用。祖先与后代的物理重叠区域在最终产物里会叠加渲染（父容器 `.parent { background-image: url(bg-A.png) }` + 子容器 `.child { background-image: url(bg-quan.png) }`），视觉一致由设计师负责——不是 agent 优化的空间。
 >
 > **sub-agent 交付前必须在 `blocks/{sub}/assets.txt` QA 段末尾追加一段 bg- 独立切图清单证明**：
 >
@@ -826,7 +828,70 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 >
 > **典型案例**：某父容器 `bg-<A>` 整体切了 `<A-bg>.png`，agent 因为该切图物理覆盖了下方多个同级列表项所在区域，就"省略"了每个列表项里 `bg-<B>` 的独立切图，产物对应容器空 View、后代装饰完全丢失。v0.3.11 后此路径被独立切图契约堵死。
 >
-> **doctor 关联规则**：BGP033（v0.3.11 新增，error）—— `bg-*` 前缀节点在产物中既无对应切图 + 无 `<img>` / `background-image` 引用，参见 pp-doctor §3.6v。
+> **doctor 关联规则**：BGP033（v0.3.11 新增，error）—— `bg-*` 前缀节点在产物中既无对应切图 + 无 CSS `background-image` 引用，参见 pp-doctor §3.6v。
+
+> **⚠️ `bg-*` 唯一合法落地形式（v0.3.15 强制，h5 独享）**：设计稿中 `bg-*` / 裸词 `bg` 节点是"父容器的背景层"（通常 ABSOLUTE 铺满父区域）。h5 产物的正确落地是——**bg 节点自身不生成任何 DOM**，切图直接挂到**父容器**的 `background-image`（写在独立 `.scss` / `.less` / `.css` 文件里）。
+>
+> **正确形式**：
+>
+> ```jsx
+> {/* JSX:bg 节点被"吸收"掉,只留父容器,内容子直接放在父下 */}
+> <div className="parent-container" data-node-id="{父nodeId}">
+>   <ChildContent1 />
+>   <ChildContent2 />
+> </div>
+> ```
+>
+> ```scss
+> .parent-container {
+>   position: relative;                                // 承接子 ABSOLUTE 定位
+>   background-image: url('#{$asset-prefix}bg-xxx.png');
+>   background-size: cover;                            // 或 100% 100% / contain,按视觉需要
+>   background-repeat: no-repeat;
+> }
+> ```
+>
+> **禁止的三种错法**：
+>
+> ```jsx
+> ❌ <img src="...bg-xxx.png" data-node-id="..." />                       // <img> 是 img-* 独占,bg-* 禁用
+> ❌ <div className="bg" data-node-id="..." />                            // bg 生成自己的空 div(应吸收进父)
+> ❌ <div style={{backgroundImage:'url(...)'}} data-node-id="..." />      // JSX inline 样式(应写独立 scss)
+> ❌ <div style="background-image:url(...)" data-node-id="..." />         // HTML inline 样式(同上)
+> ```
+>
+> **合并 grep 自证**：
+>
+> ```bash
+> # 从缓存 JSON 找所有 bg-*/裸词 bg 节点 id
+> python3 -c "
+> import json, glob
+> for f in glob.glob('.d2c-cache/**/nodes/*.json', recursive=True):
+>     d = json.load(open(f))
+>     def walk(n):
+>         name = n.get('name','')
+>         if name == 'bg' or name.startswith('bg-'):
+>             print(n.get('id',''))
+>         for c in n.get('children',[]):
+>             walk(c)
+>     walk(d.get('node', d))
+> " | sort -u > /tmp/bg-ids.txt
+>
+> # 每个 bg 节点 id 在产物 JSX 里都不允许作为独立 DOM 出现(<img> / <div> 都不行)
+> for id in $(cat /tmp/bg-ids.txt); do
+>   if grep -Ern "data-node-id=\"$id\"" {output.dir}/ 2>/dev/null | grep -v '\.md:' ; then
+>     echo "❌ bg 节点 $id 出现在 JSX 中(应吸收进父容器,切图挂父 background-image)"
+>   fi
+> done
+>
+> # inline style 禁令
+> grep -Ern 'style=\{\{[^}]*backgroundImage|style="[^"]*background-image' {output.dir}/ 2>/dev/null \
+>   && echo "❌ 发现 inline 样式 background-image(应写独立 .scss)"
+> ```
+>
+> **典型事故（v0.3.15 修复的原型）**：某 h5 页面同名 `bg-quan` 节点被 agent 用两种方式混合落地——一处 `<div class="quan-bg"></div>` + scss 挂 background（生成了空 div，仍不对但接近）；另一处 `<div class="quan-bg" style="background-image:url(...)">`（inline style，错）；同时 `bg` 裸词节点 `choujiang-bg` 被生成 `<img src="choujiang-bg.png">`（用了 img，错）。v0.3.15 后 bg 节点在 h5 产物里**不再生成任何 DOM**，只挂父 background-image。
+>
+> **v0.3.11 原句歧义修正**：v0.3.11 写的"JSX `<img>` / CSS `background-image`"两个并列表述让 agent 二选一，v0.3.15 明确改为"仅父容器 CSS `background-image`"单选。
 
 > **冗余嵌套 autoLayout 的属性下穿**（v1.0.2 新增，判定/取值层的隐藏 bug 修复）：Figma 里设计师有时为了"分组"多包一层 autoLayout,但内部只有一个真正的顺流子(其他都是 abs 兄弟)。直译成 DOM 时**保留双层结构没错**(abs 兄弟需要挂在外层),但**布局属性(padding/gap/align)应该整体下穿到内层**，因为设计师改的是内层。
 >
