@@ -1,5 +1,7 @@
 # pp-d2c 命名与实现规则
 
+> **v0.3.6（2026-08-07）**：新增 §四a「父容器盒级装饰兜底（默认开）」；§八 追加「TEXT 多层 fills 处理」（多个可见 SOLID 取末位）；配套 §十二禁止项 4 条。
+
 设计稿还原时的**命名规则、图层解析规则、图片/字体/单位/框架规则**参考手册。
 无执行流程，直接按需查阅对应章节。
 
@@ -68,7 +70,7 @@
 | `img-` | 图片 | 生成 `<img>`，**不再向内递归** |
 | `bg-` | 背景图 | 图片写入**父元素** `background-image`，自身不生成 HTML，**不递归** |
 | `bgc-` | 背景色/盒级装饰 | fills/strokes/cornerRadius/effects 写入**父元素** CSS，自身不生成 HTML |
-| `btn-` | 可点击区域 | 在内容外包一层可点击容器 |
+| `btn-` | 可点击区域 | 在内容外包一层可点击容器；自身若命中「父容器盒级装饰兜底」（§四a）→ 直接把 fills/strokes/cornerRadius/effects 写到自己的容器 CSS，**不建 `bg-` 子层** |
 | `scrollx-` | 横向滚动容器 | `overflow-x: auto` + 隐藏滚动条，**继续递归子层** |
 | `scrolly-` | 纵向滚动容器 | `overflow-y: auto` + 隐藏滚动条，**继续递归子层** |
 | `fixed-` | 视口固定定位 | 在容器加 `position: fixed`，可与 `sub-/block-/btn-/img-/scrollx-/scrolly-` 叠加 |
@@ -84,9 +86,10 @@
 5. 提取 `btn-` → 记录"需要包可点击容器"
 6. 提取 `scrollx-` / `scrolly-` → 记录"需要包滚动容器"，继续递归子层
 7. 无内容前缀 → 走兜底规则
-8. 有 `btn-` → 把渲染结果包裹在可点击容器内
-9. 有 `scrollx-` / `scrolly-` → 给当前容器加 overflow 样式（不新增 wrapper）
-10. 有 `fixed-` → 在最终容器上加 `position: fixed` + constraints 推断定位值
+8. **父容器盒级装饰兜底**（§四a）：任意会生成容器的节点（含 `btn-` / `sub-` / `block-` / 无前缀 FRAME/GROUP），若命中 §四a 条件 → 把节点自身的 fills/strokes/cornerRadius/effects **写到自己的容器 CSS**（不是父元素），不切图、不要求 `bg-` 子层
+9. 有 `btn-` → 把渲染结果包裹在可点击容器内
+10. 有 `scrollx-` / `scrolly-` → 给当前容器加 overflow 样式（不新增 wrapper）
+11. 有 `fixed-` → 在最终容器上加 `position: fixed` + constraints 推断定位值
 
 ---
 
@@ -164,6 +167,65 @@
 | `effects[*].type === 'INNER_SHADOW'` | `box-shadow: inset ...` |
 | `effects[*].type === 'LAYER_BLUR'` | `filter: blur(Xpx)` |
 | `effects[*].type === 'BACKGROUND_BLUR'` | `backdrop-filter: blur(Xpx)` |
+
+---
+
+## 四a、父容器盒级装饰兜底（默认开，v0.3.6 新增）
+
+**目的**：任何普通容器（FRAME / GROUP / COMPONENT）自身带背景色、渐变、圆角、投影时，直接把这些属性写到自己的容器 CSS 上；**不需要**在下面单独建 `bg-*` 子图层再切图。这条规则针对"设计师自然命名 + Figma 原生装饰"的常见场景，`btn-` 是最典型代表。
+
+### 命中条件（全部满足才算命中）
+
+| 检查项 | 条件 |
+|-------|------|
+| 前缀 | 节点自身**不含** `img-` / `bg-` / `x-` 前缀（`btn-` / `sub-` / `block-` / `fixed-` / `scrollx-` / `scrolly-` / `end-` / `input-` / 无前缀都算） |
+| fills | 允许：空 / 单层或多层 SOLID / 单层 GRADIENT_LINEAR / GRADIENT_RADIAL；**不允许**：任何一层是 IMAGE |
+| strokes | 空 / 单层 SOLID（gradient stroke 允许，但按 bgc- 规则降级为 `box-shadow`） |
+| effects | 空 / 全部是 DROP_SHADOW / INNER_SHADOW / LAYER_BLUR / BACKGROUND_BLUR |
+| cornerRadius / rectangleCornerRadii | 任意值（含 0） |
+| 子树 | **无嵌套形状**：不含 BOOLEAN_OPERATION / VECTOR / MASK / ELLIPSE 复合形状节点；不含内层 `img-` / `bg-` 命中的位图节点（TEXT / 普通嵌套 FRAME / 兄弟 `bgc-` 都不算破坏纯净度） |
+
+命中后：**不切图**，把节点自身的 fills / strokes / cornerRadius / effects 按 §四「bgc- 规则」的映射表直接写到**当前节点生成的容器 CSS 上**（注意：`bgc-` 是写到"父元素"，本规则是写到"自身容器"，区别只在于装饰是节点自己的还是子节点的）。
+
+不命中（例如 fills 含 IMAGE，或子树含 vector 复合形状）：正常走「必须切图」的分支（`img-`/`bg-` 前缀 → §三；无前缀 → §二兜底为 `<img>`）。
+
+### 反向自检 3 行（sub-agent 处理此类节点前必须输出）
+
+```
+· 节点前缀：{prefixes}（非 img-/bg-/x- 才可能命中）
+· fills/strokes/effects/子树是否纯净？{是/否}（对照上方 5 项条件，逐一勾选）
+· 走 CSS 还是切图？{CSS / 切图}（命中 → CSS；不命中 → 切图，走 §三/§二）
+```
+
+任意一项与实际不符即停下重做。
+
+### 与 `bg-` 子层规则的兼容性
+
+- **允许旧命名**：设计师主动建 `bg-*` 子层是**旧规范**，仍然完全合法；此时子层按 §三 切图，父容器只需 flex 布局 + 定尺寸
+- **默认打开新规则**：设计师**没建** `bg-*` 子层，节点自身直接带背景/渐变/投影 → 按本规则走
+- **doctor NAM024（v0.3.6 新增）**：命中本规则的父容器下若仍存在 `bg-*` 子层 → warn（冗余告警，建议移除子层，改由父容器 CSS 表达）
+
+### 案例（对照）
+
+**旧规范**（依然合法）：
+```
+btn-qukankan (FRAME, fills=[])           ← 自己没背景
+  └── bg-btn-qukankan (RECTANGLE, fills=[渐变])    ← 单独子层切图 or CSS
+  └── TEXT "去看看"
+```
+
+**新规范默认场景**（本规则命中）：
+```
+btn-qukankan (FRAME, fills=[GRADIENT_LINEAR], cornerRadius=8)   ← 自己带渐变+圆角
+  └── TEXT "去看看"
+
+→ CSS:
+  .btn-qukankan {
+    background-image: linear-gradient(...);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+```
 
 ---
 
@@ -288,6 +350,31 @@ src = imageBaseUrl + assetsDir + filename
 
 ## 八、字体（阿里巴巴普惠体）
 
+### TEXT 多层 fills 处理（v0.3.6 新增）
+
+Figma 里同一个 TEXT 节点可以叠多层 fills（设计师改颜色时忘记删旧层是常见情况）。取字色规则：
+
+| fills 情形 | 取值 |
+|-----------|------|
+| 单层 SOLID | 直接取 |
+| 多层 SOLID，且都 `visible !== false` | **按 fills[] 顺序取最末位**（Figma 渲染顺序：后写的覆盖先写的，视觉上看到的就是最末位） |
+| 多层 SOLID，有些 `visible === false` | **跳过所有 visible:false**，再按上一条取"剩下的最末位" |
+| 单层 GRADIENT | 按 `background-clip: text` + `color: transparent` 处理（不适用 RN，RN 降级为末位近似 SOLID + QA 告警） |
+| 多层混合（SOLID + GRADIENT） | 按 Figma 渲染顺序合成；若 GRADIENT 在最上层 → `background-clip: text`；SOLID 在最上层 → 取 SOLID 色 |
+| fills 为空 | 用 Figma 默认黑 `#000` + QA 告警 |
+
+**反向自检 1 行**（sub-agent 生成 TEXT 前必须输出）：
+
+```
+· TEXT 字色：{finalColor}（fills 有 {N} 层可见 SOLID，取末位；#492b0d 覆盖为 #ffffff 这类要按 Figma 视觉走）
+```
+
+**doctor NAM025（v0.3.6 新增）**：TEXT 节点的 `fills` 有 ≥2 个可见 SOLID → info 提示：按渲染顺序取末位，防止取错色。
+
+**典型案例**：`136:45728`（"去看看"）fills = `[#492b0d, #ffffff]` → 取 `#ffffff`，而不是 `#492b0d`。
+
+---
+
 Bold / Heavy 统一使用固定 CDN，不下载到本地：
 
 | Figma 字重 | font-family | URL |
@@ -386,4 +473,7 @@ Bold / Heavy 统一使用固定 CDN，不下载到本地：
 - 禁止组件函数名、组件文件目录名以 `sub-` / `Sub` 开头：图层名 `sub-foo` 对应的组件函数名必须去掉 `sub-` 前缀后再转 PascalCase（`sub-card` → `Card`，`sub-login-form` → `LoginForm`），目录名保留原始图层名（`blocks/card/`）用于文件系统寻址，函数名严禁带 `sub-` 前缀
 - 禁止把阿里巴巴普惠体 woff2 下载到本地 assetsDir
 - 禁止在多个 block 样式里各自重复 `@font-face`（集中到页面根样式声明一次）
+- 禁止 TEXT 节点有多层可见 SOLID fills 时直接取 `fills[0]`（必须按 §八「TEXT 多层 fills 处理」取末位）
+- 禁止父容器命中 §四a 时仍强行要求设计师建 `bg-*` 子层（默认打开新规则，两种命名都合法）
+- 禁止 `img-` / `bg-` / 裸词 `img` / 裸词 `bg` 命中时跳过 REST API 调用直接复用同名文件（必须先查 images.json 的 md5，不一致或不存在就重切；见 pp-d2c §4.4）
 - 禁止用相对路径下载图片（`-o` 必须是绝对路径）

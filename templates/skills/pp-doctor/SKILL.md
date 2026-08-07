@@ -1,5 +1,11 @@
 # pp-doctor Skill
 
+> **v0.3.9（2026-08-07）**：新增 SUB029（error）——sub-agent 内部对子树含 ≥2 TEXT / ≥2 btn / ≥3 同构子节点的容器整体切图（结构维度禁切规则命中），修复 `task-block.png` 类历史事故。
+
+> **v0.3.7（2026-08-07）**：新增 2 条规则——SUB027（error，主 agent flat 合并擅自替换 sub-agent 产物，含 24a data-node-id 守恒律失败 + 24b 对 sub-*/block-* 前缀节点整体切图）、IMG028（error，assets.txt 声明的切图文件在最终产物中未被引用）。
+
+> **v0.3.6（2026-08-07）**：新增 3 条规则——NAM024（btn- 冗余 bg- 子层 / btn- 图字双写）、NAM025（TEXT 多层可见 SOLID fills 提醒）、IMG026（img-/bg- 切图未记录 nodeId 忠实度事故）。
+
 > D2C 设计稿健康检测：在生成代码前对 Figma 设计稿做体检，提前暴露命名、布局、结构、资产层面的问题。
 >
 > 完整规则定义见 `docs/d2c-health-check-spec.md`。本文件为可执行步骤。
@@ -261,6 +267,12 @@ inNonRecursiveSubtree(node) =
 | NAM021 | ℹ️ 告知 | 无需修改 | 裸词命名识别为独立前缀语义（等同 xxx- 版本处理） |
 | NAM022 | 👤 设计师 | 低（加 `-` 分隔符） | 前缀词后缺 `-`，SKILL 按普通图层兜底，可能不符合设计意图 |
 | NAM023 | 👤 设计师 | 低（补完整语义） | 修饰前缀 + 裸词组合命名，agent 意会歧义，行为不确定 |
+| NAM024 | 👤 设计师 / 🤝 共同 | 低（改命名 / 加 x-） | v0.3.6 新增：父容器命中盒级装饰兜底但仍建 bg- 子层（冗余 warn）；或 btn- 必须切图 + 内部 TEXT 未加 x- 造成图字+span 双写（error） |
+| NAM025 | ℹ️ 告知 | 无需修改 | v0.3.6 新增：TEXT 多层可见 SOLID fills，提醒 agent 按渲染顺序取末位 |
+| IMG026 | 🤝 共同 | 高（追查忠实度） | v0.3.6 新增：`img-`/`bg-` 切图节点在 images.json 中缺失或 md5 不匹配，属 skill 忠实度事故，必须重跑切图 |
+| SUB027 | 🤝 共同 | 高（回滚重合并） | v0.3.7 新增：主 agent flat 合并擅自替换 sub-agent 产物（data-node-id 守恒律失败 / 对 sub-* / block-* 前缀节点整体切图） |
+| IMG028 | 🤝 共同 | 高（回滚重合并） | v0.3.7 新增：assets.txt 声明的切图文件在最终产物中未被引用，代表主 agent 用父容器整体切图替代了 sub-agent 产物 |
+| SUB029 | 🤝 共同 | 高（回滚重切） | v0.3.9 新增：sub-agent 内部对子树含 ≥2 TEXT / ≥2 btn / ≥3 同构子节点的容器整体切图（即使无 `sub-*` / `block-*` 前缀）；结构维度禁切规则命中，`task-block.png` 类历史事故的补丁 |
 | STR001 | 👤 设计师 | 中（拍平 wrapper） | 生成的 DOM 多余嵌套，调试不便（不影响视觉） |
 | STR002 | 👤 设计师 | 低（删壳） | 同上 |
 | AST002 | 👤 设计师 | 低（调 bg- 尺寸） | bg- 露白，背景图未铺满父容器 |
@@ -540,6 +552,115 @@ inNonRecursiveSubtree(node) =
 → problem: `图层 {nodeName} 使用「修饰前缀 + 裸词」命名，语义歧义`
 → consequence: `agent 无法判断这是"{prefix1}- 修饰的裸词 {prefix2}"还是"名叫 {prefix2} 的 {prefix1}- 块"，可能按前者意会导致行为不确定`
 → fix: `改成 {prefix1}-{prefix2}-{purpose} 完整命名（例：sub-bg → sub-bg-header / block-btn → block-btn-submit）`
+
+#### 3.6m NAM024 btn- 冗余 bg- 子层 / btn- 内嵌 TEXT 双写（默认 warn / error，v0.3.6 新增）
+
+> **目的**：识别"父容器命中盒级装饰兜底"（pp-style §四a / pp-d2c §4.3）时仍存在冗余 `bg-*` 子层，或"btn- 必须切图 + 内部又生成 `<span>`/`<Text>`"的双写事故。
+
+**子规则 NAM024a**（warn）—— 冗余 `bg-` 子层：
+
+- 节点自身命中"父容器盒级装饰兜底"判定（前缀不含 `img-`/`bg-`/`x-` + fills 不含 IMAGE + strokes 空或 SOLID + effects 全是 DROP_SHADOW/blur + 子树无复合形状）
+- 且**存在**子层名以 `bg-` 开头（含裸词 `bg`）
+- `visible !== false`
+
+→ problem: `父容器 {nodeName} 命中「盒级装饰兜底」但仍建了 bg-* 子层：{childName}`
+→ consequence: `父容器的 fills/strokes/effects 完全可以直接写到 CSS，多切一张图既冗余又难维护`
+→ fix: `移除 bg-* 子层，或把父容器 fills 改为 IMAGE（如果确实需要位图背景）`
+
+**子规则 NAM024b**（error）—— btn- 图字 + span/Text 双写：
+
+- 节点带 `btn-` 前缀（或裸词 `btn`）
+- 节点 **未命中**"父容器盒级装饰兜底"（fills 含 IMAGE / 子树含 BOOLEAN_OPERATION / VECTOR / MASK / ELLIPSE 复合形状）
+- 节点子树内有 TEXT 图层（`visible !== false` 且 `characters` 非空），且 TEXT 未加 `x-` 前缀
+- `visible !== false`
+
+→ problem: `btn- 节点 {nodeName} 必须切图（含 IMAGE 或复合形状），但子树内有 TEXT "{characters}"`
+→ consequence: `切出来的图片自带文字，产物 JSX 里 span/Text 又写一遍同样的文字，出现「图字+代码字」双写事故（如 pixel-print 历史 bug: btn-qukankan/qugoupiao）`
+→ fix: `给 TEXT 图层加 x- 前缀忽略生成 span/Text；或把 btn- 底改成纯色/渐变（fills 去掉 IMAGE），让节点命中盒级装饰兜底后再走 CSS 表达`
+
+#### 3.6n NAM025 TEXT 多层可见 SOLID fills（默认 info，v0.3.6 新增）
+
+> **目的**：提醒 sub-agent 按 pp-style §八「TEXT 多层 fills 处理」按 Figma 渲染顺序取末位 SOLID，避免"设计师叠了 #492b0d + #ffffff 但代码取到 #492b0d"这类色差 bug。
+
+判定条件：
+
+- 节点 `type === 'TEXT'`
+- `fills` 数组内 `visible !== false && type === 'SOLID'` 的元素 ≥ 2 个
+- `visible !== false`
+
+→ problem: `TEXT 节点 {nodeName} 有 {N} 层可见 SOLID fills：{colorList}`
+→ consequence: `Figma 渲染顺序：后写的覆盖先写的，实际视觉色是末位；若 agent 取了 fills[0]，会出现色差 bug`
+→ fix: `按 §八「TEXT 多层 fills 处理」取末位可见 SOLID；或设计师删除多余 fills 只保留一层`
+
+#### 3.6o IMG026 img-/bg- 切图未记录 nodeId（默认 error，v0.3.6 新增）
+
+> **目的**：识别"skill 假装切了图，其实用了缓存/上一轮同名文件"这类忠实度事故。历史 bug：`gengduofuli-quan-jinqing.png` md5 与 REST API 实测导出完全对不上，追查发现 skill 没走 REST 就落图，直接从上一轮 `jingqingqidai.png` 改名复用。
+
+判定条件（由 pp-d2c 主流程在 §6.2 图片 URL 自检时执行，doctor 提供规则代码）：
+
+- 节点带 `img-` / `bg-` 前缀（或裸词 `img` / `bg`）
+- 节点应该被切图（未命中"CSS-able 自检"、未命中"盒级装饰兜底"）
+- **但** `.d2c-cache/<fileKey>/images.json` 中**不存在**该 nodeId 的记录
+- 或记录中 md5 与磁盘文件 md5 **不一致**
+
+→ problem: `切图节点 {nodeName} ({nodeId}) 在 images.json 中缺失记录 / md5 不匹配`
+→ consequence: `skill 本轮没有真正调用 REST API export-image，产物图片可能是过期缓存或同名文件复用，视觉与设计稿不一致`
+→ fix: `按 pp-d2c §4.4.0「切图强制忠实执行」重跑该节点切图流程；产物 assets.txt 必须包含 3 行溯源（API 参数 / 返回 URL / 落盘尺寸+md5）`
+
+#### 3.6p SUB027 主 agent flat 合并擅自替换 sub-agent 产物（默认 error，v0.3.7 新增）
+
+> **目的**：识别"主 agent flat 合并时用父容器整体切图（如 `sub-ui-frame734.png`）替代 sub-agent 已经落盘的拆分产物"的忠实度事故。历史事故：`figmad2c-test2/pages/Home/index.tsx` 里主 agent 用 `sub-ui-frame734.png` / `sub-ui-frame740.png` / `sub-ui-frame755.png` / `sub-gengduofuli.png` 4 张父容器整体大图覆盖了 sub-UI 的 50 个 data-node-id 拆分产物，最终 "去看看"/"去购票"/"去邀请" 字符串在 Home/index.tsx 中匹配 0 次。
+
+**子规则 SUB027a**（error）—— data-node-id 守恒律失败：
+
+- 设 sub-agent 全部产物 `blocks/*/index.tsx` 中的 `data-node-id` 集合为 S₁
+- 最终产物 `{output.dir}/{ComponentName}/index.tsx` 中的 `data-node-id` 集合为 S₂
+- **差集 S₁ - S₂ 非空**（sub-agent 交付的 nodeId 在最终产物中丢失）
+
+→ problem: `主 agent flat 合并后，{N} 个 sub-agent 交付的 data-node-id 在最终产物中丢失：{lost list}`
+→ consequence: `主 agent 绕过 sub-agent 拆分产物（大概率用父容器整体切图替代），产物结构塌陷；按钮点击态、埋点、数据绑定、无障碍全废`
+→ fix: `回滚合并，按 pp-d2c §5.0.pre「flat 模式合并忠实度契约」重新逐字展开 blocks/{sub}/index.tsx；禁止用父容器整体切图替代`
+
+**子规则 SUB027b**（error）—— 对分块边界节点整体切图：
+
+- `figma.mjs export-image` 调用的 `--ids` 参数对应的节点，其图层名以 `sub-` / `block-` 开头（或裸词 `sub` / `block`，虽然按 pp-d2c §4.3 独立裸词规则修饰前缀不允许裸词，但此处仍作为兜底判定）
+- `visible !== false`
+
+→ problem: `对分块边界节点 {nodeName} ({nodeId}) 调用 figma.mjs export-image 整体切图`
+→ consequence: `sub-* / block-* 是分块边界，必须由 sub-agent 递归内部处理；整体切图会把内部所有可拆分子层（按钮/文字/图标）烤成一张位图，触发 SUB027a 并造成 IMG028`
+→ fix: `删除该切图产物，按 pp-d2c §4.4.pre「节点整体切图适格性」重新对内部 img-/bg-/无前缀节点各自切图`
+
+#### 3.6q IMG028 assets.txt 声明的切图文件在最终产物中未被引用（默认 error，v0.3.7 新增）
+
+> **目的**：识别"sub-agent 声明切了图，但主 agent 合并时把这些拆分产物丢弃、改用父容器整体切图"的忠实度事故。IMG028 是 SUB027 的物证——sub-agent 切了 `btn-qukankan.png` 但产物中找不到 `<img src="btn-qukankan.png">` 引用。
+
+判定条件（由 pp-d2c §6.0.1 执行 grep 差集比对触发，doctor 提供规则代码）：
+
+- 设 `blocks/*/assets.txt` 声明的切图文件名集合为 F₁（提取 `- xxx.{png|svg|jpg|jpeg|webp}` 行）
+- 最终产物 `.tsx` / `.jsx` / `.scss` / `.less` / `.css` / `.module.*` 中被 `<img src>` 或 CSS `url()` 引用的文件名集合为 F₂
+- **差集 F₁ - F₂ 非空**（sub-agent 切了但产物没引用）
+
+→ problem: `{N} 张 sub-agent 声明切了的图在最终产物中未被引用：{unused list}`
+→ consequence: `主 agent 大概率用父容器整体切图（如 sub-ui-frame734.png）替代了这些拆分产物；未被引用的图既占磁盘也代表拆分产物被丢弃`
+→ fix: `回滚合并，按 pp-d2c §5.0.pre「flat 模式合并忠实度契约」重新展开；主 agent 交付前必须运行 §6.0.1 grep 自证 + §6.0.2 忠实度证明块，确保 F₁ ⊆ F₂`
+
+#### 3.6r SUB029 sub-agent 内部结构维度整体切图（默认 error，v0.3.9 新增）
+
+> **目的**：识别 sub-agent 对**结构上就是内部分块容器**（子树含多个可拆分子节点）的节点整体切图的忠实度事故。v0.3.7 §4.4.pre 只堵住"前缀维度"的整体切图（`sub-*` / `block-*`），但 sub-agent 可以借"figma 图层没打 sub- 前缀"绕过：把无前缀但结构上分块的容器（例如 Frame 734：含 3 行任务 + 独立按钮 + 独立文字）按"无前缀非文本图层兜底"整体切图。v0.3.9 §4.4.pre.b 用结构维度（子树可拆分子节点数）堵这条路径。
+
+判定条件（对 `figma.mjs export-image` 每次调用的切图源 nodeId 执行）：
+
+- 切图源 nodeId 对应 Figma 节点的**子树**满足以下**任一**条件：
+  - **多文本**：递归子树含 ≥2 个可见 TEXT，且分属不同视觉行（任两个 TEXT 的 `absoluteBoundingBox.y` 差 ≥ 4px）
+  - **多按钮**：递归子树含 ≥2 个：`btn-` 前缀节点 / 裸词 `btn` 节点 / INSTANCE / COMPONENT 型子节点
+  - **同构列表**：递归子树含 ≥3 个同层同构子节点（同类型 + bbox 相近 ±10% + 图层名同前缀或数字后缀差 1）
+- 切图源节点前缀**不是** `img-` / 裸词 `img` / `bg-` / 裸词 `bg`（这两类是设计师显式指定"整体切图"的信号，走 warn 而非 error）
+
+→ problem: `sub-agent 对节点 {nodeName} ({nodeId}) 整体切图，但其子树命中结构禁切条件：{命中条件详情}`
+→ consequence: `产物是单节点空 div + 挂大图 CSS，内含的多行文字/按钮/列表结构全部烤成位图 —— 文字失去选中/翻译/无障碍/埋点/动态替换能力，按钮失去点击/事件绑定，列表失去数据映射能力`
+→ fix: `删除该切图产物，按 pp-d2c §4.3 递归子层解析：多行文字 → 生成 <span> / <Text>；按钮 → 生成 <button> / <Pressable>；同构列表 → .map() 生成。主 agent 交付前 §6.0.2 忠实度证明块「节点整体切图适格性核查」段的"结构维度"一行必须显示 ✅ 通过`
+
+**警告版本（warn 而非 error）**：切图源前缀是 `img-` / `bg-` 但子树命中结构禁切条件——设计师主动打了 `img-` / `bg-` 前缀，但其子树含 ≥2 TEXT / ≥2 btn / ≥3 同构子。这种情况提示"设计师意图 vs skill 结构信号冲突"，让用户人工判断是否补拆分。
 
 #### 3.7 LAY001 容器缺 Auto Layout（默认 warn）
 
