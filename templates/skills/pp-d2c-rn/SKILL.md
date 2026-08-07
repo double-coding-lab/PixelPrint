@@ -1,5 +1,9 @@
 # pp-d2c-rn Skill
 
+> **v0.3.13（2026-08-08，RN 独享）**：修复 RN 侧 autoLayout 顺流子被 agent 用 `absoluteBoundingBox` 逆推成 `marginTop` / `position:absolute` 的事故（`211:266 couponCard` 场景：Figma 侧 VERTICAL/primary=CENTER/itemSpacing=5，产物中 3 个顺流子分别写 `marginTop:6` / `marginTop:6` / `position:absolute; top:70`，绕过父 flex 语义，视觉整体下移；同批 `211:103 stat` / `211:113 notifyBlock` 场景亦命中：父 `211:102 Frame 760`（VERTICAL）的顺流子被逆推成 `position:absolute; top:24` / `bottom:3`，且 `stat.paddingLeft:12` 凭空捏造、`statCol.flex:1` 违反 FIXED sizing）。改动：§4.3 新增「顺流子位置来源硬约束」章节——父 `layoutMode!=NONE` 且子 `layoutPositioning!=ABSOLUTE` 时，子 style 禁止出现 `position:absolute` / `top` / `left` / `right` / `bottom` / `marginTop` / `marginBottom` / `marginLeft` / `marginRight` / 凭空 `padding*` / 违反 FIXED sizing 的 `flex:1`；位置由父 flex 5 字段（flexDirection / justifyContent / alignItems / gap / padding）负责；配 grep 自证脚本。**本次改动只在 pp-d2c-rn 生效**，不同步到 pp-d2c（h5），doctor 暂不加规则。
+
+> **v0.3.12（2026-08-08，RN 独享）**：修复 RN 侧 `bg-*` / `img-*` 前缀节点在**中间层遍历**时的越过事故——`sub-MAIN > bg-main > Group 747 > 中秋火车票开售预测(TEXT)` 场景下，agent 因 §4.0 红线只在 sub-agent 根节点入口生效，遍历到中间层 `bg-main` 时未再判前缀，把内部 TEXT 叶子提取到了 DOM。改动：(1) §4.0 表格追加「红线扩展到中间层遍历」强制段 + grep 自证；(2) §5 合并结构里的 `styles.ts` 从"可选，也可写在 index.tsx 底部"**收紧为强制独立文件**——`StyleSheet.create` / `const styles =` / 静态 inline style 一律禁止出现在 `index.tsx` 里，避免响应式改写 / adapter 改写触碰 JSX。**本次改动只在 pp-d2c-rn 生效**，不同步到 pp-d2c（h5）。
+
 > **v0.3.11（2026-08-08）**：与 pp-d2c 对齐——新增「bg- 独立切图契约」（§4.3）：每个 `bg-*` 前缀节点必须独立走一次 export-image，禁止用祖先 `bg-*` 切图物理覆盖范围"合并省略"后代 `bg-*` 独立切图；配套 sub-agent QA 段自证 + 主 agent grep 断言（RN 侧覆盖 `require` / `source={{uri}}` / `<ImageBackground>` / `<FastImage>` / `${ASSET_PREFIX}` 五种引用形式）+ §6.0.3 忠实度证明块 7 组扩到 8 组 + doctor BGP033 error 规则。修复历史事故：sub-agent 因父 `bg-<A>` 整体切图覆盖多个同级容器区域，省略每个容器里 `bg-<B>` 独立切图，产物对应容器空 View、装饰完全丢失。
 
 > **v0.3.10（2026-08-08）**：与 pp-d2c 对齐——新增 3 组强制溯源证明块（字色 fills 溯源 §4.1.1 / sub 容器 min-height 尺寸源 §4.3 / 页面根 paddingTop 尺寸源 §4.3.1）；§6.0.3 合并忠实度证明块 4 组扩到 7 组（RN 侧字色断言含 `color:` 属性无引号 / 有引号 / 数字色三种形式）；禁止项 +3;配套 doctor CLR030 / DIM031 / DIM032。RN 侧统一 `styleFormat=stylesheet`（无 h5 style 大类分歧，不引入新 page 空档兜底）。
@@ -557,6 +561,56 @@ sub-agent 拿到根节点后，**第一步**检查根节点自身的图层名前
 
 **示例**：`sub-img-QA` → 去掉 `sub-` 后剩 `img-QA` → 命中 `img-` → 整体导出为 `qa.png`，生成 `<img src=".../qa.png" />`，不解析内部任何子图层。
 
+> **⚠️ 红线扩展到中间层遍历（v0.3.12 强制，RN 版）**：本节表格里「不解析任何子层，直接结束」的规则**不仅在 sub-agent 根节点入口生效**，在 §4.3 常规子节点遍历中同样生效。**遍历到任何一个子节点时**，第一步就是检查它的图层名前缀（去掉可能存在的 `sub-` 前缀后判剩余部分）：
+>
+> - **命中 `img-`**：立刻对该节点调 `figma.mjs export-image` 整体切图，产出**一个** `<Image>` / `<XImage>`（或 adapter 目标 tag），**不再向内递归任何一层**（内部 GROUP / FRAME / TEXT / VECTOR / RECT **全部烤入 png**，一个 DOM 节点都不产）
+> - **命中 `bg-`**：立刻对该节点调 `figma.mjs export-image` 整体切图，产出**一个** `<Image>` / `<XImage>` / `<ImageBackground>`，**不再向内递归任何一层**（内部叶子文字、装饰、贴纸**全部烤入 png**）
+> - **命中 `x-`**：跳过整个节点，不产任何代码，不再向内递归
+>
+> **典型事故示例（真实事故复盘）**：
+>
+> - Figma 侧：`sub-MAIN`(FRAME) > `bg-main`(GROUP, ABSOLUTE) > `Group 747`(GROUP) > `中秋火车票开售预测`(TEXT) + `机器-韩国贴纸`(GROUP) > `韩国`(TEXT)
+> - 错误产物（agent 越过 `bg-main` 提取了内部 TEXT）：
+>   ```tsx
+>   <XImage src={require('...main-bg.png')} data-node-id="211:39" />
+>   <XView data-node-id="211:410">                       {/* ❌ bg-main 的孙节点被单独提出 */}
+>     <XText data-node-id="211:83">中秋火车票开售预测</XText>  {/* ❌ 应烤入 png */}
+>     <XView data-node-id="211:85">
+>       <XText data-node-id="211:87">韩国</XText>             {/* ❌ 应烤入 png */}
+>     </XView>
+>   </XView>
+>   ```
+> - 正确产物（`bg-main` 见到即停，内部全部烤入 png）：
+>   ```tsx
+>   <XImage src={require('...main-bg.png')} style={styles.mainBg} data-node-id="211:39" />
+>   {/* 无任何 211:410 / 211:83 / 211:85 / 211:87 —— 它们全部烤在 main-bg.png 里 */}
+>   ```
+>
+> **诱惑与反诱惑**：agent 常见的错误动机是"文本要可编辑 / 可多语言 / 可动态绑定，所以要提到 DOM"。**本 SKILL 不接受这类动机**——如果设计师给了 `bg-*` / `img-*` 前缀，设计师就是明确表示"这块是一张不可拆的视觉资产"。文本要可编辑，让设计师改前缀（去掉 `bg-` / `img-`，或把文本层移到该 GROUP 之外）；agent **无权**替设计师做这个决定。
+>
+> **grep 自证（sub-agent 合并前必跑）**：
+>
+> ```bash
+> # 从子树 JSON 找所有 bg-* / img-* 节点 id
+> grep -Eho '"id":\s*"[^"]+","name":\s*"(bg-|img-)[^"]+"' .d2c-cache/**/nodes/*.json 2>/dev/null \
+>   | sed -E 's/.*"id":\s*"([^"]+)".*/\1/' | sort -u > /tmp/rn-imgbg-ids.txt
+>
+> # 对每个 bg-*/img-* id，扫产物 index.tsx：允许它自己出现，但它的子孙 id 一律不允许
+> for id in $(cat /tmp/rn-imgbg-ids.txt); do
+>   # 从缓存里找该 id 子孙的所有 id
+>   descendants=$(grep -A1000 "\"id\":\s*\"$id\"" .d2c-cache/**/nodes/*.json \
+>                 | grep -oE '"id":\s*"[^"]+"' | sed -E 's/.*"([^"]+)".*/\1/' \
+>                 | grep -v "^$id$" | sort -u)
+>   for d in $descendants; do
+>     if grep -q "data-node-id=\"$d\"" {output.dir}/blocks/**/index.tsx 2>/dev/null; then
+>       echo "❌ $id (bg-/img-) 的子孙 $d 出现在产物中，违反红线"
+>     fi
+>   done
+> done
+> ```
+>
+> **违反后果**：sub-agent 一律驳回、doctor 报 BGP033（v0.3.11 已挂）error 阻断合并。
+
 #### 4.0.5 嵌套 sub- 检测与上报
 
 > **执行模型说明（先于一切，避免误读）**：本节里的"sub-agent"、"派发"、"上报"都指的是 **同一个 LLM agent 顺序处理多层 SKILL 流程**——LLM 没有真正的多进程或函数调用能力。"派发新 sub-agent"实际操作是：当前 agent 处理完外层 sub- 的占位输出后，**自己重新进入 §4.0 流程**处理内层 sub- 的 nodeId（每次重新进入 §4.0 时把根节点重置为新的 nodeId、把 depth +1）。"上报到主 agent"实际操作是：当前 agent 把要交接的信息（subslots.json 内容）写到磁盘文件，下一段流程读这个文件继续。
@@ -637,6 +691,115 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 > **两端对齐提醒**:`primaryAxisAlignItems === 'SPACE_BETWEEN'` **直接翻译成 `justifyContent: 'space-between'`**,不要用其他手段模拟。
 >
 > **`layoutPositioning` vs `layoutMode`**:一个节点可以自己是 autoLayout 容器(`layoutMode = 'VERTICAL'`),同时又在父的 autoLayout 里绝对定位(`layoutPositioning = 'ABSOLUTE'`)。
+
+> **⚠️ 顺流子位置来源硬约束（v0.3.13 强制，RN 独享）**：当父 Frame 的 `layoutMode ∈ {HORIZONTAL, VERTICAL}` 且子节点 `layoutPositioning !== 'ABSOLUTE'`（即"参与父 flex 顺流的 AUTO 子节点"），**子节点的 StyleSheet 里禁止出现任何位移 / 定位属性**：
+>
+> - ❌ `position: 'absolute'`（顺流子恒为 relative / static，`position` 键根本不用写）
+> - ❌ `top` / `left` / `right` / `bottom`
+> - ❌ `marginTop` / `marginBottom` / `marginLeft` / `marginRight`（首/尾极罕见留白例外，见下）
+> - ❌ `padding*` / `flex: 1` **凭空生成**：`padding*` 每个非 0 值必须能在缓存 JSON 里找到 `paddingTop/Right/Bottom/Left` 对应原值；`flex:1` 只允许在 `layoutGrow=1` 或 `layoutSizingHorizontal/Vertical='FILL'` 时出现——父 `sizing=FIXED` 的子写 `flex:1` 直接驳回（正确写 `width:rpx(N)` / `height:rpx(N)`）
+>
+> **正确做法**：顺流子的位置**完全由父容器的 flex 5 字段决定**，子只写自己的尺寸 + 视觉属性。父容器的 5 字段**必须齐全落地**（缺一即违反）：
+>
+> | Figma REST 字段 | RN StyleSheet 属性 | 值映射 | 缺省允许? |
+> |----|----|----|----|
+> | `layoutMode: 'HORIZONTAL'` | `flexDirection: 'row'` | | 否 |
+> | `layoutMode: 'VERTICAL'` | `flexDirection: 'column'`（RN 默认，可省） | | 是（可省） |
+> | `primaryAxisAlignItems` | `justifyContent` | `MIN→'flex-start'` / `CENTER→'center'` / `MAX→'flex-end'` / `SPACE_BETWEEN→'space-between'` | 否（有值就得写） |
+> | `counterAxisAlignItems` | `alignItems` | 同上，`BASELINE → 'baseline'` | 否 |
+> | `itemSpacing: N` | `gap: rpx(N)`（或 `rowGap` / `columnGap`） | RN 0.71+ 支持 gap | 否（N>0 就必写） |
+> | `paddingTop/Right/Bottom/Left` | 同名（RN 侧全写全，不合并为 padding shorthand） | 4 边独立 rpx() | 否（>0 就写） |
+>
+> **典型事故案例（v0.3.13 修复的原型）**：
+>
+> Figma 侧 `211:266 券1备份 8`：
+> ```
+> FRAME, bbox=113×105
+> layoutMode=VERTICAL
+> primaryAxisAlignItems=CENTER    ← 主轴垂直居中
+> counterAxisAlignItems=CENTER    ← 交叉轴水平居中
+> itemSpacing=5
+> padding=[0/0/0/0]
+> children:
+>   - 211:267 bg (layoutPositioning=ABSOLUTE, 蒙版)     ← 脱流
+>   - 211:269 Frame 764 (20元 + 描述, 113×59)           ← 顺流
+>   - 211:277 btn (94×28)                              ← 顺流
+> ```
+> 顺流 2 组高 59+28+5=92，父容 105，flex 让父自动上下各留 6.5px。
+>
+> ❌ **错误产物**：
+> ```ts
+> couponCard: {
+>   position: 'relative',
+>   width: rpx(113), height: rpx(105),
+>   alignItems: 'center',
+>   // ❌ 缺 justifyContent: 'center'
+>   // ❌ 缺 rowGap: rpx(5)
+> }
+> couponTitleRow: { marginTop: rpx(6), ... }   // ❌ 用 y=6 逆推
+> couponDescCol:  { marginTop: rpx(6), ... }   // ❌ 用 y=32-26=6 逆推
+> couponBtn:      { position: 'absolute', top: rpx(70), left: rpx(9), ... }  // ❌ 绝对坐标
+> ```
+> 视觉表现：整体下移、卡内元素错位——agent 完全绕开父 flex 语义，用 bbox 逆推。
+>
+> ✅ **正确产物**：
+> ```ts
+> couponCard: {
+>   position: 'relative',                  // 允许（承接 ABSOLUTE 兄弟层 bg 的定位锚点）
+>   width: rpx(113), height: rpx(105),
+>   justifyContent: 'center',              // ← primary=CENTER 落地
+>   alignItems: 'center',                  // ← counter=CENTER 落地
+>   rowGap: rpx(5),                        // ← itemSpacing=5 落地
+> }
+> couponTitleRow: { flexDirection: 'row', alignItems: 'baseline', zIndex: 1 }   // ✅ 无 margin/position
+> couponDescCol:  { width: rpx(113), alignItems: 'center', zIndex: 1 }          // ✅ 无 margin/position
+> couponBtn:      { width: rpx(94), height: rpx(28), justifyContent: 'center', alignItems: 'center' }  // ✅ 无 absolute
+> ```
+>
+> **诱惑与反诱惑**：agent 常见的错误动机是"bbox 是明确数字，flex 是抽象规则，用 bbox 更精准"。**本 SKILL 不接受这类动机**——bbox 逆推会绑死首个子节点内容长度、破坏响应式、破坏后期文案改动的自适应。**设计师用了 autoLayout = 明确表达"这里是自适应布局"**，agent 无权替设计师改回绝对定位。
+>
+> **首尾 margin 极罕见例外**：仅当 Figma 顺流子的 `absoluteBoundingBox` 与 flex 计算结果差异 > 2px 且不能用 gap / padding 解释时，可对**首个或末尾**子加 `marginTop` / `marginBottom` 补齐；同时在 §7 QA info 段写一行告警"bbox-vs-flex 偏差补齐"。**中间子节点绝对不允许**（中间子有偏差就是父的 gap 或 padding 缺了）。
+>
+> **grep 自证（sub-agent 合并前必跑，合并后主 agent 再跑一次）**：
+>
+> ```bash
+> # 1. 从缓存 JSON 提取所有"父 layoutMode!=NONE + 子 layoutPositioning=AUTO"的子节点 id
+> #    (脚本简化版：找每个 FRAME 的 layoutMode 字段，若非 NONE，遍历其 children 里
+> #     layoutPositioning != 'ABSOLUTE' 的 id 收集)
+> python3 -c "
+> import json, glob
+> ids = set()
+> for f in glob.glob('.d2c-cache/**/nodes/*.json', recursive=True):
+>     d = json.load(open(f))
+>     def walk(n):
+>         lm = n.get('layoutMode','NONE')
+>         if lm in ('HORIZONTAL','VERTICAL'):
+>             for c in n.get('children',[]):
+>                 if c.get('layoutPositioning','AUTO') != 'ABSOLUTE':
+>                     ids.add(c.get('id',''))
+>         for c in n.get('children',[]):
+>             walk(c)
+>     walk(d.get('node', d))
+> for i in sorted(ids): print(i)
+> " > /tmp/rn-flow-children.txt
+>
+> # 2. 对每个顺流子 id，扫产物 style 里禁止属性
+> for id in $(cat /tmp/rn-flow-children.txt); do
+>   # 从 index.tsx 找 style 名（如 data-node-id="211:270" style={styles.couponTitleRow}）
+>   sname=$(grep -oE "style=\{styles\.[A-Za-z][A-Za-z0-9]*\}[^>]*data-node-id=\"$id\"" {output.dir}/**/index.tsx 2>/dev/null \
+>           | sed -E 's/.*styles\.([A-Za-z0-9]+).*/\1/' | head -1)
+>   [ -z "$sname" ] && continue
+>   # 扫 styles.ts 里该 key 的定义
+>   block=$(awk "/^\t${sname}:/,/^\t\}/" {output.dir}/**/styles.ts 2>/dev/null)
+>   for bad in "position: 'absolute'" "marginTop" "marginBottom" "^\s*top:" "^\s*left:"; do
+>     if echo "$block" | grep -qE "$bad"; then
+>       echo "❌ $id ($sname) 是父 autoLayout 顺流子，style 里出现禁止属性: $bad"
+>     fi
+>   done
+> done
+> ```
+>
+> **违反后果**：sub-agent 一律驳回本 block，回到 §4.3 重新走一遍父 flex 5 字段映射；不允许"部分正确、局部保留"合并。
 
 > **FIXED 塌陷防御**(v1.0.2 新增,容器高度写法的第 3 个补充规则):Figma `layoutSizingVertical: FIXED N` 到 RN StyleSheet 有 3 种落地方式,按下表选:
 >
@@ -2040,36 +2203,110 @@ figmaBase: 375   outputBase: 375   scale: 1   outputUnit: 无(RN 数值单位是
 
 嵌套 sub- 生成嵌套目录结构:
 
+> **⚠️ 样式独立契约（v0.3.12 强制，RN 版）**：每个 block 目录（包括顶层 `ComponentName/` 和每个 `blocks/<name>/`）**必须**同时包含 `index.tsx`（JSX 主体）和 `styles.ts`（StyleSheet 定义）**两个独立文件**。**禁止**把 `StyleSheet.create({...})` 或 `const styles = ...` 写在 `index.tsx` 里（无论文件末尾还是任何位置）。理由：JSX 结构 + 样式并存一个文件时，agent 在响应式改写 / adapter 改写 / 后续维护中会误伤 JSX；独立 styles.ts 让 §5.4 rpx 包装、§5.5 adapter 改写只需要重写 styles.ts 而不触碰 index.tsx。
+>
+> **规范文件对**：
+>
+> ```
+> blocks/content/
+>   ├── index.tsx    ← 只写 JSX + import styles from './styles'
+>   └── styles.ts    ← 只写 StyleSheet.create({...}) + export default styles
+> ```
+>
+> **`index.tsx` 内容边界**：
+>
+> ```tsx
+> import React from 'react'
+> import { View, Text, Image } from 'react-native'
+> import styles from './styles'   // ← 从独立文件 import
+>
+> export default function Content() {
+>   return (
+>     <View style={styles.content}>
+>       {/* ... JSX only ... */}
+>     </View>
+>   )
+> }
+> ```
+>
+> **`styles.ts` 内容边界**：
+>
+> ```ts
+> import { StyleSheet } from 'react-native'
+> // 如启用 §5.4 响应式：import { rpx } from '@/utils/rpx'
+>
+> const styles = StyleSheet.create({
+>   content: {
+>     flex: 1,
+>     backgroundColor: '#ff6600',
+>   },
+>   // ... 其余键
+> })
+>
+> export default styles
+> ```
+>
+> **禁止项**（doctor / sub-agent QA / 主 agent grep 三层拦截）：
+>
+> - ❌ `index.tsx` 里出现 `StyleSheet.create` 或 `StyleSheet.flatten`
+> - ❌ `index.tsx` 里出现 `const styles =` / `const XXXStyles =` 定义（导入 `import styles from './styles'` 允许）
+> - ❌ `index.tsx` 里出现 `style={{ ... }}`（inline 对象字面量）—— 除非该 style 对象里**只有**动态值（如 `style={{ opacity: fadeAnim }}` 允许，因为动态值无法预写进 styles.ts；纯静态如 `style={{ marginTop: 12 }}` 一律移到 styles.ts）
+> - ❌ block 目录缺 `styles.ts` 文件
+>
+> **grep 自证**（合并前必跑）：
+>
+> ```bash
+> # 1. 每个 block 都得有 styles.ts
+> for dir in $(find {output.dir} -type d -name 'blocks' -prune -o -type d -print | grep -E '/(blocks/[^/]+|[A-Z][a-zA-Z]+)$'); do
+>   [ -f "$dir/index.tsx" ] || continue
+>   [ -f "$dir/styles.ts" ] || echo "❌ $dir 缺 styles.ts"
+> done
+>
+> # 2. index.tsx 里不能有 StyleSheet.create / const styles = / 纯静态 inline style
+> grep -rn 'StyleSheet\.create\|^const styles =\|^const [A-Z][a-zA-Z]*Styles =' \
+>   {output.dir}/**/index.tsx 2>/dev/null \
+>   && echo "❌ index.tsx 里发现样式定义，必须移到 styles.ts"
+>
+> # 3. inline style 对象字面量（宽松检测，容忍单变量表达式）
+> grep -Eno 'style=\{\{[^}]*[0-9'\''"]' {output.dir}/**/index.tsx 2>/dev/null \
+>   && echo "⚠️  index.tsx 里发现疑似静态 inline style，请检查是否应移到 styles.ts"
+> ```
+
 ```
 {output.dir}/
 ├── ComponentName/
-│   ├── index.tsx                ← 主文件,import 顶层 block 子组件 + StyleSheet
-│   └── styles.ts                ← 主文件 StyleSheet.create({...}) 的 styles 定义(可选,也可写在 index.tsx 底部)
+│   ├── index.tsx                ← 主文件,只放 JSX + import styles from './styles'
+│   └── styles.ts                ← 主文件 StyleSheet.create({...}) 定义（**强制独立文件**,不允许写在 index.tsx 里）
 └── blocks/
     ├── content/                 ← Block 1: sub-content (depth=1)
     │   ├── index.tsx
-    │   └── styles.ts (可选)
+    │   ├── styles.ts            ← **强制独立文件**
     │   └── blocks/              ← 嵌套:内层 sub- 在父 block 的 blocks/ 子目录
     │       ├── card/            ← Block 1.1: sub-card (depth=2)
-    │       │   └── index.tsx
+    │       │   ├── index.tsx
+    │       │   └── styles.ts    ← **强制独立文件**
     │       └── scrolly-车票列表/ ← Block 1.2: sub-scrolly-车票列表 (depth=2)
-    │           └── index.tsx
+    │           ├── index.tsx
+    │           └── styles.ts    ← **强制独立文件**
     └── img-QA/                  ← Block 2: sub-img-QA (depth=1)
         └── ...
 ```
 
 **注意与 h5 的差异**:
-- 无独立样式文件(`.scss` / `.module.scss` 都没有);样式写在 `index.tsx` 同文件底部的 `const styles = StyleSheet.create({...})`,或抽到同级 `styles.ts`
+- 独立样式文件是 `styles.ts`（不是 `.scss` / `.module.scss`）；样式**必须**写在这个独立文件里，**禁止**混写进 `index.tsx`（详见上文"样式独立契约"）
 - 无 `<div>`,统一用 `<View>` / `<Text>` / `<Image>` / `<Pressable>` / `<TextInput>` / `<ScrollView>` 六件套
 - 无 `className`,统一用 `style={styles.xxx}`
 
 主文件示例(顶层):
 
+`ComponentName/index.tsx`:
+
 ```tsx
 import React from 'react'
-import { View, StyleSheet } from 'react-native'
+import { View } from 'react-native'
 import Content from './blocks/content'
 import ImgQA from './blocks/img-QA'
+import styles from './styles'   // ← 从独立 styles.ts import
 
 export default function ComponentName() {
   return (
@@ -2079,23 +2316,34 @@ export default function ComponentName() {
     </View>
   )
 }
+```
+
+`ComponentName/styles.ts`（**独立文件，强制**）:
+
+```ts
+import { StyleSheet } from 'react-native'
 
 const styles = StyleSheet.create({
   componentName: {
     flex: 1,
     backgroundColor: '#ff6600',
     // ... 其余属性
-  }
+  },
 })
+
+export default styles
 ```
 
 父 block index.tsx 示例(含嵌套):
 
+`blocks/content/index.tsx`:
+
 ```tsx
 import React from 'react'
-import { View, StyleSheet } from 'react-native'
+import { View } from 'react-native'
 import Card from './blocks/card'
 import ScrollyList from './blocks/scrolly-车票列表'
+import styles from './styles'
 
 export default function Content() {
   return (
@@ -2107,10 +2355,18 @@ export default function Content() {
     </View>
   )
 }
+```
+
+`blocks/content/styles.ts`（**独立文件，强制**）:
+
+```ts
+import { StyleSheet } from 'react-native'
 
 const styles = StyleSheet.create({
-  content: { /* ... */ }
+  content: { /* ... */ },
 })
+
+export default styles
 ```
 
 #### flat 模式(rn 版)
@@ -2118,8 +2374,8 @@ const styles = StyleSheet.create({
 ```
 {output.dir}/
 ├── ComponentName/
-│   ├── index.tsx        ← 所有 block JSX 递归展开后平铺 + 合并的 StyleSheet
-│   └── styles.ts        ← 所有 block 样式合并后的 StyleSheet.create 对象(可选)
+│   ├── index.tsx        ← 所有 block JSX 递归展开后平铺（只 JSX + import styles from './styles'）
+│   └── styles.ts        ← 所有 block 样式合并后的 StyleSheet.create 对象（**强制独立文件**）
 └── blocks/              ← 保留所有层级,不删除
     └── content/
         └── blocks/
