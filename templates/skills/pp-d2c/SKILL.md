@@ -1,5 +1,7 @@
 # pp-d2c Skill
 
+> **v0.3.10（2026-08-08）**：新增 3 组强制溯源证明块（字色 fills 溯源 §4.1.1 / sub 容器 min-height 尺寸源 §4.3 / 页面根 padding-top 尺寸源 §4.3.1）；§2.5.2 判定链补权威兜底（新 page 无既有 import 参考 → `config.styleFormat` 为权威，不允许脑补大类）；§6.0.2 合并忠实度证明块 3 组扩到 6 组；禁止项 +3；配套 doctor CLR030 / DIM031 / DIM032。修复 figmad2c-test2 新稿事故：Frame745「立即抢」字色写 #ffffff（应末位 #864500）、`.baseBackground padding-top:236px`（应 paddingTop=166×2=332px）、`.main min-height:1125px`（应 sub-MAIN 自身 520×2=1040px）、生成 `.module.scss` + `styles.xxx`（应按 config plain scss 走 P-B）。
+
 > **v0.3.9（2026-08-07）**：新增 §4.4.pre.b「子树结构禁切规则」——对子树含 ≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点的容器**永远禁止**整体切图（结构维度优先于前缀维度）；§4.4 前置自检 5 行 → 7 行（追加子树扫描）；§4.8 checklist + §6.0.2 忠实度证明块 + 禁止项 各追加 1 条；配套 doctor SUB029。修复 v0.3.7/v0.3.8 遗留漏洞：sub-agent 借"无前缀非文本图层兜底"绕过 §4.4.pre 主表，把 Frame 734（含 3 行任务）烤成 task-block.png 大图。
 
 > **v0.3.8（2026-08-07）**：新增「问题边界」章节（顶部执行模型说明内）——明确 agent 只能问业务问题，禁止问 skill 已定死的技术决策问题（切图/兜底/合并/尺寸/命名冲突等）；遇 skill 未覆盖的边界情形须按最接近规则兜底 + 写 QA 告警，禁止打断用户；配套 §4.8 checklist +1 条 + §6.0.2 忠实度证明块 +「未打断用户核查」段 + 禁止项 +1 条。
@@ -394,8 +396,20 @@ img-*   → 主 agent 处理，生成 <img>
      - `import styles from './index.module.scss'` / `'.module.less'` / `'.module.css'` → **css-modules**
    - 看文件名：`*.module.{scss,less,css}` → css-modules；`*.{scss,less,css}` 且非 module → 普通 stylesheet
    - 看周边页面的引法：如果项目里既有普通形态又有 module 形态，**以本页面实际写法为准**
+   - **新 page 兜底（v0.3.10 新增）**：如果当前正在**创建全新页面**（`output.dir` 下无已存在的目标 `.jsx`/`.tsx` 入口，或该入口存在但**尚未** import 任何样式文件），也没有相邻同 output 目录页面可参考（`output.dir` 下其他 page 一个都没有），此时**必须以 config `project.styleFormat` 为唯一权威**——见下方"新 page 空档"表；**禁止**脑补大类（历史事故：figmad2c-test2 明确配 `"styleFormat":"scss"`（plain P），agent 生成新 page 时脑补成 `.module.scss` + `className={styles.x}` M 大类）。
    - **结论二选一：`plain stylesheet` / `css-modules`**（预处理语法用什么不影响这个结论）
    > ⚠️ **关键**：`:global(body)` 语法**只在 css-modules 下有效**。在普通 stylesheet（无论 scss/less/css）里写 `:global(...)`，浏览器会原样接收选择器并解析失败，**body 背景不会生效**——这是 D2C 最常见的"我明明写了 body 背景但页面还是白底"的根因。
+
+   **新 page 空档权威表**（v0.3.10 新增）：
+
+   | config `styleFormat` | 大类 | 生成文件后缀 | className 写法 | 顶部 import |
+   |---|---|---|---|---|
+   | `scss` / `less` / `css`（**plain**） | **P** | `index.scss` / `.less` / `.css` | `className="card"`（**裸类名**） | `import './index.scss'` |
+   | `scss-modules` / `less-modules` / `css-modules`（**M**） | **M** | `index.module.scss` / `.module.less` / `.module.css` | `className={styles.card}` | `import styles from './index.module.scss'` |
+   | `stylesheet` / `styled-components` / `nativewind`（RN） | **J** | 见 pp-d2c-rn | 见 pp-d2c-rn | 见 pp-d2c-rn |
+   | `tailwind` / `inline` | **J** | 无独立样式文件（内联） | class 是 tailwind atomic / style 对象 | 无 |
+
+   **判定链权威等级**：既有 import 实证 > 项目内已存在同 output 目录 page 参考 > `config.project.styleFormat`（新 page 空档兜底权威）。同一项目里 page A 是 module、page B 是 plain 的情况仍然合法——若目标页面之前实际存在，仍按第一项实证；只有"当前是创建全新页面且无参考"这一情况才落到 config 权威。
 
 2. **检查 `output.dir` 同级（或父级 1-2 层内）有几个 page 入口**：
    - `pages/` 下多个 `*.jsx` / `*.tsx`（Next.js / nfes 多页面） → 多页
@@ -680,6 +694,47 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 >
 > **兼容点**：`min-height` 相较 `height` 只是"下限保底"，不影响设计稿本意。旧产物用 `height` 出现的塌陷问题(bg 层跟着塌成一条)全部由本规则统一收敛。
 
+> **sub 容器 min-height 尺寸源证明（v0.3.10 强制）**：`sub-` / `block-` 容器写 `min-height` 时，尺寸源**必须**取节点**自身**的 `absoluteBoundingBox.height`，**禁止**取兄弟 `bg-` / `bgc-` 层的高度（哪怕兄弟层比自身高——bg 兄弟层在 Figma 里常"溢出到下方指南区"作装饰，与父容器主内容区不等）。
+>
+> **sub-agent 交付每个 `sub-` / `block-` 容器前必须在 `blocks/{sub}/assets.txt` QA 段写一行**：
+>
+> ```
+> · SUB容器 {nodeId} name="{nodeName}" 自身h={H1} bg兄弟层h={H2 或 "无"} min-height写入={H1 * scale}px（scale={S}）
+> ```
+>
+> 其中 `min-height 写入` 值必须严格等于 `H1 * scale`，**不允许**是 `H2 * scale`。
+>
+> **主 agent 合并前 grep 自证命令**（§6.0.2 证明块中「sub 容器 min-height 尺寸源」段引用）：
+>
+> ```bash
+> # 从 assets.txt 提取所有 SUB 容器溯源行
+> grep -Eho '^· SUB容器 [0-9]+:[0-9]+ .* min-height写入=[0-9]+px' {output.dir}/blocks/**/assets.txt 2>/dev/null \
+>   > /tmp/sub-minh-declared.txt
+>
+> # 对每一行断言：min-height 写入 == 自身h * scale
+> ERRORS=0
+> while read line; do
+>   H1=$(echo "$line" | sed -E 's/.*自身h=([0-9.]+).*/\1/')
+>   S=$(echo "$line" | sed -E 's/.*scale=([0-9.]+).*/\1/')
+>   WROTE=$(echo "$line" | sed -E 's/.*min-height写入=([0-9]+)px.*/\1/')
+>   EXPECT=$(awk "BEGIN{printf \"%d\", $H1 * $S}")
+>   if [ "$WROTE" != "$EXPECT" ]; then
+>     echo "❌ SUB min-height 尺寸源错：$line 应写入 ${EXPECT}px"
+>     ERRORS=$((ERRORS + 1))
+>   fi
+> done < /tmp/sub-minh-declared.txt
+>
+> if [ "$ERRORS" = "0" ]; then
+>   echo "✅ sub 容器 min-height 尺寸源契约通过：$(wc -l < /tmp/sub-minh-declared.txt) 个容器全部按自身尺寸写入"
+> else
+>   echo "❌ $ERRORS 个容器把 bg 兄弟层高度错写到 min-height，触发 doctor DIM031（v0.3.10）"
+> fi
+> ```
+>
+> **典型案例**：`.main { min-height: 1125px }` = bg-main 兄弟层 562.5×2 → 错。应取 sub-MAIN 自身 h=520 → `min-height: 1040px`。理由：设计师给 sub- 打 FIXED = 主内容区高度约束；bg- 兄弟层高度 = 装饰视觉，不代表主内容区高度。这两个尺寸绝大多数情况就是不等的，任何一次"因为兄弟层比自身高就取兄弟层"都是 skill 忠实度事故。
+>
+> **doctor 关联规则**：DIM031（v0.3.10 新增，error）—— sub-/block- 容器 min-height 写入值 = 兄弟 bg 层高度 而非自身高度，参见 pp-doctor §3.6s。
+
 > **冗余嵌套 autoLayout 的属性下穿**（v1.0.2 新增，判定/取值层的隐藏 bug 修复）：Figma 里设计师有时为了"分组"多包一层 autoLayout,但内部只有一个真正的顺流子(其他都是 abs 兄弟)。直译成 DOM 时**保留双层结构没错**(abs 兄弟需要挂在外层),但**布局属性(padding/gap/align)应该整体下穿到内层**，因为设计师改的是内层。
 >
 > **触发条件（全部满足才命中）**：
@@ -787,6 +842,42 @@ Figma 里一个 TEXT 节点可以叠多层 `fills`。取字色遵循下表（详
 **典型案例**：`136:45728`（"去看看"）fills = `[#492b0d visible:true, #ffffff visible:true]` → 取 `#ffffff`，而不是 `#492b0d`。
 
 **doctor NAM025（v0.3.6 新增）**：TEXT 节点 `fills` 有 ≥2 个可见 SOLID → info 提示，防止取错色。
+
+**字色 fills 溯源证明（v0.3.10 强制，每个 TEXT 交付前写 assets.txt QA 一行）**：
+
+sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA 段末尾追加**每个 TEXT 节点一行**的溯源记录，格式：
+
+```
+· TEXT {nodeId} "{text}" fills层数={N} 可见SOLID列表=[#hex1, #hex2, ..., #hexN] 末位可见色={#hexN} 最终写入={#final}
+```
+
+其中 `{#final}` 必须严格等于 `{#hexN}`。**违反即视为字色事故**（doctor CLR030 error）。
+
+**主 agent 合并前 grep 自证命令**（§6.0.2 证明块中「字色 fills 溯源」段引用）：
+
+```bash
+# 1. 从 assets.txt 提取所有 TEXT 溯源行，抽出 {最终写入} 值
+grep -Eho '^· TEXT [0-9]+:[0-9]+ .* 最终写入=#[0-9a-fA-F]{3,8}' {output.dir}/blocks/**/assets.txt 2>/dev/null \
+  | sed -E 's/.*最终写入=(#[0-9a-fA-F]{3,8}).*/\1/' | sort -u > /tmp/text-color-declared.txt
+
+# 2. 从产物提取 color: '#...' / color: "#..." 的字色写入（含 style / scss / less / css）
+grep -rEho "color:\s*['\"]#[0-9a-fA-F]{3,8}['\"]|color:\s*#[0-9a-fA-F]{3,8}" {output.dir}/ \
+  --include='*.tsx' --include='*.jsx' --include='*.scss' --include='*.less' --include='*.css' 2>/dev/null \
+  | grep -oE '#[0-9a-fA-F]{3,8}' | sort -u > /tmp/text-color-used.txt
+
+# 3. 差集 declared - used（"assets.txt 声明取末位，但产物里根本没这个色" → 幻觉字色事故）
+comm -23 /tmp/text-color-declared.txt /tmp/text-color-used.txt > /tmp/text-color-lost.txt
+LOST=$(wc -l < /tmp/text-color-lost.txt)
+
+if [ "$LOST" = "0" ]; then
+  echo "✅ TEXT 字色溯源契约通过：$(wc -l < /tmp/text-color-declared.txt) 种末位色全部在产物中出现"
+else
+  echo "❌ 声明取末位但产物没写入的色：$(cat /tmp/text-color-lost.txt | tr '\n' ' ')"
+  echo "   触发 doctor CLR030（v0.3.10）：sub-agent 违反 §4.1.1「末位取色」——历史 bug: 立即抢 #ffffff（应 #864500 末位）"
+fi
+```
+
+> **反幻觉说明**：`.quan__card-btn-text { color: '#492b0d' }` 这类事故（fills 里根本没这个色）在本自证中会被 100% 抓到——因为 declared 集合（末位色）绝无 `#492b0d`。
 
 #### 4.2 隐藏图层处理
 
@@ -1340,6 +1431,60 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 - **NAM020 error**：`input-` 与 `img-` / `btn-` 叠加（语义冲突）
 
 **典型场景**：登录表单（手机号、密码）、订单填写（乘车人姓名、身份证、备注）、搜索框、评论框（v0.3.4 只覆盖单行 input，多行留给后续 textarea 前缀）。
+
+#### 4.3.1 页面根 padding-top 尺寸源证明（v0.3.10 强制）
+
+**目的**：页面顶层容器（用户传入的 nodeId 对应的 Figma 节点）的 `padding-top` **必须**取该节点自身 `paddingTop` 字段值 × scale，**禁止**取 `fixed-` 状态栏 / 顶部导航栏子层的高度替代。
+
+**背景**：Figma 页面顶层 frame 常常同时有：
+- **自身 `paddingTop` 字段**（例：166）：设计师给主内容区上方预留的间距
+- **`fixed-` 状态栏子层**（例：118 高）：绝对定位在顶部的固定栏
+
+这两个值**大概率就是不等的**，因为：
+- `fixed-` 层是 `layoutPositioning: ABSOLUTE` 脱离父 flex 顺流，不参与 padding 计算
+- `paddingTop` 是设计师给主内容区留的实际视觉间距（可能包含状态栏 + 底下再留一点）
+- **主 agent 必须**从 Figma 节点的 `paddingTop` **字段本身**取值，禁止用"上方的 fixed 子层高度"脑补替代
+
+**溯源证明格式**（主 agent 合并前必须在**主页面产物**同级 `assets.txt`（若无则新建 `pages/<page>/assets.txt`）或对话中输出一行）：
+
+```
+· PAGE根 {pageNodeId} name="{pageName}" figmaPaddingTop={P} fixed状态栏h={S 或 "无"} padding-top写入={P * scale}px（scale={S_scale}）
+```
+
+其中 `padding-top 写入` 值必须严格等于 `figmaPaddingTop × scale`，**不允许**是 `fixed状态栏h × scale`。
+
+**主 agent 合并前 grep 自证命令**（§6.0.2 证明块中「页面根 padding-top 尺寸源」段引用）：
+
+```bash
+# 从主页面 assets.txt / 或专用溯源文件提取 PAGE根 溯源行
+grep -Eho '^· PAGE根 [0-9]+:[0-9]+ .* padding-top写入=[0-9]+px' {output.dir}/**/assets.txt 2>/dev/null \
+  > /tmp/page-padt-declared.txt
+
+# 断言 padding-top 写入 == figmaPaddingTop * scale
+ERRORS=0
+while read line; do
+  P=$(echo "$line" | sed -E 's/.*figmaPaddingTop=([0-9.]+).*/\1/')
+  S=$(echo "$line" | sed -E 's/.*scale=([0-9.]+).*/\1/')
+  WROTE=$(echo "$line" | sed -E 's/.*padding-top写入=([0-9]+)px.*/\1/')
+  EXPECT=$(awk "BEGIN{printf \"%d\", $P * $S}")
+  if [ "$WROTE" != "$EXPECT" ]; then
+    echo "❌ 页面 padding-top 尺寸源错：$line 应写入 ${EXPECT}px"
+    ERRORS=$((ERRORS + 1))
+  fi
+done < /tmp/page-padt-declared.txt
+
+if [ "$ERRORS" = "0" ]; then
+  echo "✅ 页面根 padding-top 尺寸源契约通过"
+else
+  echo "❌ $ERRORS 个页面把 fixed 状态栏高度错写到 padding-top，触发 doctor DIM032（v0.3.10）"
+fi
+```
+
+**典型案例**：`.baseBackground { padding-top: 236px }` = fixed-状态栏 118×2 → 错。应取页面 `paddingTop=166` × 2 = **332px**。
+
+**为什么不写"取二者中较大值 / 二者之和"**：agent 一旦被允许"综合推断"就会脑补——skill 的忠实度契约要求每个数值有明确的字段出处，禁止综合演算。若 Figma 设计里 fixed- 层视觉上叠在 padding-top 区域上，那是设计师本意（padding 区留出了状态栏叠加的空间），主 agent 不需要额外补偿。
+
+**doctor 关联规则**：DIM032（v0.3.10 新增，error）—— 页面根 padding-top 写入值 ≠ `figmaNode.paddingTop × scale`，参见 pp-doctor §3.6t。
 
 #### 4.4 图片处理
 
@@ -2010,6 +2155,22 @@ fi
 - 本轮 agent 是否向用户提过任何 skill 已定死的技术决策问题？（切图/兜底/合并/尺寸/命名冲突等）{否 / 是: 问题清单}
 - 若遇 skill 未覆盖的边界情形，是否已按最接近规则兜底 + 写 QA 告警而非打断用户？{是 / 否: 说明}
 - 结果：{✅ 通过 / ❌ 失败}
+
+## 字色 fills 溯源（v0.3.10 新增，§4.1.1）
+- 所有 TEXT 溯源行的 `最终写入=#hex` 集合大小：{count(declared)}
+- 产物中 `color: #hex` 集合大小：{count(used)}
+- 差集 declared - used：{"空" 或 "lost: #hex1, ..."}（非空 = 声明取末位但产物没写入，属幻觉字色事故）
+- 结果：{✅ 通过 / ❌ 失败}
+
+## sub 容器 min-height 尺寸源（v0.3.10 新增，§4.3）
+- 逐 sub-/block- 容器 `min-height 写入 == 自身h × scale` 断言错项数：{count(errors)}
+- 错项列表（若非零）：{"[节点名] 应写 XXXpx 实写 YYYpx（把兄弟 bg 层高度错写为 min-height）"}
+- 结果：{✅ 通过 / ❌ 失败}
+
+## 页面根 padding-top 尺寸源（v0.3.10 新增，§4.3.1）
+- 逐页面 `padding-top 写入 == figmaPaddingTop × scale` 断言错项数：{count(errors)}
+- 错项列表（若非零）：{"[页面名] 应写 XXXpx 实写 YYYpx（把 fixed 状态栏高度错写为 padding-top）"}
+- 结果：{✅ 通过 / ❌ 失败}
 ```
 
 任意一条 ❌ 失败 → 合并阶段不算完成，主 agent 必须回滚，重新按 sub-agent 产物逐字展开，禁止用父容器整体切图替代。
@@ -2141,3 +2302,7 @@ EOF
 - 禁止跳过步骤 7 之前的「合并忠实度证明块」输出（v0.3.7 §6.0.2）：主 agent 必须在对话里写"data-node-id 守恒律 / assets.txt 消费契约 / 节点整体切图适格性"三组结果；未输出即视为交付不合格
 - 禁止向用户提 skill 已定死的技术决策问题（v0.3.8 §问题边界）：包括但不限于"要不要整体切图 / 用不用 CSS 表达 / 多层 fills 取哪个 / 尺寸要不要换算 / 合并这块用什么方式"等。遇 skill 未覆盖的边界情形，必须按最接近规则兜底 + 写 QA 告警，禁止打断用户；仅在产物完全不可用（token 缺失 / Figma 稿无法访问 / 关键 assets 下载失败超重试次数 / config 语法错误）时才允许问用户
 - 禁止对子树含 ≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点的容器整体切图（v0.3.9 §4.4.pre.b 结构维度禁切）——即使该节点前缀不是 `sub-*` / `block-*`（例如无前缀 FRAME/GROUP，或名字叫 `Frame 734` 这类没打前缀但结构上就是内部分块的容器）。sub-agent 每次切图前必须完成 §4.4 前置自检 7 行的最后 2 行子树扫描；命中即立即停下重做，走 §4.3 递归子层解析。历史事故 `task-block.png` 就是走"无前缀非文本图层兜底整体切图"路径把 Frame 734（含 3 行任务 + 独立按钮 + 独立文字）烤成大图，v0.3.9 后此路径被结构维度堵死
+- 禁止 TEXT 节点交付时省略字色 fills 溯源（v0.3.10 §4.1.1）：sub-agent 每个 TEXT 必须在 `blocks/{sub}/assets.txt` QA 段写一行 `· TEXT {nodeId} "..." fills层数=N 可见SOLID列表=[...] 末位可见色=#hexN 最终写入=#final`，且 `#final` 必须严格等于 `#hexN`；产物中 `color: #x` 集合必须包含 declared 集合的每一项。历史事故：Frame745「立即抢」写 `#ffffff`（fills 末位 `#864500`）、`.quan__card-btn-text` 写 `#492b0d`（fills 里根本无此色，幻觉字色）—— doctor CLR030 error
+- 禁止 sub-/block- 容器 min-height 写入值 = 兄弟 bg 层高度而非自身高度（v0.3.10 §4.3）：sub-agent 每个 sub-/block- 容器必须在 assets.txt QA 段写一行 `· SUB容器 {nodeId} name=... 自身h=H1 bg兄弟层h=H2 min-height写入=H1×scale`，且写入值必须严格等于 `H1 × scale`。历史事故：`.main { min-height: 1125px }` = bg-main 兄弟层 562.5×2（错），应取 sub-MAIN 自身 h=520 → 1040px —— doctor DIM031 error
+- 禁止页面根 padding-top 写入值 ≠ `figmaNode.paddingTop × scale`（v0.3.10 §4.3.1）：主 agent 必须在主页面产物同级 assets.txt（或对话）中输出一行 `· PAGE根 {pageNodeId} name=... figmaPaddingTop=P fixed状态栏h=S padding-top写入=P×scale`，禁止用 fixed 状态栏高度替代 `paddingTop` 字段。历史事故：`.baseBackground { padding-top: 236px }` = fixed 状态栏 118×2（错），应取 paddingTop=166 → 332px —— doctor DIM032 error
+- 禁止在"新 page 空档"情形（output.dir 无同名入口、也无相邻 page 参考）脑补样式大类（v0.3.10 §2.5.2）：必须以 config `project.styleFormat` 为唯一权威（plain scss/less/css → P 大类裸类名；scss-modules 等 → M 大类 styles.x）。历史事故：figmad2c-test2 明确配 `"styleFormat":"scss"` 却生成 `styles.module.scss` + `className={styles.container}`（M 大类），既违反 config 也让下游手工整改

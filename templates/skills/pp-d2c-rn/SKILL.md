@@ -1,6 +1,8 @@
 # pp-d2c-rn Skill
 
-> **v0.3.9（2026-08-07）**：与 pp-d2c 对齐——新增 §4.4.pre.b「子树结构禁切规则」（结构维度优先于前缀维度）；§4.4 前置自检 5 行 → 7 行；§4.8 checklist + §6.0.3 忠实度证明块 + 禁止项 各追加 1 条；配套 doctor SUB029。
+> **v0.3.10（2026-08-08）**：与 pp-d2c 对齐——新增 3 组强制溯源证明块（字色 fills 溯源 §4.1.1 / sub 容器 min-height 尺寸源 §4.3 / 页面根 paddingTop 尺寸源 §4.3.1）；§6.0.3 合并忠实度证明块 4 组扩到 7 组（RN 侧字色断言含 `color:` 属性无引号 / 有引号 / 数字色三种形式）；禁止项 +3；配套 doctor CLR030 / DIM031 / DIM032。RN 侧统一 `styleFormat=stylesheet`（无 h5 style 大类分歧，不引入新 page 空档兜底）。
+
+> **v0.3.9（2026-08-07）**：与 pp-d2c 对齐——新增 §4.4.pre.b「子树结构禁切规则」（结构维度优先于前缀维度）；§4.4 前置自检 5 行 → 7 行；§4.8 checklist + §6.0.3 忠实度证明块 + 禁止项 各追加 1 条；配套 doctor SUB029.
 
 > **v0.3.8（2026-08-07）**：与 pp-d2c 对齐——新增「问题边界」章节（顶部执行模型说明内）；配套 §4.8 checklist +1 条 + §6.0.3 忠实度证明块 +「未打断用户核查」段 + 禁止项 +1 条。RN 特有决策（LinearGradient / shadow*+elevation / rpx 包装等）均属"skill 已定死"范畴，禁止问用户。
 
@@ -647,6 +649,41 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 >
 > **兼容点**:`minHeight` 相较 `height` 只是"下限保底",不影响设计稿本意。旧产物用 `height` 出现的塌陷问题(bg 层跟着塌成一条)全部由本规则统一收敛。
 
+> **sub 容器 minHeight 尺寸源证明（v0.3.10 强制）**：`sub-` / `block-` 容器写 `minHeight` 时，尺寸源**必须**取节点**自身**的 `absoluteBoundingBox.height`，**禁止**取兄弟 `bg-` / `bgc-` 层的高度（哪怕兄弟层比自身高——bg 兄弟层在 Figma 里常"溢出到下方指南区"作装饰）。
+>
+> **sub-agent 交付每个 `sub-` / `block-` 容器前必须在 `blocks/{sub}/assets.txt` QA 段写一行**：
+>
+> ```
+> · SUB容器 {nodeId} name="{nodeName}" 自身h={H1} bg兄弟层h={H2 或 "无"} minHeight写入={H1}（scale=1，RN 侧无 h5 的 scale=2 换算）
+> ```
+>
+> RN 侧 `scale=1`（数值直接来自 Figma），`minHeight 写入` 值必须严格等于 `H1`，**不允许**是 `H2`。若响应式 rpx 启用（`unit.responsive.enabled === true`），实际产物写法是 `minHeight: rpx(H1)`——溯源行的 `minHeight 写入` 仍记裸数值 `H1`（rpx 包装是**渲染层**，与**尺寸源**是两回事）。
+>
+> **主 agent 合并前 grep 自证命令**（§6.0.3 证明块「sub 容器 minHeight 尺寸源」段引用）：
+>
+> ```bash
+> grep -Eho '^· SUB容器 [0-9]+:[0-9]+ .* minHeight写入=[0-9.]+' {output.dir}/blocks/**/assets.txt 2>/dev/null \
+>   > /tmp/rn-sub-minh-declared.txt
+>
+> ERRORS=0
+> while read line; do
+>   H1=$(echo "$line" | sed -E 's/.*自身h=([0-9.]+).*/\1/')
+>   WROTE=$(echo "$line" | sed -E 's/.*minHeight写入=([0-9.]+).*/\1/')
+>   if [ "$H1" != "$WROTE" ]; then
+>     echo "❌ SUB minHeight 尺寸源错：$line 应写入 $H1"
+>     ERRORS=$((ERRORS + 1))
+>   fi
+> done < /tmp/rn-sub-minh-declared.txt
+>
+> if [ "$ERRORS" = "0" ]; then
+>   echo "✅ RN sub 容器 minHeight 尺寸源契约通过：$(wc -l < /tmp/rn-sub-minh-declared.txt) 个容器全部按自身尺寸写入"
+> else
+>   echo "❌ $ERRORS 个容器把 bg 兄弟层高度错写为 minHeight（触发 doctor DIM031）"
+> fi
+> ```
+>
+> **doctor 关联规则**：DIM031（v0.3.10 新增，error），见 pp-doctor §3.6s。
+
 > **冗余嵌套 autoLayout 的属性下穿**(v1.0.2 新增,判定/取值层的隐藏 bug 修复):Figma 里设计师有时为了"分组"多包一层 autoLayout,但内部只有一个真正的顺流子(其他都是 abs 兄弟)。直译成 RN 组件树时**保留双层结构没错**(abs 兄弟需要挂在外层),但**布局属性(padding/gap/align)应该整体下穿到内层**,因为设计师改的是内层。
 >
 > **触发条件(全部满足才命中)**:
@@ -751,6 +788,41 @@ Figma 里一个 TEXT 节点可以叠多层 `fills`。取字色规则（详细同
 **典型案例**：`136:45728`（"去看看"）fills = `[#492b0d visible:true, #ffffff visible:true]` → 取 `#ffffff`。
 
 **doctor NAM025（v0.3.6 新增）**：TEXT 节点 `fills` 有 ≥2 个可见 SOLID → info 提示。
+
+**字色 fills 溯源证明（v0.3.10 强制，每个 TEXT 交付前写 assets.txt QA 一行）**：
+
+sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` QA 段末尾追加**每个 TEXT 节点一行**溯源，格式：
+
+```
+· TEXT {nodeId} "{text}" fills层数={N} 可见SOLID列表=[#hex1, ..., #hexN] 末位可见色={#hexN} 最终写入={#final}
+```
+
+`{#final}` 必须严格等于 `{#hexN}`（GRADIENT 退化为近似 SOLID 时以退化后色为准）。
+
+**主 agent 合并前 grep 自证命令**（§6.0.3 证明块中「字色 fills 溯源」段引用，RN 版覆盖 3 种 color 写法）：
+
+```bash
+# 1. 从 assets.txt 提取所有 TEXT 溯源行的最终写入色
+grep -Eho '^· TEXT [0-9]+:[0-9]+ .* 最终写入=#[0-9a-fA-F]{3,8}' {output.dir}/blocks/**/assets.txt 2>/dev/null \
+  | sed -E 's/.*最终写入=(#[0-9a-fA-F]{3,8}).*/\1/' | sort -u > /tmp/rn-text-color-declared.txt
+
+# 2. 从产物提取 color 值（RN 3 种写法：color: '#hex' | color: "#hex" | color: #hex）
+grep -rEho "color:\s*['\"]#[0-9a-fA-F]{3,8}['\"]|color:\s*#[0-9a-fA-F]{3,8}" {output.dir}/ \
+  --include='*.tsx' --include='*.jsx' --include='*.ts' --include='*.js' 2>/dev/null \
+  | grep -oE '#[0-9a-fA-F]{3,8}' | sort -u > /tmp/rn-text-color-used.txt
+
+# 3. 差集 declared - used
+comm -23 /tmp/rn-text-color-declared.txt /tmp/rn-text-color-used.txt > /tmp/rn-text-color-lost.txt
+LOST=$(wc -l < /tmp/rn-text-color-lost.txt)
+
+if [ "$LOST" = "0" ]; then
+  echo "✅ RN TEXT 字色溯源契约通过：$(wc -l < /tmp/rn-text-color-declared.txt) 种末位色全部在产物中出现"
+else
+  echo "❌ 声明取末位但产物没写入的色：$(cat /tmp/rn-text-color-lost.txt | tr '\n' ' ')（触发 doctor CLR030）"
+fi
+```
+
+**doctor 关联规则**：CLR030（v0.3.10 新增，error），见 pp-doctor §3.6s。
 
 **C. 单位规则(rn 特有)**
 
@@ -1421,6 +1493,53 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 - **info**:合理的默认退化(比如 vh → Dimensions),告知即可,业务通常不用改
 - **warn**:视觉近似或语义变化(fixed → absolute / 渐变 → 纯色),建议业务复核并手工调整
 - **error**:无对应无法退化(blur / INNER_SHADOW),必须业务手工引入第三方库或改设计
+
+---
+
+#### 4.3.1 页面根 paddingTop 尺寸源证明（v0.3.10 强制）
+
+**目的**：页面顶层容器（用户传入的 nodeId 对应的 Figma 节点）的 `paddingTop` **必须**取该节点自身 `paddingTop` 字段值，**禁止**取 `fixed-` 状态栏 / 顶部导航栏子层的高度替代。
+
+**背景**：Figma 页面顶层 frame 常常同时有：
+- **自身 `paddingTop` 字段**（例：166）：设计师给主内容区上方预留的间距
+- **`fixed-` 状态栏子层**（例：118 高）：绝对定位在顶部的固定栏
+
+这两个值**大概率就是不等的**。RN 侧的差异是 `fixed-*` 全部放在根 `<View>` 直接子层（不在 ScrollView 内），主内容区在 `<ScrollView>` 的 `scrollContent` 里，`scrollContent.paddingTop` 来自 Figma 节点的 `paddingTop` 字段。**主 agent 必须从 Figma 节点的 `paddingTop` 字段本身取值**，禁止用"上方的 fixed 子层高度"脑补替代。
+
+**溯源证明格式**（主 agent 交付主页面前必须写一行到主 assets.txt 或对话）：
+
+```
+· PAGE根 {pageNodeId} name="{pageName}" figmaPaddingTop={P} fixed状态栏h={S 或 "无"} paddingTop写入={P}（scale=1）
+```
+
+`paddingTop 写入` 值必须严格等于 `figmaPaddingTop`（RN 侧 scale=1）。若响应式 rpx 启用，实际写法 `paddingTop: rpx(P)`，溯源行仍记裸数值 `P`。
+
+**主 agent 合并前 grep 自证命令**（§6.0.3 证明块「页面根 paddingTop 尺寸源」段引用）：
+
+```bash
+grep -Eho '^· PAGE根 [0-9]+:[0-9]+ .* paddingTop写入=[0-9.]+' {output.dir}/**/assets.txt 2>/dev/null \
+  > /tmp/rn-page-padt-declared.txt
+
+ERRORS=0
+while read line; do
+  P=$(echo "$line" | sed -E 's/.*figmaPaddingTop=([0-9.]+).*/\1/')
+  WROTE=$(echo "$line" | sed -E 's/.*paddingTop写入=([0-9.]+).*/\1/')
+  if [ "$P" != "$WROTE" ]; then
+    echo "❌ 页面 paddingTop 尺寸源错：$line 应写入 $P"
+    ERRORS=$((ERRORS + 1))
+  fi
+done < /tmp/rn-page-padt-declared.txt
+
+if [ "$ERRORS" = "0" ]; then
+  echo "✅ RN 页面根 paddingTop 尺寸源契约通过"
+else
+  echo "❌ $ERRORS 个页面把 fixed 状态栏高度错写为 paddingTop（触发 doctor DIM032）"
+fi
+```
+
+**doctor 关联规则**：DIM032（v0.3.10 新增，error），见 pp-doctor §3.6t。
+
+**为什么不写"取二者中较大值 / 二者之和"**：agent 一旦被允许"综合推断"就会脑补——skill 的忠实度契约要求每个数值有明确的字段出处，禁止综合演算。
 
 ---
 
@@ -2410,6 +2529,22 @@ fi
 - 本轮 agent 是否向用户提过任何 skill 已定死的技术决策问题？（切图/兜底/合并/尺寸/RN 退化等）{否 / 是: 问题清单}
 - 若遇 skill 未覆盖的边界情形，是否已按最接近规则兜底 + 写 QA 告警而非打断用户？{是 / 否: 说明}
 - 结果：{✅ 通过 / ❌ 失败}
+
+## 字色 fills 溯源（v0.3.10 新增，§4.1.1）
+- 所有 TEXT 溯源行的 `最终写入=#hex` 集合大小：{count(declared)}
+- 产物中 `color:` 字段（3 种写法：`'#hex'` / `"#hex"` / 裸 `#hex`）集合大小：{count(used)}
+- 差集 declared - used：{"空" 或 "lost: #hex1, ..."}
+- 结果：{✅ 通过 / ❌ 失败}
+
+## sub 容器 minHeight 尺寸源（v0.3.10 新增，§4.3）
+- 逐 sub-/block- 容器 `minHeight 写入 == 自身h`（RN scale=1）断言错项数：{count(errors)}
+- 错项列表（若非零）：{"[节点名] 应写 XXX 实写 YYY（把兄弟 bg 层高度错写为 minHeight）"}
+- 结果：{✅ 通过 / ❌ 失败}
+
+## 页面根 paddingTop 尺寸源（v0.3.10 新增，§4.3.1）
+- 逐页面 `paddingTop 写入 == figmaPaddingTop` 断言错项数：{count(errors)}
+- 错项列表（若非零）：{"[页面名] 应写 XXX 实写 YYY（把 fixed 状态栏高度错写为 paddingTop）"}
+- 结果：{✅ 通过 / ❌ 失败}
 ```
 
 任意一条 ❌ 失败 → 合并阶段不算完成，主 agent 必须回滚，重新按 sub-agent 产物逐字展开。
@@ -2602,3 +2737,6 @@ EOF
 - 禁止跳过步骤 7 之前的「合并忠实度证明块」输出（v0.3.7 §6.0.3）：主 agent 必须在对话里写"data-node-id 守恒律 / assets.txt 消费契约 / 节点整体切图适格性"三组结果；未输出即视为交付不合格
 - 禁止向用户提 skill 已定死的技术决策问题（v0.3.8 §问题边界）：包括但不限于"要不要整体切图 / 用不用 View style 表达 / 渐变引不引 LinearGradient / 多层 fills 取哪个 / 尺寸要不要包 rpx / 合并这块用什么方式"等。遇 skill 未覆盖的边界情形，必须按最接近规则兜底 + 写 QA 告警，禁止打断用户；仅在产物完全不可用时才允许问用户
 - 禁止对子树含 ≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点的容器整体切图（v0.3.9 §4.4.pre.b 结构维度禁切）——即使该节点前缀不是 `sub-*` / `block-*`。sub-agent 每次切图前必须完成 §4.4 前置自检 7 行的最后 2 行子树扫描；命中即立即停下重做，走 §4.3 递归子层解析（RN 侧生成 `<View>` + `<Text>` + `<Pressable>` + `.map(...)` 结构）
+- 禁止 TEXT 节点交付时省略字色 fills 溯源（v0.3.10 §4.1.1）：sub-agent 每个 `<Text>` 必须在 `blocks/{sub}/assets.txt` QA 段写一行 `· TEXT {nodeId} "..." fills层数=N 可见SOLID列表=[...] 末位可见色=#hexN 最终写入=#final`，`#final` 必须严格等于 `#hexN`；产物 StyleSheet 中 `color:` 字段（含 3 种写法）集合必须覆盖 declared 集合每一项 —— doctor CLR030 error
+- 禁止 sub-/block- 容器 `minHeight` 写入值 = 兄弟 bg 层高度而非自身高度（v0.3.10 §4.3）：sub-agent 每个 sub-/block- 容器必须在 assets.txt QA 段写一行 `· SUB容器 {nodeId} name=... 自身h=H1 bg兄弟层h=H2 minHeight写入=H1`，且写入值必须严格等于 `H1` —— doctor DIM031 error
+- 禁止页面根 `paddingTop` 写入值 ≠ `figmaNode.paddingTop`（v0.3.10 §4.3.1）：主 agent 必须在主页面 assets.txt 或对话输出一行 `· PAGE根 {pageNodeId} name=... figmaPaddingTop=P fixed状态栏h=S paddingTop写入=P`，禁止用 fixed 状态栏高度替代 `paddingTop` 字段 —— doctor DIM032 error
