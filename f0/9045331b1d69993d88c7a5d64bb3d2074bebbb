@@ -1,0 +1,30 @@
+templates/skills/pp-d2c/SKILL.md
+  s_8f566140fc4cb6::t_60f13716ec5a2c 834,836-837,843-845,850-851,861-862,864-865,867-873,875-877,884-886,890-891,893
+  s_8f566140fc4cb6::t_1b159fa20fa59d 642
+  s_8f566140fc4cb6::t_b24cbaa9dbe7b1 783
+  s_8f566140fc4cb6::t_fc061735c1a0a6 831
+  s_8f566140fc4cb6::t_47d47112f7f8fa 790
+  s_8f566140fc4cb6::t_5768193203a542 3-4
+  s_8f566140fc4cb6::t_10a6d4aa5688a5 833,835,838-842,846-849,852-860,863,866,874,878-883,887-889,892,894
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "f09045331b1d69993d88c7a5d64bb3d2074bebbb",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
