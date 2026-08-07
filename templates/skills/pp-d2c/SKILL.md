@@ -1,5 +1,7 @@
 # pp-d2c Skill
 
+> **v0.3.14（2026-08-08，h5 独享）**：修复 P/M 大类混合事故——某 h5 项目 config 明确 `"styleFormat":"scss"`（P 大类），主入口 `pages/index.jsx` 却生成 `import styles from "./styles.module.scss"` + 全篇 `className={styles.container}`（M 大类），同时 `pages/blocks/main/index.scss` 又是普通 `.scss`（P 大类），两半矛盾导致 css-modules 哈希化的类名跟 blocks 里的普通 scss 完全不通气，页面视觉全部丢样式。改动：§2.5.2 结尾追加「大类一致性硬约束」——主 agent 判定后必须在 `.d2c-tasks.md` 顶部写「大类锁定」段，sub-agent 生成 block 前必须 Read 锁定值严格遵守，禁止各 sub-agent 独立再判；配 grep 自证脚本（P 大类禁 `.module.*` / `styles.xxx` / `import styles from`；M 大类禁裸 `.scss` / 裸 `className="xxx"`）。**本次改动只在 pp-d2c 生效**，不同步到 pp-d2c-rn（RN 侧固定 stylesheet 无 P/M 分歧）。
+
 > **v0.3.11（2026-08-08）**：新增「bg- 独立切图契约」（§4.3）——每个 `bg-*` 前缀节点必须独立走一次 export-image，**禁止**用祖先 `bg-*` 切图的物理覆盖范围"合并省略"后代 `bg-*` 独立切图；配套 sub-agent QA 段自证格式 + 主 agent grep 断言 + §6.0.2 忠实度证明块 7 组扩到 8 组 + doctor BGP033 error 规则。修复历史事故：sub-agent 看到父 `bg-<A>` 内 SLICE 覆盖了后代 `bg-<B>` 所在物理区域，就"合理省略"了后代的独立切图，产物对应容器空 View、后代装饰完全丢失。
 
 > **v0.3.10（2026-08-08）**：新增 3 组强制溯源证明块（字色 fills 溯源 §4.1.1 / sub 容器 min-height 尺寸源 §4.3 / 页面根 padding-top 尺寸源 §4.3.1）；§2.5.2 判定链补权威兜底（新 page 无既有 import 参考 → `config.styleFormat` 为权威，不允许脑补大类）；§6.0.2 合并忠实度证明块 3 组扩到 6 组；禁止项 +3；配套 doctor CLR030 / DIM031 / DIM032。修复 <下游项目> 新稿事故：Frame745「立即抢」字色写 #ffffff（应末位 #864500）、`.baseBackground padding-top:236px`（应 paddingTop=166×2=332px）、`.main min-height:1125px`（应 sub-MAIN 自身 520×2=1040px）、生成 `.module.scss` + `styles.xxx`（应按 config plain scss 走 P-B）。
@@ -427,6 +429,45 @@ img-*   → 主 agent 处理，生成 <img>
    - 结合第 1 项探测结果做交叉验证；不一致时**以第 1 项实证为准**
 
 把以上 4 项探测结果**全部**写入 `.d2c-tasks.md` 的"页面级背景"段，作为选档的事实依据。
+
+> **⚠️ 大类一致性硬约束（v0.3.14 强制，h5 独享）**：主 agent 完成 §2.5.2 判定后，**必须在 `.d2c-tasks.md` 顶部写入"大类锁定"段**（一次生成一次锁定，不允许中途改）：
+>
+> ```markdown
+> ## 大类锁定（本次生成不可变）
+> - 判定源：{既有 import 实证 / 邻居 page 参考 / config.styleFormat 权威}
+> - 大类：**P** / **M** / **J**（三选一）
+> - 生成规则：
+>   - **P**：所有样式文件后缀 `.scss` / `.less` / `.css`（无 `.module`），`className="xxx"` 裸类名，`import './xxx.scss'`
+>   - **M**：所有样式文件后缀 `.module.scss` / `.module.less` / `.module.css`，`className={styles.xxx}` 或 `className={styles["xxx"]}`，`import styles from './xxx.module.scss'`
+>   - **J**：tailwind / inline / styled-components，不生成独立样式文件
+> ```
+>
+> **sub-agent 生成 block 时**：**必须先 Read `.d2c-tasks.md` 的"大类锁定"段**，严格按锁定值生成 block 内部样式文件（`blocks/*/index.{scss,module.scss,...}`）+ `className` 写法，**禁止**每个 block 独立再走一次判定（各 sub-agent 拿到的 `styleFormat` config 一样，但历史事故显示 sub-agent 之间的判断会飘）。
+>
+> **主 agent 合并前 grep 自证**（放到 §6.0.2 合并忠实度证明块）：
+>
+> ```bash
+> LOCK=$(grep -oE '\*\*[PMJ]\*\*' {output.dir}/.d2c-tasks.md | head -1 | tr -d '*')
+> echo "锁定大类：$LOCK"
+>
+> if [ "$LOCK" = "P" ]; then
+>   # P 大类禁止:module 后缀 / styles.xxx 消费 / import styles from
+>   BAD_MOD=$(grep -rEl 'from.*\.module\.(scss|less|css)|\.module\.(scss|less|css)$' {output.dir}/ 2>/dev/null | wc -l)
+>   BAD_STY=$(grep -rEc 'className=\{styles[\.\[]|import styles from' {output.dir}/ 2>/dev/null | awk -F: '{s+=$2}END{print s}')
+>   [ "$BAD_MOD" -gt 0 ] && echo "❌ P 大类锁定，但发现 .module.* 后缀文件 $BAD_MOD 个"
+>   [ "$BAD_STY" -gt 0 ] && echo "❌ P 大类锁定，但发现 styles.xxx / import styles $BAD_STY 处"
+> elif [ "$LOCK" = "M" ]; then
+>   # M 大类禁止:裸 .scss / 裸 className="xxx" / import './x.scss'(应带 styles from)
+>   BAD_BARE=$(find {output.dir} -name '*.scss' ! -name '*.module.scss' 2>/dev/null | wc -l)
+>   BAD_CLS=$(grep -rEc 'className="[a-zA-Z]' {output.dir}/ 2>/dev/null | awk -F: '{s+=$2}END{print s}')
+>   [ "$BAD_BARE" -gt 0 ] && echo "❌ M 大类锁定，但发现非 module .scss 文件 $BAD_BARE 个"
+>   [ "$BAD_CLS" -gt 0 ] && echo "❌ M 大类锁定，但发现裸 className=\"xxx\" $BAD_CLS 处"
+> fi
+> ```
+>
+> **违反后果**：所有不一致产物驳回，主 agent 按锁定大类**统一重写**。
+>
+> **典型事故（v0.3.14 修复的原型）**：某 h5 项目 `pp-d2c.config.json` 明确 `"styleFormat":"scss"`（P 大类），产物 `pages/index.jsx` 顶部却写 `import styles from "./styles.module.scss"` + 全篇 `className={styles.container}` / `className={styles["page-bg"]}`（M 大类），而同时 `pages/blocks/main/index.scss` 又是普通 `.scss`（P 大类），两半矛盾——主入口的 `.container` 被 css-modules 哈希化，跟 blocks 的普通 scss 完全不通气，页面视觉全部丢样式。修复：主 agent 判定为 P → 锁定 P → 所有产物一律普通 `.scss` + 裸类名 → sub-agent 生成 blocks 严格遵守。
 
 #### 2.5.3 写入策略（**先按 styleFormat / module 状态选大类，再按多/单页选档**）
 
