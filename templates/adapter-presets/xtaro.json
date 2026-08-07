@@ -1,7 +1,7 @@
 {
   "id": "xtaro",
   "name": "携程 xtaro",
-  "description": "6 大 RN 标签映射到 @ctrip/xtaro;Pressable 归到 XView(XView 自身可点击);Image.source → src(xtaro 走 taro 语义);rpx helper 走 xGetSystemInfoSync from @ctrip/xtaro 而非 Dimensions",
+  "description": "6 大 RN 标签映射到 @myxx/xtaro;Pressable 归到 XView(XView 自身可点击);Image.source → src(xtaro 走 taro 语义);rpx helper 走 xGetSystemInfoSync from @myxx/xtaro 而非 Dimensions",
   "helperTemplate": "xtaro.rpx.ts",
   "referenceDoc": "xtaro.reference.md",
   "adapter": {
@@ -15,11 +15,11 @@
       "ScrollView": "XScrollView"
     },
     "importMap": {
-      "XView": "@ctrip/xtaro",
-      "XText": "@ctrip/xtaro",
-      "XImage": "@ctrip/xtaro",
-      "XInput": "@ctrip/xtaro",
-      "XScrollView": "@ctrip/xtaro"
+      "XView": "@myxx/xtaro",
+      "XText": "@myxx/xtaro",
+      "XImage": "@myxx/xtaro",
+      "XInput": "@myxx/xtaro",
+      "XScrollView": "@myxx/xtaro"
     },
     "propMap": {
       "Image": {

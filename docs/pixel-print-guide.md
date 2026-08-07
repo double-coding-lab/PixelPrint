@@ -189,7 +189,7 @@ $ npx @double-coding/pixel-print init \
     --merge-mode flat \
     --figma-base 375 \
     --responsive on \
-    --rpx-helper-import "@ctrip/xtaro" \
+    --rpx-helper-import "@myxx/xtaro" \
     --rpx-helper-name xrpx \
     --assets-dir assets/ \
     --output-dir src/pages/ \
@@ -203,9 +203,9 @@ $ npx @double-coding/pixel-print init \
 
   [1/6] 项目框架 + 方案: RN / 携程 xtaro (命令行参数)
   刷新 3 个 skill(pp-d2c-rn / pp-fix-partial / pp-strip-nodeid),共 5 个文件到 .claude/skills/
-  → 已写入 携程 xtaro 预设(6 大 RN 标签映射到 @ctrip/xtaro …)
+  → 已写入 携程 xtaro 预设(6 大 RN 标签映射到 @myxx/xtaro …)
   [2/6] 是否启用响应式 rpx() 包装(按屏宽线性缩放尺寸): Yes (命令行参数)
-  [2.1/6] rpx helper import 路径: @ctrip/xtaro (命令行参数)
+  [2.1/6] rpx helper import 路径: @myxx/xtaro (命令行参数)
   [2.2/6] rpx helper 导出函数名: xrpx (命令行参数)
   [3/6] 合并模式: flat (命令行参数)
   [4/6] 图片输出目录: assets/ (命令行参数)
@@ -221,7 +221,7 @@ $ npx @double-coding/pixel-print init \
   → 创建 .gitignore 并加入 .env
 
   ✓ pp-d2c.config.json 已写入
-  info  helperImport "@ctrip/xtaro" 看起来是外部包,SKILL 会按此路径引用,不落地本地 helper 文件
+  info  helperImport "@myxx/xtaro" 看起来是外部包,SKILL 会按此路径引用,不落地本地 helper 文件
   ✓ 单位换算规则已注入 .claude/skills/pp-d2c-rn/SKILL.md
 
 ─── 阶段四:追加 .gitignore ─────────────────────────
@@ -232,7 +232,7 @@ $ npx @double-coding/pixel-print init \
 
   ✓ pp-d2c.config.json    framework=rn · merge=flat · unit=px(base 375) · out=src/pages/
   ✓ adapter               携程 xtaro
-  ✓ 响应式 rpx()          @ctrip/xtaro · xrpx()
+  ✓ 响应式 rpx()          @myxx/xtaro · xrpx()
   ✓ .env                  FIGMA_TOKEN 已写入
   ✓ .gitignore            .d2c-cache/ · .d2c-tmp/ · .env
 
@@ -415,7 +415,7 @@ RN 分支的核心机制:**内核用 6 大 RN 原生标签描述一切**(`View /
 | 预设 | 目标 | 映射示意 |
 |---|---|---|
 | `rn` | pure RN / Expo | 保留原名(identity),`from 'react-native'` |
-| `xtaro` | 携程 `@ctrip/xtaro` | `View→XView / TextInput→XInput / ScrollView→XScrollView`,`from '@ctrip/xtaro'` |
+| `xtaro` | 携程 `@myxx/xtaro` | `View→XView / TextInput→XInput / ScrollView→XScrollView`,`from '@myxx/xtaro'` |
 | `taro` | Taro `@tarojs/components` | `TextInput→Input / Pressable→View`,`from '@tarojs/components'` |
 
 每个预设 3 件套:`<id>.json`(映射规则)+ `<id>.rpx.ts`(专属屏宽 helper)+ `<id>.reference.md`(超改名的复杂差异手册)。
@@ -467,7 +467,7 @@ RN 分支的核心机制:**内核用 6 大 RN 原生标签描述一切**(`View /
   "adapter": {
     "enabled": true,
     "tagMap": { "View": "XView", "...": "..." },
-    "importMap": { "XView": "@ctrip/xtaro", "...": "..." },
+    "importMap": { "XView": "@myxx/xtaro", "...": "..." },
     "propMap": { "Image": { "source": "src" } },
     "referenceDoc": "xtaro.reference.md"
   }
@@ -643,7 +643,7 @@ AirportBus/
 **核心代码**(`index.tsx` 节选,完整代码见 [`docs/samples/AirportBus/`](./samples/AirportBus/)):
 
 ```tsx
-import { XImage, XText, XView } from '@ctrip/xtaro'
+import { XImage, XText, XView } from '@myxx/xtaro'
 import { styles } from './styles'
 
 export default function AirportBus() {
@@ -681,7 +681,7 @@ export default function AirportBus() {
 
 **关键观察**:
 
-- 6 大 RN 内核标签(`XView / XText / XImage / ...`)全部走 `@ctrip/xtaro` 导入,一次到位
+- 6 大 RN 内核标签(`XView / XText / XImage / ...`)全部走 `@myxx/xtaro` 导入,一次到位
 - `data-node-id="1:1459"` 反向映射 Figma 节点,`pp-fix-partial` 局部修复靠这个精确定位
 - 尺寸全部 `rpx(...)` 包装,自动按屏宽线性缩放
 - 图片路径统一 `require('@Images/...')` 别名,不走远程 URL

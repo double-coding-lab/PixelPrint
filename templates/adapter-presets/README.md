@@ -6,7 +6,7 @@ D2C RN skill 的 adapter 预设目录。每个 `.json` 文件是一个"框架预
 
 | 预设 id | 名称 | 目标框架 | 说明 |
 |---|---|---|---|
-| `xtaro` | 携程 xtaro | `@ctrip/xtaro` | 6 大 RN 标签映射到 xtaro 组件;`Pressable → XView`(XView 自身可点击);`Image.source → src`;rpx helper 走 `xGetSystemInfoSync from @ctrip/xtaro`(xtaro H5 端 webpack 不解析 react-native Flow 语法) |
+| `xtaro` | 携程 xtaro | `@myxx/xtaro` | 6 大 RN 标签映射到 xtaro 组件;`Pressable → XView`(XView 自身可点击);`Image.source → src`;rpx helper 走 `xGetSystemInfoSync from @myxx/xtaro`(xtaro H5 端 webpack 不解析 react-native Flow 语法) |
 | `taro` | Taro (@tarojs/components) | `@tarojs/components` | 6 大 RN 标签映射到 taro 组件;`Pressable → View`;`TextInput → Input`;`Image.source → src`;rpx helper 走 `Taro.getSystemInfoSync from @tarojs/taro`(taro 覆盖多端时统一屏蔽) |
 | `rn` | pure React Native / Expo | `react-native` | 6 大 RN 原生标签保留原名(identity 映射);全部从 `react-native` 导入;rpx helper 走 `Dimensions.get('window').width`。适合纯 RN / Expo,不做跨组件库替换 |
 
@@ -53,7 +53,7 @@ CLI 里始终有一个 `自定义` 兜底选项 — 选它写空 adapter,用户�
 **helperTemplate 说明**(可选字段):
 
 - 值是相对本目录的文件名(如 `xtaro.rpx.ts`),表示该预设**自带一份 rpx helper 模板**;CLI init 时会用它替换默认的 `templates/rn-helpers/rpx.ts` 落到项目
-- 不同框架的 helper 里屏宽获取方式可能不同 — pure RN 用 `Dimensions.get('window')`;xtaro 走 `xGetSystemInfoSync from @ctrip/xtaro`(H5 端 webpack 不解析 react-native Flow 语法);taro / 小程序用 `getSystemInfoSync from @tarojs/taro`;expo 直接用 `Dimensions` 无异
+- 不同框架的 helper 里屏宽获取方式可能不同 — pure RN 用 `Dimensions.get('window')`;xtaro 走 `xGetSystemInfoSync from @myxx/xtaro`(H5 端 webpack 不解析 react-native Flow 语法);taro / 小程序用 `getSystemInfoSync from @tarojs/taro`;expo 直接用 `Dimensions` 无异
 - **helper 文件里必须导出**一个函数,名字与 `install.js` init 时用户填的 `helperName`(默认 `rpx`)一致;`DESIGN_BASE` 常量会被 CLI 替换成 `unit.figmaBase` 的实际值
 - 不写 helperTemplate → CLI 回退到 `templates/rn-helpers/rpx.ts`(pure RN 版)
 

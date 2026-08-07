@@ -123,7 +123,7 @@ templates/skills/
       // "ScrollView": "XScrollView"
     },
     "importMap": {                  // key 是"映射后的标签名"
-      // "XView": "@ctrip/xtaro",
+      // "XView": "@myxx/xtaro",
       // ...
     },
     "reactImport": "react"          // 可选,默认 'react',允许覆盖(极少数场景)
@@ -303,7 +303,7 @@ Adapter 应用逻辑(agent 按顺序执行):
 
 1. **构建标签替换表**:遍历 `config.adapter.tagMap`,产生 `{ View → XView, Text → XText, Pressable → XView }` 等映射对(未映射的标签保持原名;xtaro 里 Pressable 也归到 XView,因为 XView 自身可点击,不再走 XClickableSimplified)
 2. **构建 import 分组表**:对"最终使用的所有标签"按 import 源分组:
-   - 每个映射后的标签(如 XView),查 `importMap[XView]` → `@ctrip/xtaro`
+   - 每个映射后的标签(如 XView),查 `importMap[XView]` → `@myxx/xtaro`
    - 每个未映射标签(如 StyleSheet,如果 tagMap 里没写),用默认源 `react-native`
    - 无 importMap 命中的映射后标签也 fallback 到 `react-native`
 3. **重写 JSX**:全文查找替换 `<View ` → `<XView `、`</View>` → `</XView>`(注意区分开闭标签、自闭合标签)
@@ -314,7 +314,7 @@ Adapter 应用逻辑(agent 按顺序执行):
 
 ```jsx
 import React from 'react';
-import { XView, XText, XImage, XInput, XScrollView } from '@ctrip/xtaro';
+import { XView, XText, XImage, XInput, XScrollView } from '@myxx/xtaro';
 import { StyleSheet } from 'react-native';
 
 const styles = StyleSheet.create({ /* ... */ });
@@ -374,11 +374,11 @@ export default function Index() {
       "ScrollView": "XScrollView"
     },
     "importMap": {
-      "XView": "@ctrip/xtaro",
-      "XText": "@ctrip/xtaro",
-      "XImage": "@ctrip/xtaro",
-      "XInput": "@ctrip/xtaro",
-      "XScrollView": "@ctrip/xtaro"
+      "XView": "@myxx/xtaro",
+      "XText": "@myxx/xtaro",
+      "XImage": "@myxx/xtaro",
+      "XInput": "@myxx/xtaro",
+      "XScrollView": "@myxx/xtaro"
     }
   }
 }
@@ -601,7 +601,7 @@ const newConfig = {
 | | 6.1.2 | 现有 h5 SKILL / doctor / style / strip-nodeid **一字未改** |
 | | 6.1.3 | 只调用 rn SKILL 时不依赖 h5 SKILL 任何文件 |
 | **功能** | 6.2.1 | adapter 未启用时,产物 `npx react-native run-ios` 可跑通 |
-| | 6.2.2 | adapter 启用为 xtaro 时,产物 import from `@ctrip/xtaro`,标签是 X 前缀 |
+| | 6.2.2 | adapter 启用为 xtaro 时,产物 import from `@myxx/xtaro`,标签是 X 前缀 |
 | | 6.2.3 | 6 个前缀槽位在 rn 侧全部正确映射 |
 | | 6.2.4 | RN 无对应特性按退化表处理,QA 段落有告警 |
 | | 6.2.5 | 前缀识别 / 布局判定与 h5 SKILL 决策等价(拿同一份 Figma 稿分别跑 h5 / rn,前缀识别结果一致) |

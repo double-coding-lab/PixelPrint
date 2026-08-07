@@ -4,7 +4,7 @@
 
 ## 一、背景与目标
 
-**背景**:当前 `pp-d2c` SKILL 只支持把 Figma 设计稿翻译成 Web (H5) 代码。业务场景已扩展到需要出 React Native 端代码,以及基于 RN 的携程内部封装 `@ctrip/xtaro`,后续可能还有其他 RN-like 框架(通用 taro / react-native-web / expo 等)。
+**背景**:当前 `pp-d2c` SKILL 只支持把 Figma 设计稿翻译成 Web (H5) 代码。业务场景已扩展到需要出 React Native 端代码,以及基于 RN 的携程内部封装 `@myxx/xtaro`,后续可能还有其他 RN-like 框架(通用 taro / react-native-web / expo 等)。
 
 **目标**:
 1. 新增独立 SKILL `pp-d2c-rn`,以 React Native 原生语义为内核,输出可直接跑通的 RN 代码
@@ -90,11 +90,11 @@ export default function Index() {
         "ScrollView": "XScrollView"
       },
       "importMap": {
-        "XView": "@ctrip/xtaro",
-        "XText": "@ctrip/xtaro",
-        "XImage": "@ctrip/xtaro",
-        "XInput": "@ctrip/xtaro",
-        "XScrollView": "@ctrip/xtaro"
+        "XView": "@myxx/xtaro",
+        "XText": "@myxx/xtaro",
+        "XImage": "@myxx/xtaro",
+        "XInput": "@myxx/xtaro",
+        "XScrollView": "@myxx/xtaro"
       }
     }
   }
@@ -105,7 +105,7 @@ export default function Index() {
 
 ```jsx
 import React from 'react';
-import { XView, XText, XImage, XInput, XScrollView } from '@ctrip/xtaro';
+import { XView, XText, XImage, XInput, XScrollView } from '@myxx/xtaro';
 import { StyleSheet } from 'react-native';
 
 const styles = StyleSheet.create({ ... });
@@ -192,7 +192,7 @@ export default function Index() {
 ### 6.2 功能验收
 
 1. rn SKILL 未配置 adapter 时,产物是可以直接 `npx react-native run-ios` 跑起来的原生 RN 代码
-2. rn SKILL 配置了 xtaro adapter 时,产物中所有 RN 标签替换为 X 前缀标签,import 路径替换为 `@ctrip/xtaro`
+2. rn SKILL 配置了 xtaro adapter 时,产物中所有 RN 标签替换为 X 前缀标签,import 路径替换为 `@myxx/xtaro`
 3. 六个前缀槽位(默认容器、TEXT、img-、btn-、input-、scrollx-/scrolly-)在 rn SKILL 下都能正确映射
 4. RN 不支持的特性(fixed / vh / background-image / overflow / box-shadow)按 §4.3 表退化,并在 QA 段落输出告警
 5. rn SKILL 内部前缀识别 / 布局判定 / 图片处理逻辑与 h5 SKILL 等价(从 h5 SKILL 复制而来,决策部分一致)

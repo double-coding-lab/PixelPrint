@@ -28,7 +28,7 @@ npx @double-coding/pixel-print init
 npx @double-coding/pixel-print init \
   --framework rn --adapter-preset xtaro --merge-mode flat \
   --figma-base 375 --responsive on \
-  --rpx-helper-import "@ctrip/xtaro" --rpx-helper-name xrpx \
+  --rpx-helper-import "@myxx/xtaro" --rpx-helper-name xrpx \
   --assets-dir assets/ --output-dir src/pages/ \
   --figma-token figd_你的token
 
