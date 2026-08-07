@@ -1,0 +1,41 @@
+templates/skills/pp-d2c/SKILL.md
+  s_8f566140fc4cb6::t_0bb11ea6a3fda3 1435-1488
+  s_8f566140fc4cb6::t_02fd436e541cbd 2158-2173
+  s_8f566140fc4cb6::t_a6f7139c31b88f 2305-2308
+  s_8f566140fc4cb6::t_dc50f333ce1707 399,403-412
+  s_8f566140fc4cb6::t_436d03924563d8 3-4
+  s_8f566140fc4cb6::t_14b4331c45f0c3 697-737
+  s_8f566140fc4cb6::t_a91207e5a38933 846-881
+templates/skills/pp-doctor/SKILL.md
+  s_8f566140fc4cb6::t_08bb20ab617b22 3-4
+  s_8f566140fc4cb6::t_ca379783a2d511 278-280
+  s_8f566140fc4cb6::t_847d6b7aaed6bd 670-714
+templates/skills/pp-d2c-rn/SKILL.md
+  s_8f566140fc4cb6::t_1443d1060c00f6 2740-2742
+  s_8f566140fc4cb6::t_d5313ccc1e3988 2532-2547
+  s_8f566140fc4cb6::t_f2547fc7290294 792-826
+  s_8f566140fc4cb6::t_430c8e39526044 652-686
+  s_8f566140fc4cb6::t_d654888eb59271 1499-1545
+  s_8f566140fc4cb6::t_d769f2b4cb1aac 3-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "c961ed41cf0fb0c7c8012e8df0978e730137027e",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "unknown"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
