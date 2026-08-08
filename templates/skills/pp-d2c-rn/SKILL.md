@@ -1,8 +1,8 @@
 # pp-d2c-rn Skill
 
-> **v0.3.13（2026-08-08，RN 独享）**：修复 RN 侧 autoLayout 顺流子被 agent 用 `absoluteBoundingBox` 逆推成 `marginTop` / `position:absolute` 的事故（`211:266 couponCard` 场景：Figma 侧 VERTICAL/primary=CENTER/itemSpacing=5，产物中 3 个顺流子分别写 `marginTop:6` / `marginTop:6` / `position:absolute; top:70`，绕过父 flex 语义，视觉整体下移；同批 `211:103 stat` / `211:113 notifyBlock` 场景亦命中：父 `211:102 Frame 760`（VERTICAL）的顺流子被逆推成 `position:absolute; top:24` / `bottom:3`，且 `stat.paddingLeft:12` 凭空捏造、`statCol.flex:1` 违反 FIXED sizing）。改动：§4.3 新增「顺流子位置来源硬约束」章节——父 `layoutMode!=NONE` 且子 `layoutPositioning!=ABSOLUTE` 时，子 style 禁止出现 `position:absolute` / `top` / `left` / `right` / `bottom` / `marginTop` / `marginBottom` / `marginLeft` / `marginRight` / 凭空 `padding*` / 违反 FIXED sizing 的 `flex:1`；位置由父 flex 5 字段（flexDirection / justifyContent / alignItems / gap / padding）负责；配 grep 自证脚本。**本次改动只在 pp-d2c-rn 生效**，不同步到 pp-d2c（h5），doctor 暂不加规则。
+> **v0.3.13(2026-08-08,RN 独享)**:修复 RN 侧 autoLayout 顺流子被 agent 用 `absoluteBoundingBox` 逆推成 `marginTop` / `position:absolute` 的事故——父 Frame 为 VERTICAL/primary=CENTER/itemSpacing=N,产物中顺流子分别写 `marginTop:<y1>` / `marginTop:<y2>` / `position:absolute; top:<y3>`,绕过父 flex 语义视觉整体下移;同批命中:父 VERTICAL Frame 的顺流子被逆推成 `position:absolute; top:<y>` / `bottom:<y'>`,且子 style `paddingLeft:<n>` 凭空捏造、`flex:1` 违反 FIXED sizing。改动：§4.3 新增「顺流子位置来源硬约束」章节——父 `layoutMode!=NONE` 且子 `layoutPositioning!=ABSOLUTE` 时，子 style 禁止出现 `position:absolute` / `top` / `left` / `right` / `bottom` / `marginTop` / `marginBottom` / `marginLeft` / `marginRight` / 凭空 `padding*` / 违反 FIXED sizing 的 `flex:1`；位置由父 flex 5 字段（flexDirection / justifyContent / alignItems / gap / padding）负责；配 grep 自证脚本。**本次改动只在 pp-d2c-rn 生效**，不同步到 pp-d2c（h5），doctor 暂不加规则。
 
-> **v0.3.12（2026-08-08，RN 独享）**：修复 RN 侧 `bg-*` / `img-*` 前缀节点在**中间层遍历**时的越过事故——`sub-MAIN > bg-main > Group 747 > 中秋火车票开售预测(TEXT)` 场景下，agent 因 §4.0 红线只在 sub-agent 根节点入口生效，遍历到中间层 `bg-main` 时未再判前缀，把内部 TEXT 叶子提取到了 DOM。改动：(1) §4.0 表格追加「红线扩展到中间层遍历」强制段 + grep 自证；(2) §5 合并结构里的 `styles.ts` 从"可选，也可写在 index.tsx 底部"**收紧为强制独立文件**——`StyleSheet.create` / `const styles =` / 静态 inline style 一律禁止出现在 `index.tsx` 里，避免响应式改写 / adapter 改写触碰 JSX。**本次改动只在 pp-d2c-rn 生效**，不同步到 pp-d2c（h5）。
+> **v0.3.12（2026-08-08，RN 独享）**：修复 RN 侧 `bg-*` / `img-*` 前缀节点在**中间层遍历**时的越过事故——`sub-<X> > bg-<Y> > <中间容器> > <TEXT 叶子>` 场景下，agent 因 §4.0 红线只在 sub-agent 根节点入口生效，遍历到中间层 `bg-<Y>` 时未再判前缀，把内部 TEXT 叶子提取到了 DOM。改动：(1) §4.0 表格追加「红线扩展到中间层遍历」强制段 + grep 自证；(2) §5 合并结构里的 `styles.ts` 从"可选，也可写在 index.tsx 底部"**收紧为强制独立文件**——`StyleSheet.create` / `const styles =` / 静态 inline style 一律禁止出现在 `index.tsx` 里，避免响应式改写 / adapter 改写触碰 JSX。**本次改动只在 pp-d2c-rn 生效**，不同步到 pp-d2c（h5）。
 
 > **v0.3.11（2026-08-08）**：与 pp-d2c 对齐——新增「bg- 独立切图契约」（§4.3）：每个 `bg-*` 前缀节点必须独立走一次 export-image，禁止用祖先 `bg-*` 切图物理覆盖范围"合并省略"后代 `bg-*` 独立切图；配套 sub-agent QA 段自证 + 主 agent grep 断言（RN 侧覆盖 `require` / `source={{uri}}` / `<ImageBackground>` / `<FastImage>` / `${ASSET_PREFIX}` 五种引用形式）+ §6.0.3 忠实度证明块 7 组扩到 8 组 + doctor BGP033 error 规则。修复历史事故：sub-agent 因父 `bg-<A>` 整体切图覆盖多个同级容器区域，省略每个容器里 `bg-<B>` 独立切图，产物对应容器空 View、装饰完全丢失。
 
@@ -569,21 +569,21 @@ sub-agent 拿到根节点后，**第一步**检查根节点自身的图层名前
 >
 > **典型事故示例（真实事故复盘）**：
 >
-> - Figma 侧：`sub-MAIN`(FRAME) > `bg-main`(GROUP, ABSOLUTE) > `Group 747`(GROUP) > `中秋火车票开售预测`(TEXT) + `机器-韩国贴纸`(GROUP) > `韩国`(TEXT)
+> - Figma 侧结构:`sub-<X>`(FRAME) > `bg-<Y>`(GROUP, ABSOLUTE) > `<中间 GROUP>`(GROUP) > `<TEXT 主标题>`(TEXT) + `<装饰贴纸 GROUP>`(GROUP) > `<TEXT 副标题>`(TEXT)
 > - 错误产物（agent 越过 `bg-main` 提取了内部 TEXT）：
 >   ```tsx
->   <XImage src={require('...main-bg.png')} data-node-id="211:39" />
->   <XView data-node-id="211:410">                       {/* ❌ bg-main 的孙节点被单独提出 */}
->     <XText data-node-id="211:83">中秋火车票开售预测</XText>  {/* ❌ 应烤入 png */}
->     <XView data-node-id="211:85">
->       <XText data-node-id="211:87">韩国</XText>             {/* ❌ 应烤入 png */}
+>   <XImage src={require('...<Y>-bg.png')} data-node-id="<Y-id>" />
+>   <XView data-node-id="<中间 GROUP id>">                       {/* ❌ bg-<Y> 的孙节点被单独提出 */}
+>     <XText data-node-id="<主标题 id>"><TEXT 主标题></XText>  {/* ❌ 应烤入 png */}
+>     <XView data-node-id="<装饰贴纸 id>">
+>       <XText data-node-id="<副标题 id>"><TEXT 副标题></XText>       {/* ❌ 应烤入 png */}
 >     </XView>
 >   </XView>
 >   ```
 > - 正确产物（`bg-main` 见到即停，内部全部烤入 png）：
 >   ```tsx
->   <XImage src={require('...main-bg.png')} style={styles.mainBg} data-node-id="211:39" />
->   {/* 无任何 211:410 / 211:83 / 211:85 / 211:87 —— 它们全部烤在 main-bg.png 里 */}
+>   <XImage src={require('...<Y>-bg.png')} style={styles.<Y>Bg} data-node-id="<Y-id>" />
+>   {/* 无任何中间 GROUP / 主标题 / 装饰贴纸 / 副标题 —— 它们全部烤在 <Y>-bg.png 里 */}
 >   ```
 >
 > **诱惑与反诱惑**：agent 常见的错误动机是"文本要可编辑 / 可多语言 / 可动态绑定，所以要提到 DOM"。**本 SKILL 不接受这类动机**——如果设计师给了 `bg-*` / `img-*` 前缀，设计师就是明确表示"这块是一张不可拆的视觉资产"。文本要可编辑，让设计师改前缀（去掉 `bg-` / `img-`，或把文本层移到该 GROUP 之外）；agent **无权**替设计师做这个决定。
@@ -712,48 +712,48 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 >
 > **典型事故案例（v0.3.13 修复的原型）**：
 >
-> Figma 侧 `211:266 券1备份 8`：
+> Figma 侧某 FRAME `<父 nodeId> <父图层名>`：
 > ```
-> FRAME, bbox=113×105
+> FRAME, bbox=W×H
 > layoutMode=VERTICAL
 > primaryAxisAlignItems=CENTER    ← 主轴垂直居中
 > counterAxisAlignItems=CENTER    ← 交叉轴水平居中
 > itemSpacing=5
 > padding=[0/0/0/0]
 > children:
->   - 211:267 bg (layoutPositioning=ABSOLUTE, 蒙版)     ← 脱流
->   - 211:269 Frame 764 (20元 + 描述, 113×59)           ← 顺流
->   - 211:277 btn (94×28)                              ← 顺流
+>   - <子 A: bg 装饰> (layoutPositioning=ABSOLUTE)      ← 脱流
+>   - <子 B: 内容组 FRAME> (bbox W×H1)                   ← 顺流
+>   - <子 C: 按钮 btn> (bbox W'×H2)                      ← 顺流
 > ```
-> 顺流 2 组高 59+28+5=92，父容 105，flex 让父自动上下各留 6.5px。
+> 顺流 2 组高 H1+H2+itemSpacing=SUM，父容 H (H > SUM)，flex 让父自动上下各留 (H-SUM)/2 px。
 >
 > ❌ **错误产物**：
 > ```ts
-> couponCard: {
+> <父容器>: {
 >   position: 'relative',
->   width: rpx(113), height: rpx(105),
+>   width: rpx(W), height: rpx(H),
 >   alignItems: 'center',
 >   // ❌ 缺 justifyContent: 'center'
->   // ❌ 缺 rowGap: rpx(5)
+>   // ❌ 缺 rowGap: rpx(itemSpacing)
 > }
-> couponTitleRow: { marginTop: rpx(6), ... }   // ❌ 用 y=6 逆推
-> couponDescCol:  { marginTop: rpx(6), ... }   // ❌ 用 y=32-26=6 逆推
-> couponBtn:      { position: 'absolute', top: rpx(70), left: rpx(9), ... }  // ❌ 绝对坐标
+> <子 B>: { marginTop: rpx(y1), ... }                                   // ❌ 用 bbox y 逆推
+> <子 C>: { marginTop: rpx(y2), ... }                                   // ❌ 用 bbox y 逆推
+> <末子>: { position: 'absolute', top: rpx(y3), left: rpx(x), ... }     // ❌ 绝对坐标
 > ```
 > 视觉表现：整体下移、卡内元素错位——agent 完全绕开父 flex 语义，用 bbox 逆推。
 >
 > ✅ **正确产物**：
 > ```ts
-> couponCard: {
+> <父容器>: {
 >   position: 'relative',                  // 允许（承接 ABSOLUTE 兄弟层 bg 的定位锚点）
->   width: rpx(113), height: rpx(105),
+>   width: rpx(W), height: rpx(H),
 >   justifyContent: 'center',              // ← primary=CENTER 落地
 >   alignItems: 'center',                  // ← counter=CENTER 落地
->   rowGap: rpx(5),                        // ← itemSpacing=5 落地
+>   rowGap: rpx(itemSpacing),              // ← itemSpacing 落地
 > }
-> couponTitleRow: { flexDirection: 'row', alignItems: 'baseline', zIndex: 1 }   // ✅ 无 margin/position
-> couponDescCol:  { width: rpx(113), alignItems: 'center', zIndex: 1 }          // ✅ 无 margin/position
-> couponBtn:      { width: rpx(94), height: rpx(28), justifyContent: 'center', alignItems: 'center' }  // ✅ 无 absolute
+> <子 B>: { flexDirection: 'row', alignItems: 'baseline', zIndex: 1 }                     // ✅ 无 margin/position
+> <子 C>: { width: rpx(W'), alignItems: 'center', zIndex: 1 }                             // ✅ 无 margin/position
+> <末子>: { width: rpx(W2), height: rpx(H2), justifyContent: 'center', alignItems: 'center' }  // ✅ 无 absolute
 > ```
 >
 > **诱惑与反诱惑**：agent 常见的错误动机是"bbox 是明确数字，flex 是抽象规则，用 bbox 更精准"。**本 SKILL 不接受这类动机**——bbox 逆推会绑死首个子节点内容长度、破坏响应式、破坏后期文案改动的自适应。**设计师用了 autoLayout = 明确表达"这里是自适应布局"**，agent 无权替设计师改回绝对定位。
@@ -785,7 +785,7 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 >
 > # 2. 对每个顺流子 id，扫产物 style 里禁止属性
 > for id in $(cat /tmp/rn-flow-children.txt); do
->   # 从 index.tsx 找 style 名（如 data-node-id="211:270" style={styles.couponTitleRow}）
+>   # 从 index.tsx 找 style 名（如 data-node-id="<id>" style={styles.<blockName>}）
 >   sname=$(grep -oE "style=\{styles\.[A-Za-z][A-Za-z0-9]*\}[^>]*data-node-id=\"$id\"" {output.dir}/**/index.tsx 2>/dev/null \
 >           | sed -E 's/.*styles\.([A-Za-z0-9]+).*/\1/' | head -1)
 >   [ -z "$sname" ] && continue
@@ -852,7 +852,7 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 > **bg- 独立切图契约（v0.3.11 强制，RN 版）**：每个 `bg-*` 前缀节点**必须独立走一次 `figma.mjs export-image`**，即使其**祖先链上已有别的 `bg-*` 前缀节点被整体切图**，且切图物理范围覆盖当前节点。RN 侧规则与 pp-d2c §4.3 语义一致，仅在 grep 引用形式上覆盖 RN 特有写法。
 >
 > **禁止的错误逻辑**：
-> - ❌ "父 `bg-img` 已经整体切了，且切图物理范围覆盖了子 `bg-quan`，所以 `bg-quan` 不用再切"
+> - ❌ "父 `bg-<A>` 已经整体切了，且切图物理范围覆盖了子 `bg-<B>`，所以 `bg-<B>` 不用再切"
 > - ❌ "祖先 `bg-` 切图产物里 SLICE 覆盖了后代 `bg-` 物理区域，后代已烤入祖先切图"
 >
 > **正确逻辑**：**前缀维度优先于物理覆盖维度**——只要设计师打了 `bg-*` 前缀，就是"独立可替换视觉资产"，必须有自己的 png 落盘 + `<Image>` / `<ImageBackground>` / `<FastImage>` 引用。
@@ -1843,7 +1843,7 @@ fi
 
 **doctor IMG026（v0.3.6 新增）**：`img-`/`bg-`/裸词 img/bg 命中，但 images.json 里对应 nodeId 缺失 → **error**（说明本次 skill 没走 REST 就落图，属于严重忠实度事故）。
 
-**为什么加这一小节**：历史事故 `gengduofuli-quan-jinqing.png` 出现"顶部有大片空白"，追查 md5 发现磁盘产物和 API 实测导出根本对不上——skill 那一轮实际上没调 REST，而是从上一轮的 `jingqingqidai.png` 直接改名复用了。
+**为什么加这一小节**：某历史事故中，某张 `<container>-<item>-<state>.png` 出现"顶部有大片空白"，追查 md5 发现磁盘产物和 API 实测导出根本对不上——skill 那一轮实际上没调 REST，而是从上一轮的另一张同类图直接改名复用了。
 
 ##### 4.4 图片处理（原节，v0.3.6 起以 §4.4.0 为前提）
 
@@ -2862,7 +2862,7 @@ fi
 ## bg- 独立切图契约（v0.3.11 新增，§4.3）
 - 子树内所有 `bg-*` / 裸词 `bg` 前缀节点集合大小：{count(bg-nodes)}
 - assets.txt 声明的 `bg-*` 切图集合大小：{count(bg-declared)}
-- 差集 bg-nodes - bg-declared（应切图但没切）：{"空" 或 "missing: bg-quan, bg-btn, ..."}（非空 = sub-agent 因祖先覆盖脑补省略事故，触发 BGP033）
+- 差集 bg-nodes - bg-declared（应切图但没切）：{"空" 或 "missing: bg-<X1>, bg-<X2>, ..."}（非空 = sub-agent 因祖先覆盖脑补省略事故，触发 BGP033）
 - 产物引用覆盖（RN 5 种 Image 形式：require / uri / ImageBackground / FastImage / ASSET_PREFIX）零匹配项数：{count(unused-imports)}
 - 结果：{✅ 通过 / ❌ 失败}
 ```
