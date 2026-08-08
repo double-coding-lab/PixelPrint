@@ -1,6 +1,6 @@
 # pp-d2c Skill
 
-> **v0.3.16（2026-08-08，h5 独享）**：修复 §4.4.pre.b 子树结构禁切规则被 sub-agent 绕过的事故——某 h5 稿 Frame 749 下 7 张同构 quan 卡（每张含 ≥4 TEXT + btn + `img-tag-xxx` 子层）+ 2 张 quanyi 权益卡全被整体切图（`gengduofuli-quan-1..7.png` / `quanyi-*.png`），文字/按钮/金额/状态全烤入位图，无法多语言、无法数据绑定、无法接埋点。三处根因：(1) v0.3.9 里 `img-`/`bg-` 前缀有"设计师显式指定"豁免路径,sub-agent 借此绕过禁切；(2) 命中同构禁切（≥3）时,skill 只说"应逐层递归"但没规定必须 `.map()` 数据驱动,sub-agent 图省事整切；(3) sub-agent QA 段声明 `x/y/z` 结构信号但主 agent 未强制重算断言,sub-agent 可写 `x=0 y=0 z=0` 蒙混。改动：(1) §4.4.pre.b 删除 `img-`/`bg-` 豁免例外,前缀不再豁免结构禁切；(2) 新增「同构列表必须 `.map()` 数据驱动」段 + 具体示例（数据数组 + 模板 JSX + `.d2c-tasks.md` QA 追加行）；(3) §6.0.2 合并核查追加主 agent 独立 grep 重算 `x/y/z` 与 sub-agent 声明对齐的断言脚本。**本次改动只在 pp-d2c 生效**,不同步到 pp-d2c-rn / pp-doctor。
+> **v0.3.16（2026-08-08，h5 独享）**：修复 §4.4.pre.b 子树结构禁切规则被 sub-agent 绕过的事故——某 h5 稿在某容器下含 N≥3 张同构卡片（每张含 ≥4 TEXT + btn + `img-tag-<X>` 子层）+ M 张附加同构卡全被整体切图（`<container>-<item>-1..N.png` / `<container2>-*.png`），文字/按钮/金额/状态全烤入位图，无法多语言、无法数据绑定、无法接埋点。三处根因：(1) v0.3.9 里 `img-`/`bg-` 前缀有"设计师显式指定"豁免路径,sub-agent 借此绕过禁切；(2) 命中同构禁切（≥3）时,skill 只说"应逐层递归"但没规定必须 `.map()` 数据驱动,sub-agent 图省事整切；(3) sub-agent QA 段声明 `x/y/z` 结构信号但主 agent 未强制重算断言,sub-agent 可写 `x=0 y=0 z=0` 蒙混。改动：(1) §4.4.pre.b 删除 `img-`/`bg-` 豁免例外,前缀不再豁免结构禁切；(2) 新增「同构列表必须 `.map()` 数据驱动」段 + 具体示例（数据数组 + 模板 JSX + `.d2c-tasks.md` QA 追加行）；(3) §6.0.2 合并核查追加主 agent 独立 grep 重算 `x/y/z` 与 sub-agent 声明对齐的断言脚本。**本次改动只在 pp-d2c 生效**,不同步到 pp-d2c-rn / pp-doctor。
 
 > **v0.3.15（2026-08-08，h5 独享）**：修复 `bg-*` / 裸词 `bg` 节点落地形式漂移事故——同一份产物里 agent 用了三种不一致方式：(1) `<div class="bg" />` 空 div + scss `background-image`（接近对，但空 div 多余）；(2) `<div style="background-image:url(...)">` inline style（错）；(3) `<img src="bg.png">`（更错，`<img>` 是 `img-*` 独占）。根因是 v0.3.11「JSX `<img>` / CSS `background-image` 引用」的 "/" 让 agent 二选一。改动：(1) 重写 v0.3.11 三处歧义句为明确单选；(2) §4.0 主表 L640 补一句「bg 节点自身不生成任何 DOM」；(3) §4.3 新增「`bg-*` 唯一合法落地形式」——bg 节点被"吸收"进父容器，切图挂父 `background-image`（独立 `.scss`），禁止 `<img>` / 空 div / inline style 三种错法；配 grep 自证。**本次改动只在 pp-d2c 生效**，不同步到 pp-d2c-rn（RN 侧 `<Image>` 无 CSS background 概念，本身无歧义）/ pp-doctor（doctor 暂不加新规则）。
 
@@ -785,11 +785,11 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 > **bg- 独立切图契约（v0.3.11 强制，v0.3.15 严化）**：每个 `bg-*` 前缀节点**必须独立走一次 `figma.mjs export-image`**，即使其**祖先链上已有别的 `bg-*` 前缀节点被整体切图**，且切图物理范围覆盖当前节点。理由：agent 无法准确判断祖先切图产物里是否"精确渲染了"当前 `bg-*` 节点的视觉——只要设计师主动打了 `bg-*` 前缀，就代表"这是一个独立的可替换视觉资产"，必须有自己的 png 落盘 + **通过 CSS `background-image` 挂在父容器上**（详见下方「唯一合法落地形式」）。
 >
 > **禁止的错误逻辑**（agent 常见脑补）：
-> - ❌ "父 `bg-img` 已经整体切了，且切图物理范围覆盖了子 `bg-quan`，所以 `bg-quan` 不用再切"
+> - ❌ "父 `bg-<A>` 已经整体切了，且切图物理范围覆盖了子 `bg-<B>`，所以 `bg-<B>` 不用再切"
 > - ❌ "祖先 `bg-` 切图产物里有 SLICE 子节点覆盖了后代 `bg-` 所在物理区域，后代已烤入祖先切图"
 > - ❌ "父的切图物理范围包住了子的 bbox，子视觉已在父切图里"
 >
-> **正确逻辑**：**前缀维度优先于物理覆盖维度**——只要设计师在图层名上打了 `bg-` 前缀，agent 就必须尊重"这是一个独立视觉资产"的设计意图，独立切图、独立引用。祖先与后代的物理重叠区域在最终产物里会叠加渲染（父容器 `.parent { background-image: url(bg-A.png) }` + 子容器 `.child { background-image: url(bg-quan.png) }`），视觉一致由设计师负责——不是 agent 优化的空间。
+> **正确逻辑**：**前缀维度优先于物理覆盖维度**——只要设计师在图层名上打了 `bg-` 前缀，agent 就必须尊重"这是一个独立视觉资产"的设计意图，独立切图、独立引用。祖先与后代的物理重叠区域在最终产物里会叠加渲染（父容器 `.parent { background-image: url(bg-<A>.png) }` + 子容器 `.child { background-image: url(bg-<B>.png) }`），视觉一致由设计师负责——不是 agent 优化的空间。
 >
 > **sub-agent 交付前必须在 `blocks/{sub}/assets.txt` QA 段末尾追加一段 bg- 独立切图清单证明**：
 >
@@ -891,7 +891,7 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 >   && echo "❌ 发现 inline 样式 background-image(应写独立 .scss)"
 > ```
 >
-> **典型事故（v0.3.15 修复的原型）**：某 h5 页面同名 `bg-quan` 节点被 agent 用两种方式混合落地——一处 `<div class="quan-bg"></div>` + scss 挂 background（生成了空 div，仍不对但接近）；另一处 `<div class="quan-bg" style="background-image:url(...)">`（inline style，错）；同时 `bg` 裸词节点 `choujiang-bg` 被生成 `<img src="choujiang-bg.png">`（用了 img，错）。v0.3.15 后 bg 节点在 h5 产物里**不再生成任何 DOM**，只挂父 background-image。
+> **典型事故(v0.3.15 修复的原型)**:某 h5 页面同名 `bg-<X>` 节点被 agent 用两种方式混合落地——一处 `<div class="<X>-bg"></div>` + scss 挂 background(生成了空 div,仍不对但接近);另一处 `<div class="<X>-bg" style="background-image:url(...)">`(inline style,错);同时另一 `bg` 裸词节点 `<Y>-bg` 被生成 `<img src="<Y>-bg.png" class="<Y>-bg">`(用了 img,错)。v0.3.15 后 bg 节点在 h5 产物里**不再生成任何 DOM**,只挂父 background-image。
 >
 > **v0.3.11 原句歧义修正**：v0.3.11 写的"JSX `<img>` / CSS `background-image`"两个并列表述让 agent 二选一，v0.3.15 明确改为"仅父容器 CSS `background-image`"单选。
 
@@ -1718,21 +1718,21 @@ Frame 734 (136:45662, 无前缀, FRAME, VERTICAL layoutMode)
 > ```jsx
 > // blocks/sub-ui/index.jsx
 > const QUAN_LIST = [
->   { id: 1, amount: '8',  unit: '折券', tag: '英欧火车专享', tagBg: 'gaoduanzuoxi.png', btnText: '领取', btnState: 'available' },
->   { id: 2, amount: '95', unit: '折券', tag: '新客专享',     tagBg: 'xinkezhuanxiang.png', btnText: '去使用', btnState: 'used' },
+>   { id: 1, amount: 'A1',  unit: 'U1', tag: 'T1', tagBg: 't1.png', btnText: 'B1', btnState: 'available' },
+>   { id: 2, amount: 'A2',  unit: 'U2', tag: 'T2', tagBg: 't2.png', btnText: 'B2', btnState: 'used' },
 >   // ... 6 条数据
 > ];
 >
 > export default function FuliQuan() {
 >   return (
->     <div className="sub-ui__quan-list" data-node-id="{Frame 749 nodeId}">
+>     <div className="<container>__list" data-node-id="{container nodeId}">
 >       {QUAN_LIST.map(item => (
->         <div key={item.id} className="sub-ui__quan-card" data-node-id-list={item.id}>
->           <span className="sub-ui__quan-amount">{item.amount}</span>
->           <span className="sub-ui__quan-unit">{item.unit}</span>
->           <img className="sub-ui__quan-tag" src={`${ASSET_PREFIX}${item.tagBg}`} alt={item.tag} />
->           <span className="sub-ui__quan-tag-text">{item.tag}</span>
->           <button className={`sub-ui__quan-btn sub-ui__quan-btn--${item.btnState}`}>
+>         <div key={item.id} className="<container>__card" data-node-id-list={item.id}>
+>           <span className="<container>__amount">{item.amount}</span>
+>           <span className="<container>__unit">{item.unit}</span>
+>           <img className="<container>__tag" src={`${ASSET_PREFIX}${item.tagBg}`} alt={item.tag} />
+>           <span className="<container>__tag-text">{item.tag}</span>
+>           <button className={`<container>__btn <container>__btn--${item.btnState}`}>
 >             {item.btnText}
 >           </button>
 >         </div>
@@ -1745,22 +1745,22 @@ Frame 734 (136:45662, 无前缀, FRAME, VERTICAL layoutMode)
 > **禁止的错法**：
 >
 > ```jsx
-> ❌ // 错法 1: 手动展开 7 次 JSX (等价于把数据硬编码)
-> <div className="quan-1">...</div>
-> <div className="quan-2">...</div>
+> ❌ // 错法 1: 手动展开 N 次 JSX (等价于把数据硬编码)
+> <div className="<container>-1">...</div>
+> <div className="<container>-2">...</div>
 > ...
-> <div className="quan-7">...</div>
+> <div className="<container>-N">...</div>
 >
-> ❌ // 错法 2: 整体切图为 gengduofuli-quan-1.png .. gengduofuli-quan-7.png
-> <img src="gengduofuli-quan-1.png" />
-> <img src="gengduofuli-quan-2.png" />
+> ❌ // 错法 2: 整体切图为 <container>-1..N.png
+> <img src="<container>-1.png" />
+> <img src="<container>-2.png" />
 > ...
 > ```
 >
 > **数据数组抽取原则**：sub-agent 遍历同构节点，把**每个节点内部随位置变化的原子字段**（TEXT `characters` / img src / btn 文案 / 状态标记）抽成数据数组元素；**位置**和**结构**不变的部分（CSS class / DOM 树）留在 JSX 模板里。抽取后的 `.d2c-tasks.md` QA 段要追加一行：
 >
 > ```
-> · 同构列表数据数组：{列表名} 共 {N} 项，字段：[amount, unit, tag, tagBg, btnText, btnState, ...]
+> · 同构列表数据数组：{列表名} 共 {N} 项，字段：[<字段 1>, <字段 2>, ...]
 > ```
 
 ##### 4.4.0 切图强制忠实执行（v0.3.6 新增）
@@ -1804,7 +1804,7 @@ Frame 734 (136:45662, 无前缀, FRAME, VERTICAL layoutMode)
 
 **doctor IMG026（v0.3.6 新增）**：`img-` / `bg-` / 裸词 img/bg 命中，但 images.json 里对应 nodeId 缺失 → **error**（说明本次 skill 没走 REST 就落图，属于严重忠实度事故）。
 
-**为什么加这一小节**：历史事故 `gengduofuli-quan-jinqing.png` 出现"顶部有大片空白"，追查 md5 发现磁盘产物和 API 实测导出根本对不上——skill 那一轮实际上没调 REST，而是从上一轮的 `jingqingqidai.png` 直接改名复用了。此次修订的目的就是让"跳过 API 直接落图"不再可能。
+**为什么加这一小节**：某历史事故中，某张 `<container>-<item>-<state>.png` 出现"顶部有大片空白"，追查 md5 发现磁盘产物和 API 实测导出根本对不上——skill 那一轮实际上没调 REST，而是从上一轮的另一张同类图直接改名复用了。此次修订的目的就是让"跳过 API 直接落图"不再可能。
 
 ##### 4.4 图片处理（原节，v0.3.6 起以 §4.4.0 为前提）
 
@@ -2454,7 +2454,7 @@ print(f'::总计违反 = {BAD} ::')
 ## bg- 独立切图契约（v0.3.11 新增，§4.3）
 - 子树内所有 `bg-*` / 裸词 `bg` 前缀节点集合大小：{count(bg-nodes)}
 - assets.txt 声明的 `bg-*` 切图集合大小：{count(bg-declared)}
-- 差集 bg-nodes - bg-declared（应切图但没切）：{"空" 或 "missing: bg-quan, bg-btn, ..."}（非空 = sub-agent 因祖先覆盖脑补省略事故，触发 BGP033）
+- 差集 bg-nodes - bg-declared（应切图但没切）：{"空" 或 "missing: bg-<X1>, bg-<X2>, ..."}（非空 = sub-agent 因祖先覆盖脑补省略事故，触发 BGP033）
 - 结果：{✅ 通过 / ❌ 失败}
 ```
 
