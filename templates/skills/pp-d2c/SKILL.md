@@ -1,5 +1,7 @@
 # pp-d2c Skill
 
+> **v0.3.16（2026-08-08，h5 独享）**：修复 §4.4.pre.b 子树结构禁切规则被 sub-agent 绕过的事故——某 h5 稿 Frame 749 下 7 张同构 quan 卡（每张含 ≥4 TEXT + btn + `img-tag-xxx` 子层）+ 2 张 quanyi 权益卡全被整体切图（`gengduofuli-quan-1..7.png` / `quanyi-*.png`），文字/按钮/金额/状态全烤入位图，无法多语言、无法数据绑定、无法接埋点。三处根因：(1) v0.3.9 里 `img-`/`bg-` 前缀有"设计师显式指定"豁免路径,sub-agent 借此绕过禁切；(2) 命中同构禁切（≥3）时,skill 只说"应逐层递归"但没规定必须 `.map()` 数据驱动,sub-agent 图省事整切；(3) sub-agent QA 段声明 `x/y/z` 结构信号但主 agent 未强制重算断言,sub-agent 可写 `x=0 y=0 z=0` 蒙混。改动：(1) §4.4.pre.b 删除 `img-`/`bg-` 豁免例外,前缀不再豁免结构禁切；(2) 新增「同构列表必须 `.map()` 数据驱动」段 + 具体示例（数据数组 + 模板 JSX + `.d2c-tasks.md` QA 追加行）；(3) §6.0.2 合并核查追加主 agent 独立 grep 重算 `x/y/z` 与 sub-agent 声明对齐的断言脚本。**本次改动只在 pp-d2c 生效**,不同步到 pp-d2c-rn / pp-doctor。
+
 > **v0.3.15（2026-08-08，h5 独享）**：修复 `bg-*` / 裸词 `bg` 节点落地形式漂移事故——同一份产物里 agent 用了三种不一致方式：(1) `<div class="bg" />` 空 div + scss `background-image`（接近对，但空 div 多余）；(2) `<div style="background-image:url(...)">` inline style（错）；(3) `<img src="bg.png">`（更错，`<img>` 是 `img-*` 独占）。根因是 v0.3.11「JSX `<img>` / CSS `background-image` 引用」的 "/" 让 agent 二选一。改动：(1) 重写 v0.3.11 三处歧义句为明确单选；(2) §4.0 主表 L640 补一句「bg 节点自身不生成任何 DOM」；(3) §4.3 新增「`bg-*` 唯一合法落地形式」——bg 节点被"吸收"进父容器，切图挂父 `background-image`（独立 `.scss`），禁止 `<img>` / 空 div / inline style 三种错法；配 grep 自证。**本次改动只在 pp-d2c 生效**，不同步到 pp-d2c-rn（RN 侧 `<Image>` 无 CSS background 概念，本身无歧义）/ pp-doctor（doctor 暂不加新规则）。
 
 > **v0.3.14（2026-08-08，h5 独享）**：修复 P/M 大类混合事故——某 h5 项目 config 明确 `"styleFormat":"scss"`（P 大类），主入口 `pages/index.jsx` 却生成 `import styles from "./styles.module.scss"` + 全篇 `className={styles.container}`（M 大类），同时 `pages/blocks/main/index.scss` 又是普通 `.scss`（P 大类），两半矛盾导致 css-modules 哈希化的类名跟 blocks 里的普通 scss 完全不通气，页面视觉全部丢样式。改动：§2.5.2 结尾追加「大类一致性硬约束」——主 agent 判定后必须在 `.d2c-tasks.md` 顶部写「大类锁定」段，sub-agent 生成 block 前必须 Read 锁定值严格遵守，禁止各 sub-agent 独立再判；配 grep 自证脚本（P 大类禁 `.module.*` / `styles.xxx` / `import styles from`；M 大类禁裸 `.scss` / 裸 `className="xxx"`）。**本次改动只在 pp-d2c 生效**，不同步到 pp-d2c-rn（RN 侧固定 stylesheet 无 P/M 分歧）。
@@ -1673,7 +1675,9 @@ fi
 | **多按钮禁切** | 子树含 **≥2 个**下列任一：`btn-` 前缀节点 / 裸词 `btn` 节点 / INSTANCE / COMPONENT 型子节点 | 按钮是交互原子，必须独立生成 `<button>` / `<Pressable>` 才能挂事件；烤图后无法点击 |
 | **同构列表禁切** | 子树含 **≥3 个**同层同构子节点（**同类型**+**bbox 相近**±10%+**图层名同前缀或数字后缀差 1**） | 同构结构是列表语义，应当 `.map()` 生成，烤图后无法动态渲染、无法数据绑定 |
 
-**判定优先级**：结构信号维度**优先于**前缀维度——即使节点前缀允许整体切图（`img-` / `bg-` / 无前缀），只要命中上表任一条件，一律禁止整体切图，必须递归子层。**唯一例外**：`img-` / `bg-` 是**设计师显式指定"这就是一张图"**的信号，agent 应尊重（否则前缀就没意义了）；但此时 doctor SUB029 会告警"命中结构禁切条件但前缀强制切图，建议设计师复核"，让用户判断。
+**判定优先级**：结构信号维度**优先于**前缀维度——即使节点前缀是 `img-` / `bg-` / 无前缀，只要命中上表任一条件，一律禁止整体切图，必须递归子层。
+
+> **⚠️ 无前缀豁免（v0.3.16 严化）**：v0.3.9 里曾对 `img-` / `bg-` 保留"设计师显式指定豁免"，实践中被 agent 滥用——`img-tag-xxx`（叶子小图，无内部 TEXT/btn）与 `img-<容器>`（内部含 ≥4 TEXT + btn，是设计师**打错前缀**）走同一豁免路径，导致 7 张 quan 卡（每张含"标签TEXT + 金额TEXT + 单位TEXT + 按钮TEXT + 角标"）被整体切图，文字、按钮、数据全烤入位图，后续无法多语言 / 无法数据绑定 / 无法接入埋点。**v0.3.16 后**：`img-` / `bg-` 前缀**不再豁免**结构禁切条件；命中即拒切，报错让用户核对设计稿（是设计师打错前缀，应改前缀 / 拆分节点；不是 agent 优化空间）。
 
 **违反后果**：doctor SUB029（v0.3.9 新增，error）—— sub-agent / 主 agent 对命中结构禁切条件的节点调用 `figma.mjs export-image` 整体切图，见 pp-doctor §3.6r。
 
@@ -1706,6 +1710,58 @@ Frame 734 (136:45662, 无前缀, FRAME, VERTICAL layoutMode)
 ```
 
 任一命中 → 立即停下重做，回归 §4.3 递归子层解析。
+
+> **⚠️ 同构列表必须 `.map()` 数据驱动（v0.3.16 强制）**：命中「同构列表禁切」（≥3 同层同构子节点）时，产物**必须**用数据数组 + `.map()` 渲染，**禁止**手动展开 N 个 JSX 块。手动展开虽然产物"看起来一样"，但业务上等价于"把数据硬编码进 JSX"——数据变更、接口对接、A/B 实验都需要重新改 skill。
+>
+> **正确形式**：
+>
+> ```jsx
+> // blocks/sub-ui/index.jsx
+> const QUAN_LIST = [
+>   { id: 1, amount: '8',  unit: '折券', tag: '英欧火车专享', tagBg: 'gaoduanzuoxi.png', btnText: '领取', btnState: 'available' },
+>   { id: 2, amount: '95', unit: '折券', tag: '新客专享',     tagBg: 'xinkezhuanxiang.png', btnText: '去使用', btnState: 'used' },
+>   // ... 6 条数据
+> ];
+>
+> export default function FuliQuan() {
+>   return (
+>     <div className="sub-ui__quan-list" data-node-id="{Frame 749 nodeId}">
+>       {QUAN_LIST.map(item => (
+>         <div key={item.id} className="sub-ui__quan-card" data-node-id-list={item.id}>
+>           <span className="sub-ui__quan-amount">{item.amount}</span>
+>           <span className="sub-ui__quan-unit">{item.unit}</span>
+>           <img className="sub-ui__quan-tag" src={`${ASSET_PREFIX}${item.tagBg}`} alt={item.tag} />
+>           <span className="sub-ui__quan-tag-text">{item.tag}</span>
+>           <button className={`sub-ui__quan-btn sub-ui__quan-btn--${item.btnState}`}>
+>             {item.btnText}
+>           </button>
+>         </div>
+>       ))}
+>     </div>
+>   );
+> }
+> ```
+>
+> **禁止的错法**：
+>
+> ```jsx
+> ❌ // 错法 1: 手动展开 7 次 JSX (等价于把数据硬编码)
+> <div className="quan-1">...</div>
+> <div className="quan-2">...</div>
+> ...
+> <div className="quan-7">...</div>
+>
+> ❌ // 错法 2: 整体切图为 gengduofuli-quan-1.png .. gengduofuli-quan-7.png
+> <img src="gengduofuli-quan-1.png" />
+> <img src="gengduofuli-quan-2.png" />
+> ...
+> ```
+>
+> **数据数组抽取原则**：sub-agent 遍历同构节点，把**每个节点内部随位置变化的原子字段**（TEXT `characters` / img src / btn 文案 / 状态标记）抽成数据数组元素；**位置**和**结构**不变的部分（CSS class / DOM 树）留在 JSX 模板里。抽取后的 `.d2c-tasks.md` QA 段要追加一行：
+>
+> ```
+> · 同构列表数据数组：{列表名} 共 {N} 项，字段：[amount, unit, tag, tagBg, btnText, btnState, ...]
+> ```
 
 ##### 4.4.0 切图强制忠实执行（v0.3.6 新增）
 
@@ -2307,7 +2363,72 @@ fi
 ## 节点整体切图适格性核查（§4.4.pre + §4.4.pre.b）
 - 本轮切图节点是否包含 `sub-*` / `block-*` 前缀？{否 / 是: node list}（前缀维度）
 - 本轮切图节点中，是否存在其 Figma 子树含 ≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点？{否 / 是: node list}（v0.3.9 结构维度）
+- **主 agent 独立重算断言（v0.3.16 强制）**：主 agent 遍历每张切图（读 `assets.txt` 拿 nodeId）→ 从 `.d2c-cache/<fileKey>/nodes/<nodeId>.json` 读子树 → 独立算 `x=可见TEXT数 / y=btn数 / z=同构组数`，与 sub-agent 在 QA 段声明的 `x/y/z` 逐项对齐；不一致视为 sub-agent 撒谎，驳回该切图重做（禁止 sub-agent 写 `x=0 y=0 z=0` 蒙混过关）
 - 结果：{✅ 通过 / ❌ 失败}
+
+**主 agent 独立重算 grep 脚本**（v0.3.16）：
+
+```bash
+# 遍历所有切图节点,独立重算子树结构信号
+python3 -c "
+import json, glob, os, re
+BAD = 0
+# 从 assets.txt 提取所有已切图节点 id
+switched_ids = set()
+for f in glob.glob('{output.dir}/blocks/**/assets.txt', recursive=True):
+    for line in open(f):
+        m = re.search(r'\(nodeId:\s*([^,)]+)', line)
+        if m: switched_ids.add(m.group(1).strip())
+
+# 对每个已切图节点,从 d2c-cache 读子树 → 算 x/y/z
+def scan_subtree(root):
+    text_ys = []   # 可见 TEXT 的 y 坐标(去重同行)
+    btn_count = 0
+    children_groups = {}  # bbox 相近 + 同类型 → 同构组
+    def walk(n):
+        nonlocal btn_count
+        vis = n.get('visible', True)
+        if not vis: return
+        typ = n.get('type','')
+        name = n.get('name','')
+        if typ == 'TEXT':
+            y = n.get('absoluteBoundingBox',{}).get('y', 0)
+            text_ys.append(y)
+        if name.startswith('btn') or typ in ('INSTANCE','COMPONENT'):
+            btn_count += 1
+        for c in n.get('children',[]):
+            walk(c)
+    for c in root.get('children',[]):
+        walk(c)
+    # 同构:直接子层同 type + bbox w 相近 ±10%
+    for c in root.get('children',[]):
+        if not c.get('visible', True): continue
+        typ = c.get('type','')
+        w = c.get('absoluteBoundingBox',{}).get('width', 0)
+        key = f'{typ}|{round(w/10)*10}'
+        children_groups[key] = children_groups.get(key, 0) + 1
+    # 去重同行 TEXT
+    text_ys_dedup = []
+    for y in sorted(text_ys):
+        if not text_ys_dedup or abs(y - text_ys_dedup[-1]) >= 4:
+            text_ys_dedup.append(y)
+    homogeneous = max(children_groups.values(), default=0) if children_groups else 0
+    return len(text_ys_dedup), btn_count, homogeneous
+
+for nid in switched_ids:
+    nid_file = nid.replace(':', '_')
+    cache_files = glob.glob(f'.d2c-cache/**/nodes/{nid_file}.json', recursive=True)
+    if not cache_files: continue
+    d = json.load(open(cache_files[0]))
+    root = d.get('node', d)
+    x, y, z = scan_subtree(root)
+    if x >= 2 or y >= 2 or z >= 3:
+        print(f'❌ {nid} 被切图但子树命中禁切 x={x} y={y} z={z}(违反 §4.4.pre.b + v0.3.16 无前缀豁免)')
+        BAD += 1
+
+print(f'::总计违反 = {BAD} ::')
+"
+```
 
 ## 未打断用户核查（v0.3.8 新增，§问题边界）
 - 本轮 agent 是否向用户提过任何 skill 已定死的技术决策问题？（切图/兜底/合并/尺寸/命名冲突等）{否 / 是: 问题清单}
