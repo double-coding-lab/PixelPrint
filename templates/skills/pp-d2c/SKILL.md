@@ -1003,6 +1003,21 @@ Figma 里一个 TEXT 节点可以叠多层 `fills`。取字色遵循下表（详
 
 **doctor NAM025（v0.3.6 新增）**：TEXT 节点 `fills` 有 ≥2 个可见 SOLID → info 提示，防止取错色。
 
+**末位色对比度自检**：末位取色是机械规则,不校验视觉效果。历史事故:设计师把 stroke / typography 阴影序列化进 fills 时会混入深色(如 `#864500`)成为"末位可见色",机械取末位会得到与父容器背景对比度极低的字色,肉眼几乎看不清。sub-agent 在 assets.txt QA 段追加溯源行时,若满足**全部**下列条件,**必须**同时输出 `⚠️ 对比度警告` 一行,由主 agent 复核决定是否手工改用倒数第 2 位色:
+
+- fills 层数 ≥ 3(fills 越多层混入 stroke/shadow 的概率越大)
+- 末位色为深色系(HSL L < 40%,大致等价 `#000000 ~ #666666` 及各深彩色)
+- 该 TEXT 节点所在父容器 `fills[0]` 也是深色系 SOLID / GRADIENT
+
+**QA 追加格式**：
+
+```
+· TEXT {nodeId} "{text}" fills层数={N≥3} 末位可见色={#hexN} 父容器bg末位色={#parentHex}
+  ⚠️ 对比度警告: 末位色与父容器 bg 均为深色系,机械取末位可能取到 stroke/shadow 层。建议主 agent 复核:是取倒数第 2 位 {#hex(N-1)} 更接近设计意图,还是设计稿本身就是深底深字。
+```
+
+主 agent 合并时看到 `⚠️ 对比度警告` 行 → **必须**在 `.d2c-tasks.md` 的 `## Notes` 追加一条待用户核对项,不允许直接跳过。此条不是硬 fail,是**结构化的人工核对信号**,避免机械末位取色在边界情形下静默出错。
+
 **字色 fills 溯源证明（v0.3.10 强制，每个 TEXT 交付前写 assets.txt QA 一行）**：
 
 sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA 段末尾追加**每个 TEXT 节点一行**的溯源记录，格式：
@@ -1190,11 +1205,11 @@ btn-qukankan (FRAME, fills=[GRADIENT_LINEAR], cornerRadius=8)
 不需要再建 bg-btn-qukankan 子层切图。
 ```
 
-**`btn-` 内嵌 TEXT 双写防护（v0.3.6 新增）**：
+**`btn-` 内嵌 TEXT 双写防护**：
 
-- **`btn-` 命中「父容器盒级装饰兜底」** → 内部 TEXT 正常出 `<span>` + 字色走 §4.3「TEXT 多层 fills 处理」（默认场景）
-- **`btn-` 未命中兜底（fills 含 IMAGE / 子树含复合形状 → 必须切图）** → 内部 TEXT 默认视为"图字副产物"，**不生成 `<span>`**，避免出现"图片里有文字 + 代码里 span 里又写一遍文字"的双写问题（doctor NAM024 error）
-- **例外**：若设计师主动给内部 TEXT 加了独立前缀（比如把 TEXT 也塞在 `sub-` 里当独立块），按前缀语义正常处理
+- **`btn-` 命中「父容器盒级装饰兜底」** → 内部 TEXT 正常出 `<span>` + 字色走 §4.3「TEXT 多层 fills 处理」
+- **`btn-` 未命中兜底（fills 含 IMAGE / 子树含复合形状 → 必须切图）** → 内部 TEXT **必须**视为"图字副产物"，**禁止**生成 `<span>` / `<Text>` / 任何 DOM 文本节点(去除"默认"漏洞词)。图片里已烤入的文字与 JSX 文本节点**同时存在 = 双写事故**：视觉重合、字色/字号漂移、无法翻译、无法动态替换。**典型错法**:切了 btn 底图 → JSX 里又 `<button><span>立即预约</span></button>` → 位图里已有"立即预约" + span 又叠一层不同字色的文字盖上去,肉眼可见文字重影。
+- **配套**:btn 走整切时,内部 TEXT **不参与** §4.4.pre.b 的"多文本禁切"计数(否则会陷入"切图 → 命中多文本禁切 → 又不能切"的死循环)。btn 是"作为按钮整体切图"这一动作的语义原子,内部文字随之烤入位图,不再作为独立 TEXT 存在。
 
 **`bgc-` 取值规则（v0.2 修订，覆盖 fills/strokes/cornerRadius/effects 全套盒级 CSS 属性）**：
 
@@ -1711,7 +1726,26 @@ Frame 734 (136:45662, 无前缀, FRAME, VERTICAL layoutMode)
 
 任一命中 → 立即停下重做，回归 §4.3 递归子层解析。
 
-> **⚠️ 同构列表必须 `.map()` 数据驱动（v0.3.16 强制）**：命中「同构列表禁切」（≥3 同层同构子节点）时，产物**必须**用数据数组 + `.map()` 渲染，**禁止**手动展开 N 个 JSX 块。手动展开虽然产物"看起来一样"，但业务上等价于"把数据硬编码进 JSX"——数据变更、接口对接、A/B 实验都需要重新改 skill。
+**⚠️ 文本标注不是豁免许可证**：agent **禁止**在 `assets.txt` / `.d2c-tasks.md` / QA 段里用 `[需人工核对]` / `[后续拆分]` / `[单一例外]` / `[合切理由: ...]` / `[结构复杂]` / `[整切说明]` 之类的文字标注**绕过** §4.4.pre.b 结构禁切、§4.3 `bg-*` 独立切图契约、§4.3 `btn-` 内嵌 TEXT 双写防护 等硬约束。命中禁切 → **停手**，把节点 id + 命中原因写入 `.d2c-tasks.md` 的 `## Notes` 段，交还用户判断（要么改设计稿前缀，要么用户显式说"这块允许整切"）。sub-agent **不允许**单方面用 QA 标注放行硬约束。
+
+**同时禁止"挂空契约"**：为了骗过 `bg-*` 独立切图 grep 断言（§6.0.2 会 grep 所有 `bg-*` 是否独立切图），伪造 `::after { opacity: 0; background-image: url('xxx-bg.png') }` / `<div style={{display:'none'}}>` 之类不可见挂载（视觉贡献为 0，只为让 grep 通过）——同属违规。**独立切图必须真实参与视觉渲染**，不能是"仅为契约存在"的幽灵引用。
+
+**主 agent 合并前 grep 自证**（§6.0.2 证明块引用）：
+
+```bash
+# 1. 扫产物 scss/less/css 里是否有伪造挂空
+grep -rEn "opacity:\s*0[^.]" pages/**/*.scss pages/**/*.less pages/**/*.css 2>/dev/null \
+  | grep -E "background-image|url\(" \
+  && echo "❌ 检测到 opacity:0 挂空契约,视觉贡献为 0 却挂了 background-image,违反反挂空规则"
+
+# 2. 扫 QA 段是否有豁免逃跑话术(允许出现在 ## Notes 段落被用户放行的地方)
+grep -rEn "\[(需人工核对|后续拆分|单一例外|合切理由|结构复杂|整切说明)\]" pages/**/assets.txt pages/**/.d2c-tasks.md 2>/dev/null \
+  && echo "❌ 检测到 QA/assets 段用文字标注试图豁免结构禁切/独立切图/双写防护,违反豁免关闭规则"
+```
+
+任一命中 → 合并阶段不算完成，主 agent 必须回滚该子块，回归 §4.3 递归子层解析或把决策权交还用户。
+
+> **⚠️ 同构列表必须 `.map()` 数据驱动**：命中「同构列表禁切」（≥3 同层同构子节点）时，产物**必须**用数据数组 + `.map()` 渲染，**禁止**手动展开 N 个 JSX 块。手动展开虽然产物"看起来一样"，但业务上等价于"把数据硬编码进 JSX"——数据变更、接口对接、A/B 实验都需要重新改 skill。
 >
 > **正确形式**：
 >
@@ -2449,7 +2483,34 @@ print(f'::总计违反 = {BAD} ::')
 ## 页面根 padding-top 尺寸源（v0.3.10 新增，§4.3.1）
 - 逐页面 `padding-top 写入 == figmaPaddingTop × scale` 断言错项数：{count(errors)}
 - 错项列表（若非零）：{"[页面名] 应写 XXXpx 实写 YYYpx（把 fixed 状态栏高度错写为 padding-top）"}
+- **反脑补自证(v0.3.17)**：主 agent 必须 grep 产物 scss/less/css 里所有 `padding-top: <N>px` 声明,每一处都必须能在同目录 `assets.txt` / `pages/<page>/assets.txt` 里找到对应 `· PAGE根 <nodeId> ... padding-top写入=<N>px` 溯源行;找不到 = 脑补数值,fail merge。同时禁止 padding-top 注释里出现 `缓冲` / `预留` / `间距` / `topbar 高度` / `一点缓冲` / `视觉留白` / `大概` / `估计` 等主观推断词——padding-top 只能来自 Figma 节点 `paddingTop` 字段,agent 无权基于视觉直觉修正数值。
 - 结果：{✅ 通过 / ❌ 失败}
+
+**主 agent 合并前 grep 自证脚本(v0.3.17)**：
+
+```bash
+# 1. 扫产物所有 padding-top: Npx 声明
+grep -rEn "padding-top:\s*[0-9]+px" pages/**/*.scss pages/**/*.less pages/**/*.css 2>/dev/null \
+  > /tmp/padt-declared.txt
+
+# 2. 扫 assets.txt 里 · PAGE根 溯源行
+grep -rEho "· PAGE根 [^ ]+ .* padding-top写入=[0-9]+px" pages/**/assets.txt 2>/dev/null \
+  > /tmp/padt-sourced.txt
+
+# 3. 对每个产物 padding-top,断言在 sourced 里能匹配到
+while read line; do
+  N=$(echo "$line" | sed -E 's/.*padding-top:\s*([0-9]+)px.*/\1/')
+  grep -q "padding-top写入=${N}px" /tmp/padt-sourced.txt \
+    || echo "❌ $line — padding-top=${N}px 无 · PAGE根 溯源支撑,视为脑补数值"
+done < /tmp/padt-declared.txt
+
+# 4. 扫脑补注释关键词
+grep -rEn "padding-top:\s*[0-9]+px.*(缓冲|预留|间距|topbar 高度|一点缓冲|视觉留白|大概|估计)" \
+  pages/**/*.scss pages/**/*.less pages/**/*.css 2>/dev/null \
+  && echo "❌ padding-top 注释含主观推断词,违反 §4.3.1"
+```
+
+任一 ❌ → fail merge,主 agent 必须回到 §4.3.1 补齐溯源行,或从 Figma 节点重新采样 `paddingTop` 字段,不允许保留脑补数值。
 
 ## bg- 独立切图契约（v0.3.11 新增，§4.3）
 - 子树内所有 `bg-*` / 裸词 `bg` 前缀节点集合大小：{count(bg-nodes)}
