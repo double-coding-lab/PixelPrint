@@ -1,6 +1,6 @@
 # pp-d2c Skill
 
-> **当前版本**：v0.3.17（h5 独享,不同步 pp-d2c-rn）
+> **当前版本**：v0.3.18（h5 独享,不同步 pp-d2c-rn）
 >
 > 历史 changelog 查 `git log templates/skills/pp-d2c/SKILL.md`,不在本文件维护。所有规则以下文章节为准。
 
@@ -975,8 +975,8 @@ Figma 里一个 TEXT 节点可以叠多层 `fills`。取字色遵循下表（详
 | 单层 SOLID | 直接取 |
 | 多层 SOLID，都 `visible !== false` | **按 fills[] 顺序取最末位**（Figma 渲染顺序：后写的覆盖先写的） |
 | 多层 SOLID，部分 `visible === false` | **跳过所有 visible:false**，再取"剩下的最末位" |
-| 单层 GRADIENT | `background-clip: text` + `color: transparent`（RN 侧退化为末位近似 SOLID + QA 告警） |
-| 多层混合（SOLID + GRADIENT） | 按 Figma 渲染顺序合成；若 GRADIENT 在最上层 → `background-clip: text`；SOLID 在最上层 → 取 SOLID 色 |
+| 单层 GRADIENT | **必写完整三行**(v0.3.18 强化,防 WebView fallback 全透明):(1) `color: {fallback SOLID}`(取渐变 stops 里首末两端的中间色,或末端色作近似 SOLID);(2) `background: linear-gradient(...)` / `radial-gradient(...)`;(3) `-webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;`。不写 fallback color → 老版 WebView 不支持 background-clip:text 时字全透明(事故) |
+| 多层混合（SOLID + GRADIENT） | 按 Figma 渲染顺序合成；若 GRADIENT 在最上层 → 按上述"单层 GRADIENT"三行写法;SOLID 在最上层 → 取 SOLID 色 |
 | fills 为空 | 用 Figma 默认黑 `#000` + QA 告警 |
 
 **反向自检 1 行**（sub-agent 生成 TEXT 前必须输出）：
@@ -986,6 +986,33 @@ Figma 里一个 TEXT 节点可以叠多层 `fills`。取字色遵循下表（详
 ```
 
 **典型案例**：`136:45728`（"去看看"）fills = `[#492b0d visible:true, #ffffff visible:true]` → 取 `#ffffff`，而不是 `#492b0d`。
+
+**渐变字 fallback 写法示例(v0.3.18)**:
+
+```scss
+// ❌ 错法(事故: quan-btn 文字在老 WebView 全透明,渲染看不到):
+.quan-btn {
+  background: linear-gradient(180deg, #aa461e 0%, #302011 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  // 少了 color / -webkit-text-fill-color → 老 WebView fallback 后字全透明
+}
+
+// ✅ 正确(v0.3.18):
+.quan-btn {
+  color: #aa461e;                                          // fallback SOLID:取渐变末端色,老 WebView 会用这个色
+  background: linear-gradient(180deg, #aa461e 0%, #302011 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;                    // 支持 background-clip:text 的浏览器把字色变透明,露出 background
+}
+```
+
+**fallback color 取值规则**:
+
+- 渐变 stops 只有 2 个色 → 取任一色(取始色或末色都可,视觉近似即可,不能取纯白/纯黑除非渐变本身就是浅/深)
+- 渐变 stops ≥ 3 个色 → 取中间那个 stop 的色(视觉最接近整体色)
+- 渐变主色调不明显 → 取末端色
 
 **doctor NAM025（v0.3.6 新增）**：TEXT 节点 `fills` 有 ≥2 个可见 SOLID → info 提示，防止取错色。
 
@@ -1154,48 +1181,80 @@ fi
 
 任意一项答错即停下重做——这是 `card-bg.png` 这类 bug 的唯一防线。
 
-**父容器盒级装饰兜底判定（v0.3.6 新增，默认开）**：
+**非 bg/img 节点强制 CSS(v0.3.18 强化,h5 独享)**:
 
-对任何会生成容器的节点（含 `btn-` / `sub-` / `block-` / 无前缀 FRAME/GROUP）执行判定；命中 → **不切图**，把节点自身的 fills/strokes/cornerRadius/effects 按下面「bgc- 取值规则」映射到**自身容器 CSS**（不是父元素）。
+对**任何**非 `bg-` / 非 `img-` 前缀的节点(含 `btn-` / `sub-` / `block-` / `bgc-` / 无前缀 FRAME/GROUP),背景/描边/阴影/圆角/装饰**必须**用 CSS 表达,**禁止整切图**。取值映射按下面「bgc- 取值规则」处理:
 
-| 检查项 | 命中条件 |
-|-------|---------|
-| 前缀 | 不含 `img-` / `bg-` / `x-` |
-| fills | 空 / 单层或多层 SOLID / 单层 GRADIENT_LINEAR / GRADIENT_RADIAL；**不允许任何一层是 IMAGE** |
-| strokes | 空 / 单层 SOLID（gradient stroke 允许，降级 `box-shadow`） |
-| effects | 空 / 全部是 DROP_SHADOW / INNER_SHADOW / LAYER_BLUR / BACKGROUND_BLUR |
-| 子树 | 不含 BOOLEAN_OPERATION / VECTOR / MASK / ELLIPSE 等复合形状；不含内层 `img-` / `bg-` 命中的位图节点（TEXT / 普通嵌套 FRAME / 兄弟 `bgc-` 不算破坏纯净度） |
+| Figma 字段 | CSS 输出 |
+|---|---|
+| `fills[*].type === 'SOLID'` | `background-color: #xxx` |
+| `fills[*].type === 'GRADIENT_LINEAR'` / `GRADIENT_RADIAL` | `background-image: linear-gradient(...)` / `radial-gradient(...)` |
+| `strokes` | `border: {weight}px solid {color}` / gradient stroke 降级 `box-shadow` |
+| `effects` DROP_SHADOW | `box-shadow: {x}px {y}px {blur}px {color}` |
+| `effects` INNER_SHADOW | `box-shadow: inset ...` |
+| `cornerRadius` | `border-radius: {N}px` |
 
-**反向自检 3 行**（sub-agent 处理此类容器节点前必须输出）：
+**内部 TEXT**:正常生成 `<span>` / `<Text>`,字色走 §4.1.1「TEXT 多层 fills 处理」末位取色。
 
-```
-· 节点前缀：{prefixes}（非 img-/bg-/x- 才可能命中）
-· fills/strokes/effects/子树是否纯净？{是/否}（对照 5 项条件逐一勾选）
-· 走 CSS 还是切图？{CSS / 切图}（命中 → CSS；不命中 → 走 §4.4 切图）
-```
-
-**旧规范兼容**：设计师若主动建了 `bg-*` 子层（老命名）→ 依然按 §4.3 `bg-` 规则走；doctor NAM024 会 warn 建议合并到父容器（不阻断）。
-
-**典型案例**（对照）：
+**反向自检 2 行**(sub-agent 处理此类节点前必须输出):
 
 ```
-btn-qukankan (FRAME, fills=[GRADIENT_LINEAR], cornerRadius=8)
-  └── TEXT "去看看"
-
-命中：直接生成
-  .btn-qukankan {
-    background-image: linear-gradient(...);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-  }
-不需要再建 bg-btn-qukankan 子层切图。
+· 节点前缀:{prefix|无前缀}(非 bg-/img- → 强制 CSS)
+· 走 CSS 还是切图?{CSS}(前缀不是 bg-/img-,禁止切图)
 ```
 
-**`btn-` 内嵌 TEXT 双写防护**：
+若前缀不是 bg-/img- 却打算切图 → **立即停下重做**,回归 CSS 表达。
 
-- **`btn-` 命中「父容器盒级装饰兜底」** → 内部 TEXT 正常出 `<span>` + 字色走 §4.3「TEXT 多层 fills 处理」
-- **`btn-` 未命中兜底（fills 含 IMAGE / 子树含复合形状 → 必须切图）** → 内部 TEXT **必须**视为"图字副产物"，**禁止**生成 `<span>` / `<Text>` / 任何 DOM 文本节点(去除"默认"漏洞词)。图片里已烤入的文字与 JSX 文本节点**同时存在 = 双写事故**：视觉重合、字色/字号漂移、无法翻译、无法动态替换。**典型错法**:切了 btn 底图 → JSX 里又 `<button><span>立即预约</span></button>` → 位图里已有"立即预约" + span 又叠一层不同字色的文字盖上去,肉眼可见文字重影。
-- **配套**:btn 走整切时,内部 TEXT **不参与** §4.4.pre.b 的"多文本禁切"计数(否则会陷入"切图 → 命中多文本禁切 → 又不能切"的死循环)。btn 是"作为按钮整体切图"这一动作的语义原子,内部文字随之烤入位图,不再作为独立 TEXT 存在。
+**例外切图通道(v0.3.18 新增)**:极少数场景 CSS 表达不了,允许走"例外切图" —— 但只对 `btn-` / 无前缀 FRAME 生效,且必须满足**全部**下列条件(条件不足即视为 agent 抄近路,禁止):
+
+| 例外触发条件 | 具体场景 |
+|-----|------|
+| **fills 含 IMAGE 类型** | 设计师把一张照片纹理刷在 `btn-` 上,CSS 表达不了位图 |
+| **子树含 3+ 层 VECTOR / MASK / BOOLEAN_OPERATION 复合形状** | 手绘图形、mask 组合,CSS 无法用 clip-path/shape 精确复现 |
+| **多层不同 blend-mode 的 fill 叠加** | Figma 的 `MULTIPLY` / `OVERLAY` 等混合模式,CSS 无对应 |
+
+**例外通道必写(缺一项即视为违规切图)**:
+
+1. **assets.txt QA 段登记原因**:`[例外切图] {nodeId} name="{name}" 原因:{IMAGE fill / 复合 mask / blend-mode} — CSS 无法表达,已切 {filename}.png`
+2. **JSX 内禁保留该子树任何 TEXT span**(避免双写,见通用双写防护)
+3. **建议行**:"建议设计稿把 {name} 改名为 `bg-{name}` 或 `img-{name}`,下次生成更清晰"
+
+**主 agent grep 自证**:例外切图数必须 ≤ `bg-`/`img-` 切图数的 20%,超过阈值说明设计稿 / agent 判定有系统性问题,fail merge。
+
+**通用双写防护(v0.3.18,前缀无关)**:
+
+**任何节点被整体切图**(不论 `bg-` / `img-` / `btn-` 例外通道 / 无前缀 FRAME 例外通道)时,**该节点子树内的所有 TEXT** 都**必须**视为"图字副产物"——图片里已经烤入这些文字了。JSX / TSX 产物**禁止**为这些 TEXT 生成任何 `<span>` / `<Text>` / 文本 DOM 节点(避免"图片里有字 + 代码里 span 里又写一遍"的双写事故)。
+
+**判定链**:
+
+1. 节点被整切 → 该节点子树所有可见 TEXT 全部丢弃 DOM 化
+2. 但若该 TEXT 是设计师主动打了 `sub-` / `block-` 前缀作为独立子块(极少见),按前缀语义正常处理
+3. 主 agent 合并前 grep 自证:遍历产物 JSX,对每一处 `background-image: url(*.png)` 的 className,读回对应 assets.txt 的切图源 nodeId,从 `.d2c-cache/<fileKey>/nodes/<nodeId>.json` 拿子树 → 若子树含可见 TEXT,则产物 JSX 内该 className 下不允许出现相同文字的 `<span>` / `<Text>`
+
+**典型错法(v0.3.17 事故案例)**:
+
+```jsx
+// ❌ 事故: btn-qukankan (136:45727) 被切了 btn-qukankan.png,同时 JSX 又保留 span
+<div className="task-row-btn" data-node-id="136:45727">  // 背景 background-image: url(btn-qukankan.png)
+  <span data-node-id="136:45728">去看看</span>            // ← 双写! 图里已有"去看看",这里又写一遍且用了错色 #492b0d
+</div>
+
+// ❌ 事故: main__cta 底图有"立即预约"字 + JSX 又叠一层 #864500 字导致文字重合
+
+// ✅ 正确(v0.3.18 强化):btn- 不再切图,走 CSS
+<div className="task-row-btn" data-node-id="136:45727">   // 背景 CSS: background: linear-gradient(...) + border-radius
+  <span data-node-id="136:45728">去看看</span>             // ← span 保留,字色走 §4.1.1 末位取色 #ffffff
+</div>
+
+// ✅ 正确(极少数例外场景):btn 走例外切图,JSX 完全无 span
+<div className="task-row-btn" data-node-id="136:45727" />  // 背景 background-image: url(btn-qukankan.png),文字已烤入
+```
+
+**违反后果**:doctor NAM024 error(v0.3.6,v0.3.18 前缀无关化)—— 产物任何切图节点子树内 TEXT 在 JSX 里同时以 `<span>` 出现 → 视为双写事故,fail merge。
+
+**为什么彻底去除"默认视为"漏洞词**:v0.3.17 之前措辞是"默认视为图字副产物,不生成 span",给 agent 留了"我不想让文字变成图字副产物,我更希望它可动态"的幻觉空间(结果切图 + 保 span 同时发生)。v0.3.18 起**必须视为、禁止生成**,无自由裁量。
+
+
 
 **`bgc-` 取值规则（v0.2 修订，覆盖 fills/strokes/cornerRadius/effects 全套盒级 CSS 属性）**：
 
@@ -1649,20 +1708,27 @@ fi
 
 #### 4.4 图片处理
 
-##### 4.4.pre 节点整体切图适格性（v0.3.7 新增，前置约束）
+##### 4.4.pre 节点整体切图适格性
 
-**目的**：明确"允许整体切图"和"永远禁止整体切图"两类节点的边界，防止主 agent / sub-agent 把父容器（含多个子层）整体切一张大图当替代品，导致 sub-agent 拆分产物被覆盖。
+**核心公式(v0.3.18 强化,h5 独享)**:**唯二允许整体切图的前缀是 `bg-` / 裸词 `bg` 与 `img-` / 裸词 `img`**。其余所有节点(`btn-` / `sub-` / `block-` / `bgc-` / 无前缀 FRAME / GROUP)**永远不允许整体切图**,背景/装饰**必须**用 CSS 表达(`background-color` / `background-image: linear-gradient(...)` / `border-radius` / `box-shadow` / `border`),内部子层继续递归解析。
+
+不再区分"CSS-able / 不 CSS-able" —— 只要前缀不是 bg/img,就是 CSS。这条规则的目的是**关掉 agent 遇复杂就切图的逃跑通道**:agent 无权判定"这个渐变复杂 CSS 写不好我就切图算了",判定权收回到设计师(打前缀)手上。
 
 | 节点前缀 / 类型 | 是否允许整体切图 | 说明 |
 |--------------|--------------|------|
-| `img-` | ✅ 允许 | 命中即整体切图（含节点自身及子树），**不再向内递归**；符合 §4.3 组合优先级第 2 步 |
-| `bg-` / 裸词 `bg` | ✅ 允许（切**自身**及其子树） | 切图源 nodeId **必须**是 `bg-` 节点自己，**禁止**用父容器（见 §4.3 「`bg-` 切图源约束」） |
-| 无前缀非文本图层（FRAME/GROUP/VECTOR 等） | ✅ 允许（兜底） | 命中 §4.3 无前缀兜底规则时才走此路径；命中「父容器盒级装饰兜底」（§4.3）则走 CSS，不切图 |
-| **`sub-` / `block-`** | ❌ **永远禁止** | 分块边界节点，**必须递归子层**由 sub-agent 独立处理；主 agent 合并阶段不允许把 `sub-*` / `block-*` 前缀的父容器 nodeId 传给 `figma.mjs export-image`。历史事故：`sub-ui-frame734.png` 就是把 sub-UI 内的 Frame 734（做任务大区）整体切了一张父容器大图 |
-| **`btn-`（未命中兜底）** | ❌ 只切自身，禁止吃父容器 | 若 `btn-` 命中「父容器盒级装饰兜底」（§4.3）走 CSS；否则只切 `btn-` 节点自身及其子树，**禁止**把 `btn-` 的父容器（如 `任务` Frame）一并切图 |
-| `bgc-` / `x-` | ❌ 禁止 | `bgc-` 走 CSS，`x-` 跳过整层，两者都不切图 |
+| `bg-` / 裸词 `bg` | ✅ 允许(切**自身**及其子树) | 切图源 nodeId **必须**是 `bg-` 节点自己(见 §4.3 「`bg-` 切图源约束」);**不再向内递归** |
+| `img-` / 裸词 `img` | ✅ 允许(切**自身**及其子树) | 命中即整体切图,**不再向内递归** |
+| **其余所有节点** | ❌ **禁止整切,强制 CSS** | 无 CSS-able 判定,无兜底切图通道。背景/描边/阴影/圆角用 CSS 表达,子层继续递归 |
 
-**违反后果**：doctor SUB027（v0.3.7 新增，error）—— 主 agent 或 sub-agent 对 `sub-*` / `block-*` 前缀节点调用 `figma.mjs export-image` 整体切图 → 视为忠实度事故，见 pp-doctor §3.6p。
+**例外通道(v0.3.18 新增)**:`btn-` / 无前缀 FRAME 极少数场景 fills 里含 IMAGE(位图纹理)、多层复杂 mask / VECTOR / BOOLEAN_OPERATION 组合,CSS 表达不了。此时**允许**切图,但**必须**满足全部下列条件:
+
+1. **assets.txt QA 段明确写一行**:`[例外切图] {nodeId} name="{name}" 原因:{IMAGE fill / 复合 mask / 多层 VECTOR 具体哪一条} — CSS 无法表达,已切 {filename}.png`
+2. **同时禁止 JSX 内保留该节点子树的任何 TEXT span**(避免双写,见 §4.3 通用双写防护)
+3. **建议在 QA 段附一句**:"建议设计稿把 {name} 改名为 `bg-{name}` 或 `img-{name}`,下次生成更清晰"
+
+**为什么保留例外通道但故意做得繁琐**:agent 每次想走例外都要**在 assets.txt 显式登记原因**,主 agent 合并前 grep 断言例外条数与产物切图数对齐——让"例外"成为**可审计的少数**而非"agent 自由裁量"。
+
+**违反后果**:doctor SUB027(v0.3.7 新增,error)—— 主 agent 或 sub-agent 对 `sub-*` / `block-*` / `btn-*` / 无前缀 FRAME 前缀节点(未走例外通道)调用 `figma.mjs export-image` 整体切图 → 视为忠实度事故。
 
 ##### 4.4.pre.b 子树结构禁切规则（v0.3.9 新增，前缀维度的**必要补丁**）
 
@@ -1813,14 +1879,38 @@ grep -rEn "\[(需人工核对|后续拆分|单一例外|合切理由|结构复�
    ```
    `bboxHash` 用于识别"同 nodeId 但导出参数变了"的情况（比如 scale 从 2 改到 3）；命中 hash 不同 → 也视作缓存失效强制重切。
 
-4. **assets.txt 3 行溯源模板**（每张图切完必写）：
+4. **assets.txt 3 行溯源模板**（每张图切完必写,v0.3.18 强化落盘尺寸对齐）：
    ```
    - {filename}.{ext}                       ← {figmaNodeName} ({nodeId})
      · API 参数：ids={nodeId} format={png|svg} scale={2} use_absolute_bounds={true|false}
      · 返回 URL：{figma S3 临时 URL}
-     · 落盘尺寸：{width}x{height} md5={md5}
+     · 落盘尺寸：{width}x{height} md5={md5} figmaBbox={figmaW}x{figmaH} 断言={落盘w == figmaW×scale && 落盘h == figmaH×scale ? "通过" : "失败(比例错)"}
    ```
-   这 3 行在 flat 和 component 两种 merge.mode 下都**必须**出现，用户复现时能直接对比 md5 判定 skill 是否忠实执行了 API 调用。
+   这 4 行(v0.3.18 从 3 行扩到 4 行)在 flat 和 component 两种 merge.mode 下都**必须**出现,用户复现时能直接对比 md5 判定 skill 是否忠实执行了 API 调用,并能通过`落盘尺寸 vs figmaBbox×scale` 一眼看出切图比例是否正确。
+
+**主 agent 合并前 grep 自证(v0.3.18 新增)**:
+
+```bash
+# 1. 扫所有切图 assets.txt 3 行溯源完整性(必须含"落盘尺寸"行)
+MISSING_TRACE=0
+for f in $(find {output.dir}/blocks/**/assets.txt -type f 2>/dev/null); do
+  IMGS=$(grep -c '^- .*\.\(png\|jpg\|svg\)' "$f" 2>/dev/null || echo 0)
+  TRACES=$(grep -c '· 落盘尺寸:' "$f" 2>/dev/null || echo 0)
+  if [ "$IMGS" != "$TRACES" ]; then
+    echo "❌ $f 有 $IMGS 张图但只有 $TRACES 条落盘尺寸溯源(agent 漏写)"
+    MISSING_TRACE=$((MISSING_TRACE+1))
+  fi
+done
+
+# 2. 扫每条溯源的"断言"字段是否为"通过"
+FAIL_ALIGN=$(grep -rEh '· 落盘尺寸:.*断言=失败' {output.dir}/blocks/**/assets.txt 2>/dev/null | wc -l)
+[ "$FAIL_ALIGN" != "0" ] && echo "❌ $FAIL_ALIGN 张切图落盘尺寸 ≠ figmaBbox × scale(比例错),违反 v0.3.18"
+
+# 3. 检查所有已切图的 nodeId 在 images.json 是否有记录
+# (原有 §4.4.0 md5 校验,不重复)
+```
+
+任一 ❌ → fail merge,agent 必须回到 §4.4.0 补齐溯源或从 API 重切修正比例。
 
 **doctor IMG026（v0.3.6 新增）**：`img-` / `bg-` / 裸词 img/bg 命中，但 images.json 里对应 nodeId 缺失 → **error**（说明本次 skill 没走 REST 就落图，属于严重忠实度事故）。
 
@@ -2503,6 +2593,20 @@ grep -rEn "padding-top:\s*[0-9]+px.*(缓冲|预留|间距|topbar 高度|一点�
 - assets.txt 声明的 `bg-*` 切图集合大小：{count(bg-declared)}
 - 差集 bg-nodes - bg-declared（应切图但没切）：{"空" 或 "missing: bg-<X1>, bg-<X2>, ..."}（非空 = sub-agent 因祖先覆盖脑补省略事故，触发 BGP033）
 - 结果：{✅ 通过 / ❌ 失败}
+
+## 切图落盘尺寸溯源(v0.3.18 新增,§4.4.0)
+- 产物切图总数(扫 pages/**/assets.txt 里 `- xxx.png ←` 行):{count(imgs)}
+- 4 行溯源完整数(每张必含"落盘尺寸: WxH md5=... figmaBbox=... 断言=..."):{count(traces)}
+- 差集 imgs - traces(漏写溯源):{"空" 或 "lost: file1.png @ block/xxx, ..."}
+- 落盘尺寸对齐失败数(断言=失败,落盘 WxH ≠ figmaBbox × scale):{count(fails)}
+- 例外切图数([例外切图] 标注) / bg+img 切图数比例:{ratio}%(超过 20% 需报警)
+- 结果:{✅ 通过 / ❌ 失败}
+
+## 通用双写防护(v0.3.18 新增,§4.3 前缀无关)
+- 产物 JSX 里所有含 `background-image: url()` 的 className 数:{N}
+- 对每一处 className 查子树 nodeId → 若 Figma 子树含可见 TEXT,则产物 JSX 内不允许出现相同文字的 span 数:{M}
+- 违规双写数(切图节点子树有 TEXT + JSX 又保 span):{count(violations)}
+- 结果:{✅ 通过 / ❌ 失败}
 ```
 
 任意一条 ❌ 失败 → 合并阶段不算完成，主 agent 必须回滚，重新按 sub-agent 产物逐字展开，禁止用父容器整体切图替代。
