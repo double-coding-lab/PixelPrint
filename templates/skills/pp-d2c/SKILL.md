@@ -1,22 +1,8 @@
 # pp-d2c Skill
 
-> **v0.3.16（2026-08-08，h5 独享）**：修复 §4.4.pre.b 子树结构禁切规则被 sub-agent 绕过的事故——某 h5 稿在某容器下含 N≥3 张同构卡片（每张含 ≥4 TEXT + btn + `img-tag-<X>` 子层）+ M 张附加同构卡全被整体切图（`<container>-<item>-1..N.png` / `<container2>-*.png`），文字/按钮/金额/状态全烤入位图，无法多语言、无法数据绑定、无法接埋点。三处根因：(1) v0.3.9 里 `img-`/`bg-` 前缀有"设计师显式指定"豁免路径,sub-agent 借此绕过禁切；(2) 命中同构禁切（≥3）时,skill 只说"应逐层递归"但没规定必须 `.map()` 数据驱动,sub-agent 图省事整切；(3) sub-agent QA 段声明 `x/y/z` 结构信号但主 agent 未强制重算断言,sub-agent 可写 `x=0 y=0 z=0` 蒙混。改动：(1) §4.4.pre.b 删除 `img-`/`bg-` 豁免例外,前缀不再豁免结构禁切；(2) 新增「同构列表必须 `.map()` 数据驱动」段 + 具体示例（数据数组 + 模板 JSX + `.d2c-tasks.md` QA 追加行）；(3) §6.0.2 合并核查追加主 agent 独立 grep 重算 `x/y/z` 与 sub-agent 声明对齐的断言脚本。**本次改动只在 pp-d2c 生效**,不同步到 pp-d2c-rn / pp-doctor。
-
-> **v0.3.15（2026-08-08，h5 独享）**：修复 `bg-*` / 裸词 `bg` 节点落地形式漂移事故——同一份产物里 agent 用了三种不一致方式：(1) `<div class="bg" />` 空 div + scss `background-image`（接近对，但空 div 多余）；(2) `<div style="background-image:url(...)">` inline style（错）；(3) `<img src="bg.png">`（更错，`<img>` 是 `img-*` 独占）。根因是 v0.3.11「JSX `<img>` / CSS `background-image` 引用」的 "/" 让 agent 二选一。改动：(1) 重写 v0.3.11 三处歧义句为明确单选；(2) §4.0 主表 L640 补一句「bg 节点自身不生成任何 DOM」；(3) §4.3 新增「`bg-*` 唯一合法落地形式」——bg 节点被"吸收"进父容器，切图挂父 `background-image`（独立 `.scss`），禁止 `<img>` / 空 div / inline style 三种错法；配 grep 自证。**本次改动只在 pp-d2c 生效**，不同步到 pp-d2c-rn（RN 侧 `<Image>` 无 CSS background 概念，本身无歧义）/ pp-doctor（doctor 暂不加新规则）。
-
-> **v0.3.14（2026-08-08，h5 独享）**：修复 P/M 大类混合事故——某 h5 项目 config 明确 `"styleFormat":"scss"`（P 大类），主入口 `pages/index.jsx` 却生成 `import styles from "./styles.module.scss"` + 全篇 `className={styles.container}`（M 大类），同时 `pages/blocks/main/index.scss` 又是普通 `.scss`（P 大类），两半矛盾导致 css-modules 哈希化的类名跟 blocks 里的普通 scss 完全不通气，页面视觉全部丢样式。改动：§2.5.2 结尾追加「大类一致性硬约束」——主 agent 判定后必须在 `.d2c-tasks.md` 顶部写「大类锁定」段，sub-agent 生成 block 前必须 Read 锁定值严格遵守，禁止各 sub-agent 独立再判；配 grep 自证脚本（P 大类禁 `.module.*` / `styles.xxx` / `import styles from`；M 大类禁裸 `.scss` / 裸 `className="xxx"`）。**本次改动只在 pp-d2c 生效**，不同步到 pp-d2c-rn（RN 侧固定 stylesheet 无 P/M 分歧）。
-
-> **v0.3.11（2026-08-08）**：新增「bg- 独立切图契约」（§4.3）——每个 `bg-*` 前缀节点必须独立走一次 export-image，**禁止**用祖先 `bg-*` 切图的物理覆盖范围"合并省略"后代 `bg-*` 独立切图；配套 sub-agent QA 段自证格式 + 主 agent grep 断言 + §6.0.2 忠实度证明块 7 组扩到 8 组 + doctor BGP033 error 规则。修复历史事故：sub-agent 看到父 `bg-<A>` 内 SLICE 覆盖了后代 `bg-<B>` 所在物理区域，就"合理省略"了后代的独立切图，产物对应容器空 View、后代装饰完全丢失。
-
-> **v0.3.10（2026-08-08）**：新增 3 组强制溯源证明块（字色 fills 溯源 §4.1.1 / sub 容器 min-height 尺寸源 §4.3 / 页面根 padding-top 尺寸源 §4.3.1）；§2.5.2 判定链补权威兜底（新 page 无既有 import 参考 → `config.styleFormat` 为权威，不允许脑补大类）；§6.0.2 合并忠实度证明块 3 组扩到 6 组；禁止项 +3；配套 doctor CLR030 / DIM031 / DIM032。修复 <下游项目> 新稿事故：Frame745「立即抢」字色写 #ffffff（应末位 #864500）、`.baseBackground padding-top:236px`（应 paddingTop=166×2=332px）、`.main min-height:1125px`（应 sub-MAIN 自身 520×2=1040px）、生成 `.module.scss` + `styles.xxx`（应按 config plain scss 走 P-B）。
-
-> **v0.3.9（2026-08-07）**：新增 §4.4.pre.b「子树结构禁切规则」——对子树含 ≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点的容器**永远禁止**整体切图（结构维度优先于前缀维度）；§4.4 前置自检 5 行 → 7 行（追加子树扫描）；§4.8 checklist + §6.0.2 忠实度证明块 + 禁止项 各追加 1 条；配套 doctor SUB029。修复 v0.3.7/v0.3.8 遗留漏洞：sub-agent 借"无前缀非文本图层兜底"绕过 §4.4.pre 主表，把 Frame 734（含 3 行任务）烤成 task-block.png 大图。
-
-> **v0.3.8（2026-08-07）**：新增「问题边界」章节（顶部执行模型说明内）——明确 agent 只能问业务问题，禁止问 skill 已定死的技术决策问题（切图/兜底/合并/尺寸/命名冲突等）；遇 skill 未覆盖的边界情形须按最接近规则兜底 + 写 QA 告警，禁止打断用户；配套 §4.8 checklist +1 条 + §6.0.2 忠实度证明块 +「未打断用户核查」段 + 禁止项 +1 条。
-
-> **v0.3.7（2026-08-07）**：新增「flat 合并忠实度契约」（§5.0.pre）、「data-node-id 守恒律」（§5.1）、「节点整体切图适格性」（§4.4.pre）、「assets.txt 消费契约」（§6.0.1）、「合并忠实度证明块」（§6.0.2 强制主 agent 交付前 grep 自证输出）；配套 doctor SUB027 / IMG028。修复历史事故：主 agent flat 合并擅自替换 sub-agent 产物、用父容器整体切图（sub-ui-frame734.png 等）覆盖拆分产物。
-
-> **v0.3.6（2026-08-07）**：新增「父容器盒级装饰兜底」（§4.3）、「TEXT 多层 fills 取末位」（§4.1.1）、「切图强制忠实执行 + images.json md5 复用」（§4.4.0）、「`btn-` 内嵌 TEXT 双写防护」（§4.3）；配套 doctor NAM024 / NAM025 / IMG026。
+> **当前版本**：v0.3.17（h5 独享,不同步 pp-d2c-rn）
+>
+> 历史 changelog 查 `git log templates/skills/pp-d2c/SKILL.md`,不在本文件维护。所有规则以下文章节为准。
 
 ## 触发条件
 - 用户提供 Figma 设计稿 URL
