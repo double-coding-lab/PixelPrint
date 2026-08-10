@@ -1,0 +1,19 @@
+templates/skills/pp-d2c/SKILL.md
+  s_8f566140fc4cb6::t_224689e6673f9d 3-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "1eb7f3215e47bdf50c7e3fcc3f559a0c45158305",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "unknown"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
