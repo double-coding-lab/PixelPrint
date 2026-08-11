@@ -1,0 +1,126 @@
+# pp-d2c 规则库
+
+> pp-d2c skill 硬性规则的原始定义。当 rules/*.md 内容与 SKILL.md 冲突时以 rules/ 为准。
+
+## 索引表
+
+| ID | 名称 | 判定归属 | 一句话触发条件 |
+|---|---|---|---|
+| R01 | fixed-position | 硬防线 | `name.startsWith('fixed-')` |
+| R02 | fills-image | 硬防线 | `fills[].some(f => f.type === 'IMAGE' && f.visible !== false)` |
+| R03 | implicit-image | 软防线 | 无前缀 + 整棵子树 VECTOR/BOOL/几何 + 无 TEXT/INSTANCE + 无 btn-/input-/sub-/block- 子层 |
+| R04 | text-gradient | 软防线 | `TEXT` 节点,fills 末位可见 = `GRADIENT_*` 或 `IMAGE` |
+| R05 | space-between | 硬防线 | `primaryAxisAlignItems === 'SPACE_BETWEEN'` |
+| R06 | text-solid-last | 硬防线 | `TEXT` 节点,fills 末位可见 = `SOLID` |
+| R07 | multi-fills | 软防线 | fills 数组多层可见(≥2),且不全是 SOLID |
+| R08 | bg-landing-form | 硬防线 | `name.startsWith('bg-')` 或 `name === 'bg'`,产物落地形态错 |
+| R09 | btn-bgc-取值 | 软防线 | `btn-` 前缀内含 `bgc-` 子层,bgc 的真 fills 是 GRADIENT/IMAGE |
+| R10 | no-fake-solid-color | 软防线 | 产物 CSS 出现 `color: #XXX`,但 cache 里对应节点找不到源头 |
+| R11 | mask-vector-css-able | 软防线 | 复合 mask / 多层 vector,CSS 表达不了 → 应切图 |
+| R12 | flat-mode-naming | 软防线 | `merge.mode === 'flat'` 下类名跨 block 冲突 |
+| R13 | unit-scale | 软防线 | Figma px → 产物 px 未换算(应 `outputBase / figmaBase`) |
+| R14 | fixed-z-index | 软防线 | 多个 `fixed-` 节点,z-index 未递增 |
+| R15 | 同构 map 渲染 | 软防线 | 同层 ≥3 同构子节点,展开成重复代码而非 `.map()` |
+
+## 判定归属说明
+
+**硬防线** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R05 / R06 / R08。
+
+**软防线** (Rule-Scan sub-agent 识别): 需 LLM 语义判断,输出 `rule-hits.json` 给 UI sub-agent 参考 → R03 / R04 / R07 / R09 / R10 / R11 / R12 / R13 / R14 / R15。
+
+## 使用方式
+
+### Rule-Scan sub-agent
+
+派发时的完整 prompt:
+
+```
+你是 Rule-Scan sub-agent, 只做规则识别, 不写 UI 代码.
+
+任务:
+1. Read templates/skills/pp-d2c/rules/*.md (全部 15 条)
+2. Read .d2c-cache/<cache-key>/nodes/ 下与本 block nodeIds 相关的 JSON
+3. 对本 block 的每个节点, 判断命中了哪些规则
+4. 输出 rule-hits.json (schema 见附)
+
+规则命中判定原则:
+- 硬防线规则 (R01/R02/R05/R06/R08): 你也扫,即使 check-rules.mjs 会兜底
+- 软防线规则 (R03/R04/R07/R09-R15): 你是唯一识别方
+- 排斥条件: 若节点命中高优先级规则, 低优先级规则不再重复列
+- 优先级 (由高到低): R02 > R01 > R05 > R11 > R03 > R04 > R07 > R06 > R09 > R08 > R14 > R15 > R13 > R12 > R10
+
+输出要求:
+- 每个 hit 包含 nodeId / rule / trigger 描述 / expected 描述 / context (关键 JSON 字段抽样)
+- 输出 JSON, 不带 markdown 代码块围栏, 不加解释文字
+- 落盘到 blocks/{sub}/rule-hits.json
+
+禁止:
+- 不允许写 JSX / SCSS
+- 不允许改 cache 文件
+- 不允许基于"设计意图猜测"命中规则; 只按 rules/*.md "触发条件" 字面判定
+```
+
+### UI sub-agent
+
+- Read `blocks/{sub}/rule-hits.json` 里涉及的 R0X.md,按"期望产物"落地
+- 生完 JSX + SCSS 后跑:
+  ```bash
+  node .claude/skills/pp-d2c/bin/check-rules.mjs \
+    --block blocks/{sub}/ \
+    --cache-key <fileKey>
+  ```
+- exit 0 继续 / exit 1 按 violations 回滚重做 / exit 2 报环境错
+- `assets.txt` 追加"rule-hits 消费证明"块(格式见下)
+
+**rule-hits 消费证明格式**:
+
+```
+## rule-hits 消费证明 (v1.0.0)
+
+- 输入 rule-hits 条数: N
+- 处理到位条数: M (M == N 时 ✅)
+- 处理列表:
+  - { nodeId, rule: "R0X", 落地类型: "css 属性" | "span 包裹" | "切图挂父" | ... }
+- 遗漏补捕: K 条
+  - [遗漏补捕] R0X {nodeId} "{name}": Rule-Scan 未识别, 自动补齐落地 = {做了什么}
+- check-rules.mjs 通过: ✅ / ❌ + violations 列表
+```
+
+### check-rules.mjs
+
+- **硬编码 R01/R02/R05/R06/R08 逻辑**,rules/*.md 是设计文档,不是执行文档
+- 假阳性时用 `--force-skip R0X,R0Y` 跳过,但 UI sub-agent 必须在 `assets.txt` 备注 `[脚本误判] R0X {nodeId} 理由: ...`
+- 详细 CLI 见 `templates/skills/pp-d2c/bin/check-rules.mjs --help`
+
+## 排斥关系图
+
+```
+R02 (fills-image) ─┬─► R11 (mask-vector-css-able): 已切图不再判 CSS-able
+                   └─► R09 (btn-bgc): btn 内 fills IMAGE 走 R09 优先
+
+R01 (fixed-position) ── R14 (fixed-z-index): 多个 fixed 才判 R14
+
+R06 (text-solid-last) ─┬─► R04 (text-gradient): 末位是 GRADIENT/IMAGE 归 R04
+                       └─► R10 (no-fake-solid-color): R06 命中即已核对色源
+
+R05 (space-between) ── (无排斥)
+
+R08 (bg-landing-form) ── (无排斥,反向匹配所以自成一体)
+
+R03 (implicit-image) ── R11 (mask-vector-css-able): R03 覆盖后者的常见形态
+R12 (flat-mode-naming) ── (无排斥,只影响 merge.mode='flat')
+R13 (unit-scale) ── (无排斥,单位)
+R15 (同构 map) ── (无排斥,结构)
+```
+
+## 版本
+
+- v1.0.0 首次引入 rules/ 目录 + check-rules.mjs
+- v0.3.21 之前:硬规则文字散落在 SKILL.md §4.3 等章节
+
+## 相关
+
+- `templates/skills/pp-d2c/SKILL.md` — 主流程
+- `templates/skills/pp-d2c/bin/check-rules.mjs` — 硬防线脚本
+- `.Knowledge/req-docs/pp-d2c-rule-scan_技术方案.md` — 本轮技术方案
+- `.Knowledge/req-docs/pp-d2c-rule-scan_需求澄清.md` — 需求澄清
