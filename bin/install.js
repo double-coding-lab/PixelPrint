@@ -696,36 +696,7 @@ async function runInit(cliArgs = {}) {
       imageBaseUrl,
       preserveEffectIds: existing.images?.preserveEffectIds || []
     },
-    layers: {
-      sub: 'sub-',
-      block: 'block-',
-      img: 'img-',
-      bg: 'bg-',
-      bgColor: 'bgc-',
-      but: 'btn-',
-      scrollX: 'scrollx-',
-      scrollY: 'scrolly-',
-      fixed: 'fixed-',
-      end: 'end-',
-      input: 'input-',
-      ignore: 'x-',
-      ...(existing.layers || {})
-    },
     output: { dir: outputDir },
-    // rn 项目默认关闭 doctor(不接卫星 SKILL);react 项目保留完整 health 段
-    health: framework === 'rn'
-      ? (existing.health || { enabled: false })
-      : (existing.health || {
-        enabled: true,
-        blockOnError: true,
-        report: { markdown: true, json: true, dir: '' },
-        thresholds: {
-          maxDepth: 6, subBlockMin: 3, subBlockMax: 20, totalNodesMax: 1500,
-          hiddenRatioMax: 0.2, paddingAsymmetryMax: 32,
-          bgSizeMin: 0.8, bgSizeMax: 1.2, colorDeltaEMin: 3
-        },
-        rules: {}
-      }),
     // 【新增】rn 分支写 adapter 段;react 项目不写
     ...(framework === 'rn' ? { adapter: adapterCfg } : {})
   }
