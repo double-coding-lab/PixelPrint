@@ -1,5 +1,5 @@
 {
-  "version": "3.2.11",
+  "version": "3.2.12",
   "knowledgeRoot": ".Knowledge",
   "matcherKey": "matcherId",
   "sourceOfTruth": ".Knowledge/manifest-routing.json",
@@ -111,8 +111,8 @@
       ]
     }
   ],
-  "pkgRev": 2,
   "projectRev": 2,
+  "pkgRev": 2,
   "topicMetadata": {
     "implement-tech-design": {
       "primary": "policy",

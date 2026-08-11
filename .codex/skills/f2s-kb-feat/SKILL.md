@@ -1,115 +1,115 @@
 ---
 name: f2s-kb-feat
-description: Complete implementation and knowledge-base sync when adding a capability; if already implemented, only sync the knowledge base; triggers: f2s-kb-feat、新增能力、add capability、new feature
+description: 新增能力时补全实现与知识库；已实现则仅同步知识库；触发：f2s-kb-feat、新增能力
 ---
 
-> **Task paths**: all `.task/` reads/writes must use **`TASK_ROOT` from `rules/f2s-task`** (` .task` or `.task/<developerId>`; config → git → legacy). Bare `.task/todo.json` / `.task/active/` below mean **`TASK_ROOT/...`**.
+> **任务路径**：凡 `.task/` 落盘与续作，**必须以 `rules/f2s-task` 解析的 `TASK_ROOT` 为准（`.task` 或 `.task/<developerId>`；config → git → legacy）。下文若仍出现 `.task/todo.json` / `.task/active/`，均视为 **`TASK_ROOT/...` 的简写**。
 
 
-> Execution scope: `f2s-kb-feat` syncs `.Knowledge` by default; the user does not need to separately ask "please sync the knowledge base".
+> 执行口径：`f2s-kb-feat` 默认同步 `.Knowledge`，无需用户额外提出"请同步知识库"。
 
-## KB Auto-Merge Protocol (Required)
+## KB 自动合并协议（必须）
 
-This skill must not make manual command execution part of the user flow. After the implementation is completed or confirmed to already exist, the agent performs knowledge candidate generation, merge planning, build, and validation by itself:
+本技能不得把“人工执行命令”作为用户流程。代码实现完成或确认已有实现后，由 agent 自己完成知识候选生成、合并、构建与校验：
 
-1. Convert this capability change into a `kb-delta` draft with `taskId`, `developerId`, `baseRevisions`, `changes`, and implementation evidence. If `changeTracking.feat=true` and a task directory already exists, the delta may be written to `TASK_ROOT/active/<task-name>/kb-delta.json`; otherwise an equivalent in-memory object is acceptable. `changes` may use `appendBody` / `replaceBody` / `updateFrontmatter`; when a new topic is needed, use `createTopic` and optionally include `taskRule` plus `matcher` so routing is connected in the same merge.
-2. Before writing `.Knowledge`, run `flow2spec kb plan <delta>` or the equivalent internal capability. If a topic revision differs, stop automatic writing and switch to semantic-merge reporting.
-3. When the change is auto-mergeable, run `flow2spec kb apply <delta>` or the equivalent internal capability, then run `flow2spec kb build` and `flow2spec kb check`.
-4. The user should only see "capability and knowledge base synced / semantic conflict needs confirmation / skipped with reason"; do not ask the user to manually run `kb plan/apply/build/check`.
+1. 将本次能力变更转换为 `kb-delta` 草稿，记录 `taskId`、`developerId`、`baseRevisions`、`changes` 与实现证据；若 `changeTracking.feat=true` 且已有任务目录，可把 delta 落在当前 `TASK_ROOT/active/<task-name>/kb-delta.json`，否则可在内存中形成等价对象。`changes` 可使用 `appendBody` / `replaceBody` / `updateFrontmatter`；确需新主题时使用 `createTopic`，并可携带 `taskRule` 与 `matcher` 让路由一并接入。
+2. 写入 `.Knowledge` 前，必须用 `flow2spec kb plan <delta>` 或等价内部能力预演；若 topic revision 不一致，停止自动写入，转入语义合并说明。
+3. 可自动合并时，由 agent 调用 `flow2spec kb apply <delta>` 或等价内部能力写入 topic，并随后执行 `flow2spec kb build` 与 `flow2spec kb check`。
+4. 用户只看到“能力与知识库已同步 / 有语义冲突需确认 / 已跳过入库及原因”，不要求用户手动执行 `kb plan/apply/build/check`。
 
-## Orchestration (main / sub-agent)
+## 编排（主 / 子 agent）
 
-- The meaning of `subAgent` and `switchAgentVerification` uses the unified entry as the only source of truth: **Cursor/Claude** read the configuration-root `rules/f2s-flow2spec-unified-entry.*`; **Codex** reads `.codex/topics/f2s-flow2spec-unified-entry.md` (same source, mirrored by `flow2spec init`). Do not repeat those definitions here.
-- **Code subpackage** (new / modified implementation code): when `subAgent=true`, it may be delegated to a sub-agent.
-- **Documentation subpackage** (style-sensitive changes to rules / skills / topics / stock-docs): by default, do not split; the main agent writes them to preserve writing constraints such as "current truth wins", length limits, and no stacked historical negation.
-- If documentation changes must be delegated: the sub-agent only outputs an "in-place replacement diff" (small before / after snippets) and must not rewrite whole files; the main agent merges and writes the result.
-- **Write-authority hard rule**: `manifest-routing.json` / `.Knowledge/index.md` are always written by the main agent; sub-agents must not touch them.
-- The writing side verifies its own work.
+- `subAgent` 与 `switchAgentVerification` 的语义以统一入口为唯一事实源：**Cursor/Claude** 读配置根 `rules/f2s-flow2spec-unified-entry.*`；**Codex** 读 `.codex/topics/f2s-flow2spec-unified-entry.md`（与上同源，`flow2spec init` 镜像）。本处不复述。
+- **代码子包**（新增 / 修改实现代码）：`subAgent=true` 时可外包给子 agent 执行。
+- **文档子包**（rules / skills / topics / stock-docs 文风类改动）：默认不拆，由主 agent 写，以保证「现行真值覆盖 / 篇幅上限 / 禁历史否定堆砌」等文风合规。
+- 若确需外包文档改动：子侧只输出「原位替换 diff」（before / after 小段），不得整文件重写；主合并落盘。
+- **写权硬约束**：`manifest-routing.json` / `.Knowledge/index.md` 恒由主 agent 落盘，子 agent 不得触碰。
+- 落盘侧自验。
 
-# Add Capability (f2s-kb-feat)
+# /新增能力（f2s-kb-feat）
 
-## Input
+## 输入
 
-- The user describes the new capability, scenario, boundaries, and optional paths.
+- 用户描述新增能力、场景、边界、可选路径。
 
-## Steps
+## 步骤
 
-**Step 0: Change Tracking (only when `changeTracking.feat: true`)**
+**步骤 0：变更追踪（仅当 `changeTracking.feat: true`）**
 
-Before execution, read `flow2spec.config.json`. If `changeTracking.feat: true`:
+执行前读取 `flow2spec.config.json`，若 `changeTracking.feat: true`：
 
-- Check whether `.task/todo.json` has an active task, and match the user description against `keywords`.
-- Match -> load the corresponding `task.md`, show the remaining checklist, and continue in the existing task.
-- No match -> create a new task (see the `f2s-task` rule), and write steps 1-4 into `task.md` as a task checklist.
-- **Mandatory in-progress writes**: every time a step in `task.md` is completed, immediately `Edit` that step from `[ ]` to `[x]` in the same session; do not accumulate checkmarks until the "closing/archive" step, and do not use verbal completion instead of writing to disk (see `f2s-task` "interruption and session end" and "archive gate").
-- **User todos**: whenever the user must change a repository, configure an environment, click a platform, or handle similar items, append them in the same session to `.task/active/<task-name>/user-todos.md` (see `f2s-task`); when creating a new task and there are no todos yet, still create this file (a placeholder is allowed).
+- 检查 `.task/todo.json` 是否存在活跃任务，将用户描述与 `keywords` 匹配。
+- 命中 → 加载对应 `task.md`，展示剩余清单，在已有任务中继续。
+- 无命中 → 创建新任务（见 `f2s-task` 规则），将步骤 1–4 写入 `task.md` 作为任务 checklist。
+- **执中必写盘**：每完成 `task.md` 中一步，**同一会话内**立即 `Edit` 将该步 `[ ]`→`[x]`；禁止把打钩积压到「收尾/归档」一步、禁止口头完成代替写盘（见 `f2s-task`「中断与会话结束」「归档门禁」）。
+- **用户代办**：凡须用户改库、配环境、点平台等项，**同会话内**追加写入 `.task/active/<task-name>/user-todos.md`（见 `f2s-task`）；新建任务时若尚无代办，仍应创建该文件（可占位）。
 
-1. Determine capability status: not implemented / partially implemented / already implemented.
-2. Complete code implementation (skip this step if already implemented).
-3. Sync the knowledge base (default behavior):
-   - `.Knowledge/stock-docs/`: capability description and usage.
-   - `.Knowledge/topics/`: add or revise topic rules and workflows.
-   - `.Knowledge/index.md`: topic index.
-   - Routing manifest: minimally update it when routing, dependencies, or `topicMetadata` change.
-   - **Authoring-side guideline**: if this step adds or modifies topics, `topicMetadata`, or `topicDependencies`, first Read the full `rules/f2s-topic-authoring.*` (**Cursor/Claude**: `rules/f2s-topic-authoring.mdc`; **Codex**: `.codex/topics/f2s-topic-authoring.md`) before writing.
-4. Output a summary (capability points, implementation, knowledge-base changes).
+1. 判断能力状态：未实现 / 部分实现 / 已实现。
+2. 补齐代码实现（已实现则跳过此步）。
+3. 同步知识库（默认执行）：
+   - `.Knowledge/stock-docs/`：能力说明与使用方式
+   - `.Knowledge/topics/`：新增/修订主题规则与流程
+   - `.Knowledge/index.md`：主题索引
+   - 路由清单：路由、依赖或 `topicMetadata` 变化时最小更新
+   - **创作侧准则**：本步若新增 / 修改 topic、`topicMetadata` 或 `topicDependencies`，须先 Read `rules/f2s-topic-authoring.*` 全文（**Cursor/Claude**：`rules/f2s-topic-authoring.mdc`；**Codex**：`.codex/topics/f2s-topic-authoring.md`），再落盘。
+4. 输出摘要（能力点、实现、知识库变更）。
 
-## Output Summary Format (Recommended)
+## 输出摘要格式（建议）
 
 ```markdown
-## New Capability: <capability name>
+## 新增能力：<能力名>
 
-### Scope
-- <capability point 1>
-- <capability point 2>
+### 能力范围
+- <能力点1>
+- <能力点2>
 
-### Implementation
-- <file path>: <change description> (if no code changed, write "existing implementation")
+### 实现
+- <文件路径>：<改动说明>（若未改代码则写"已有实现"）
 
-### Knowledge Base
-- .Knowledge/stock-docs/<file>.md: <new/revised description>
-- .Knowledge/topics/<topic>.md: <new/revised description>
-- .Knowledge/index.md: <update description>
-- .Knowledge/manifest-routing.json: <whether updated and why>
-- .Knowledge/matchers/<id>.json: <whether includeAny was updated and why>
+### 知识库
+- .Knowledge/stock-docs/<文件>.md：<新增/修订说明>
+- .Knowledge/topics/<topic>.md：<新增/修订说明>
+- .Knowledge/index.md：<更新说明>
+- .Knowledge/manifest-routing.json：<是否更新与原因>
+- .Knowledge/matchers/<id>.json：<是否更新 includeAny 与原因>
 ```
 
-## Complex Scenario Example
+## 复杂场景示例
 
-The user asks to "add a failure retry queue capability", and the code already contains a partial implementation.
+用户要求"新增失败重试队列能力"，且代码中已有半成品实现。
 
-- First classify it as "partially implemented" and fill the code gaps instead of rebuilding the whole module.
-- Add or revise `topics/retry-queue.md`, and update the `index` entry description.
-- If the capability needs to be matched by task routing (for example, "retry queue refactor"), supplement `manifest.taskToTopicRules`.
+- 先判断为"部分实现"，补齐缺口代码而非重做整模块。
+- 同步新增或修订 `topics/retry-queue.md`，并更新 `index` 入口说明。
+- 若该能力需任务路由命中（如"重试队列改造"），补充 `manifest.taskToTopicRules`。
 
-## Constraints
+## 约束
 
-- When there is a conflict with an old convention: **rewrite to the current truth**; do not create additional historical-negation sentences such as "(no longer related to X)".
-- Prefer in-place updates for overlapping existing topics.
-- At least one knowledge-base update must be written, avoiding "code exists but cannot be retrieved".
-- Do not modify the configuration-root `rules/skills`.
-- Documentation subpackages are not split by default; when delegation is necessary, the sub-agent only outputs before/after diff snippets, and the main agent merges and writes them. `manifest-routing.json` / `.Knowledge/index.md` are always written by the main agent (write-authority hard rule).
+- 与旧约定冲突时：**改写到当前真值**，不要另起「（不再与某 X 有关）」等历史否定句。
+- 与现有主题重合时优先原位更新。
+- 至少落一处知识库更新，避免"代码有了但不可检索"。
+- 不改配置根 `rules/skills`。
+- 文档子包默认不拆；必要外包子侧仅出 before/after diff 片段，主合并落盘；`manifest-routing.json` / `.Knowledge/index.md` 恒主落盘（写权硬约束）。
 
-## Knowledge-Base Writing Style (Required, Anti-Redundancy)
+## 知识库落盘文风（必须，防赘述）
 
-When writing `stock-docs` / `topics` / `index`, follow these rules:
+写 `stock-docs` / `topics` / `index` 时遵守：
 
-1. **Minimal increment**: only append or rewrite text directly related to **this capability**; do not use "sync the knowledge base" as a reason to restate background, requirements, or tutorial-style setup unrelated to the implementation.
-2. **Affirmative wording first (see the unified entry "knowledge-base writing style")**: state the correct description directly; do not communicate the new convention by negating the old one, except for mutually exclusive choices.
-3. **Avoid duplicate narration**: do not write a long version of the same fact in both `stock-docs` and `topics`; make the executable convention clear in one place, and use a short paragraph + link in the other, or only list key points and reference paths.
-4. **Prefer structured writing**: `topics` should focus on rules, boundaries, steps, errors, and configuration points; use lists/tables instead of long paragraphs when possible.
-5. **Length limit (soft constraint)**: in one sync, new body text added to the **same file** should generally not exceed about **80 lines** (excluding code-block lines); if it exceeds that, split into a new topic or write "summary + see code path / another doc" first. Do not stack repeated explanation in one file.
-6. **`index.md`**: only modify rows/table items related to this topic; do not refresh the whole table or section by copy-paste.
-7. **Forbidden**: repeatedly explain Flow2Spec directory responsibilities, paste the full user conversation, or add long "historical review" sections unrelated to this diff.
+1. **增量最小**：只追加或改写与**本次能力**直接相关的句段；禁止因「同步知识库」而全文重述背景、需求复述、与实现无关的教程式铺垫。
+2. **肯定式优先（见统一入口「知识库落盘文风」）**：直接写出正确描述，禁止用否定旧版来传达新约定；排他性选择除外。
+3. **不重复叙事**：同一事实在 `stock-docs` 与 `topics` **不要各写一长篇**；择一处写清可执行约定，另一处用短段落 + 链接指向，或仅列要点与引用路径。
+4. **条文化优先**：`topics` 以规则、边界、步骤、错误与配置要点为主；能用列表/表格表达的不用长段落。
+5. **篇幅上限（软约束）**：单次同步中，对**同一文件**的新增正文合计不宜超过约 **80 行**（不含代码块行）；超出则拆分为新 topic、或先写「摘要 + 详见代码路径/另一文档」，禁止单文件堆叠重复说明。
+6. **`index.md`**：只改与本次主题相关的行/表项，禁止整表或整节复制粘贴式刷新。
+7. **禁止**：重复解释 Flow2Spec 目录分工、重复贴用户对话全文、与本次 diff 无关的「历史回顾」大段。
 
-## Completion Self-Check
+## 完成后自检
 
-1. Capability description matches the code implementation.
-2. The new capability can be retrieved through a topic.
-3. `index` and `manifest` were synced.
-4. If `topicMetadata` was written: every key exists in `topicPaths`; `primary` / `tags` / `confidence` are valid; no topic was created, renamed, or split just for classification.
-5. Knowledge-base changes cannot be compressed further without losing the rules and links after removing unrelated boilerplate.
-6. No "negate old version / no longer related to something" redundant phrasing remains; if the current rule is clear, such sentences should be deleted or moved into a user-requested migration section.
-7. No sub-agent rewrote documentation whole-file; manifest / index were written by the main agent only.
-8. If `changeTracking.feat: true`: only archive `.task/active/<task-name>/` to `completed/` and remove the corresponding `todo.json` entry after all `task.md` "steps" are `[x]` (or canceled items are noted); do not move the directory while `[ ]` remains (same as the `f2s-task` archive gate).
-9. If `changeTracking.feat: true`: `user-todos.md` exists; when user todos exist, its content matches the session conclusion.
+1. 能力描述与代码实现是否一致。
+2. 新增能力是否可通过 topic 被检索。
+3. `index` 与 `manifest` 是否同步更新。
+4. 若写入 `topicMetadata`：key 是否存在于 `topicPaths`；`primary` / `tags` / `confidence` 是否合法；是否未因分类创建、重命名或拆分 topic。
+5. 知识库变更是否可再压缩：删掉与本次变更无关的套话后，规则与链接是否仍完整。
+6. 是否仍存在「否定旧版 / 不再与某物有关」类赘句：若现行规则已写清，此类句应删或并入用户要求的迁移小节。
+7. 子 agent 未整文件重写文档；manifest / index 由主 agent 单点落盘。
+8. 若 `changeTracking.feat: true`：`task.md`「步骤」已全部 `[x]`（或备注已记录取消项）后，才将 `.task/active/<task-name>/` 归档至 `completed/` 并从 `todo.json` 删除对应条目；禁止在仍有 `[ ]` 时移动目录（与 `f2s-task` 归档门禁一致）。
+9. 若 `changeTracking.feat: true`：`user-todos.md` 已存在；有用户代办时内容已与会话结论一致。

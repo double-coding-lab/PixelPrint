@@ -1,380 +1,387 @@
 ---
 name: f2s-kb-distill
-description: Extract reusable knowledge facts from Q&A and auto-commit to KB; decide whether to create new topic or append to existing topic based on drill-down depth; trigger: f2s-kb-distill, extract knowledge from Q&A, distill knowledge from conversation
+description: 从问答过程中提取可复用知识事实并自动入库；根据下钻深度与命中主题判断新增主题或补充既有主题；触发：f2s-kb-distill、问答知识提取、从对话中提取知识
 ---
 
-> **Task paths**: all `.task/` reads/writes must use **`TASK_ROOT` from `rules/f2s-task`** (` .task` or `.task/<developerId>`; config → git → legacy). Bare `.task/todo.json` / `.task/active/` below mean **`TASK_ROOT/...`**.
+> **任务路径**：凡 `.task/` 落盘与续作，**必须以 `rules/f2s-task` 解析的 `TASK_ROOT` 为准（`.task` 或 `.task/<developerId>`；config → git → legacy）。下文若仍出现 `.task/todo.json` / `.task/active/`，均视为 **`TASK_ROOT/...` 的简写**。
 
 
-> Execution scope: This skill only maintains `.Knowledge`, does not modify config root `rules/skills` by default.
+> 执行口径：本技能只维护 `.Knowledge`，默认不改配置根 `rules/skills`。
 
-## KB Auto-Merge Protocol (Required)
+## KB 自动合并协议（必须）
 
-This skill must not make manual command execution part of the user flow. After the user triggers this skill, the agent performs knowledge candidate generation, merge planning, build, and validation by itself:
+本技能不得把“人工执行命令”作为用户流程。用户触发本技能后，由 agent 自己完成知识候选生成、合并、构建与校验：
 
-1. If reusable knowledge should be recorded, first form a `kb-delta` draft in the current task context with `taskId`, `developerId`, `baseRevisions`, `changes`, and evidence summary. If there is no explicit task directory, an equivalent in-memory object is acceptable; do not create `.task` only for this skill. `changes` may use `appendBody` / `replaceBody` / `updateFrontmatter`; when a new topic is needed, use `createTopic` and optionally include `taskRule` plus `matcher` so routing is connected in the same merge.
-2. Before writing `.Knowledge`, run `flow2spec kb plan <delta>` or the equivalent internal capability. If a topic revision differs, stop automatic writing and switch to semantic-merge reporting.
-3. When the change is auto-mergeable, run `flow2spec kb apply <delta>` or the equivalent internal capability, then run `flow2spec kb build` and `flow2spec kb check`.
-4. The user should only see "knowledge base synced / semantic conflict needs confirmation / skipped with reason"; do not ask the user to manually run `kb plan/apply/build/check`.
+1. 若本轮存在可沉淀知识，先在当前任务上下文中形成 `kb-delta` 草稿，记录 `taskId`、`developerId`、`baseRevisions`、`changes` 与证据摘要；没有显式任务目录时可在内存中形成等价对象，不强制为了本技能创建 `.task`。`changes` 可使用 `appendBody` / `replaceBody` / `updateFrontmatter`；确需新主题时使用 `createTopic`，并可携带 `taskRule` 与 `matcher` 让路由一并接入。
+2. 写入 `.Knowledge` 前，必须用 `flow2spec kb plan <delta>` 或等价内部能力预演；若 topic revision 不一致，停止自动写入，转入语义合并说明。
+3. 可自动合并时，由 agent 调用 `flow2spec kb apply <delta>` 或等价内部能力写入 topic，并随后执行 `flow2spec kb build` 与 `flow2spec kb check`。
+4. 用户只看到“知识库已同步 / 有语义冲突需确认 / 已跳过入库及原因”，不要求用户手动执行 `kb plan/apply/build/check`。
 
-## Orchestration (main / sub agent)
+## 编排（主 / 子 agent）
 
-- `subAgent` / `switchAgentVerification` semantics follow unified entry as single source of truth: **Cursor/Claude** read config root `rules/f2s-flow2spec-unified-entry.*`; **Codex** read `.codex/topics/f2s-flow2spec-unified-entry.md` (same source, mirrored by `flow2spec init`).
-- This skill does not split sub by default: Q&A knowledge extraction is a single-round focused task, completed by main agent is more efficient.
-- Write permission constraint: `manifest-routing.json` and `.Knowledge/index.md` are always written by main agent only.
-- Verification: self-verify on the side that writes to disk.
+- `subAgent` / `switchAgentVerification` 两字段语义以统一入口为唯一事实源：**Cursor/Claude** 读配置根 `rules/f2s-flow2spec-unified-entry.*`；**Codex** 读 `.codex/topics/f2s-flow2spec-unified-entry.md`（与上同源，`flow2spec init` 镜像）。
+- 本技能默认不拆子：问答知识提取是单轮聚焦任务，由主 agent 全流程完成效率更高。
+- 写权硬约束：`manifest-routing.json` 与 `.Knowledge/index.md` 恒由主 agent 单点落盘。
+- 校验：落盘侧自验。
 
-# f2s-kb-distill: Q&A-Driven Knowledge Extraction and Ingestion
+# f2s-kb-distill：问答驱动的知识提取与入库
 
-## When to Use
+## 使用时机
 
-- User asks → agent drills down source code to answer → need to solidify discovered knowledge into KB
-- Usually auto-suggested by `f2s-kb-feedback-closing` rule, can also be manually invoked by user
-- Distinction from `f2s-kb-sync`: `sync` is for batch syncing multiple capabilities; `distill` focuses on knowledge extraction from single Q&A
+- 用户提问 → agent 下钻源码回答 → 需要将发现的知识沉淀到 KB
+- 通常由 `f2s-kb-feedback-closing` 规则自动建议，也可用户主动调用
+- 与 `f2s-kb-sync` 区分：`sync` 适合批量同步多个能力；`distill` 专注单次问答的知识提取
 
-## Input
+## 输入
 
-| Parameter | Required | Description |
+| 参数 | 必填 | 说明 |
 | --- | --- | --- |
-| User question | Auto-extract | Previous user question (auto-extract from conversation history) |
-| Agent answer | Auto-extract | Previous agent answer content (auto-extract from conversation history) |
-| Matched topic | Optional | If triggered by `f2s-kb-feedback-closing`, carries matched topicId |
-| Drilled files | Auto-analyze | Extract referenced files/functions from answer (auto-analyze) |
+| 用户问题 | 自动获取 | 上一轮用户的提问（自动从对话历史提取） |
+| agent 回答 | 自动获取 | 上一轮 agent 的回答内容（自动从对话历史提取） |
+| 命中主题 | 可选 | 如由 `f2s-kb-feedback-closing` 触发，会携带命中的 topicId |
+| 下钻文件 | 自动分析 | 从回答中提取引用的文件/函数（自动分析） |
 
-Abort and prompt user when no valid Q&A context exists.
+无有效问答上下文时中止并提示用户。
 
-## Execution Tiers (Light / Strict, agent auto-judged)
+## 执行挡位（轻量 / 严格，agent 自动判）
 
-`f2s-kb-distill` has **only one** entry (no `--fast` parameter). The first thing on entering this flow is to **decide the tier**:
+`f2s-kb-distill` 只有**一个**入口（无 `--fast` 参数），进入流程第一件事是**判挡**：
 
-### Tier judgment (4 dimensions; light tier only when all 4 are satisfied)
+### 判挡依据（4 个维度，全满足才走轻量挡）
 
-| Dimension | How to measure | Condition for **light tier** |
+| 维度 | 取值方式 | 走「轻量挡」的条件 |
 | --- | --- | --- |
-| Upstream `f2s-kb-feedback-closing` case | Look at the closing block at the end of this/last agent reply | **case 2 or case 3** (case 1 / no closing block → strict tier) |
-| Business source files Read this turn | Agent reviews its own tool calls this turn | **≤ 3 files** |
-| Function / class names cited in this turn's reply | Count backtick-wrapped `xxx()` / class names in the reply | **≤ 5** |
-| Did the user reject the upstream conclusion in a follow-up? | Look at the latest user input for "no / re-analyze / that's wrong" etc. | **No** |
+| 上游 `f2s-kb-feedback-closing` case | 看本轮 / 上一轮 agent 回答末尾的收口块 | **case 2 或 case 3**（case 1 / 无收口 → 严格挡） |
+| 本轮 Read 业务源码文件数 | agent 回顾本轮自己的工具调用 | **≤ 3 个** |
+| 本轮回答引用的函数 / 类名数 | 数回答里反引号包裹的 `xxx()` / 类名 | **≤ 5 个** |
+| 用户追问是否否定上游结论 | 看用户最新输入是否含"不对 / 重新分析 / 那条不准"等 | **否** |
 
-**All 4 satisfied** → **light tier**: skip step 2.1 (quantitative scoring) / 2.4 (existing topic description depth) / step 3 (decision matrix) / step 4.1's "read neighboring topics for style alignment"; adopt the upstream "this round will ingest: <summary>" directly to decide strategy and target topicId, then proceed to step 4 to generate content.
+**4 项全满足** → **轻量挡**：跳过步骤 2.1（量化打分）/ 2.4（既有 topic 描述程度评估）/ 步骤 3（决策矩阵）/ 步骤 4.1 的「读近邻 topic 风格对齐」；直接采上游「本轮将入库：<概要>」做策略与目标 topicId 判定，进入步骤 4 生成内容。
 
-**Any one fails** → **strict tier**: run the full 6 steps.
+**任一不满足** → **严格挡**：跑完整 6 步。
 
-> **Business source defined**: a Read whose path is **not** under `.claude/` / `.cursor/` / `.codex/` / `.Knowledge/` / `.task/` counts. Rule files / topics / config / task lists do not count.
+> **业务源码定义**：路径**不在** `.claude/` / `.cursor/` / `.codex/` / `.Knowledge/` / `.task/` 这 5 个目录下的 Read 才计数；规则文件 / topic / config / 任务清单都不算。
 
-### Why these dimensions are enough (design intent)
+### 为什么这几个维度够（设计意图）
 
-- **Case type** filters out the "new topic" scenario: creating a new topic must read neighboring topics for style, configure matcher `includeAny`, and update `taskToTopicRules` — none of these can be skipped;
-- **Read count + function-citation count** reflects whether this turn's knowledge is "light enough": only light supplements may skip judgments. Deep ingestion (many files + many functions) skipping them risks "description depth mismatch ≥ 2 levels" incidents;
-- **User rejection signal** backstops the "upstream case judged wrong" edge.
+- **case 类型**挡掉「新增 topic」场景：新建必须读近邻 topic 学风格、必须配 matcher `includeAny`、必须更新 `taskToTopicRules`，跳不得；
+- **Read 文件数 + 函数引用数**反映本轮知识够不够"轻"：轻量补充才能跳决策，深度入库（多文件 + 多函数）跳了会撞「描述程度差 ≥ 2 级」事故；
+- **用户否定信号**兜底"上游 case 判错了"的边界。
 
-### Steps 5 / 6 never skipped
+### 步骤 5 / 6 永不省
 
-Regardless of tier, **step 5 routing / matcher / index sync** and **step 6 write + self-check** always run in full — these are hard correctness constraints.
+无论哪一挡，**步骤 5 路由 / matcher / index 同步**与**步骤 6 落盘 + 自检**都跑完整版——这是入库正确性的硬约束。
 
-## Mandatory Flow (cannot be reordered)
+## 强制流程（不可颠倒）
 
-### Step 0: Read Config and Rules
+### 步骤 0：读取配置与规则
 
-1. Read `flow2spec.config.json` (get `subAgent` / `switchAgentVerification`)
-2. Read `rules/f2s-kb-feedback-closing.mdc` (get "reusable knowledge facts" definition)
-3. Read `rules/f2s-topic-authoring.mdc` (get topic authoring guidelines)
+1. 读取 `flow2spec.config.json`（获取 `subAgent` / `switchAgentVerification`）
+2. 读取 `.codex/topics/f2s-kb-feedback-closing.md`（获取"可复用知识事实"定义）
+3. 读取 `.codex/topics/f2s-topic-authoring.md`（获取 topic 创作准则）
 
-### Step 1: Extract Q&A Context
+### 步骤 1：提取问答上下文
 
-Extract from previous conversation turn:
+从上一轮对话中提取：
 
-1. **User question**: Original question text
-2. **Agent answer**: Complete answer content
-3. **Matched topic**: Extract matched topicId if `f2s-kb-feedback-closing` already analyzed; otherwise re-route based on question
-4. **Drilled files**: Extract all referenced file paths, function names, line numbers from answer
-5. **Referenced code**: Extract code snippets quoted in answer
+1. **用户问题**：原始问题文本
+2. **agent 回答**：完整回答内容
+3. **命中主题**：如果 `f2s-kb-feedback-closing` 已分析，提取命中的 topicId；否则根据问题重新路由
+4. **下钻文件**：从回答中提取所有引用的文件路径、函数名、行号
+5. **引用源码**：提取回答中引用的代码片段
 
-### Step 2: Analyze Drill-Down Depth and Knowledge Nature
+### 步骤 2：分析下钻深度与知识性质
 
-> ****Light tier** skips**: sections 2.1 / 2.4 are skipped entirely; 2.2 (extract knowledge facts) must run; 2.3 (knowledge description depth) is reduced to **a brief annotation** (one line stating "summary-level / detailed-level / implementation-level", no multi-dimensional evaluation).
+> ****轻量挡**跳过**：本步骤的 2.1 / 2.4 整段跳过；2.2（提取知识事实）必须执行；2.3（本次知识描述深度）改为**简短标注**（一行写"摘要级 / 详细级 / 实现级"即可，不再多维评估）。
 
-#### 2.1 Calculate Drill-Down Depth Score
+#### 2.1 计算下钻深度得分
 
-Accumulate following indicators (each 0-10 points, total 0-50):
+累加以下指标（每项 0-10 分，总分 0-50）：
 
-- **Files read count**:
-  - 0 files: 0 points
-  - 1-2 files: 3 points
-  - 3-5 files: 7 points
-  - 6+ files: 10 points
+- **读取文件数**：
+  - 0 个文件：0 分
+  - 1-2 个文件：3 分
+  - 3-5 个文件：7 分
+  - 6+ 个文件：10 分
 
-- **Segmented read count** (same file read multiple times at different line ranges):
-  - 0-1 times: 0 points
-  - 2-4 times: 3 points
-  - 5-8 times: 7 points
-  - 9+ times: 10 points
+- **分段读取次数**（同一文件多次读取不同行范围）：
+  - 0-1 次：0 分
+  - 2-4 次：3 分
+  - 5-8 次：7 分
+  - 9+ 次：10 分
 
-- **Function/class reference count**:
-  - 0-2: 0 points
-  - 3-5: 3 points
-  - 6-10: 7 points
-  - 11+: 10 points
+- **函数/类引用数**：
+  - 0-2 个：0 分
+  - 3-5 个：3 分
+  - 6-10 个：7 分
+  - 11+ 个：10 分
 
-- **Code snippet length**:
-  - 0-50 lines: 0 points
-  - 51-150 lines: 3 points
-  - 151-300 lines: 7 points
-  - 301+ lines: 10 points
+- **代码片段长度**：
+  - 0-50 行：0 分
+  - 51-150 行：3 分
+  - 151-300 行：7 分
+  - 301+ 行：10 分
 
-- **Answer length**:
-  - 0-200 chars: 0 points
-  - 201-500 chars: 3 points
-  - 501-1000 chars: 7 points
-  - 1001+ chars: 10 points
+- **回答篇幅**：
+  - 0-200 字：0 分
+  - 201-500 字：3 分
+  - 501-1000 字：7 分
+  - 1001+ 字：10 分
 
-**Drill-down depth classification**:
-- **Shallow** (0-15 points): Simple Q&A, minimal source code reference
-- **Medium** (16-30 points): Medium complexity, multi-file consultation
-- **Deep** (31-50 points): Deep exploration, extensive source code analysis
+**下钻深度分级**：
+- **浅**（0-15 分）：简单问答，少量源码引用
+- **中**（16-30 分）：中等复杂度，多文件查阅
+- **深**（31-50 分）：深度探索，大量源码分析
 
-#### 2.2 Extract Reusable Knowledge Facts
+#### 2.2 提取可复用知识事实
 
-Extract following types of knowledge from answer (refer to `f2s-kb-feedback-closing`):
+从回答中提取以下类型的知识（参考 `f2s-kb-feedback-closing`）：
 
-- Core mechanisms (cache semantics, retry strategy, fallback logic)
-- State transitions (state machine, lifecycle)
-- Return value / error code contracts
-- Configuration switch impacts
-- Failure fallback strategies
-- Module boundaries or calling conventions
-- Data models and field semantics
+- 核心机制（缓存语义、重试策略、降级逻辑）
+- 状态流转（状态机、生命周期）
+- 返回值/错误码契约
+- 配置开关影响
+- 失败回退策略
+- 模块边界或调用约定
+- 数据模型与字段语义
 
-**Extraction result**:
-- Each knowledge fact includes: type, description, source (file:line)
-- Sorted by importance
+**提取结果**：
+- 每条知识事实包含：类型、描述、来源（文件:行号）
+- 按重要性排序
 
-#### 2.3 Judge Extracted Knowledge Description Depth
+#### 2.3 判断本次提取知识的描述深度
 
-Evaluate detail level of extracted knowledge facts (judged by content characteristics, not length):
-
-- **Summary level**: Only conclusive description ("what it is", "what it does"), no conditions/flows/function details
-  - Example: `Cache-first, fallback to OCR`
-- **Detailed level**: Includes mechanism explanation, process steps, key judgment conditions ("when X", "if Y then", "first...then...")
-  - Example: `Cache-first: use cached coordinates when hit; fallback condition: popup not dismissed, coordinates out of bounds`
-- **Implementation level**: Includes function call relationships, state transition details, boundary condition handling, code examples
-  - Example: `Cache read: call _get_cached_point_in_bounds("chat.input"), fallback when returns None; failure detection: VisualSearchPopup.find(timeout=0.08) is None`
-
-#### 2.4 Evaluate Existing Topic Description Depth (only when "matched")
-
-If matched an existing topic, need to evaluate its description depth (judged by content, not length):
-
-1. **Read target topic content**
-2. **Randomly sample 3-5 entries** (from different paragraphs)
-3. **Judge each entry's description depth**:
-   - **Summary level characteristics**: Only says "what it is", "what it does", enumeration style, no conditions/flows/function details
-   - **Detailed level characteristics**: Contains "when X", "if Y then", "first...then...", judgment conditions, mechanism explanation
-   - **Implementation level characteristics**: Contains function names `xxx()`, class names, file paths, parameters, code examples, state transition logic
-4. **Majority level of entries = overall topic description depth**
-
-**Judgment examples**:
-
-| Topic Content | Judgment | Reason |
-|--------------|----------|--------|
-| `- Cache-first, fallback to OCR`<br>`- Send message action chain detection` | Summary | Only says "what", no details |
-| `- Cache-first: use cached coordinates when hit`<br>`- Fallback: clear cache and re-OCR when popup not dismissed` | Detailed | Has condition explanation ("when...") |
-| `- Cache read: _get_cached_point_in_bounds("chat.input")`<br>`- Failure detection: VisualSearchPopup.find(timeout=0.08) is None` | Implementation | Has function names, parameters |
-
-**Important**: A 300+ line topic where every entry is "Module X: responsible for YYY" is still summary level; a 50 line topic where every entry has "conditional judgment + function call" is implementation level.
-
-### Step 3: Decide Ingestion Strategy
-
-> ****Light tier** skips the entire decision matrix**: adopt the upstream `f2s-kb-feedback-closing` "this round will ingest: <summary>" conclusion directly:
-> - Summary contains "append to / supplement / fill in `<topicId>` section X" → strategy = **append to existing topic**, target topicId = the topic named in the summary;
-> - Summary contains "first-time ingestion", "new `<capability>`", "new `<module>`" → strategy = **new topic** (default small topic; step 4.3 internally upgrades to "new independent module topic" when drill-down is deep and the module is standalone);
-> - Summary contains "fix `<topicId>` entry X" → strategy = **append to existing topic** (overwrite-style append; the original wording is rewritten during content generation).
-
-Decide based on following decision matrix:
-
-| Drill-Down Depth | Matched Topic | Existing Topic Depth | Extracted Knowledge Depth | Strategy |
-|-----------------|---------------|---------------------|--------------------------|----------|
-| Shallow | Matched | Summary | Summary | **Append to existing topic** (add brief note) |
-| Shallow | Matched | Summary/Detailed | Detailed | **Append to existing topic** (add detailed paragraph) |
-| Shallow | Matched | Summary | Implementation | **Create sub-topic** (existing too brief, new too detailed) |
-| Shallow | Not matched | - | Any | **Create new topic** (small topic) |
-| Medium | Matched | Summary | Summary/Detailed | **Append to existing topic** (add detailed paragraph) |
-| Medium | Matched | Summary | Implementation | **Create sub-topic** (gap ≥ 2 levels) |
-| Medium | Matched | Detailed/Implementation | Detailed/Implementation | **Append to existing topic** (levels match) |
-| Medium | Not matched | - | Any | **Create new topic** (medium topic) |
-| Deep | Matched | Summary | Any | **Create sub-topic** (independent topic + stock-doc) |
-| Deep | Matched | Detailed/Implementation | Detailed/Implementation | **Append to existing topic** or **Create sub-topic** (judge by semantic focus) |
-| Deep | Not matched | - | Any | **Create independent module topic** (complete topic + stock-doc) |
-
-**Decision keys**:
-- **Description depth gap ≥ 2 levels** (summary vs implementation) → force create sub-topic, avoid style inconsistency
-- **Description depth gap = 1 level** (summary vs detailed, or detailed vs implementation) → can append, but write detailed paragraphs
-- **Description depth matches** (same level) → normal append
-- **Drill-down depth ≥ deep** → prefer create sub-topic, unless existing topic already very detailed and semantics fully overlap
-
-**Decision output**:
-- Strategy type: `Append to existing topic` / `Create sub-topic` / `Create independent module topic`
-- Target topicId: Existing topic id or suggested id for new topic
-- Update content: Content to append or structure of new topic
-- Description depth match: same level / 1 level gap / ≥ 2 level gap
-
-### Step 4: Generate Knowledge Content
-
-> **Authoring guidelines**: This step triggers creation/modification of topics and possible `topicDependencies`, must follow already-read `f2s-topic-authoring` guidelines.
-
-#### 4.1 Append to Existing Topic
-
-If strategy is "append to existing topic":
-
-1. Read current content of target topic
-2. Read style samples from 2-3 neighboring topics (for style alignment)  
-   ****Light tier** skips this**: do not read neighboring topics; just match the list / paragraph form already used in the target topic itself.
-3. Generate content to append:
-   - **Position**: Find most relevant paragraph, append after it
-   - **Format**: Keep list/paragraph style consistent with existing topic
-   - **Length**: Decide based on knowledge description depth:
-     - Summary level: 1-3 lines
-     - Detailed level: 5-10 lines, include mechanism explanation
-     - Implementation level: 10-20 lines, include process steps and key functions
-
-#### 4.2 Create Sub-Topic
-
-If strategy is "create sub-topic":
-
-1. Generate new topicId (based on parent topic + focus point)
-2. Create new topic content:
-   - Title and one-sentence intent
-   - Applicable scenarios / trigger words
-   - Core mechanism details (generated from extracted knowledge facts)
-   - Dependency declaration (depends on parent topic)
-   - Boundaries and prohibitions
-3. Update parent topic:
-   - Append link to sub-topic in relevant paragraph
-   - Explain focus point of sub-topic
-4. Update `topicDependencies`:
-   - Add `sub-topic → parent topic` dependency edge
-
-#### 4.3 Create Independent Module Topic
-
-If strategy is "create independent module topic":
-
-1. Generate new topicId (based on module name or problem domain)
-2. Decide whether to create stock-doc:
-   - Drill-down depth ≥ deep: create stock-doc (`<topicId>_final.md`)
-   - Drill-down depth < deep: only create topic, no stock-doc
-3. If creating stock-doc:
-   - Structure: overview, core mechanisms, source files, key functions and flows
-   - Content: generated from extracted knowledge facts and referenced code snippets
-   - Length: 100-500 lines depending on drill-down depth
-4. Create topic:
-   - If has stock-doc, topic serves as summary + pointer
-   - If no stock-doc, topic contains complete mechanism explanation
-
-### Step 5: Sync Routing and Index
-
-#### 5.1 Update manifest and matcher
-
-- If creating new topic:
-  - Add entry in `manifest-routing.json.topicPaths`
-  - Create corresponding `matchers/<id>.json`, including:
-    - Keywords extracted from user question
-    - Terms extracted from answer
-    - Suggested `includeAny`: 5-10 trigger words
-  - Add routing rule in `taskToTopicRules`
-
-- If updating existing topic:
-  - Check if matcher needs new trigger words
-  - Extract uncovered keywords from user question, append to `includeAny`
-
-#### 5.2 Update index.md
-
-- If creating new topic:
-  - Add new entry in `.Knowledge/index.md`
-  - Format: `- **[topic title](topics/<topicId>.md)** - one-line description | Related docs: [Final](stock-docs/<doc>.md)` (if any)
-- If updating existing topic:
-  - Check if description in index needs update
-  - If added stock-doc, update "Related docs" column
-
-#### 5.3 Handle topicMetadata (optional)
-
-If has clear evidence, write to `topicMetadata`:
-
-- Judge `primary` type from extracted knowledge facts:
-  - Core mechanism/state transition/failure fallback → `policy`
-  - Config switch impact → `config`
-  - Module boundary/calling convention → `module`
-  - Implemented capability/business logic → `feature`
-- Set `confidence` to `inferred`
-- Don't write when no clear evidence, list as "unclassified" in output summary
-
-### Step 6: Write to Disk and Self-Check
-
-Write in following order:
-
-1. If has stock-doc: write to `.Knowledge/stock-docs/<doc>.md`
-2. Write or update `.Knowledge/topics/<topicId>.md`
-3. Update `.Knowledge/manifest-routing.json`
-4. Update `.Knowledge/matchers/<id>.json`
-5. Update `.Knowledge/index.md`
-
-Self-check list:
-
-1. Does topic content include extracted core knowledge facts
-2. Does new topic have corresponding entry in index.md
-3. Do topicPaths / taskToTopicRules in manifest reference valid paths
-4. Does includeAny in matcher cover keywords from user question
-5. If created sub-topic, is topicDependencies correctly set
-6. Does appended content maintain style of existing topic (if read neighboring topics)
-
-## Output Summary Format
+评估提取出的知识事实的详细程度（与长度无关，看内容特征）：
+
+- **摘要级**：只有结论性描述（"是什么"、"做什么"），无条件、流程、函数细节
+  - 示例：`缓存优先、失败回退 OCR`
+- **详细级**：包含机制说明、流程步骤、关键判断条件（"当X时"、"如果Y则"、"先...再..."）
+  - 示例：`缓存优先：坐标缓存命中时直接使用；失败回退条件：弹窗未消失、坐标超出边界`
+- **实现级**：包含函数调用关系、状态转换细节、边界条件处理、代码示例
+  - 示例：`缓存读取：调用 _get_cached_point_in_bounds("chat.input")，返回 None 时回退；失败判定：VisualSearchPopup.find(timeout=0.08) is None`
+
+#### 2.4 评估既有 topic 的描述程度（仅当"有命中"时）
+
+如果命中了既有 topic，需要评估它的描述程度（与长度无关）：
+
+1. **读取目标 topic 内容**
+2. **随机抽取 3-5 条内容**（不同段落）
+3. **判断每条的描述程度**：
+   - **摘要级特征**：只说"是什么"、"做什么"，列举式，无条件/流程/函数细节
+   - **详细级特征**：包含"当X时"、"如果Y则"、"先...再..."、判断条件、机制说明
+   - **实现级特征**：包含函数名 `xxx()`、类名、文件路径、参数、代码示例、状态转换逻辑
+4. **大部分条目的级别 = topic 的整体描述程度**
+
+**判断示例**：
+
+| Topic 内容 | 判定 | 原因 |
+|-----------|------|------|
+| `- 缓存优先、失败回退 OCR`<br>`- 发送消息动作链判定` | 摘要级 | 只说"做什么"，无细节 |
+| `- 缓存优先：坐标缓存命中时直接使用`<br>`- 失败回退：弹窗未消失时清除缓存并重新 OCR` | 详细级 | 有条件说明（"当...时"） |
+| `- 缓存读取：_get_cached_point_in_bounds("chat.input")`<br>`- 失败判定：VisualSearchPopup.find(timeout=0.08) is None` | 实现级 | 有函数名、参数 |
+
+**重要**：一个 300+ 行的 topic，如果每条都是"模块 X：负责 YYY"，仍然是摘要级；一个 50 行的 topic，如果每条都有"条件判断 + 函数调用"，就是实现级。
+
+### 步骤 3：决策入库策略
+
+> ****轻量挡**跳过整段决策矩阵**：直接采用上游 `f2s-kb-feedback-closing`「本轮将入库：<概要>」给出的结论：
+> - 概要含「补充 / 补到 / 补齐 `<topicId>` 的某段」→ 策略 = **补充既有 topic**，目标 topicId = 概要点名的 topic；
+> - 概要含「首次入库」「新增 `<能力>`」「新增 `<模块>`」→ 策略 = **新增 topic**（默认小型 topic；下钻深 + 模块独立时升级为「新增独立模块 topic」由步骤 4.3 内部判断）；
+> - 概要含「修正 `<topicId>` 的某条」→ 策略 = **补充既有 topic**（覆盖式追加，原表述在生成内容时改写）。
+
+根据以下决策矩阵判断：
+
+| 下钻深度 | 命中主题情况 | 既有 topic 描述程度 | 本次知识描述深度 | 策略 |
+|---------|------------|------------------|----------------|------|
+| 浅 | 有命中 | 摘要级 | 摘要级 | **补充既有 topic**（追加简短说明） |
+| 浅 | 有命中 | 摘要级/详细级 | 详细级 | **补充既有 topic**（追加详细段落） |
+| 浅 | 有命中 | 摘要级 | 实现级 | **新增子主题**（既有太简短，本次太详细） |
+| 浅 | 无命中 | - | 任意 | **新增 topic**（小型 topic） |
+| 中 | 有命中 | 摘要级 | 摘要级/详细级 | **补充既有 topic**（追加详细段落） |
+| 中 | 有命中 | 摘要级 | 实现级 | **新增子主题**（差距 ≥ 2 级） |
+| 中 | 有命中 | 详细级/实现级 | 详细级/实现级 | **补充既有 topic**（级别匹配） |
+| 中 | 无命中 | - | 任意 | **新增 topic**（中型 topic） |
+| 深 | 有命中 | 摘要级 | 任意 | **新增子主题**（独立 topic + stock-doc） |
+| 深 | 有命中 | 详细级/实现级 | 详细级/实现级 | **补充既有 topic** 或 **新增子主题**（根据语义聚焦度判断） |
+| 深 | 无命中 | - | 任意 | **新增独立模块 topic**（完整 topic + stock-doc） |
+
+**决策关键**：
+- **描述程度差距 ≥ 2 级**（摘要 vs 实现）→ 强制新增子主题，避免风格不协调
+- **描述程度差距 = 1 级**（摘要 vs 详细，或详细 vs 实现）→ 可以追加，但要写详细段落
+- **描述程度匹配**（同级）→ 正常追加
+- **下钻深度 ≥ 深** → 倾向新增子主题，除非既有 topic 已经很详细且语义完全重合
+
+**决策输出**：
+- 策略类型：`补充既有 topic` / `新增子主题` / `新增独立模块 topic`
+- 目标 topicId：既有 topic 的 id 或新 topic 的建议 id
+- 更新内容：要追加的内容或新 topic 的结构
+- 描述程度匹配度：同级 / 差 1 级 / 差 ≥ 2 级
+
+### 步骤 4：生成知识内容
+
+> **创作侧准则**：本步骤会触发新增 / 修改 topic 与可能的 `topicDependencies`，须遵循已读取的 `f2s-topic-authoring` 准则。
+
+#### 4.1 补充既有 topic
+
+如果策略是"补充既有 topic"：
+
+1. 读取目标 topic 当前内容
+2. 读取近邻 2-3 个 topic 的风格样例（用于风格对齐）  
+   ****轻量挡**跳过**：不读近邻 topic，仅参考目标 topic 自身的列表 / 段落形态保持一致即可。
+3. 生成要追加的内容：
+   - **位置**：找到最相关的段落，在其后追加
+   - **格式**：保持与既有 topic 一致的列表/段落风格
+   - **长度**：根据知识描述深度决定：
+     - 摘要级：1-3 行
+     - 详细级：5-10 行，包含机制说明
+     - 实现级：10-20 行，包含流程步骤与关键函数
+4. 追加内容示例：
+   ```markdown
+   - 【机制】缓存只用于坐标定位与快速路径；缓存命中不等同于步骤完成
+   - 【判定】添加好友在缓存点击后仍通过窗口出现、资料页状态、提交后状态分类判断进度
+   - 【边界】发送消息在按 Enter 后返回成功，当前无 OCR 校验消息气泡或发送状态
+   ```
+
+#### 4.2 新增子主题
+
+如果策略是"新增子主题"：
+
+1. 生成新 topicId（基于父 topic + 聚焦点）：
+   - 例如：`wxautocontrol-architecture` → `wxautocontrol-completion-detection`
+2. 创建新 topic 内容：
+   - 标题与一句话意图
+   - 适用场景/触发词
+   - 核心机制详述（从提取的知识事实生成）
+   - 依赖声明（依赖父 topic）
+   - 边界与禁止项
+3. 同步更新父 topic：
+   - 在相关段落追加指向子 topic 的链接
+   - 说明子 topic 的聚焦点
+4. 更新 `topicDependencies`：
+   - 添加 `子 topic → 父 topic` 的依赖边
+
+#### 4.3 新增独立模块 topic
+
+如果策略是"新增独立模块 topic"：
+
+1. 生成新 topicId（基于模块名或问题域）
+2. 判断是否需要创建 stock-doc：
+   - 下钻深度 ≥ 深：创建 stock-doc（`<topicId>_终稿.md`）
+   - 下钻深度 < 深：仅创建 topic，不创建 stock-doc
+3. 如果创建 stock-doc：
+   - 结构：概述、核心机制、来源文件、关键函数与流程
+   - 内容：基于提取的知识事实与引用的代码片段生成
+   - 长度：根据下钻深度，100-500 行
+4. 创建 topic：
+   - 如有 stock-doc，topic 作为摘要 + 指针
+   - 如无 stock-doc，topic 包含完整的机制说明
+
+### 步骤 5：同步路由与索引
+
+#### 5.1 更新 manifest 与 matcher
+
+- 如果新增 topic：
+  - 在 `manifest-routing.json.topicPaths` 中添加条目
+  - 创建对应的 `matchers/<id>.json`，包含：
+    - 从用户问题中提取的关键词
+    - 从回答中提取的术语
+    - 建议 `includeAny`：5-10 个触发词
+  - 在 `taskToTopicRules` 中添加路由规则
+
+- 如果更新既有 topic：
+  - 检查 matcher 是否需要补充新的触发词
+  - 从用户问题中提取未覆盖的关键词，追加到 `includeAny`
+
+#### 5.2 更新 index.md
+
+- 如果新增 topic：
+  - 在 `.Knowledge/index.md` 中添加新条目
+  - 格式：`- **[topic 标题](topics/<topicId>.md)** - 一句话说明 | 关联文档：[终稿](stock-docs/<doc>.md)`（如有）
+- 如果更新既有 topic：
+  - 检查 index 中的描述是否需要更新
+  - 如果新增了 stock-doc，更新"关联文档"列
+
+#### 5.3 处理 topicMetadata（可选）
+
+如果有明确证据，写入 `topicMetadata`：
+
+- 从提取的知识事实判断 `primary` 类型：
+  - 核心机制/状态流转/失败回退 → `policy`
+  - 配置开关影响 → `config`
+  - 模块边界/调用约定 → `module`
+  - 已落地能力/业务逻辑 → `feature`
+- `confidence` 设为 `inferred`
+- 无明确证据时不写，在输出摘要中列为"未分类"
+
+### 步骤 6：落盘与自检
+
+按以下顺序落盘：
+
+1. 如果有 stock-doc：写入 `.Knowledge/stock-docs/<doc>.md`
+2. 写入或更新 `.Knowledge/topics/<topicId>.md`
+3. 更新 `.Knowledge/manifest-routing.json`
+4. 更新 `.Knowledge/matchers/<id>.json`
+5. 更新 `.Knowledge/index.md`
+
+自检清单：
+
+1. topic 内容是否包含了提取的核心知识事实
+2. 新增 topic 是否在 index.md 中有对应条目
+3. manifest 中的 topicPaths / taskToTopicRules 是否引用有效路径
+4. matcher 的 includeAny 是否覆盖用户问题的关键词
+5. 如果新增子主题，topicDependencies 是否正确设置
+6. 追加内容是否保持了既有 topic 的风格（如已读近邻 topic）
+
+## 输出摘要格式
 
 ```markdown
-## Knowledge Extraction and Ingestion Result
+## 知识提取与入库结果
 
-- Execution tier: `Strict tier (full flow)` / `Light tier (2.1 / 2.4 / 3 / 4.1 skipped)` / `Light tier → strict tier (downgrade reason: <reason>)`
+- 执行挡位：`严格挡（完整流程）` / `轻量挡（已跳过 2.1 / 2.4 / 3 / 4.1）` / `轻量挡 → 严格挡（降级原因：<原因>）`
 
-### Q&A Analysis
-- User question: <question summary>
-- Matched topic: <topicId or "none">
-- Drill-down depth: <shallow/medium/deep> (<score>)  ← **Light tier**: `not evaluated`
-- Knowledge description depth: <summary/detailed/implementation level>
+### 问答分析
+- 用户问题：<问题摘要>
+- 命中主题：<topicId 或"无">
+- 下钻深度：<浅/中/深> (<得分>)  ← **轻量挡**：`未评估`
+- 知识描述深度：<摘要级/详细级/实现级>
 
-### Extracted Knowledge Facts
-- [Core Mechanism] <description> (source: <file:line>)
-- [State Transition] <description> (source: <file:line>)
+### 提取的知识事实
+- 【核心机制】<描述> (来源：<文件:行号>)
+- 【状态流转】<描述> (来源：<文件:行号>)
 - ...
 
-### Ingestion Strategy
-- Strategy: <Append to existing topic / Create sub-topic / Create independent module topic>
-- Target topic: <topicId>
-- Operation: <append content / create new topic + stock-doc>
+### 入库策略
+- 策略：<补充既有 topic / 新增子主题 / 新增独立模块 topic>
+- 目标 topic：<topicId>
+- 操作说明：<追加内容 / 新建 topic + stock-doc>
 
-### Modified Files
-- .Knowledge/topics/<topicId>.md: <modification description>
-- .Knowledge/index.md: <modification description or "unchanged">
-- .Knowledge/manifest-routing.json: <modification description or "unchanged">
-- .Knowledge/matchers/<id>.json: <modification description or "unchanged">
-- .Knowledge/stock-docs/<doc>.md: <modification description or "unchanged">
+### 已修改文件
+- .Knowledge/topics/<topicId>.md：<修改说明>
+- .Knowledge/index.md：<修改说明或"未改动">
+- .Knowledge/manifest-routing.json：<修改说明或"未改动">
+- .Knowledge/matchers/<id>.json：<修改说明或"未改动">
+- .Knowledge/stock-docs/<doc>.md：<修改说明或"未改动">
 
-### Verification Suggestion
-- When encountering similar question "<question>" next time, should match topic: <topicId>
-- Suggested verification trigger words: <keyword list>
+### 验证建议
+- 下次遇到类似问题"<问题>"时，应命中 topic：<topicId>
+- 建议验证触发词：<关键词列表>
 ```
 
-## Constraints
+## 约束
 
-- Only maintain `.Knowledge`, do not modify config root `rules/skills`
-- No user confirmation needed (Q&A already verified knowledge correctness)
-- Keep lightweight, single Q&A knowledge extraction complete within 30 seconds
-- Avoid over-splitting: unless drill-down depth ≥ deep and knowledge description depth ≥ detailed level, prioritize appending to existing topic
-- Generated matcher includeAny should cover expressions users actually use, not just technical terms
+- 只维护 `.Knowledge`，不改配置根 `rules/skills`
+- 不需要用户确认（问答已验证知识的正确性）
+- 保持轻量，单次问答的知识提取在 30 秒内完成
+- 避免过度拆分：除非下钻深度 ≥ 深且知识描述深度 ≥ 详细级，否则优先补充既有 topic
+- 生成的 matcher includeAny 应覆盖用户实际会用的表述，不只是技术术语
 
-## Self-Check After Completion
+## 完成后自检
 
-1. Correctly analyzed drill-down depth and knowledge description depth (**Light tier**: correctly parsed the strategy and target topicId from the upstream summary)
-2. Extracted all "reusable knowledge facts" (refer to `f2s-kb-feedback-closing` definition)
-3. Ingestion strategy conforms to decision matrix (**Light tier**: matches the case named in the upstream summary)
-4. New or updated topic has entry in index.md
-5. manifest / matcher correctly configured routing rules
-6. Generated content maintains style of existing topic (**Light tier**: at least matches the list/paragraph form of the target topic itself)
-7. **Light tier specific**: the summary header includes the "Execution tier" line; if downgraded mid-run, the downgrade reason is recorded
-8. The reply does NOT append any of `f2s-kb-feedback-closing`'s case 1–4 closing blocks at the end (must be yes; this skill itself is a knowledge-base write, and by the reverse prohibition in `f2s-kb-feedback-closing`'s "Applicable Scope", pasting a distill hint here is forbidden).
+1. 是否正确分析了下钻深度与知识描述深度（**轻量挡**：是否正确从上游概要解析出策略与目标 topicId）
+2. 是否提取了所有"可复用知识事实"（参考 `f2s-kb-feedback-closing` 定义）
+3. 入库策略是否符合决策矩阵（**轻量挡**：是否与上游概要点名的 case 一致）
+4. 新增或更新的 topic 是否在 index.md 中有条目
+5. manifest / matcher 是否正确配置路由规则
+6. 生成内容是否保持了既有 topic 的风格（**轻量挡**：是否至少与目标 topic 自身列表/段落形态对齐）
+7. **轻量挡专项**：摘要顶部是否写明「调用模式」；若中途降级，是否注明降级原因
+8. 本次回复末尾**没有**追加 `f2s-kb-feedback-closing` 的 case 1～4 任何一种收口块（必须为是；本技能就是 distill 入库本身，自指地再贴一遍提示既冗余又会让用户误以为没入库——`f2s-kb-feedback-closing`「适用范围」对此有专项禁令）

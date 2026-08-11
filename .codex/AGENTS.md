@@ -1,21 +1,21 @@
-# Flow2Spec (`.codex/` Directory Notes)
+# Flow2Spec（`.codex/` 目录说明）
 
-> This file is a **pointer**, not the complete instruction set. It is written by `flow2spec init`; **do not read only this file**.
+> 本文件为 **指针**，非完整条令。`flow2spec init` 写入；**请勿只读本文件**。
 
-## Complete Instructions
+## 完整条令
 
-The repository-root **[`AGENTS.md`](../AGENTS.md)** is the complete Flow2Spec project guide. Codex reads it when started from the repository root.
+仓库根 **[`AGENTS.md`](../AGENTS.md)** 为 Flow2Spec 完整项目说明。在仓库根启动 Codex 时读取该文件。
 
-If the current session does not include the full root `AGENTS.md`, **you must first Read the repository-root `AGENTS.md`** before running `f2s-*` or modifying `.Knowledge/`.
+若当前会话未包含根 `AGENTS.md` 全文，**必须先 Read 仓库根 `AGENTS.md`**，再执行 `f2s-*` 或改动 `.Knowledge/`。
 
-## Directory Purpose
+## 本目录用途
 
-| Path | Description |
+| 路径 | 说明 |
 | --- | --- |
-| `skills/` | Flow2Spec skills (`f2s-*`) |
-| `topics/` | Long-form rule mirrors, sourced from the same content as Cursor/Claude `rules` |
-| `hooks.json` | Codex SessionStart hook configuration for injecting a configuration summary and checking the Flow2Spec knowledge-base version on startup |
-| `hooks/` | Hook script directory |
-| `config.toml` | Project-level Codex configuration, if created |
+| `skills/` | Flow2Spec 技能（`f2s-*`） |
+| `topics/` | 规则长文镜像（与 Cursor/Claude `rules` 同源） |
+| `hooks.json` | Codex SessionStart hook 配置，用于启动时注入配置摘要并检测 Flow2Spec 知识库版本 |
+| `hooks/` | hook 脚本目录 |
+| `config.toml` | 项目级 Codex 配置（若已创建） |
 
-Configuration source of truth: repository-root **`flow2spec.config.json`** (must be Read); the field-semantics table is in root **`AGENTS.md`**.
+配置真值：仓库根 **`flow2spec.config.json`**（须 Read）；字段语义表见根 **`AGENTS.md`**。

@@ -1,113 +1,113 @@
 ---
 name: f2s-kb-build
-description: Generate knowledge-routing topics and indexes from `.Knowledge/stock-docs` documents; triggers: 生成项目上下文、f2s-kb-build、终稿生成上下文、generate project context、build knowledge context
+description: 根据 .Knowledge/stock-docs 文档生成知识路由主题与索引；触发：生成项目上下文、f2s-kb-build、终稿生成上下文
 ---
 
-> Execution scope: this skill only maintains `.Knowledge` (`topics/index/manifest-routing/matchers` shards) and does not modify the configuration-root `rules/skills`. It no longer maintains `.Knowledge/manifest-matchers.json` (deprecated aggregate file; `flow2spec init` deletes legacy copies).
+> 执行口径：本技能只维护 `.Knowledge`（`topics/index/manifest-routing/matchers` 分片），不改配置根 `rules/skills`。不再维护 `.Knowledge/manifest-matchers.json`（已废弃聚合文件；`flow2spec init` 会删除遗留副本）。
 
-# Generate Project Context from Documents (topics/index/routing manifest)
+# 根据文档生成项目上下文（topics/index/路由清单）
 
-## Orchestration (main / sub-agent)
+## 编排（主 / 子 agent）
 
-- The meaning of `subAgent` / `switchAgentVerification` uses the unified entry as the only source of truth: **Cursor/Claude** read the configuration-root `rules/f2s-flow2spec-unified-entry.*`; **Codex** reads `.codex/topics/f2s-flow2spec-unified-entry.md` (same source, mirrored by `flow2spec init`). This SKILL does not repeat those definitions.
-- **Preferred branch (small change -> main-only workflow)**: when this change has **<= 2 new/modified topics**, **<= 1 new matcher**, and **no batch cross-topic reference adjustment**, the main agent completes the full workflow without splitting.
-- **Medium/large change branch** (`subAgent=true` and above threshold):
-  - The main agent lists a **file-level contract** in the main session: sub-agent A only writes `.Knowledge/topics/<foo>.md`, sub-agent B only writes `.Knowledge/matchers/<m-foo>.json`, and paths do not overlap.
-  - Sub-agents only write files inside their contract and do not cross boundaries.
-  - The **main agent alone** edits `.Knowledge/manifest-routing.json` / `.Knowledge/index.md` (adding `taskToTopicRules`, `topicPaths`, `matcherPath`, `topicDependencies`, `topicMetadata`).
-  - The main agent performs overall verification.
-- **Not recommended**: one sub-agent modifying manifest / index / multiple topics / matchers at the same time; or "sub-agent A writes, sub-agent B verifies".
-- **"One sub-agent writes, main verifies"**: acceptable only when the delivery boundary is extremely narrow, for example only producing one new matcher-shard draft while the manifest reference is still written by the main agent.
-- **Write-authority hard rule**: `.Knowledge/manifest-routing.json` (including `topicMetadata`) / `.Knowledge/index.md` are **always written by the main agent**; sub-agents must not touch them.
-- By default, the writing side verifies its own work; this SKILL does not bind cross-agent verification.
+- 两字段（`subAgent` / `switchAgentVerification`）语义以统一入口为唯一事实源：**Cursor/Claude** 读配置根 `rules/f2s-flow2spec-unified-entry.*`；**Codex** 读 `.codex/topics/f2s-flow2spec-unified-entry.md`（与上同源，`flow2spec init` 镜像）。本 SKILL 不复述。
+- **首选分支（小变更 → 主全流程）**：当本次改动 **≤ 2 个新 / 改主题**，**且 ≤ 1 个新 matcher**，**且无跨主题批量引用调整** 时，全流程在主 agent 完成，不拆子。
+- **中大变更分支**（`subAgent=true` 且超出上述阈值）：
+  - 主 agent 在主会话中列出**文件级契约**：子 A 只写 `.Knowledge/topics/<foo>.md`，子 B 只写 `.Knowledge/matchers/<m-foo>.json`，路径互不重叠；
+  - 子 agent 仅落盘契约内文件，不跨边界；
+  - **主 agent 单点**编辑 `.Knowledge/manifest-routing.json` / `.Knowledge/index.md`（补 `taskToTopicRules`、`topicPaths`、`matcherPath`、`topicDependencies`、`topicMetadata`）；
+  - 主 agent 做整体验收。
+- **不推荐**：单个子 agent 同时改 manifest / index / 多份 topics / matchers；以及「子 A 写、子 B 验」。
+- **「一子写、主验」**：仅在交付边界极窄（例如只产出 1 个新 matcher 分片草稿，manifest 引用仍由主写）时可接受。
+- **写权硬约束**：`.Knowledge/manifest-routing.json`（含 `topicMetadata`）/ `.Knowledge/index.md` **恒由主 agent 落盘**，子 agent 不得触碰。
+- 默认落盘侧 agent 自验；本 SKILL 不绑定交叉校验。
 
-## Input
+## 输入
 
-- Accepts one argument: a URL or local path.
-- Local paths must be under `.Knowledge/stock-docs/`.
-- **Must be a final draft**: recommended filename contains `_final.md`, or has been normalized by **`f2s-doc-final`**. It is **forbidden** to execute this skill directly with a `*_draft.md` produced by `f2s-doc-arch`.
-- If the input path contains **`_draft`**, or the user has just completed an architecture draft but has not run `f2s-doc-final`: **stop** and reply that they must first run **`f2s-doc-final <draft-path>`**, then call this skill with the final-draft path after it is written.
-- If `.Knowledge/req-docs/` is passed, tell the user to organize it into a `stock-docs` final draft before executing.
+- 接收一个参数：URL 或本地路径。
+- 本地路径必须位于 `.Knowledge/stock-docs/`。
+- **须为终稿**：推荐文件名含 `_终稿.md`，或已由 **`f2s-doc-final`** 规范化；**禁止**以 `f2s-doc-arch` 产出的 `*_初稿.md` 作为入参直接执行本技能。
+- 若入参路径含 **`_初稿`**、或用户刚完成架构初稿尚未执行 `f2s-doc-final`：**停止**，回复须先执行 **`f2s-doc-final <初稿路径>`**，待终稿落盘后再以终稿路径调用本技能。
+- 若传入 `.Knowledge/req-docs/`，提示用户先整理为 `stock-docs` 终稿后再执行。
 
-## Generation Principles
+## 生成原则
 
-1. **Split**: when the document is long or contains multiple independent capabilities, split it into multiple topics; avoid putting unrelated capabilities into one topic.
-2. **Responsibilities**:
-  - `topics/`: rule and workflow body (executable knowledge)
-  - `index.md`: topic index and semantic explanation (human entry)
-  - `manifest-routing.json` + `matchers/*.json` pointed to by `taskToTopicRules[].matcherPath`: task routing and keyword dictionaries (machine-readable entry)
+1. **拆解**：文档较长或包含多块独立能力时，拆分为多个 topic；避免把无关能力塞到同一主题。
+2. **分工**：
+  - `topics/`：规则与流程正文（可执行知识）
+  - `index.md`：主题索引与语义说明（人读入口）
+  - `manifest-routing.json` + `taskToTopicRules[].matcherPath` 指向的 `matchers/*.json`：任务路由与关键词词表（机读入口）
 
-## Step 1: Get Document Content
+## 步骤 1：获取文档内容
 
-- URL: fetch the body; if inaccessible, ask the user to first save it as `.Knowledge/stock-docs/*.md`.
-- Local path: read the Markdown document and extract topics and capability boundaries.
+- URL：抓取正文；无法访问时提示用户先落地到 `.Knowledge/stock-docs/*.md`。
+- 本地路径：读取 Markdown 文档，提炼主题与能力边界。
 
-## Step 2: Semantic Analysis (Required)
+## 步骤 2：语义分析（必须）
 
-Extract from the document:
+从文档中提炼：
 
-- Topic name and topic intent (can form a topic id)
-- Core concepts and key flows
-- Business rules and boundary conditions
-- Task trigger terms (write to the corresponding `matchers/<matcherId>.json` `includeAny`)
-- Dependencies on existing topics (for `topicDependencies`)
+- 主题名与主题意图（可形成 topic id）
+- 核心概念与关键流程
+- 业务规则与边界条件
+- 任务触发词（写入对应 `matchers/<matcherId>.json` 的 `includeAny`）
+- 与现有主题的依赖关系（用于 `topicDependencies`）
 
-> **Authoring-side guideline**: this step involves adding/modifying topics and `topicDependencies`, so first Read the full `rules/f2s-topic-authoring.*` (**Cursor/Claude**: `rules/f2s-topic-authoring.mdc`; **Codex**: `.codex/topics/f2s-topic-authoring.md`) before continuing to step 3 / step 5. Naming, skeleton, dependency judgment, DAG minimization, and judgment timing all follow that guideline; this SKILL does not repeat them.
+> **创作侧准则**：本步骤涉及新增 / 修改 topic 与 `topicDependencies`，**须先 Read** `rules/f2s-topic-authoring.*` 全文（**Cursor/Claude**：`rules/f2s-topic-authoring.mdc`；**Codex**：`.codex/topics/f2s-topic-authoring.md`），再继续步骤 3 / 步骤 5。命名、骨架、依赖判定、DAG 最小化、判定时机均以该条为准，本 SKILL 不复述。
 
-> **Split evaluation**: if the input stock-doc exceeds **300-500 lines**, or semantic analysis finds it covers **more than 3 unrelated responsibility domains**, state in the output summary that it is recommended to split it into multiple focused stock-docs (each corresponding to an independent topic) and execute in batches after user confirmation. If the user chooses to continue with one large topic, do not block, but record "topic is large; recommend later split" in the summary. A large feature's main topic should describe the business closure/entry/submodule stock-doc navigation links; submodule topics should match independently, and **overview/detail must not be chained via `topicDependencies`**.
+> **拆分评估**：若输入 stock-doc 超过 **300–500 行**，或语义分析后发现覆盖 **3 个以上不相干职责域**，须在输出摘要中说明：建议拆成多份 focused stock-doc（各自对应一个独立 topic），用户确认后再分批执行；若用户选择继续生成单个大 topic，不阻断，但在摘要中记录"主题偏大，建议后续拆分"。大功能主 topic 写业务闭环/入口/子模块 stock-doc 导航链接；子模块 topic 各自独立命中，**不通过 `topicDependencies` 串联概述与详情**。
 
-## Step 3: Write topics
+## 步骤 3：写入 topics
 
-- Target path: `.Knowledge/topics/<topic>.md`
-- If the same topic already exists: prefer incremental updates to avoid duplicate topics.
-- If it is a new topic: add the file with a clear title, applicable scenarios, rules, and workflow.
+- 目标路径：`.Knowledge/topics/<topic>.md`
+- 若已存在同主题：优先增量更新，避免重复主题。
+- 若为新主题：新增文件并补充清晰标题、适用场景、规则与流程。
 
-## Step 4: Update index
+## 步骤 4：更新 index
 
-- Update the topic routing table in `.Knowledge/index.md`.
-- Guarantee "one row per topic".
-- The topic routing table must maintain an "Associated documents (summary)" column: add 1-3 key document **clickable Markdown links** for each topic (format: `[title](relative path)`, preferably `stock-docs/req-docs`).
-- If a topic has no public document yet, write "none" or "to be added"; do not leave it blank.
-- When topics are added/deleted, update the index to avoid orphan paths.
+- 更新 `.Knowledge/index.md` 的主题路由表。
+- 保证“同主题单行”。
+- 主题路由表需维护“关联文档（摘要）”列：每个主题补充 1-3 条关键文档**可点击 Markdown 链接**（格式：`[标题](相对路径)`，优先 `stock-docs/req-docs`）。
+- 若某主题暂无可公开文档，写“无”或“待补充”，禁止留空导致歧义。
+- 若新增/删除主题，索引同步调整，避免孤儿路径。
 
-## Step 5: Update Routing Manifest (As Needed)
+## 步骤 5：更新路由清单（按需）
 
-- This step is written by the main agent (write-authority hard rule); sub-agents must not perform it.
-- Update `manifest-routing.topicPaths` (topicId -> topic file path).
-- Update `manifest-routing.taskToTopicRules[]` (task-to-topic set + matcherId).
-- Update `manifest-routing.topicDependencies` (read dependency topics before main topics).
-- Update `manifest-routing.topicMetadata` (as needed): write `{ "primary": "feature|module|config|policy", "tags": ["..."], "confidence": "manual|inferred" }` only for topicIds that already exist or are confirmed as created in this run; `tags` may be omitted and must not duplicate `primary`. Classification is only for governance, audit, and reading expectations; it does not participate in route matching or execution requirements. New topics may use `inferred` when evidence is clear; write `manual` only after user confirmation; if evidence is insufficient, do not write metadata and list it as pending confirmation in the summary. Do not create, rename, or split topics for classification.
-- Update `matchers/<matcherId>.json` `includeAny` (keyword dictionary; path must match `taskToTopicRules[].matcherPath`).
-- Validate that `fallbackTopic`, `topicPaths`, and `matcherId` references are valid.
-- Make only minimal changes; do not rewrite unrelated fields.
+- 本步骤由主 agent 落盘（写权硬约束），子 agent 不得执行。
+- 更新 `manifest-routing.topicPaths`（topicId -> topic 文件路径）
+- 更新 `manifest-routing.taskToTopicRules[]`（任务到主题集合 + matcherId）
+- 更新 `manifest-routing.topicDependencies`（先读依赖后读主主题）
+- 更新 `manifest-routing.topicMetadata`（按需）：仅给已存在或本次确认创建的 topicId 写入 `{ "primary": "feature|module|config|policy", "tags": ["..."], "confidence": "manual|inferred" }`；`tags` 可省略，且不得与 `primary` 重复。分类只用于治理、审计和阅读预期，不参与路由命中或执行强制性。新建 topic 时有明确证据可写 `inferred`；用户确认后才写 `manual`；证据不足时不写 metadata，并在摘要列为待确认。不得为了分类创建、重命名或拆分 topic。
+- 更新 `matchers/<matcherId>.json` 的 `includeAny`（关键词词表；路径须与 `taskToTopicRules[].matcherPath` 一致）
+- 校验 `fallbackTopic`、`topicPaths`、`matcherId` 引用有效
+- 仅做最小改动，不重写无关字段
 
-## Path and Reference Constraints
+## 路径与引用约束
 
-- `sourceDoc` or document references uniformly point to `.Knowledge/stock-docs/<filename>.md`.
-- Do not use `.Knowledge/req-docs/` as a topic `sourceDoc`.
-- Do not rewrite the configuration-root `rules/skills`.
+- `sourceDoc` 或文档引用统一指向 `.Knowledge/stock-docs/<文件名>.md`
+- 禁止把 `.Knowledge/req-docs/` 作为 topic 的 `sourceDoc`
+- 禁止改写配置根 `rules/skills`
 
-## Output Summary (Required)
+## 输出摘要（必须）
 
-- New/updated topic files.
-- `index` updates.
-- Routing-manifest updates, if any.
-- Failed or skipped items and reasons.
+- 新增/更新的 topic 文件
+- `index` 更新项
+- 路由清单更新项（如有）
+- 失败或跳过项及原因
 
-## Complex Scenario Example
+## 复杂场景示例
 
-User input: `f2s-kb-build .Knowledge/stock-docs/<capability>_final.md`, and an existing `topics/<capability>.md` already exists.
+用户输入：`f2s-kb-build .Knowledge/stock-docs/<能力>_终稿.md`，且现有 `topics/<能力>.md` 已存在。
 
-- If the new document highly overlaps with the existing `<capability>` topic: update `topics/<capability>.md` in place; do not create `<capability>-v2.md`.
-- If the new document adds a sub-capability: create `topics/<capability>-<subdomain>.md` if appropriate, and declare dependencies in `manifest-routing.topicDependencies`.
-- After updating, sync `index` and the routing manifest, ensuring `topicPaths`, `fallbackTopic`, and `matcherId` remain valid.
+- 若新文档与现有 `<能力>` 主题高度重合：原位更新 `topics/<能力>.md`，不要新建 `<能力>-v2.md`。
+- 若新文档新增子能力：可新增 `topics/<能力>-<子域>.md`，并在 `manifest-routing.topicDependencies` 中声明依赖关系。
+- 更新后同步 `index` 与路由清单，确保 `topicPaths`、`fallbackTopic`、`matcherId` 仍有效。
 
-## Completion Self-Check
+## 完成后自检
 
-1. `.Knowledge/topics/*.md` and `manifest-routing.topicPaths` correspond one-to-one.
-2. The `index.md` topic table is consistent with the topic-file set, and each topic contains "Associated documents (summary)".
-3. Every `taskToTopicRules[].matcherPath` file exists, and its `id` matches `matcherId`.
-4. If `topicMetadata` was written: every key exists in `topicPaths`; `primary` / `tags` / `confidence` are valid; `tags` do not duplicate `primary`; no topic was changed just for classification.
-5. The configuration-root `rules/skills` was not touched.
-6. For medium/large changes, sub-agents were split by file-level contract (sub-agent A / B paths do not overlap).
-7. `manifest-routing.json` / `.Knowledge/index.md` were written at a single point by the main agent, with no unauthorized sub-agent writes.
+1. `.Knowledge/topics/*.md` 与 `manifest-routing.topicPaths` 一一对应。
+2. `index.md` 主题表与 topics 文件集合一致，且每个主题都包含“关联文档（摘要）”。
+3. 每个 `taskToTopicRules[].matcherPath` 文件存在且其中 `id` 与 `matcherId` 一致。
+4. 若写入 `topicMetadata`：key 是否均存在于 `topicPaths`；`primary` / `tags` / `confidence` 是否合法；`tags` 是否未与 `primary` 重复；是否未因分类改 topicId / 文件名。
+5. 未触碰配置根 `rules/skills`。
+6. 中大变更时是否按文件级契约拆子（子 A / 子 B 路径互不重叠）。
+7. `manifest-routing.json` / `.Knowledge/index.md` 由主 agent 单点落盘，无子 agent 越权写入。

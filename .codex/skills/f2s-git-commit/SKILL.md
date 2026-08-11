@@ -1,251 +1,251 @@
 ---
 name: f2s-git-commit
-description: Commit completed code to Git: by default check both changes and knowledge-base coverage; when the user explicitly asks for "快捷提交" / quick commit, skip only the knowledge coverage check; **when the pending changes are pure docs / knowledge-base itself**, or **f2s-kb-sync / kb-feat / kb-fix / kb-add / kb-addRules / kb-distill ran within the last 30 min**, auto-skip the coverage check; after generating a commit message with an emoji first line, commit directly (the first line must be shown in the same reply; no separate confirmation is required); git pull-like fetch/merge operations require user confirmation first. Triggers: f2s-git-commit、提交代码、快捷提交、git commit、帮我提交、quick commit、commit code
+description: 代码写完后提交 Git：默认检查变更与知识库覆盖；用户明确要求“快捷提交”时跳过知识库覆盖检查；**改动全为纯文档 / 知识库自身**或**近 30 分钟内已跑过 kb-sync/kb-feat/kb-fix** 时自动跳过覆盖检查；生成带 emoji 首行的提交说明后**可直接 commit**（须在当条回复展示首行，不要求用户单独确认 commit）；**git pull 类拉取须用户先确认**。触发：f2s-git-commit、提交代码、快捷提交、git commit、帮我提交
 ---
 
-> Execution scope: this skill performs Git operations for the user. Do not use `git add -A` / `git add .`, do not skip hooks (`--no-verify`), and do not push automatically. Before any `git pull` / `git fetch` operation that merges into local work, obtain explicit user confirmation for the "pull". `git commit` does not require a separate confirmation round (see Steps 3-4). When the user explicitly asks for "快捷提交", skip only Step 2, the knowledge-base coverage check; all other safety steps still apply.
+> 执行口径：本技能代用户执行 git 操作；不使用 `git add -A` / `git add .`，不跳过 hooks（`--no-verify`），不自动 push。**`git pull` / `git fetch` 合并入本地前必须取得用户对「拉取」的明确确认**；`git commit` 不要求单独一轮「确认」交互（见步骤 3–4）。用户明确要求“快捷提交”时，仅跳过步骤 2 知识库覆盖检查，其余安全步骤照常执行。
 
-## Orchestration (main / sub agent)
+## 编排（主 / 子 agent）
 
-- The semantics of `subAgent` / `switchAgentVerification` use the unified entry as the only source of truth: **Cursor/Claude** read the config-root `rules/f2s-flow2spec-unified-entry.*`; **Codex** reads `.codex/topics/f2s-flow2spec-unified-entry.md`.
-- This skill is performed entirely by the main agent (**pull confirmation** cannot be delegated to a sub agent; `git commit` does not require a separate user-confirmation round; see Steps 3-4).
+- `subAgent` / `switchAgentVerification` 语义以统一入口为唯一事实源：**Cursor/Claude** 读配置根 `rules/f2s-flow2spec-unified-entry.*`；**Codex** 读 `.codex/topics/f2s-flow2spec-unified-entry.md`。
+- 本技能全程在主 agent 完成（**pull 的确认**不可下放子 agent；`git commit` 不要求单独一轮用户确认，见步骤 3–4）。
 
-# f2s-git-commit (Commit Code)
+# f2s-git-commit（提交代码）
 
-## Mandatory Flow
+## 强制流程
 
-### Quick Commit Mode
+### 快捷提交模式
 
-When the user explicitly says **"快捷提交"**, **"快速提交"**, or **"quick commit"** in this turn, enter quick commit mode:
+当用户本轮明确说出 **“快捷提交”**、**“快速提交”** 或 **“quick commit”** 时，进入快捷提交模式：
 
-- Skip **Step 2: Knowledge-base coverage check**. Do not read `.Knowledge/topics/` / `.Knowledge/stock-docs/` for coverage judgment.
-- Do not prompt the user to run `f2s-kb-sync` / `f2s-kb-feat` first.
-- **Do not skip** Step 1 change reading and conflict-marker checks.
-- **Do not skip** Step 3 commit-message generation and display.
-- **Do not skip** Step 4 precise `git add <file list>`, normal `git commit`, and Git hooks.
-- **Do not** use `git add -A` / `git add .` / `--no-verify` / automatic push because this is a quick commit.
+- 跳过 **步骤 2：知识库覆盖检查**，不读取 `.Knowledge/topics/` / `.Knowledge/stock-docs/` 做覆盖判断。
+- 不提示用户先运行 `f2s-kb-sync` / `f2s-kb-feat`。
+- **不跳过**步骤 1 的变更读取与冲突标记检查。
+- **不跳过**步骤 3 的提交信息生成与展示。
+- **不跳过**步骤 4 的精确 `git add <文件列表>`、正常 `git commit` 与 git hooks。
+- **不得**因快捷提交使用 `git add -A` / `git add .` / `--no-verify` / 自动 push。
 
-### Step 1: Read Changes (Read-Only)
+### 步骤 1：读取变更（只读）
 
 ```bash
 git status --short
 git diff HEAD
 ```
 
-- Distinguish three file categories from `git status --short`:
-  - **Staged**: already `git add`ed, prefixes such as `M `, `A `, `D ` (first column non-empty)
-  - **Unstaged**: tracked but not added, prefixes such as ` M`, ` D` (second column non-empty)
-  - **Untracked**: `??` prefix, new files not tracked yet
-- If all three categories are empty (nothing to commit), tell the user and stop.
+- 从 `git status --short` 区分三类文件：
+  - **Staged**：已 `git add`，前缀为 `M `、`A `、`D `（首列非空）
+  - **Unstaged**：已追踪但未 add，前缀为 ` M`、` D`（次列非空）
+  - **Untracked**：`??` 前缀，新文件尚未追踪
+- 若三类均为空（nothing to commit），直接告知用户并结束。
 
-**Conflict check (required, before everything else)**:
+**冲突检查（必须，先于一切）**：
 
-Scan all changed file contents. If any file contains conflict markers `<<<<<<<`, `=======`, or `>>>>>>>`, stop immediately and report:
+扫描所有变更文件内容，若任意文件包含 `<<<<<<<`、`=======`、`>>>>>>>` 冲突标记，立即终止并提示：
 
 ```
-❌ Unresolved merge conflict detected:
-  - <file path>
+❌ 检测到未解决的 merge conflict：
+  - <文件路径>
 
-Please resolve the conflict before committing.
+请先解决冲突后再提交。
 ```
 
-### Step 2: Knowledge-Base Coverage Check (Required by Default; Skipped for Quick Commit)
+### 步骤 2：知识库覆盖检查（默认必须；三种情况可跳过）
 
-If in **quick commit mode**, skip this step and mention in the Step 5 closing note that "the knowledge-base coverage check was skipped according to quick commit mode."
+若处于**快捷提交模式**，本步骤直接跳过，并在步骤 5 收尾提示中说明“已按快捷提交跳过知识库覆盖检查”。
 
-**First check whether `.Knowledge/` exists:**
+**先判断 `.Knowledge/` 是否存在：**
 
-- If `.Knowledge/manifest-routing.json` does not exist: skip this step, mention in Step 5 that "the project has not initialized the Flow2Spec knowledge base; consider running flow2spec init", and continue to Step 3.
+- 若 `.Knowledge/manifest-routing.json` 不存在：跳过本步骤，在步骤 5 收尾提示「项目尚未初始化 Flow2Spec 知识库，建议运行 flow2spec init」，继续步骤 3。
 
-**Skip rule A: Changes are pure documentation / knowledge base itself** (evaluated before running the coverage check)
+**跳过判定 A：改动纯文档 / 知识库自身**（进入覆盖检查前先判定）
 
-If **every** pending file collected in Step 1 matches one of these patterns, skip this step directly (in Step 5, note "changes are pure docs; coverage check skipped"):
+若步骤 1 收集到的 pending 文件路径**全部**命中以下模式,直接跳过本步骤（在步骤 5 说明「本次改动纯文档,已跳过覆盖检查」）：
 
-- `.Knowledge/**` (you're editing the knowledge base itself; checking coverage against itself is meaningless)
+- `.Knowledge/**`（改的就是知识库自己,检自己无意义）
 - `docs/**` / `docs/en/**`
 - `README*.md` / `LICENSE` / `CHANGELOG*`
-- `.claude/**` / `.cursor/**` / `.codex/**` (agent config roots; distributed by `flow2spec init` and unrelated to business capability coverage)
-- `presentations/**` / `assets/**` / other pure static resources
+- `.claude/**` / `.cursor/**` / `.codex/**`（agent 配置根,由 flow2spec init 分发,与业务能力覆盖无关）
+- `presentations/**` / `assets/**` / 其他纯静态资源
 
-**Any** file falling under `src/` / `lib/` / `cli.js` / `templates/` / business code directories disables this shortcut; continue to the coverage check.
+**任一**文件落在 `src/` / `lib/` / `cli.js` / `templates/` / 业务代码目录时,本捷径**不生效**,继续走覆盖检查。
 
-**Skip rule B: A recent knowledge-base sync exists**
+**跳过判定 B：近期已同步过知识库**
 
-Read `.Knowledge/.last-sync.json` (if it does not exist, skip this rule):
+读取 `.Knowledge/.last-sync.json`（若不存在直接跳过本判定）：
 
 ```json
 {
   "syncedAt": "2026-08-04T10:30:00.000Z",
   "skill": "f2s-kb-sync",
-  "developerId": "<optional>"
+  "developerId": "<可选>"
 }
 ```
 
-- If `Date.now() - Date.parse(syncedAt) < 30 * 60 * 1000` (within 30 minutes) → skip this step directly, and note in Step 5 "skipped coverage check because <skill> ran within the last 30 min".
-- If the timestamp is stale or the file is corrupted → ignore and run the normal coverage check.
-- This file is written by **knowledge-base-writing skills** (`f2s-kb-sync` / `f2s-kb-feat` / `f2s-kb-fix` / `f2s-kb-add` / `f2s-kb-addRules` / `f2s-kb-distill`) on successful completion. `f2s-git-commit` **reads only**, never writes.
-- If the user explicitly says "re-check coverage" / "don't skip coverage check", this rule is disabled and coverage runs regardless.
+- 若 `Date.now() - Date.parse(syncedAt) < 30 * 60 * 1000`（30 分钟内）→ 直接跳过本步骤,在步骤 5 说明「近 30 分钟内已跑过 <skill>,已跳过覆盖检查」。
+- 若时间戳过期或文件损坏 → 忽略,正常走覆盖检查。
+- 该文件由 `f2s-kb-sync` / `f2s-kb-feat` / `f2s-kb-fix` / `f2s-kb-add` / `f2s-kb-addRules` / `f2s-kb-distill` 等**知识库写入类技能**在成功完成后写入,`f2s-git-commit` **只读**不写。
+- 用户显式说「重新检查一次覆盖」/「不要跳过覆盖检查」→ 本判定失效,强制走覆盖检查。
 
-**When it exists, perform the coverage check:**
+**存在时执行覆盖检查：**
 
-**First perform the KB auto-merge preflight (required; do not ask the user to run commands manually):**
+**先执行 KB 自动合并预检（必须，不让用户手动跑命令）：**
 
-1. The agent runs `flow2spec kb check --json` and `flow2spec kb status --json` inside this step, or uses an equivalent built-in KB engine capability. Do not turn these commands into manual pre-commit chores for the user.
-2. If `check` reports knowledge-structure errors, missing matchers, routing drift, or other health issues: stop this commit, report the concrete issues and suggested fix actions, and do not commit a broken knowledge base.
-3. If `status.tasks` contains `kb-delta.json` under the current developer task root:
-   - If the current task line can be uniquely identified and `mergeable=true`: automatically run `plan -> apply -> build -> check` (via CLI or equivalent built-in capability), and include the written `.Knowledge/**` files in the commit file list.
-   - If `mergeable=false`, delta parsing failed, or multiple active deltas exist and the agent cannot determine which one belongs to this commit: stop the automatic write, list `topic / reason / deltaPath`, and tell the user that semantic merge or task-line selection is required. Do not guess the merge.
-4. Only when there is no active `kb-delta.json` for the current task line, continue to the coarse coverage check below.
+1. Agent 在本步骤内部执行 `flow2spec kb check --json` 与 `flow2spec kb status --json`，或使用等价的内置 KB 引擎能力；不得把这些命令变成用户要手动执行的提交前置工作。
+2. 若 `check` 返回知识库结构错误、matcher 缺失、routing drift 等健康问题：终止本次 commit，报告具体问题与建议修复动作；不要把损坏的知识库一起提交。
+3. 若 `status.tasks` 中存在当前 developer 任务根下的 `kb-delta.json`：
+   - 能唯一定位当前任务线且 `mergeable=true`：自动执行 `plan → apply → build → check`（CLI 或等价内置能力均可），并把被写入的 `.Knowledge/**` 文件纳入本次提交文件列表。
+   - `mergeable=false`、delta 解析失败，或存在多个 active delta 且无法判断哪个属于本次提交：停止自动写入，列出 `topic / reason / deltaPath`，提示用户需要语义合并或选择任务线；不得猜测合并。
+4. 若没有当前任务线的 active `kb-delta.json`，才进入下面的粗粒度覆盖判断。
 
-**When there is no auto-applicable delta, perform the coarse coverage check:**
+**没有可自动应用的 delta 时，执行粗粒度覆盖检查：**
 
-1. Infer the **functional modules** touched by this change from `git diff HEAD` and untracked file paths (use actual repository directories/package names; do not invent business names that do not appear).
-2. Read the directory lists of `.Knowledge/topics/` and `.Knowledge/stock-docs/`.
-3. Compare the functional modules inferred in Step 1 and determine whether corresponding docs are registered in the knowledge base.
-4. Conclude: **covered / partially covered / not covered**.
+1. 从 `git diff HEAD` 及 untracked 文件路径推断本次变更涉及的**功能模块**（以仓库内目录/包名为准，勿臆测未出现的业务名）。
+2. 读取 `.Knowledge/topics/` 目录列表与 `.Knowledge/stock-docs/` 目录列表。
+3. 对比步骤 1 推断出的功能模块，判断对应文档是否已在知识库中登记。
+4. 得出结论：**已覆盖 / 部分覆盖 / 未覆盖**。
 
-> Coarse-grained judgment is enough: if a corresponding topic or stock-docs document exists, treat it as covered; if the knowledge base is empty or no related doc is found, treat it as not covered.
+> 判断粗粒度即可：有对应 topic 或 stock-docs 文档即视为已覆盖；若知识库为空或找不到相关文档则视为未覆盖。
 
-**When not covered or partially covered (must prompt):**
+**未覆盖或部分覆盖时（必须提示）：**
 
 ```
-⚠️  The following capabilities touched by this change are not yet in the knowledge base:
-  - <capability description>
+⚠️  本次变更涉及以下能力尚未入知识库：
+  - <能力描述>
 
-Recommended before committing:
-  A) Run f2s-kb-sync now to record them, then automatically continue the commit flow
-  B) Commit first and record them manually later (enter B to confirm)
-  C) Cancel this commit (enter C)
+建议在提交前同步知识库，可选：
+  A) 现在运行 f2s-kb-sync 补录，完成后自动继续提交流程
+  B) 先提交，稍后手动补录（输入 B 确认）
+  C) 取消本次提交（输入 C）
 ```
 
-- Choose **A**: prompt the user to run `f2s-kb-sync` or `f2s-kb-feat`. After the user finishes recording and says so in the **same session**, or triggers this skill again, continue from Step 1 or Step 3 (**do not require** a separate "continue commit" confirmation; this matches Steps 3-4).
-- Choose **B**: record the uncovered capability descriptions and output them in the Step 5 closing note.
-- Choose **C**: stop this skill.
+- 选 **A**：提示用户运行 `f2s-kb-sync` 或 `f2s-kb-feat` 补录；用户补录完成后在**同一会话声明已补录**或**再次触发本技能**时，从步骤 1 或步骤 3 继续（**不要求**为「继续 commit」单独打字确认，与步骤 3–4 一致）。
+- 选 **B**：记录未覆盖能力描述，在步骤 5 收尾提示中输出。
+- 选 **C**：终止本技能。
 
-### Step 3: Generate a Commit Message Draft (Required)
+### 步骤 3：生成提交信息草稿（必须）
 
-Read `git diff HEAD` (if too long, use the first 300 lines), and generate a commit message from the actual changes.
+读取 `git diff HEAD`（内容过长时取前 300 行），基于实际变更内容生成提交信息。
 
-#### First-Line Format (Required): Type Emoji + Conventional Commits
+#### 首行格式（必须）：类型图标 + Conventional Commits
 
-The **first line** must satisfy all of the following:
+**首行**须同时满足：
 
-1. **Start with one emoji** corresponding to the `type` table below. **Do not** stack multiple decorative emojis.
-2. Follow it with **one ASCII space**, then lowercase **`type`**, an English colon `:`, **one space**, and a short Chinese or English summary.
-3. **Optional scope**: use Conventional `type(scope):`, directly after `type` and before the colon, for example `🐛 fix(auth): fix lost login state`.
-4. Recommended total first-line length: **<= 72 characters** (including emoji). If too wide, shorten the description first.
+1. **以一个 emoji 开头**（与下表 `type` 对应，**禁止**用多个装饰 emoji 堆叠）。
+2. 紧跟 **一个 ASCII 空格**，再写 **小写 `type`**、英文冒号 `:`、**一个空格**、**中文或英文简述**。
+3. **可选 scope**：使用 Conventional 的 `type(scope):`，紧跟在 `type` 之后、冒号之前，例如 `🐛 fix(auth): 修复登录态丢失`。
+4. 首行总长度建议 **≤ 72 个字符**（含 emoji；过宽时优先缩短描述）。
 
-**Recommended template (single line)**:
+**推荐模板（单行）**：
 
 ```text
-<emoji> <type>[(scope)]: <summary>
+<emoji> <type>[(scope)]: <简述>
 ```
 
-Omit the parentheses segment when there is no scope, for example: `🚀 feat: add cache warmup`.
+无 scope 时省略括号段，例如：`🚀 feat: 简述`。
 
-**`type` -> first-character emoji (use exactly from this table for searchability and release notes)**:
+**`type` → 首字符 emoji（固定选用下表，便于检索与发布说明）**：
 
-| `type` | emoji | Typical scenario |
+| `type` | emoji | 典型场景 |
 |--------|--------|----------|
-| `feat` | 🚀 | New feature or user-visible capability increment |
-| `fix` | 🐛 | Bug fix or production/test issue |
-| `docs` | 📚 | Docs only, comments, README, knowledge-base body content |
-| `style` | 💄 | Pure formatting, indentation, semicolons, and layout with no behavior change |
-| `refactor` | ♻️ | Refactor, rename, structural change with no behavior change |
-| `perf` | ⚡ | Performance optimization |
-| `test` | 🧪 | Tests, stubs, snapshots |
-| `build` | 🏗️ | Packaging, dependencies, compile scripts, artifacts |
-| `ci` | 👷 | CI config, pipelines, automation scripts |
-| `chore` | 🔧 | Miscellaneous maintenance or tooling not build/ci |
-| `revert` | ↩️ | Revert a commit |
+| `feat` | 🚀 | 新功能、对用户可见的能力增量 |
+| `fix` | 🐛 | 缺陷修复、线上/测试问题 |
+| `docs` | 📚 | 仅文档、注释、README、知识库正文类 |
+| `style` | 💄 | 纯格式、缩进、分号等不改变行为的排版 |
+| `refactor` | ♻️ | 重构、改名、无行为变化的结构调整 |
+| `perf` | ⚡ | 性能优化 |
+| `test` | 🧪 | 测试用例、测试桩、快照 |
+| `build` | 🏗️ | 打包、依赖、编译脚本、artifact |
+| `ci` | 👷 | CI 配置、流水线、自动化脚本 |
+| `chore` | 🔧 | 杂项、工具脚本、非 build/ci 的维护性改动 |
+| `revert` | ↩️ | 回滚某次提交 |
 
-**Examples**:
+**示例**：
 
 ```text
-🚀 feat: support activity cache warmup
-🐛 fix(coupon): correct coupon window boundary condition
-📚 docs: add QConfig notes for shared modules
-♻️ refactor: extract group-buying validation
-🔧 chore: upgrade ESLint config
+🚀 feat: 支持xxx活动缓存预热
+🐛 fix(coupon): 领券窗口边界条件错误
+📚 docs: 补充公共模块 QConfig 说明
+♻️ refactor: 提取拼团校验为独立函数
+🔧 chore: 升级 ESLint 配置
 ```
 
-**Body (optional)**: from the second line onward, use paragraphs or list items. **Do not require** an emoji on each body line. Use `- ` for list items if needed.
+**正文（可选）**：第二行起可为列表或段落，**不要求**每行再加 emoji；若需条目，用 `- ` 即可。
 
-**If the user already provided the first line**: if it already contains one table emoji and the emoji matches the `type`, respect the user's wording. If it has only `type:` without an emoji, **add the emoji** before Step 4.
+**用户已给出首行时**：若已含上表之一且 emoji 与 `type` 一致，**尊重用户文案**；若仅有 `type:` 无 emoji，**须补全 emoji** 再进入步骤 4。
 
-**Confirmation strategy for `git commit` (required)**:
+**与 `git commit` 的确认策略（必须）**：
 
-- In the **same assistant reply**: **first** show the finalized commit message **first line** (and optional body), then immediately execute Step 4 (`git add` item by item + `git commit`). **Do not require** the user to reply "confirm" before committing.
-- If the user already provided a compliant commit message in this turn, use it directly and enter Step 4, but still **repeat the first line** before committing.
-- If the user explicitly says "change the commit message / use another type": revise it, then under the same strategy **show and commit** without adding a "please confirm" gate.
+- 在**同一条 assistant 回复**中：**先**展示拟提交说明的**首行**（及可选正文），**随后立即**执行步骤 4（`git add` 逐项 + `git commit`）。**不要求**用户再回复「确认」才允许 commit。
+- 若用户在该轮对话中**已先写明**提交说明且合规，可直接使用并进入步骤 4，仍须在执行前**复述首行**再 commit。
+- 用户若明确表示「改提交说明 / 换一个 type」：改稿后仍在本策略下**展示即提交**，不增加「请回复确认」门槛。
 
-### Step 4: Execute the Commit (Immediately After Showing the Message)
+### 步骤 4：执行提交（展示说明后立即执行）
 
-Handle the three file categories from Step 1:
+根据步骤 1 的三类文件分别处理：
 
 ```bash
-# 1. Unstaged files: add first
-git add <unstaged file list>
+# 1. Unstaged 文件：需先 add
+git add <unstaged 文件列表>
 
-# 2. Untracked files: add first
-git add <untracked file list>
+# 2. Untracked 文件：需先 add
+git add <untracked 文件列表>
 
-# 3. Staged files: already added; no need to add again
+# 3. Staged 文件：已 add，无需重复操作
 
-# Execute commit
-git commit -m "<final full commit message from Step 3>"
+# 执行提交
+git commit -m "<步骤 3 定稿的完整提交信息>"
 ```
 
-- Do not use `git add -A` / `git add .`; only add the explicit file list from Step 1.
-- If a pre-commit hook fails: output the full error, ask the user to fix it and trigger this skill again, and **do not** bypass it with `--no-verify`.
-- If commit succeeds: read the commit hash (`git rev-parse --short HEAD`) and proceed to Step 5.
+- 禁止使用 `git add -A` / `git add .`，仅 add 步骤 1 中明确列出的文件。
+- 若 pre-commit hook 失败：输出完整错误信息，提示用户修复后重新触发本技能，**不**使用 `--no-verify` 绕过。
+- 若 commit 成功：读取 commit hash（`git rev-parse --short HEAD`）并进入步骤 5。
 
-### Step 5: Closing Note
+### 步骤 5：收尾提示
 
 ```
-✅ commit <hash> complete
-   <commit message first line>
+✅ commit <hash> 完成
+   <提交信息首行>
 
-[If Step 2 chose B]
-📌 Reminder: the following capabilities are still not in the knowledge base; record them before merging:
-  - <capability description>
-  You can run: f2s-kb-sync or f2s-kb-feat
+[若步骤 2 选了 B]
+📌 提醒：以下能力仍未入知识库，建议在合并前补录：
+  - <能力描述>
+  可运行：f2s-kb-sync 或 f2s-kb-feat
 
-[If Step 2 was skipped because .Knowledge does not exist]
-💡 This project has not initialized the Flow2Spec knowledge base. To enable it, run: flow2spec init
+[若跳过了步骤 2（.Knowledge 不存在）]
+💡 项目尚未初始化 Flow2Spec 知识库，如需接入可运行：flow2spec init
 
-[If Step 2 was skipped by quick commit]
-⚡ The knowledge-base coverage check was skipped according to quick commit mode.
+[若快捷提交跳过了步骤 2]
+⚡ 已按快捷提交跳过知识库覆盖检查。
 
-[If skip rule A matched: pure-doc changes]
-📄 Changes are pure docs / knowledge base itself; coverage check skipped.
+[若命中跳过判定 A：改动纯文档]
+📄 本次改动纯文档 / 知识库自身,已跳过覆盖检查。
 
-[If skip rule B matched: recent sync within 30 min]
-🔄 Skipped coverage check because <skill name> ran within the last 30 min (.Knowledge/.last-sync.json).
+[若命中跳过判定 B：近 30 分钟内已同步]
+🔄 近 30 分钟内已跑过 <skill 名>,已跳过覆盖检查（.Knowledge/.last-sync.json）。
 ```
 
-## Constraints
+## 约束
 
-- Do not use `git add -A` / `git add .`; add only confirmed changed files.
-- Do not use `--no-verify`; if a hook fails, fix and retry.
-- Do not `--amend` a pushed commit unless the user explicitly asks.
-- Do not push automatically. Stop after the commit completes.
-- In default mode, when the knowledge base does not cover the changes, you must prompt the user; the user decides whether to record now (choosing B does not block the commit). In quick commit mode, skip the knowledge-base coverage check and do not prompt recording options.
-- **`git pull` / `git pull --rebase` / `git fetch` followed by merge operations that modify the current branch working tree**: you **must** explain the purpose and risk first and obtain explicit user confirmation for the **pull** (for example the user replies "confirm pull") before executing it. **Do not** silently pull as part of committing.
-- **`git commit`**: a separate user reply of "confirm" is **not required**; however, it is **forbidden** to commit without showing the proposed first line in the same reply first.
-- The commit-message **first line** must follow the **emoji + type** format in Step 3 (keep a user-provided compliant line as-is).
-- If merge-conflict markers exist, stop and do not continue.
+- 禁止使用 `git add -A` / `git add .`，只 add 已确认的变更文件。
+- 禁止 `--no-verify`，hook 失败须修复后重试。
+- 禁止 `--amend` 已推送的 commit，除非用户明确要求。
+- 禁止自动 push，commit 完成后停止。
+- 默认模式下知识库未覆盖时必须提示，但最终是否补录由用户决定（选 B 不阻塞）；快捷提交模式下跳过知识库覆盖检查，不提示补录选项。
+- **`git pull` / `git pull --rebase` / 会改写当前分支工作区内容的 `git fetch` 后续合并操作**：**必须**先向用户说明目的与风险，**取得用户对「拉取」的明确确认**（如用户回复「确认 pull」）后再执行；**禁止**为 commit 而顺带静默 pull。
+- **`git commit`**：**不要求**用户单独回复「确认」；但**禁止完全不展示**拟提交首行就执行 commit（须在当条回复中可见首行后再执行）。
+- 提交信息**首行**须符合步骤 3 的 **emoji + type** 格式（用户已合规给出时可保留）。
+- 存在 merge conflict 标记时必须终止，不得继续。
 
-## Completion Self-Check
+## 完成后自检
 
-1. Did Step 1 check merge conflicts? Must be yes.
-2. Were staged / unstaged / untracked files distinguished? Must be yes.
-3. Was `git add -A` / `git add .` used? Must be no.
-4. Was the knowledge-base check performed or skipped with an explicit reason (quick commit / `.Knowledge` missing)? Must be yes. If an active `kb-delta.json` exists, was it automatically planned/applied/built/checked or was a conflict explicitly reported? Must be yes.
-5. Was the Step 3 commit message generated from actual `git diff` content? Must be yes, not only `--stat`.
-6. Was the proposed first line **shown in the same reply** before executing commit? Must be yes; do **not** require the user to separately "confirm commit".
-7. Does the commit-message **first line** match `<emoji> <type>[(scope)]: <summary>`, with emoji and type consistent with the table? Exceptions such as merge revert must be explained when shown.
-8. If pre-commit failed, was the hook bypassed? Must be no.
-9. If Step 2 chose B, does the closing note include an uncovered-knowledge reminder?
-10. If Step 2 chose A, does the flow continue after the user records knowledge or triggers again (**without** requiring a separate confirmation just to continue commit)?
-11. If this flow ever needed `git pull`: was explicit confirmation for **pull** obtained before running it? Must be yes; if not involved, mark N/A.
+1. 步骤 1 是否检查了 merge conflict（必须为是）。
+2. 是否区分了 staged / unstaged / untracked 三类文件（必须为是）。
+3. 是否用了 `git add -A` / `git add .`（必须为否）。
+4. 知识库检查是否执行或有明确跳过理由（快捷提交 / `.Knowledge` 不存在）（必须为是）；若存在 active `kb-delta.json`，是否已自动 plan/apply/build/check 或明确报告冲突（必须为是）。
+5. 步骤 3 是否基于 `git diff` 实际内容生成提交信息（必须为是，而非仅 `--stat`）。
+6. 执行 commit 前是否在当条回复中**展示了拟提交首行**（必须为是）；**不得**要求用户单独「确认 commit」才执行（与策略一致）。
+7. 提交信息**首行**是否为 `<emoji> <type>[(scope)]: <简述>` 且 emoji 与 type 与上表一致（合并 revert 等例外须在展示中说明）。
+8. 若 pre-commit 失败，是否跳过了 hook（必须为否）。
+9. 若步骤 2 选 B，收尾提示是否包含未补录提醒。
+10. 若步骤 2 选 A，是否在用户补录或再次触发后继续流程（**不要求**为继续 commit 单独要确认）。
+11. 若本流程中曾需要 `git pull`：是否在执行前取得用户对 **pull** 的明确确认（必须为是）；未涉及 pull 则标 N/A。

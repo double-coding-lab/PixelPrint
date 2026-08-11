@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * flow2spec SessionStart hook — injects a flow2spec.config.json summary once at session start.
- * This summary does not replace Read("flow2spec.config.json") before an f2s-* Skill body.
- * Written by flow2spec init to the corresponding agent's hooks/f2s-config-session.js.
+ * flow2spec SessionStart hook — 会话开始时一次性注入 flow2spec.config.json 摘要。
+ * 该摘要不替代 f2s-* Skill 正文前的 Read("flow2spec.config.json")。
+ * 由 flow2spec init 写入对应 agent 的 hooks/f2s-config-session.js。
  */
 const fs = require('fs');
 const path = require('path');
@@ -70,8 +70,8 @@ function main() {
   if (!fs.existsSync(configPath)) {
     const cfg = { ...DEFAULT_CFG, changeTracking: { ...DEFAULT_CFG.changeTracking } };
     emit([
-      '[flow2spec] flow2spec.config.json was not found for this session; before any f2s-* Skill, still attempt Read("flow2spec.config.json"). Missing fields use defaults.',
-      `Configuration summary: subAgent=${cfg.subAgent}, switchAgentVerification=${cfg.switchAgentVerification}, changeTracking=${JSON.stringify(cfg.changeTracking)}`,
+      '[flow2spec] 本会话未找到 flow2spec.config.json；f2s-* Skill 前仍必须尝试 Read("flow2spec.config.json")，缺失字段按默认值处理。',
+      `配置摘要：subAgent=${cfg.subAgent}, switchAgentVerification=${cfg.switchAgentVerification}, changeTracking=${JSON.stringify(cfg.changeTracking)}`,
     ]);
     return;
   }
@@ -79,15 +79,15 @@ function main() {
   try {
     const cfg = normalizeCfg(JSON.parse(fs.readFileSync(configPath, 'utf8')));
     emit([
-      '[flow2spec] SessionStart configuration summary (reminder only; before executing any f2s-* Skill, you must still Read the disk file):',
+      '[flow2spec] SessionStart 配置摘要（仅作提醒，执行 f2s-* Skill 前仍必须 Read 磁盘文件）：',
       `subAgent=${cfg.subAgent}`,
       `switchAgentVerification=${cfg.switchAgentVerification}`,
       `changeTracking=${JSON.stringify(cfg.changeTracking)}`,
     ]);
   } catch (err) {
     emit([
-      `[flow2spec] Failed to parse flow2spec.config.json: ${err.message || String(err)}`,
-      'Before executing any f2s-* Skill, you must first fix or Read this file; if it cannot be read, missing fields use defaults.',
+      `[flow2spec] flow2spec.config.json 解析失败：${err.message || String(err)}`,
+      '执行 f2s-* Skill 前必须先修复或 Read 该文件；无法读取时按缺失字段默认值处理。',
     ]);
   }
 }

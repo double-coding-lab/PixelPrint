@@ -1,148 +1,148 @@
 ---
 name: f2s-doc-milestone
-description: Generate a milestone document (`project-milestone-template`) from req-docs, git log, `.task`, and knowledge-topic semantics; triggers: f2s-doc-milestone、生成项目里程碑、里程碑、project milestone、generate milestone. A semantic scope may be appended after the command. This skill always uses a sub agent for generation and the main agent for verification, regardless of flow2spec.config orchestration switches
+description: 据 req-docs、git log、.task 与知识库主题语义生成里程碑（《项目里程碑模版》）；触发：f2s-doc-milestone、生成项目里程碑、里程碑。命令后可附语义化范围。本技能固定子 agent 生成、主 agent 验证，不受 flow2spec.config 编排开关影响
 ---
 
-> **Task paths**: all `.task/` reads/writes must use **`TASK_ROOT` from `rules/f2s-task`** (` .task` or `.task/<developerId>`; config → git → legacy). Bare `.task/todo.json` / `.task/active/` below mean **`TASK_ROOT/...`**.
+> **任务路径**：凡 `.task/` 落盘与续作，**必须以 `rules/f2s-task` 解析的 `TASK_ROOT` 为准（`.task` 或 `.task/<developerId>`；config → git → legacy）。下文若仍出现 `.task/todo.json` / `.task/active/`，均视为 **`TASK_ROOT/...` 的简写**。
 
 
-> Execution scope: read `.Knowledge/template/project-milestone-template.md`; write **only** `.Knowledge/stock-docs/<scope-name>-milestones.md` (no second path argument).
+> 执行口径：读 `.Knowledge/template/项目里程碑模版.md`；落盘 **仅** `.Knowledge/stock-docs/<范围名>里程碑.md`（无第二路径参数）。
 
-## Orchestration (Fixed, Not Affected by Project Config)
+## 编排（固定，不受项目配置影响）
 
-**This skill is not affected by** `subAgent`, `switchAgentVerification` (or old key `subAgentVerification`) in `flow2spec.config.json`: regardless of whether they are `true` or `false`, **always** use the division below. It is **forbidden** to switch to "all main session" or "sub agent self-verifies and ends" because of config values.
+**本技能不受** `flow2spec.config.json` 中 **`subAgent`**、**`switchAgentVerification`**（及旧键 `subAgentVerification`）**影响**：无论其为 `true` 或 `false`，**一律**按下述分工执行，**禁止**因配置改为「全主会话」或「子 agent 自验即结束」。
 
-| Role | Steps | Responsibilities |
+| 角色 | 步骤 | 职责 |
 | --- | --- | --- |
-| **Main agent** | 0, 3, 4 | Read template and knowledge topic index, parse scope, dispatch sub agent, **verify**, revise if needed, reply to user |
-| **Sub agent** | 1, 2 | Collect four sources, apply template, **Write draft** |
+| **主 agent** | 0、3、4 | 读模版与知识库主题索引、解析范围、派子、**验证**、必要时修订、回复用户 |
+| **子 agent** | 1、2 | 采集四源、套模版、**Write 初稿** |
 
-1. **Main agent**: Step 0 -> issue the "collection contract" -> sub agent executes Steps 1-2 and writes the draft.
-2. **Main agent**: Step 3 verifies against the four sources and the "important node checklist" (do not rewrite wholesale; fill gaps, correct errors, add "Pending Confirmation") -> Step 4 replies.
-3. The sub agent is **forbidden** from claiming "the milestone has been accepted as complete"; the final document is the version verified by the main agent.
+1. **主 agent**：步骤 0 → 下发「采集契约」→ 子 agent 步骤 1–2 落盘初稿。
+2. **主 agent**：步骤 3 对照四源与「重要节点清单」验证（不全文重写；补缺、纠偏、「待确认」）→ 步骤 4 回复。
+3. 子 agent **禁止**宣称「里程碑已验收完成」；终稿以主 agent 验证后为准。
 
-> Step 0 still **`Read("flow2spec.config.json")`** (satisfies the `f2s-config-check` preflight), but its `subAgent` / `switchAgentVerification` values **must not** change this skill's orchestration.
+> 步骤 0 仍 **`Read("flow2spec.config.json")`**（满足 `f2s-config-check` 前置），但**不得**用其中的 `subAgent` / `switchAgentVerification` 改变本技能编排。
 
-**Sub-Agent Collection Contract (Main Agent Writes into the Prompt Before Dispatch)**
+**子 agent 采集契约（主 agent 派子前写入 prompt）**
 
-| Field | Content |
+| 字段 | 内容 |
 | --- | --- |
-| `scope` | One sentence describing the user's semantic scope |
-| `outputPath` | `stock-docs/<scope-name>-milestones.md` |
-| `sources` | See "Four Sources" below; **must include knowledge-topic semantics** |
-| `template` | `.Knowledge/template/project-milestone-template.md` (do not write the template's top explanatory blockquote) |
-| `delivery` | Complete Markdown that can be directly `Write`n to `outputPath` |
-| `stagePolicy` | See "Stage Granularity" below; the contract must restate it in one sentence |
+| `scope` | 用户语义范围一句 |
+| `outputPath` | `stock-docs/<范围名>里程碑.md` |
+| `sources` | 见下文「四源」；**须含知识库主题语义** |
+| `template` | `.Knowledge/template/项目里程碑模版.md`（不写模版顶部说明 blockquote） |
+| `delivery` | 完整 Markdown，可直接 `Write` 至 `outputPath` |
+| `stagePolicy` | 见下文「阶段粒度」；契约中须复述一句 |
 
-## Stage Granularity (Required, Write into the Contract)
+## 阶段粒度（必须，写入契约）
 
-Milestones **Mx record only feature/capability changes**: deliverables that are already implemented or verifiable in the current repository (or user-specified scope), such as modules/APIs/data models/domain behavior/knowledge routing, and must be supported by the four sources.
+里程碑 **Mx 仅记录功能/能力变更**：当前仓库（或用户指定范围内）**已落地或可核验**的交付，例如模块/接口/数据模型/领域行为/知识库路由等，且须在四源中有依据。
 
-**Do not** write the following stage types as separate overview rows or standalone `## Mx ·` sections (do not invent them without four-source delivery support; even when delivery exists, do not split them into "pure testing / pure integration" stages):
+**不得**单独占一行总览或独立 `## Mx ·` 的阶段类型（无四源交付支撑时禁止臆造；有交付也不得拆成「纯测试/纯联调」阶段）：
 
-- Joint debugging, integration testing, UAT, regression, acceptance, test submission, launch checks (process-only, no functional diff)
-- Environment/ops-only actions (executing DDL, filling configs, release windows, cross-repo scheduling) with **no** feature delivery in this scope
-- Stages named "stabilization / engineering / wrap-up" whose substance is only the process work above
+- 联调、集成测试、UAT、回归、验收、提测、上线检查（仅过程、无功能 diff）
+- 仅环境/运维动作（执行 DDL、填配置、发版窗口、跨仓排期）且**无**本范围功能交付
+- 以「稳定化 / 工程化 / 收尾」为名、实质仅为上述过程性工作的阶段
 
-**Merge rule**: engineering changes within the same capability iteration (such as id type alignment, pagination format, locking and concurrency) are **merged into** the corresponding feature stage body, not written as a separate "joint debugging / testing / acceptance" stage.
+**合并规则**：同一次能力迭代内的工程性改动（如 id 类型对齐、分页格式、锁与并发）**并入**对应功能阶段正文，不另起「联调 / 测试 / 验收」阶段。
 
-**Gap handling**: if the four sources mention only pending joint debugging, pending acceptance, or missing environment setup without feature delivery in this scope, **do not write** a corresponding Mx. Add one sentence under **Pending Confirmation** if needed, and **do not** fill the overview table with "planned items".
+**缺口处理**：四源仅提及待联调、待验收、环境待补齐而无本范围功能交付 → **不写**对应 Mx；可在 **待确认** 列一句，**禁止**用「计划项」填充总览表。
 
-## Four Sources (Both Collection and Verification Must Cover Them)
+## 四源（采集与验证均须覆盖）
 
-| Source | What to Read | How to Use in Milestones |
+| 源 | 读什么 | 里程碑里怎么用 |
 | --- | --- | --- |
-| **req-docs** | In-scope `.Knowledge/req-docs/*.md` | Requirement/design nodes, delivery summaries |
-| **git** | `git log --no-merges`, `git tag -l`, `package.json` version | Timeline, major versions/tags, commit anchors |
-| **`.task`** | `todo.json`, `active/`, `completed/` `task.md`, etc. | Task closure, delivered steps |
-| **Knowledge topics (semantics)** | See "Topic Source" below | Align with capabilities already registered in index/manifest and avoid missing stages that are already semantic in the knowledge base |
+| **req-docs** | 范围内 `.Knowledge/req-docs/*.md` | 需求/方案节点、交付摘要 |
+| **git** | `git log --no-merges`、`git tag -l`、`package.json` 版本 | 时间线、大版本/tag、提交锚点 |
+| **`.task`** | `todo.json`、`active/`、`completed/` 下 `task.md` 等 | 任务闭环、已交付步骤 |
+| **知识库主题（语义）** | 见下「主题索源」 | 与 index/manifest 已登记能力对齐，避免漏写「库里已有语义」的阶段 |
 
-### Topic Source (Knowledge Semantics; Main Agent Step 0 Must Read, Sub Agent Step 1 Must Read)
+### 主题索源（知识库语义，主 agent 步骤 0 须读；子 agent 步骤 1 须读）
 
-1. **`Read(".Knowledge/manifest-routing.json")`**: extract `topicPaths`, `taskToTopicRules`, and scope-related `topicDependencies`.
-2. **`Read(".Knowledge/index.md")`**: at least the "**Topic Overview**" table (topic id, applicable scenario, linked document summary).
-3. **Read `.Knowledge/topics/<topic>.md` as needed**: summaries related to the scope or manifest hits (**do not** enumerate the entire `topics/` directory; read only topics named by manifest/index, usually no more than the table rows).
-4. Summarize topic semantics into a list of "capability/scenario nodes" for the sub-agent contract. Milestone stages must either cover them or explain related gaps under "Pending Confirmation".
+1. **`Read(".Knowledge/manifest-routing.json")`**：提取 `topicPaths`、`taskToTopicRules`（及与范围相关的 `topicDependencies`）。
+2. **`Read(".Knowledge/index.md")`**：至少「**主题一览**」表（主题 id、适用场景、关联文档摘要）。
+3. **按需 `Read` `.Knowledge/topics/<topic>.md`**：与范围或 manifest 命中相关的摘要（**禁止**为枚举遍历整个 `topics/`；仅读 manifest/index 已点名的主题，通常 ≤ 全表行数）。
+4. 将主题语义归纳为「能力/场景节点」列表，供子 agent 写入契约；里程碑阶段须能覆盖或于「待确认」说明与某主题相关的缺口。
 
-> **Source information is for collection and verification only — do not write it into the generated document.** The output must not contain a "Sources" line, topic file paths, or internal manifest names.
+> **索源内容仅用于采集与验证，禁止写入生成文档**；生成文档不含「索源」行、topic 路径或 manifest 内部名称。
 
-## Input (Only One, Optional)
+## 入参（仅一个，可选）
 
-After the command name, the user may append **one semantic scope** (natural language):
+命令名之后可跟**一段语义化范围**（自然语言）：
 
-| User Intent | Example | Output Filename |
+| 用户意图 | 示例 | 落盘文件名 |
 | --- | --- | --- |
-| Entire project (default) | omitted / `entire project` / `full project` / `整个项目` / `全项目` | `project-milestones.md` |
-| One requirement or capability | `callback refactor` / `login module` / `回调改造` / `登录模块` | `<summary>-milestones.md` |
+| 整个项目（默认） | 不传 / `整个项目` / `全项目` | `项目里程碑.md` |
+| 某一需求或能力 | `回调改造` / `登录模块` | `<简述>里程碑.md` |
 
-**Filename rule**: suffix `-milestones.md`; entire project -> prefix `project`; single requirement -> semantic phrase or requirement title summary (keep concise).
+**文件名规则**：后缀 `里程碑.md`；整个项目 → 前缀 `项目`；单一需求 → 语义或 req 标题简述（≤ 20 字）。
 
-**Scope narrowing**: filter the four sources by keyword, path, and date. If no scope is provided, all four sources are traceable in full (topic source reads full index table + manifest, and expands topics as needed).
+**范围收窄**：在四源上按关键词、路径、日期过滤；未传范围则四源全量可追溯（主题索源读 index 全表 + manifest，topics 按需展开）。
 
-## Step 0: Preflight (Main Agent)
+## 步骤 0：前置（主 agent）
 
-1. **`Read("flow2spec.config.json")`** (do not use its `subAgent` / `switchAgentVerification` values to orchestrate this skill)
-2. **`Read(".Knowledge/template/project-milestone-template.md")`**
-3. **Topic source** (see above: manifest -> index topic table -> topic summaries as needed)
-4. Parse the scope -> determine default path **`stock-docs/<scope-name>-milestones.md`**.
-5. **Similar-file check (required before writing)**: list existing `*milestone*.md` files under `.Knowledge/stock-docs/` (including `*milestone.md`). If there is a file with the **same target path** or a **semantically similar** file (for example, another whole-project milestone such as `project-milestones.md`, or high overlap in prefix/scope keywords), **ask the user first**. Do **not** silently overwrite or invent a new filename:
-   - **Overwrite**: keep the original path; the sub agent overwrites this file, and after verification it remains the final path.
-   - **Generate another copy**: use a new path (recommended: scope summary + `_YYYYMMDD` + `-milestones.md`, or the user's specified `<summary>-milestones.md`), and update `outputPath` in the contract.
-   - If no similar file exists, or only one file exists with exactly the target path and the user has already explicitly asked to "regenerate/overwrite" in this round, no further question is required; continue with the default path.
-6. Restate to the user: scope, **final** `outputPath`, and number of topics read. If a similar-file question was asked, wait for the user's choice before continuing.
-7. Assemble the "collection contract" (including final `outputPath` and topic node list) and **dispatch the sub agent** for Steps 1-2.
+1. **`Read("flow2spec.config.json")`**（不采纳其 `subAgent` / `switchAgentVerification` 编排本技能）
+2. **`Read(".Knowledge/template/项目里程碑模版.md")`**
+3. **主题索源**（见上：manifest → index 主题一览 → 按需 topics 摘要）
+4. 解析范围 → 确定默认路径 **`stock-docs/<范围名>里程碑.md`**。
+5. **相似文件检查（落盘前必做）**：列出 `.Knowledge/stock-docs/` 下已有 `*里程碑*.md`（含 `*里程碑.md`）。若存在与本次**目标路径相同**或**语义相近**的文件（例如同为「整个项目」的 `项目里程碑.md` 与另一份全项目里程碑、或前缀/范围关键词高度重叠），**须先询问用户**，**禁止**静默覆盖或擅自另存：
+   - **覆盖**：沿用原路径，子 agent 写入时覆盖该文件（验证后仍以该路径为终稿）。
+   - **另生成一份**：改用新路径（建议：范围简述 + `_YYYYMMDD` + `里程碑.md`，或用户指定的 `<简述>里程碑.md`），并在契约中更新 `outputPath`。
+   - 无相似文件，或仅有一个且与目标路径完全一致且用户本轮已明确要「重新生成/覆盖」→ 可不再追问，按默认路径继续。
+6. 向用户复述：范围、**最终** `outputPath`、已读主题数量；若做了相似文件询问，待用户选择后再继续。
+7. 组装「采集契约」（含最终 `outputPath`、主题节点列表）并 **派子 agent** 执行步骤 1–2
 
-## Step 1: Collect Sources (Sub Agent)
+## 步骤 1：采集索源（子 agent）
 
-- Complete **four-source** collection according to the contract. Git **must** compare tags and main version/semver transitions (based on this repository's `git tag` / `package.json`).
-- Topic semantics: check whether capabilities from manifest/index align with git/req/task in the same window. Put temporarily unaligned items into internal notes for "Pending Confirmation".
+- 按契约完成 **四源** 采集；git **须** 对照 tag 与主版本/semver 跃迁（以本仓库 `git tag` / `package.json` 为准）。
+- 主题语义：核对 manifest/index 中能力与 git/req/task 是否同窗出现；暂无法对齐的记入内部备注供「待确认」。
 
-If sources are empty: still generate the document and explain gaps under "Pending Confirmation"; **do not** fill deliverables from training data.
+索源为空：仍生成文档，「待确认」说明缺口；**禁止**训练数据填交付。
 
-## Step 2: Apply Template and Write (Sub Agent)
+## 步骤 2：套模版并落盘（子 agent）
 
-**Generation principle: write for readers, not internal tooling.**
+**生成原则：面向读者，不暴露内部信息。**
 
-1. Document header: title `# (Scope Name) Milestones`, scope, and updated date only. **Do not write** a Sources line, topic paths, manifest names, commit hashes, npm publish status, environment status, or any other internal information.
-2. **Newest first**: both the overview table and each `## Mx ·` section are ordered **latest phase first** (MN → … → M1). Each stage title must reflect a feature change; do not use "joint debugging / testing / acceptance" as a name (see "Stage Granularity").
-3. Each stage body: list **delivered features only**, one item per line, verifiable. Do not include timing details, process narration, or background context.
-4. **Pending Confirmation**: only list functional/delivery gaps or inconsistencies. **Do not** include internal operations, release, or environment status. Write "None" if there are no gaps.
-5. Do not write the template's top explanatory blockquote.
-6. **`Write`** to `outputPath`.
+1. 文首只写：标题 `# （范围名）里程碑`、范围、更新时间。**不写** 索源行、topic 路径、manifest 内部名称、commit hash、npm 发布状态、环境状态等任何内部信息。
+2. **阶段倒序**：总览表与各 `## Mx ·` 均按**最新在前**排列（MN → … → M1）；每阶段标题体现功能变更，不得用「联调 / 测试 / 验收」命名（见「阶段粒度」）。
+3. 每阶段正文：仅列**已交付的功能点**，每条一行，可验证；不写时间细节、过程说明或背景铺垫。
+4. **待确认**：只列功能/交付层面的缺口或不一致；**禁止**写内部运维/发布/环境状态。若无缺口写「无」。
+5. 不写模版顶部说明 blockquote。
+6. **`Write`** 至 `outputPath`。
 
-## Step 3: Verify (Main Agent, Required)
+## 步骤 3：验证（主 agent，须执行）
 
-After the sub agent writes the draft, the main agent **must** verify whether **important nodes** are wrong, missing, or over-merged.
+子 agent 落盘后 **必须**验证：**重要节点**是否错误、遗漏或合并过度。
 
-1. **Reread four-source essentials**: git tags/commits, req/task, and **index topic table + read topics**, then compare against the draft.
-2. **Check against the important node checklist**:
+1. **重读四源要点**：git tag/commit、req/task、**index 主题一览 + 已读 topics** 与文稿对照。
+2. **对照「重要节点清单」**：
 
-| Category | What to Check |
+| 类别 | 检查什么 |
 | --- | --- |
-| Version / tag | Major tags and `package.json` version transitions from the four sources are reflected in overview or Mx |
-| Route/architecture turning point | Major directory restructuring or technology-route replacement in the four sources is reflected separately or merged appropriately |
-| Feature delivery | Verifiable capabilities in req/git/task have corresponding stages in Mx |
-| **Knowledge topics** | If manifest/index exists: topics related to the scope are covered or listed under "Pending Confirmation" |
-| Task closure | If `.task/` exists: archived tasks are reflected in related Mx |
-| Traceable basis | Each Mx deliverable can be traced to the four sources |
-| Timeline | Ordering is reasonable; same-window multi-version changes are split if needed |
-| **Ordering** | Overview table and all Mx sections are newest-first; reorder if not |
-| **Stage granularity** | No Mx consists only of joint debugging/testing/acceptance/environment work without feature delivery; if found, **delete it or merge it** into an adjacent feature stage |
-| **Internal information** | Document contains no Sources line, commit hashes, topic paths, or npm/environment status; **remove** if found |
+| 版本 / tag | 四源中的 major tag、`package.json` 版本跃迁是否在总览或 Mx 中体现 |
+| 路线/架构转折 | 四源中出现的目录重组、技术路线替换等重大变更是否单独或合并体现 |
+| 功能交付 | req/git/task 中可核验的能力是否在 Mx 中有对应阶段 |
+| **知识库主题** | 若存在 manifest/index：与范围相关的主题是否覆盖或列入「待确认」 |
+| 任务闭环 | 若存在 `.task/`：已归档任务是否在相关 Mx 中体现 |
+| 依据可追溯 | 每 Mx 交付能否在四源中找到 |
+| 时间线 | 先后合理；同窗多版本是否需拆分 |
+| **排序** | 总览表与各 Mx 是否均为最新在前；若不是则调整 |
+| **阶段粒度** | 是否存在仅联调/测试/验收/环境而无功能交付的 Mx；若有 **删除或并入** 相邻功能阶段 |
+| **内部信息** | 文档中是否含索源行、commit hash、topic 路径、npm/环境状态等内部信息；若有**删除** |
 
-3. Missing items -> add Mx (**must be feature changes**); errors -> correct according to the four sources; unknowns -> "Pending Confirmation" (**do not** replace unknowns with fake Mx).
-4. Only after verification or revision is complete may Step 4 run.
+3. 遗漏 → 补 Mx（**须为功能变更**）；错误 → 按四源修正；无法确认 → 「待确认」（**禁止**用假 Mx 代替）。
+4. 验证或修订完成后方可步骤 4。
 
-## Step 4: Reply (Main Agent)
+## 步骤 4：回复（主 agent）
 
-Report the disk path, stage count, one-sentence verification conclusion, and "Pending Confirmation" summary.
+落盘路径、阶段数、验证结论（一句）、「待确认」摘要。
 
-## Forbidden Items
+## 禁止项
 
-- Do not use `subAgent` / `switchAgentVerification` to skip sub-agent generation or main-agent verification.
-- Do not dispatch a sub agent or `Write` before the user chooses "overwrite / generate another copy" when a **similar milestone** already exists in `stock-docs/`.
-- Do not use a second argument to change the output path (the path is determined by scope + similar-file choice). Do not write to `req-docs`.
-- Do not write deliverables without reading the four sources. Do not let the sub agent claim completion before verification.
-- Do not enumerate the entire `matchers/` directory or all topics as a substitute for "manifest + index + topics as needed".
-- Do not use training data or milestone structures from other projects instead of the **current repository's** four sources. Do not write unrelated `stock-docs` documents outside this `outputPath`.
-- Do not create standalone joint debugging / integration testing / UAT / acceptance / pure environment-ops Mx stages. Do not write "planned item" stages when there is no four-source feature delivery.
+- 禁止用 `subAgent` / `switchAgentVerification` 跳过子生成或跳过主验证。
+- 禁止在 `stock-docs/` 已存在**相似里程碑**且用户未选择「覆盖 / 另生成一份」前派子 agent 或 `Write`。
+- 禁止第二参数改输出路径（路径由范围 + 相似文件询问结果确定）；禁止写入 `req-docs`。
+- 禁止未读四源写交付；禁止子 agent 未经验证即宣称完成。
+- 禁止遍历整个 `matchers/` 或全仓 topics 代替「manifest + index + 按需 topics」。
+- 禁止用训练数据或其它项目的里程碑结构替代**当前仓库**四源；禁止代写与本次 `outputPath` 无关的其它 `stock-docs` 文档。
+- 禁止单独设立联调 / 集成测试 / UAT / 验收 / 纯环境运维类 Mx；禁止在无四源功能交付时写「计划项」阶段。

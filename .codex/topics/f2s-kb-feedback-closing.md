@@ -1,112 +1,112 @@
-# Flow2Spec Knowledge-Base Feedback Closing
+# Flow2Spec 知识库反馈收口
 
-This rule governs knowledge-base follow-up suggestions after ordinary Q&A reads business source code. It only decides whether the final answer should append one minimal suggestion.
+本条专管普通问答读取业务源码后的知识库补充建议。只决定最终回答是否需要追加一条极简提示。
 
-## Scope
+## 适用范围
 
-Run this rule only when all of the following are true:
+仅当同时满足以下条件时执行：
 
-- This turn is **ordinary Q&A / troubleshooting / explanation**;
-- This turn has **not entered** an `f2s-*` skill, `implement-tech-design`, `f2s-git-commit`, or another existing follow-up flow;
-- This turn read business source code and the final answer cites source-code facts.
+- 本轮是**普通问答 / 排查 / 解释**；
+- 本轮**未进入** `f2s-*` 技能、`implement-tech-design`、`f2s-git-commit` 或其他已有后续流程；
+- 本轮读取过业务源码，且最终答案引用了源码事实。
 
-**Prohibited**: Do NOT output **any** of this rule's case 1–4 closing blocks in either of the following situations —
+**禁止**：以下两类情形不得输出本规则 case 1～4 中**任何一个**收口块——
 
-1. **This turn has already entered `f2s-kb-distill`**: `f2s-kb-distill` is the skill that ingests this turn's knowledge into the KB; appending its own ingestion hint is both redundant and self-referential.
-2. **This turn entered a process-orchestration skill**: `f2s-req-clarify` / `f2s-req-tech` / `f2s-req-plan` / `f2s-doc-arch` / `f2s-doc-final` / `f2s-doc-milestone` / `f2s-doc-pdf`. The deliverable of these skills is a **`.Knowledge/req-docs/*`, `docs/*`, or task-planning artifact for this specific delivery**; reading source code serves that deliverable, it is not "picking up a piece of general knowledge on the side". Even if source code was read and its facts were written into the clarification / design / planning document, **do not** append a distill hint (clarification / design docs live under `req-docs`, not under `topics` / `stock-docs`; planning artifacts are archived with the task; doc skills each have their own write target).
+1. **本轮已进入 `f2s-kb-distill`**：`f2s-kb-distill` 本身就是把本轮知识入库的技能，再贴自己的入库提示既冗余又自指。
+2. **本轮进入过程编排型技能**：`f2s-req-clarify` / `f2s-req-tech` / `f2s-req-plan` / `f2s-doc-arch` / `f2s-doc-final` / `f2s-doc-milestone` / `f2s-doc-pdf`。这些技能的产物是**面向本次交付的 `.Knowledge/req-docs/*`、`docs/*` 或任务规划物**，读源码是为了产出这些产物本身，不是"顺手补一条通用知识"。哪怕读了源码并将事实写进了澄清 / 方案 / 规划文档，也**不追加** distill 提示（澄清 / 方案文档本身归 `req-docs`，不是 `topics` / `stock-docs` 的入库对象；规划物随任务归档；文档类技能已有各自的落盘目标）。
 
-Other `f2s-kb-*` skills (e.g., `f2s-kb-feat` / `f2s-kb-fix` / `f2s-kb-sync`) **still judge per the four cases** after they finish: if this turn's answer contains reusable knowledge facts **outside the main path** that the current SKILL **did not ingest** (typical scenarios: while fixing a bug you incidentally read another module's source, or you answered a follow-up unrelated to the current SKILL's main subject), output the closing block as usual; the agent judges by what was actually written this turn, not by a blanket prohibition.
+其他 `f2s-kb-*` 技能（如 `f2s-kb-feat` / `f2s-kb-fix` / `f2s-kb-sync` 等）跑完之后**仍按四 case 正常判定**：若本轮回答里包含**主路径之外**、本次 SKILL **未入库**的可复用知识事实（典型场景：修 bug 时顺带读了另一模块源码、回答了与本次 SKILL 主体无关的衍生追问），照常输出收口块；agent 据本轮实际写入情况判断，不一刀切。
 
-## Judgment Timing and Basis
+## 判断时机与依据
 
-**Judgment timing**: After generating the final answer, judge based on the knowledge content actually included in the answer, not the reading process.
+**判断时机**：在生成最终回答后，基于回答实际包含的知识内容判断，而非读取过程。
 
-**Judgment basis**:
-- What knowledge did the final answer supplement that the KB did not write or wrote insufficiently
-- Does this knowledge belong to "reusable knowledge facts"
-- Not: all files/information encountered during the reading process
+**判断依据**：
+- 最终回答中补充了哪些 KB 未写或不够细的知识
+- 这些知识是否属于"可复用知识事实"
+- 而非：读取过程中接触到的所有文件/信息
 
-**Reusable knowledge facts** include:
-- Core mechanisms (e.g., cache semantics, retry strategy, fallback logic)
-- State transitions (e.g., order state machine, session lifecycle)
-- Return value / error code contracts (e.g., HTTP status code semantics, business error code meanings)
-- Configuration switch impacts (e.g., switch X affects behavior Y)
-- Failure fallback strategies (e.g., fallback plan when primary path fails)
-- Module boundaries or calling conventions (e.g., module A calling module B contract)
-- Data models and field semantics (e.g., business meaning of key fields)
+**可复用知识事实**包括：
+- 核心机制（如：缓存语义、重试策略、降级逻辑）
+- 状态流转（如：订单状态机、会话生命周期）
+- 返回值 / 错误码契约（如：HTTP 状态码语义、业务错误码含义）
+- 配置开关影响（如：开关 X 影响行为 Y）
+- 失败回退策略（如：主路径失败时的降级方案）
+- 模块边界或调用约定（如：模块 A 调用模块 B 的契约）
+- 数据模型与字段语义（如：关键字段的业务含义）
 
-**Evidence only, do not trigger sync** includes:
-- Line numbers (e.g., `client.py:51`)
-- Function names (e.g., `send_message_to_session()`)
-- Code snippets (concrete implementation code for demonstration)
-- Call paths (e.g., `A → B → C` call chain)
-- Local implementation expanded to answer user follow-up questions
-- Source-code verification of facts already written in the topic (KB wrote it clearly, source code only confirms)
+**仅作证据，不触发同步**的包括：
+- 行号（如：`client.py:51`）
+- 函数名（如：`send_message_to_session()`）
+- 代码片段（用于演示的具体实现代码）
+- 调用路径（如：`A → B → C` 的调用链）
+- 为了回答用户追问而展开的局部实现
+- 对 topic 已写事实做源码核验（KB 已写清楚，源码只是印证）
 
-## Mechanical Gate
+## 机械门禁
 
-- After reading the first business source file, treat this turn as having triggered `sourceFallbackUsed=true`.
-- When `sourceFallbackUsed=true` and the final answer cites source-code facts, this four-case self-check must run before sending the answer.
-- **One of the four cases must be stated explicitly**: every closing pass must choose cases 1-4 and **output the corresponding block explicitly**; silently skipping the whole closing flow is not allowed.
-- Decision logic:
-  - topic matched + final answer supplemented "reusable knowledge facts" → use **case 2**
-  - topic not matched + final answer supplemented "reusable knowledge facts" → use **case 1**
-  - topic matched + final answer only contains "evidence content" (line numbers/function names/call paths) + KB already wrote core facts clearly → use **case 4**
-  - If the gap noted before drilling down was **mechanism/contract/process-type knowledge gap**, use **case 2** afterwards
-  - If the gap noted before drilling down was only **evidence/source-code location/line number/implementation provenance gap**, and the topic already covers core facts, may use **case 4**
+- 读完首个业务源码文件后，视为本轮已触发 `sourceFallbackUsed=true`。
+- `sourceFallbackUsed=true` 且最终答案引用源码事实时，发出回答前必须执行本条四 case 自检。
+- **四 case 必须显式表态**：每轮收口必须从 case 1～4 中选一个**明确输出对应块**，不允许悄悄跳过整个收口流程。
+- 判定逻辑：
+  - topic 命中 + 最终回答补充了"可复用知识事实" → 走 **case 2**
+  - topic 未命中 + 最终回答补充了"可复用知识事实" → 走 **case 1**
+  - topic 命中 + 最终回答仅包含"证据性内容"（行号/函数名/调用路径） + KB 已写清核心事实 → 走 **case 4**
+  - 若下钻前说明的是**机制/契约/流程类知识缺口**，答后走 **case 2**
+  - 若下钻前说明的只是**证据/源码位置/行号/实现出处缺口**，且 topic 已覆盖核心事实，可走 **case 4**
 
-## Four Closing Cases
+## 四种收口
 
-1. **KB does not cover it + source code provided the answer**: append this at the end of the answer:
+1. **KB 未覆盖 + 源码找到答案**：在答案末尾追加：
    ```md
-   > 💡 Run `f2s-kb-distill` to ingest knowledge from this turn
+   > 💡 可用 `f2s-kb-distill` 将本轮知识入库
    >
-   > **This turn will ingest**: <one-line summary naming "what capability / which module / which kind of knowledge", e.g., module X's retry mechanism (first ingestion)>
+   > **本轮将入库**：<一句话概要，点名「是什么能力 / 哪个模块 / 哪类知识」，例如：模块 X 的重试机制（首次入库）>
    ```
-   **Decision criteria**: no topic covers this capability / module / problem domain, and the final answer supplemented reusable knowledge facts.
+   **判定条件**：没有 topic 覆盖该能力 / 模块 / 问题域，且最终回答补充了可复用知识事实。
 
-2. **KB covers it but lacks detail + source code completed the answer**: append this at the end of the answer:
+2. **KB 已覆盖但不够细 + 源码补齐答案**：在答案末尾追加：
    ```md
-   > 💡 Run `f2s-kb-distill` to ingest knowledge from this turn
+   > 💡 可用 `f2s-kb-distill` 将本轮知识入库
    >
-   > **This turn will ingest**: <one-line summary naming "which topic and which section to supplement", e.g., supplement the "failure-fallback logic" section of `<topicId>`>
+   > **本轮将入库**：<一句话概要，点名「补到哪个 topic 的哪段」，例如:补充 `<topicId>` 的「失败回退逻辑」一节>
    ```
-   **Decision criteria**: an existing topic covers the direction but lacks details, and the final answer supplemented reusable knowledge facts (core mechanisms, state transitions, contracts, etc.).
+   **判定条件**：已有 topic 覆盖方向但缺少细节，且最终回答补充了可复用知识事实（核心机制、状态流转、契约等）。
 
-3. **KB and source code disagree**: answer according to source-code facts and append this at the end of the answer:
+3. **KB 与源码不一致**：以源码事实回答，并在答案末尾追加：
    ```md
-   > 💡 Run `f2s-kb-distill` to ingest knowledge from this turn
+   > 💡 可用 `f2s-kb-distill` 将本轮知识入库
    >
-   > **This turn will ingest**: <one-line summary naming "which description in `<topicId>` to fix that disagrees with source code">
+   > **本轮将入库**：<一句话概要，点名「修正 `<topicId>` 的哪条与源码不符的描述」>
    ```
 
-4. **KB fully covers it; source code was only verification**: append this at the end of the answer:
+4. **KB 已完整覆盖，源码仅核验**：在答案末尾追加：
    ```md
-   > **Knowledge base already covers this**: the core facts in this answer were fully provided by `<topicId>`; source-code reading was only verification.
+   > **知识库已覆盖**：本轮答案核心事实已由 `<topicId>` 完整提供，源码读取仅作核验。
    ```
-   **Decision criteria**:
-   - The relevant KB topic already states the core answer to this question (mechanisms, transitions, contracts and other reusable knowledge facts)
-   - This turn's final answer did not introduce new reusable knowledge facts outside the KB
-   - Source code cited in the answer was only for evidence (line numbers, function names, call paths) or to verify KB-written content
-   - If the gap noted before drilling down mentioned mechanism/contract/process-type knowledge gap, case 4 is prohibited
+   **判定条件**：
+   - KB 相关 topic 已写明本问题核心答案（机制、流转、契约等可复用知识事实）
+   - 本轮最终回答未引入 KB 之外的新的可复用知识事实
+   - 回答中引用源码仅作为证据（行号、函数名、调用路径）或核验 KB 已写内容
+   - 若下钻前说明缺口时提到的是机制/契约/流程类知识缺口，禁止走 case 4
 
-> **Summary requirement (required for cases 1-3)**: one line stating "what this distill run will ingest" — capability / module name + knowledge type (mechanism / transition / contract / config etc.) + whether this is first ingestion or supplementing some topic. **Do not** post only the command without the summary; the summary is what lets the user decide whether to actually run distill.
+> **概要要求（case 1~3 必填）**：必须一句话写明"这次跑 distill 会把什么入库"——能力 / 模块名 + 知识类型（机制 / 流转 / 契约 / 配置等）+ 是首次入库还是补充某 topic。**禁止**只贴命令不写概要；用户看了概要才能判断要不要接着跑 distill。
 
-## Boundary Between Case 1 and Case 2
+## case 1 和 case 2 的边界
 
-- **case 1** (`f2s-kb-distill` uncovered scenario): no topic covers this capability / module / problem domain
-  - Example: user asks "module X's retry mechanism", but manifest has no topic related to module X
-  - Example: user asks "implementation of new feature Y", but KB has no document or topic about feature Y
+- **case 1**（`f2s-kb-distill` 未覆盖场景）：没有 topic 覆盖该能力 / 模块 / 问题域
+  - 示例：用户问"模块 X 的重试机制"，但 manifest 中没有任何 topic 与模块 X 相关
+  - 示例：用户问"新功能 Y 的实现"，KB 中完全没有功能 Y 的文档或 topic
 
-- **case 2** (`f2s-kb-distill` supplement scenario): an existing topic covers the direction but lacks details
-  - Example: topic wrote "cache-first strategy" but did not write concrete failure-fallback logic
-  - Example: topic wrote "action-chain judgment" but did not write concrete state-checking method
+- **case 2**（`f2s-kb-distill` 补充场景）：已有 topic 覆盖方向，但缺少细节
+  - 示例：topic 写了"缓存优先策略"，但没写具体的失败回退逻辑
+  - 示例：topic 写了"动作链判定"，但没写具体的状态检查方式
 
-This avoids misjudging "already has a topic but still suggests add".
+这样能避免"已有 topic 还建议 add"的误判。
 
-## Output Format
+## 输出格式
 
-- Cases 1-3: output one Markdown blockquote containing, in order, the `f2s-kb-distill` command + one blank line + the **This turn will ingest** summary (one line, see "Summary requirement" above).
-- Case 4: output one Markdown blockquote stating "Knowledge base already covers this" plus the related topicId.
-- Do not omit this block; do not output a list of KB paths read, a coverage comparison table, explanations, or multi-line background.
-- Only suggest; do not automatically run `f2s-kb-distill`.
+- case 1～3：输出一个 Markdown 引用块，依次写 `f2s-kb-distill` 命令 + 一行空行 + **本轮将入库**概要（一句话，见上文「概要要求」）。
+- case 4：输出一个 Markdown 引用块，标明"知识库已覆盖"+ 关联 topicId。
+- 禁止省略本块；禁止输出已读 KB 路径列表、覆盖对照表、原因解释或多行背景。
+- 只提示，不自动执行 `f2s-kb-distill`。

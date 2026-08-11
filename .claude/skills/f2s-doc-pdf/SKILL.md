@@ -1,69 +1,70 @@
 ---
 name: f2s-doc-pdf
-description: Convert a PDF technical design into Markdown and save it under req-docs, with optional flow-description completion; triggers: PDF转MD、按方案实现前的 PDF、PDF to Markdown、technical design PDF
+description: 将 PDF 技术方案转为 Markdown 并保存到 req-docs，可补全流程说明；触发：PDF转MD、按方案实现前的 PDF
 ---
 
-> Execution scope: technical design documents are written to `.Knowledge/req-docs/`; rule capabilities are still loaded from the config-root `rules/skills`.
+> 执行口径：技术方案文档统一落在 `.Knowledge/req-docs/`；规则能力仍由配置根 `rules/skills` 加载。
 
-## Orchestration (main / sub agent)
+## 编排（主 / 子 agent）
 
-- The semantics of `subAgent` / `switchAgentVerification` use the unified entry as the only source of truth: **Cursor/Claude** read the config-root `rules/f2s-flow2spec-unified-entry.*`; **Codex** reads `.codex/topics/f2s-flow2spec-unified-entry.md` (same source, mirrored by `flow2spec init`). This document does not restate those semantics.
-- **Do not split by default**: follow-up questions and disk writes must be completed in the main agent session. A sub agent cannot ask the user follow-up questions.
-- **Optional split**: enable only when `subAgent=true` and the PDF exceeds the threshold (**> 50 pages or > ~5MB of text**). The sub agent is responsible only for the first PDF-to-MD draft and writes `.Knowledge/req-docs/<name>.md`; it must **not ask follow-up questions and must not write the "Flow Description" section**. The main agent then handles follow-up questions and flow-description completion.
-- Verification is performed by the writing agent by default. This skill does not bind to cross-agent verification.
+- 两字段（`subAgent` / `switchAgentVerification`）语义以统一入口为唯一事实源：**Cursor/Claude** 读配置根 `rules/f2s-flow2spec-unified-entry.*`；**Codex** 读 `.codex/topics/f2s-flow2spec-unified-entry.md`（与上同源，`flow2spec init` 镜像）。本文不复述。
+- **默认不拆子**：追问-落盘必须在主 agent 内完成（子 agent 无法向用户追问）。
+- **可选拆子**：仅当 `subAgent=true` 且 PDF 规模超阈值（**> 50 页 或 > ~5MB 文本**）时启用；子 agent 仅负责 PDF→MD 首稿并落盘 `.Knowledge/req-docs/<名>.md`，**不向用户追问、不写「流程说明」章节**；主 agent 接手后续追问与流程图补写。
+- 校验默认由落盘侧 agent 自验；本 SKILL 不绑定交叉校验。
 
-# Convert a PDF Technical Design to Markdown (and Complete Flow Descriptions)
+# 将 PDF 技术方案文档转为 Markdown（并补全流程说明）
 
-The user provides **one argument** after this skill: the local path to the **PDF technical design document** (for example `~/Downloads/技术方案.pdf` or `.Knowledge/req-docs/某草稿.pdf`). Follow the steps below to convert the PDF into Markdown, save it under `.Knowledge/req-docs/`, and guide the user to complete flow descriptions when needed.
+用户会在本技能后附带**一个参数**：**PDF 技术方案文档的本地路径**（如 `~/Downloads/技术方案.pdf`，或 `.Knowledge/req-docs/某草稿.pdf`）。请按以下步骤执行，将 PDF 转为 Markdown 并保存到 `.Knowledge/req-docs/`，必要时引导用户补全流程说明。
 
-## Step 1: Read the PDF and Convert It to Markdown
+## 步骤 1：读取 PDF 并转为 Markdown
 
-1. If sub-agent splitting is enabled (PDF > 50 pages or > ~5MB), the sub agent is responsible only for the PDF-to-MD draft and writes `req-docs/<name>.md`; it does not ask follow-up questions and does not write flow descriptions. The main agent takes over the following steps. **Read** the PDF file provided by the user, extract its **text content** (preserving tables, sections, lists, code blocks, and other structure as much as possible), and organize it as Markdown.
-2. **Save it to** `.Knowledge/req-docs/`. Recommended path: `.Knowledge/req-docs/<design-name>.md`. The filename should be the original PDF filename with `.pdf` replaced by `.md`.
-3. If the directory does not exist, create it before writing.
-4. After saving, tell the user: "The PDF has been converted to Markdown and saved as `xxx.md`."
-
----
-
-## Step 2: Ask the User for Flow Diagrams (Optional but Recommended)
-
-Embedded **flow diagrams** in the PDF cannot be parsed directly into steps and branches. If code will be implemented based on the diagram, the user needs to provide additional material.
-
-1. Tell the user: "The document may contain flow diagrams, and I cannot reliably parse the steps and branches inside those diagrams from the PDF. If you will later implement code from this technical design (see the `implement-tech-design` rule), I recommend completing the flow description:
-  - **Option 1**: send the relevant flow diagram images in this conversation; I will parse them and write a textual version into the MD file above.
-  - **Option 2**: describe each API/flow in text directly (for example: 1. Is the user logged in? 2. Query a table. 3. Check a field -> return the result); I will write it into the MD file as provided.
-   If the document has no flow diagram or you do not want to provide one now, reply `skip`, and I will finish this skill."
-2. **If the user replies `skip` or clearly says no flow description is needed**: tell the user, "Provide the MD path above in the conversation and say that you want to implement code from the technical design; I will follow the `implement-tech-design` rule." Then stop.
-3. **If the user provides a flow diagram image or text**: proceed to Step 3.
+1. 若启用拆子（PDF > 50 页 或 > ~5MB），子 agent 仅负责 PDF→MD 首稿并落盘 `req-docs/<名>.md`，不追问、不写流程说明；主 agent 接手后续步骤。**读取**用户传入的 PDF 文件，提取其中的**文字内容**（表格、章节、列表、代码块等尽量保留结构），整理为 Markdown 格式。
+2. **保存到** `.Knowledge/req-docs/`，推荐路径：`.Knowledge/req-docs/<方案名>.md`。文件名为原 PDF 文件名去掉 `.pdf` 后加 `.md`。
+3. 若目录不存在，先创建再写入。
+4. 保存后告知用户：「已将该 PDF 转为 Markdown 并保存为 `xxx.md`。」
 
 ---
 
-## Step 3: Write the Flow Description into the MD File
+## 步骤 2：向用户提问获取流程图（可选但推荐）
 
-1. If the user provides an **image**: parse the steps, decision branches, and returns in the image, then organize them as textual steps.
-2. If the user provides **text**: use it directly.
-3. **Append** the flow content to the end of that MD file, or add a new "Flow Description" section. Example format:
+PDF 内嵌的**流程图**无法被直接解析为步骤与分支，若需按图实现代码，需用户配合提供。
+
+1. 向用户说明：「文档中可能包含流程图，我无法从 PDF 中解析图中的步骤与分支。若您后续会根据技术方案实现代码（见 `implement-tech-design` 规则），建议补全流程说明：
+  - **方式一**：将相关流程图以**图片形式**发到本次对话中，我将解析后以文字形式写入上述 MD；  
+  - **方式二**：直接以**文字描述**每个接口/流程的步骤（如：1. 是否登录 2. 查某表 3. 判断某字段 → 返回结果），我将原样写入上述 MD。  
+   若文档无流程图或暂不提供，可回复「跳过」，我将结束本技能。」
+2. **若用户回复「跳过」或明确表示无需流程说明**：告知用户「在对话中提供上述 MD 路径并说明按技术方案实现代码，我将按 `implement-tech-design` 规则执行。」并结束。
+3. **若用户提供流程图（图片或文字）**：进入步骤 3。
+
+---
+
+## 步骤 3：将流程说明写入该 MD
+
+1. 若用户提供的是**图片**：解析图片中的步骤、判断分支与返回，整理为文字步骤。
+2. 若用户提供的是**文字**：直接采用。
+3. 在该 MD 文件末尾（或新增「流程说明」章节）**追加**流程内容，格式示例：
 
 ```markdown
-## Flow Description (provided by the user / parsed from a flow diagram)
+## 流程说明（由用户提供 / 由流程图解析）
 
-### Example API A
-1. Frontend sends the request
-2. Backend queries the latest record from a table
-3. Check: does a certain ID exist? yes -> return true, no -> return false
-4. Return result
+### 示例接口 A
+1. 前端发起请求
+2. 后端：查询某表最后一条记录
+3. 判断：是否有某 ID？是 → 返回 true，否 → 返回 false
+4. 返回结果
 
-### Example API B
-1. Is the user logged in? -> no: return 401
-2. Is it expired? -> yes: return 403
+### 示例接口 B
+1. 是否登录 → 否 返回 401
+2. 是否过期 → 是 返回 403
 …
 ```
 
-1. After saving, tell the user: "The flow description has been written to `xxx.md`. Next, provide this MD path in the conversation and say that you want to implement code from the technical design; I will follow the `implement-tech-design` rule."
+1. 保存后告知用户：「流程说明已写入 `xxx.md`。接下来请在对话中提供该 MD 路径并说明要按技术方案实现代码，我将按 `implement-tech-design` 规则执行。」
 
 ---
 
-## Constraints and Summary
+## 约束与小结
 
-- **Path**: the PDF path provided by the user may be absolute or relative to the project root. The output MD should be saved to `.Knowledge/req-docs/<design-name>.md` (`req-docs` stores implementation documents, while `stock-docs` stores knowledge-source documents).
-- **This skill only handles**: PDF -> Markdown conversion plus optional flow-description completion. It does not implement code. After completion, you may tell the user: provide the generated MD path in the conversation and say that implementation should follow the technical design; the AI will follow **f2s-implement-tech-design.mdc**.
+- **路径**：用户传入的 PDF 路径可为绝对路径或相对项目根。输出 MD 建议保存在 `.Knowledge/req-docs/<方案名>.md`（`req-docs` 放实现文档，`stock-docs` 放知识沉淀源文档）。
+- **本技能仅负责**：PDF → Markdown 转换 + 可选流程说明补全；不执行代码实现。完成后可提示用户：在对话中提供生成的 MD 路径并说明按技术方案实现，AI 将按 **f2s-implement-tech-design.mdc** 执行。
+

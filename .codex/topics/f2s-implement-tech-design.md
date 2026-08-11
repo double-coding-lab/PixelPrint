@@ -1,140 +1,140 @@
-> **Task paths**: all `.task/` reads/writes must use **`TASK_ROOT` from `rules/f2s-task`** (` .task` or `.task/<developerId>`; config → git → legacy). Bare `.task/todo.json` / `.task/active/` below mean **`TASK_ROOT/...`**.
+> **任务路径**：凡 `.task/` 落盘与续作，**必须以 `rules/f2s-task` 解析的 `TASK_ROOT` 为准（`.task` 或 `.task/<developerId>`；config → git → legacy）。下文若仍出现 `.task/todo.json` / `.task/active/`，均视为 **`TASK_ROOT/...` 的简写**。
 
 
-> **Single long-form rule**: this file is the complete execution rule for **implement-tech-design**. `.Knowledge/topics/f2s-implement-tech-design.md` is only a routing summary; **Codex** reads `.codex/topics/f2s-implement-tech-design.md` (automatically mirrored from this file by `flow2spec init`) as the equivalent rule text.
+> **唯一长文**：本文件为 **implement-tech-design** 的完整执行条令。`.Knowledge/topics/f2s-implement-tech-design.md` 仅为路由摘要；**Codex** 读取 `.codex/topics/f2s-implement-tech-design.md`（由 `flow2spec init` 从本文件自动镜像）作为等效条令。
 
-> Execution scope: the unified knowledge-base path is `/.Knowledge/`. All paths below are interpreted according to the `.Knowledge` convention.
+> 执行口径：统一知识库路径为 `/.Knowledge/`。下文所有路径均按 `.Knowledge` 约定解释。
 
-# Implement Deliverables From a Technical Design (General)
+# 基于技术方案实现交付物（通用）
 
-When the user asks to implement a runnable deliverable based on a **technical design document** (the user provides a document path such as `.Knowledge/req-docs/xxx.md`, or a PDF), follow these conventions.
+当用户要求根据**技术方案文档**实现可运行交付物时（用户会提供文档路径，如 `.Knowledge/req-docs/xxx.md` 或 PDF），按以下约定执行。
 
-**Directory convention**: `.Knowledge/req-docs/` stores technical designs "used for implementation"; `.Knowledge/stock-docs/` stores consolidated documents and must not be used as direct coding input.
+**目录约定**：`.Knowledge/req-docs/` 放“用于实现”的技术方案；`.Knowledge/stock-docs/` 放沉淀文档，不作为直接编码输入。
 
-**Trigger note**: this rule auto-loads when opening `.md` files under `req-docs` (`**/req-docs/**/*.md`). If the technical design was not opened before the conversation, the user may @ this rule in the conversation and then provide the path.
+**触发说明**：本规则在打开 `req-docs` 下 `.md` 时自动加载（`**/req-docs/**/*.md`）。若对话前未打开技术方案，可在对话中 @ 本规则后再提供路径。
 
-- If the user provides a PDF: first run `f2s-doc-pdf`, convert the PDF to MD under `.Knowledge/req-docs/`, then continue.
-- If the user provides MD/text: read it directly and enter the implementation flow.
-
----
-
-## 1. Goals and Principles
-
-- **Goal**: implement a runnable deliverable from the technical design while staying consistent with existing project conventions. Deliverables may include frontend pages/components, backend APIs/services, data-processing logic, task orchestration, scripts, configuration, and similar items, trimmed to the design's actual scope.
-- **Principles**:
-  1. **List tasks before acting**: output the "implementation task list" before asking questions or implementing.
-  2. **Read before doing**: fully understand the design, boundaries, dependencies, and acceptance criteria before coding.
-  3. **Align with project conventions**: directory, naming, dependencies, encapsulation, error handling, and existing project style must match.
-  4. **Ask when something is missing**: confirm key decisions not specified in the document; unanswered items go into the pending list.
-  5. **Make the result executable**: provide verification steps and external todos so the user can complete acceptance.
+- 若用户提供的是 PDF：先执行 `f2s-doc-pdf`，将 PDF 转为 `.Knowledge/req-docs/` 下 MD，再继续。
+- 若用户提供的是 MD/文本：直接读取并进入实现流程。
 
 ---
 
-## 2. Design Elements and Implementation Mapping (General)
+## 一、目标与原则
 
-| Technical design content | Implementation action (land according to project conventions) |
+- **目标**：基于技术方案实现可运行交付物，并与项目现有约定保持一致。交付物可以是前端页面/组件、后端接口/服务、数据处理逻辑、任务编排、脚本与配置等（按方案实际范围裁剪）。
+- **原则**：
+  1. **先列任务再动手**：先输出「实现任务列表」，再提问与实现。
+  2. **先读后做**：先完整理解方案、边界、依赖、验收标准，再编码。
+  3. **对齐项目约定**：目录、命名、依赖、封装方式、错误处理与项目既有风格一致。
+  4. **缺项即问**：文档未明确的关键决策先向用户确认；未回复项进入待完成列表。
+  5. **实现后可执行**：必须给出验证方式与外部待办，确保用户可落地验收。
+
+---
+
+## 二、方案要素与实现映射（通用）
+
+| 技术方案内容 | 实现动作（按项目约定落地） |
 | --- | --- |
-| Requirement goal / scope / non-goals | Clarify the implementation boundary for this turn and avoid out-of-scope development. |
-| Key flow / state transitions / sequence | Implement the main flow and branches, adding brief comments at key decision points. |
-| Data structure / protocol / field constraints | Land type definitions, models, validators, or contract layers. |
-| APIs / events / messages | Implement call entry points, event handlers, subscriptions, or callbacks, choosing based on design scope. |
-| Pages / components / interactions | Implement UI structure, state management, interaction flow, and fault-tolerant prompts when the design covers UI. |
-| Configuration / switches / environment differences | Register and read them in project-conventional locations; add defaults and fallback strategy. |
-| Error codes / exception strategy / retries | Unify error returns and logging strategy, matching existing wrappers. |
-| Release / routing / permissions / task scheduling | Implement the corresponding code and remind the user to finish platform-side configuration when relevant. |
+| 需求目标 / 范围 / 非目标 | 明确本次实现边界，避免超范围开发。 |
+| 关键流程 / 状态流转 / 时序 | 实现主流程与分支，关键判断处加简短注释。 |
+| 数据结构 / 协议 / 字段约束 | 落地类型定义、模型、校验器或契约层。 |
+| 接口 / 事件 / 消息 | 实现调用入口、事件处理、订阅或回调（按方案涉及项选择）。 |
+| 页面 / 组件 / 交互 | 实现 UI 结构、状态管理、交互流程与容错提示（若方案涉及）。 |
+| 配置 / 开关 / 环境差异 | 在项目约定位置注册并读取，补齐默认值和降级策略。 |
+| 错误码 / 异常策略 / 重试 | 统一错误返回与日志策略，保持与现有封装一致。 |
+| 发布 / 路由 / 权限 / 任务调度 | 实现对应代码并提醒用户完成平台侧配置（若方案涉及）。 |
 
-### Flowchart Handling (Important)
+### 流程图处理（重要）
 
-- If the flowchart is a PDF/image without textual steps, first ask the user for a textual flow or supplementary document.
-- If textual steps already exist, implement strictly in their order and branches.
-- When branches cannot be confirmed, ask first, or implement with a default strategy and record it in the pending list.
+- 若流程图是 PDF/图片且无文字步骤，先向用户索要文字版流程或补充文档；
+- 若已有文字步骤，严格按顺序和分支实现；
+- 无法确认分支时先提问，或按默认策略实现并写入待完成列表。
 
 ---
 
-## 3. Execution Steps
+## 三、执行步骤
 
-### Step 1: Normalize Input
+### 步骤 1：输入标准化
 
-- PDF input: first run `f2s-doc-pdf` and obtain `.Knowledge/req-docs/*.md`.
-- MD/text input: read directly.
+- PDF 输入：先执行 `f2s-doc-pdf`，得到 `.Knowledge/req-docs/*.md`。
+- MD/文本输入：直接读取。
 
-### Step 2: Understand the Design and Context
+### 步骤 2：理解方案与上下文
 
-1. Read the full technical design and extract: goals, scope, flow, APIs/interactions, data, configuration, dependencies, and acceptance conditions.
-2. Read project conventions such as README, `.Knowledge/stock-docs/`, architecture notes, and existing modules to align implementation style.
-3. If a flowchart lacks textual explanation, record the gap first and confirm it with the user in step 3.
+1. 读取技术方案全文，提取：目标、范围、流程、接口/交互、数据、配置、依赖、验收条件。
+2. 读取项目约定（如 README、`.Knowledge/stock-docs/`、架构说明、既有模块）以对齐实现风格。
+3. 若流程图缺文字说明，先记录缺口，进入步骤 3 一并向用户确认。
 
-### Step 2.5: Output the Implementation Task List First (Mandatory)
+### 步骤 2.5：先输出实现任务列表（必做）
 
-Before asking questions or coding, output a task list first (trim as appropriate for the design):
+在提问或编码前，必须先输出任务列表（可按方案裁剪）：
 
 ```markdown
-## Implementation Task List (Based on the Technical Design "xxx")
+## 实现任务列表（基于《xxx》技术方案）
 
-| No. | Task | Notes |
+| 序号 | 任务项 | 说明 |
 | --- | --- | --- |
-| 1 | Core structure and data contracts | Land types/models/validation rules and clarify inputs/outputs. |
-| 2 | Business flow implementation | Implement the main path and branches according to the flowchart/text steps. |
-| 3 | External capability integration | Implement external entry points such as APIs/events/page interactions. |
-| 4 | Configuration and exception handling | Register configuration, handle errors, and add retry/fallback strategies. |
-| 5 | Verification and closing | Provide self-test notes, pending list, and platform-side reminders. |
+| 1 | 核心结构与数据契约 | 落地类型/模型/校验规则，明确输入输出。 |
+| 2 | 业务流程实现 | 按流程图/文字步骤实现主链路与分支。 |
+| 3 | 对外能力接入 | 接口/事件/页面交互等对外入口实现。 |
+| 4 | 配置与异常处理 | 配置注册、错误处理、重试/降级策略。 |
+| 5 | 验证与收尾 | 自测说明、待完成列表、平台侧提醒。 |
 ```
 
-If `changeTracking.implement: true`, after outputting the task list, write this checklist to `.task/active/<task-name>/task.md` according to the `f2s-task` rule.
+若 `changeTracking.implement: true`，在输出任务列表后，按 `f2s-task` 规则将本清单写入 `.task/active/<task-name>/task.md`。
 
-### Step 2.6: Sync Change Tracking With `task.md` / `user-todos.md` (Only When `changeTracking.implement: true`)
+### 步骤 2.6：变更追踪与 `task.md` / `user-todos.md` 同步（仅当 `changeTracking.implement: true`）
 
-- Whenever work corresponding to an implementation task-list item is completed, use `Edit` **in the same session** to update the corresponding `[ ]` -> `[x]` in `.task/active/<task-name>/task.md`. Do not defer this to closing, and do not replace disk updates with verbal completion claims (see `f2s-task` "During execution" and "Interruption and session end").
-- Whenever an item appears during execution that **must be done by the user** (database changes, environment configuration, etc.), append it **in the same session** to `.task/active/<task-name>/user-todos.md` (see `f2s-task` "user-todos.md").
+- 每完成实现任务列表中一项对应工作，**同一会话内**用 `Edit` 更新 `.task/active/<task-name>/task.md` 中对应 `[ ]`→`[x]`，禁止积压到收尾、禁止口头完成代替写盘（见 `f2s-task`「执行中」「中断与会话结束」）。
+- 执行过程中每出现**须用户执行**的项（改库、配环境等），**同会话内**追加到 `.task/active/<task-name>/user-todos.md`（见 `f2s-task`「user-todos.md」）。
 
-### Step 3: Ask Pre-Implementation Questions (Mandatory; Do Not Skip)
+### 步骤 3：实现前提问（必做，不可跳过）
 
-Before coding, list all unclear items at once and ask the user to confirm. Common questions:
+进入编码前，必须一次性列出未明确项并请用户确认。常见问题：
 
-- **Scope and acceptance**: what must be delivered in this turn, and what is explicitly out of scope;
-- **Technical boundary**: which module/side to implement in (frontend, backend, script, data task, etc.);
-- **Dependencies and contracts**: external APIs, message protocols, data sources, authentication method;
-- **Configuration and environment**: configuration key, environment differences, defaults, and rollout strategy;
-- **Flowchart gaps**: branch conditions, failure fallback, timeout and retry strategy;
-- **Release constraints**: whether routing, permissions, scheduling, and deployment steps are ready.
+- **范围与验收**：本次必须交付什么，哪些明确不做；
+- **技术边界**：实现在哪个模块/端（前端、后端、脚本、数据任务等）；
+- **依赖与契约**：外部接口、消息协议、数据源、鉴权方式；
+- **配置与环境**：配置 key、环境差异、默认值与灰度策略；
+- **流程图缺口**：分支条件、失败回退、超时与重试策略；
+- **发布约束**：路由、权限、调度、部署步骤是否已具备。
 
-If the user does not answer an item, implement using a reasonable default or placeholder and mark it as "requires user confirmation" in the pending list.
+若用户未回复某项：按合理默认或占位实现，并在待完成列表中标注“需用户确认”。
 
-### Step 4: Implement According to the Task List
+### 步骤 4：按任务列表实现
 
-Trim the order according to the design and the actual project. Recommended sequence:
+按方案与项目实际裁剪顺序，建议：
 
-1. Land data/contracts and shared abstractions first;
-2. Implement the main flow and core capability next;
-3. Integrate entry layers such as APIs/pages/events/tasks next;
-4. Finally add configuration, exception handling, logging, and test helpers.
+1. 先落地数据/契约与公共抽象；
+2. 再实现主流程与核心能力；
+3. 再接入入口层（接口/页面/事件/任务）；
+4. 最后补齐配置、异常处理、日志与测试辅助。
 
-Requirements: reuse existing dependencies and wrappers; match project naming, directory, and style; keep key branches readable and maintainable.
+要求：复用现有依赖与封装；与项目命名/目录/风格一致；关键分支要可读、可维护。
 
-### Step 5: Closing Output (Mandatory)
+### 步骤 5：收尾输出（必做）
 
-1. **Pending list (mandatory)**: list every item still requiring user or platform completion.
-2. **Post-implementation reminder list (mandatory)**: remind about configuration, dependencies, data, release, permissions, scheduling, and similar items according to the actual scope.
-3. **Verification suggestions (recommended)**: provide the minimal executable verification steps (local, test environment, or regression path).
-4. **Persist user todos (only when `changeTracking.implement: true`)**: append the items from step 5 points 1-2 that **must be executed by the user** (database scripts, configuration, approvals, etc.) to `.task/active/<task-name>/user-todos.md` (create the file first if missing; see `f2s-task`). Do not leave them only in the conversation or at the end of the design without writing this file.
-5. If `changeTracking.implement: true`: **first confirm** every item under `task.md` "Steps" is `[x]` (or canceled items are recorded in notes), then after satisfying the `f2s-task` archive gate, move `.task/active/<task-name>/` to `.task/completed/<YYYYMMDD>-<task-name>/` and remove the corresponding entry from `todo.json`. Do not archive while any `[ ]` remains.
-
----
-
-## 4. Optional Additions
-
-- If the design naming is unclear, suggest a name first and ask the user to confirm.
-- If the design scope is large, split delivery into "minimum viable version -> incremental iterations".
-- If the user wants to consolidate knowledge into the KB, remind them that `f2s-kb-build` can later sync topics and routing.
+1. **待完成列表（必须）**：列出所有待用户或平台补齐项；
+2. **实现后提醒清单（必须）**：按实际涉及内容提醒配置、依赖、数据、发布、权限、调度等；
+3. **验证建议（建议）**：给出最小可执行验证步骤（本地、测试环境或回归路径）。
+4. **用户代办落盘（仅当 `changeTracking.implement: true`）**：将步骤 5 第 1–2 点中**须用户亲自执行**的条目（改库脚本、配置、审批等）**同步追加**到 `.task/active/<task-name>/user-todos.md`（若尚无该文件则先创建，见 `f2s-task`）；禁止仅出现在对话或方案尾部的列表而不写入该文件。
+5. 若 `changeTracking.implement: true`：**先确认** `task.md`「步骤」已全部 `[x]`（或备注已记录取消项），满足 `f2s-task` 归档门禁后，再将 `.task/active/<task-name>/` 移至 `.task/completed/<YYYYMMDD>-<task-name>/`，并从 `todo.json` 删除对应条目；禁止在仍有 `[ ]` 时归档。
 
 ---
 
-## 5. Constraints and Summary
+## 四、可选补充
 
-- PDFs must be converted to MD before entering the implementation flow.
-- Do not skip step 2.5 (task list) or step 3 (pre-implementation questions) and code directly.
-- If `changeTracking.implement: true`: do not skip step 2.6 (write back `task.md` checkboxes as implementation progresses and append `user-todos.md`); archiving must satisfy the `f2s-task` archive gate.
-- The output must include a pending list and post-implementation reminder list. If `changeTracking.implement: true`, user-side items in those lists must be synced into `user-todos.md`.
-- Keep the content general. Do not assume a "backend only" scenario; trim implementation objects according to the design's actual scope.
+- 若方案命名不明确，可先给出命名建议并请用户确认；
+- 若方案跨度大，可按“最小可用版本 -> 增量迭代”拆分阶段交付；
+- 若用户希望沉淀知识库，可提醒后续用 `f2s-kb-build` 同步主题与路由。
 
-When complete, a one-sentence summary may be used: this round of implementation based on the "xxx" technical design is complete, with pending items and verification suggestions provided; please complete the platform and environment-side configuration according to the checklist before acceptance.
+---
+
+## 五、约束与小结
+
+- PDF 必须先转 MD，再进入实现流程；
+- 不得跳过步骤 2.5（任务列表）与步骤 3（实现前提问）直接编码；
+- 若 `changeTracking.implement: true`：不得跳过步骤 2.6（随实现进度写回 `task.md` checkbox，并追加 `user-todos.md`）；归档须满足 `f2s-task` 归档门禁；
+- 输出中必须包含待完成列表与实现后提醒清单；若 `changeTracking.implement: true`，其中用户侧项须同步写入 `user-todos.md`；
+- 内容保持通用，不预设“仅后端”场景，按方案实际范围裁剪实现对象。
+
+完成时可用一句话总结：已基于《xxx》技术方案完成本轮实现并给出待完成与验证建议，请按清单补齐平台与环境侧配置后验收。

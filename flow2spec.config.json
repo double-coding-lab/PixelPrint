@@ -1,5 +1,4 @@
 {
-  "locale": "en-US",
   "subAgent": true,
   "switchAgentVerification": true,
   "intentRecognition": true,
@@ -13,5 +12,6 @@
   },
   "collaboration": {
     "enabled": true
-  }
+  },
+  "locale": "zh-CN"
 }

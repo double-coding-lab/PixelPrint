@@ -1,76 +1,76 @@
 ---
-description: Karpathy-style coding behavior guidelines: clarify assumptions first, implement minimally, change only what is necessary, and execute against verifiable goals. Coexists with f2s-* rules; process hard constraints defer to f2s.
+description: Karpathy 式编码行为准则：先澄清假设、极简实现、只改必要处、用可验证目标驱动执行。与 f2s-* 规则并存；流程类硬约束以 f2s 为准。
 ---
 
-# Karpathy-Style Coding Behavior Guidelines
+# Karpathy 式编码行为准则
 
-> Runs **in parallel** with the project's Flow2Spec / `f2s-*` rules. If any item conflicts with a mandatory f2s step, **f2s and project conventions take precedence**.
+> 与项目内 Flow2Spec / `f2s-*` 规则**并行**；若某条与 f2s 强制步骤冲突，**以 f2s 与项目约定为准**。
 
-Behavior conventions for reducing common "model writes code" mistakes.
+用于减少常见「模型写代码」失误的行为约定。
 
-**Tradeoff:** These guidelines favor **carefulness over pure speed**. For obviously tiny changes, such as a one-line typo, use judgment instead of applying every item rigidly.
+**取舍：** 这些准则偏向**稳妥而非一味求快**；对明显琐碎的修改（如单行笔误）可自行把握，不必条条刻板执行。
 
-## 1. Think Clearly Before Writing Code
+## 1. 先想清楚再写代码
 
-**Do not assume, do not hide confusion, and put tradeoffs on the table.**
+**不要默认、不要藏困惑、把权衡摆到台面上。**
 
-Before implementing:
+动手实现前：
 
-- **State assumptions clearly**; ask when uncertain instead of guessing.
-- **List multiple possible interpretations** when they exist; do not silently choose one and proceed.
-- **Propose the simpler approach** when one exists; push back when pushback is warranted.
-- **Stop when unclear**: name the confusion and ask the user for information.
+- **假设要说清楚**；不确定就问，不要猜。
+- **有多种理解时并列说明**，不要悄悄选一种就跑。
+- **若有更简单做法**，主动提出；该反对时要反对。
+- **说不清就停**：点名哪里困惑，再向用户要信息。
 
-## 2. Prefer Simplicity
+## 2. 简单优先
 
-**Solve the problem with the least code; do not add speculative extensions.**
+**用最少代码解决问题，不做臆测性扩展。**
 
-- Do not add features beyond the request.
-- Do not create abstractions for code used only once.
-- Do not add unrequested "flexibility" or "configurability".
-- Do not pile on error handling for scenarios that are nearly impossible.
-- If you wrote 200 lines where 50 are enough, **rewrite it**.
+- 不要超出需求加功能。
+- 不要为只用一次的代码抽抽象。
+- 不要加未被要求的「灵活性」「可配置」。
+- 不要为几乎不可能的场景堆错误处理。
+- 若写了 200 行其实 50 行就够，**重写**。
 
-Ask yourself: "Would a senior engineer consider this over-designed?" If yes, simplify.
+自问：「资深工程师会不会觉得过度设计？」若是，就简化。
 
-## 3. Make Surgical Changes
+## 3. 手术式修改
 
-**Change only what needs changing; clean up only what your change disturbed.**
+**只动该动的；只收拾自己弄乱的。**
 
-When editing existing code:
+改已有代码时：
 
-- Do not casually "optimize" adjacent code, comments, or formatting.
-- Do not refactor things that are not broken.
-- **Match the existing code style**, even if your personal preference differs.
-- If you notice dead code unrelated to the task, **you may mention it; do not delete it on your own**.
+- 不要顺手「优化」相邻代码、注释或格式。
+- 不要重构没坏的东西。
+- **风格对齐现有代码**，即使你个人偏好不同。
+- 若发现与任务无关的死代码，**可以提一嘴，不要擅自删**。
 
-If your change creates orphaned references or variables:
+若你的改动产生了孤儿引用/变量：
 
-- **Remove imports, variables, and functions that became unused because of this change**.
-- **Do not** delete dead code that already existed unless the user asked for it.
+- **删掉因你这次改动而不再使用的** import、变量、函数。
+- **不要**在用户未要求时删除**原本就存在**的死代码。
 
-Validation standard: **every changed line can be traced back to the user's explicit request**.
+检验标准：**每一行改动都能追溯到用户的明确诉求。**
 
-## 4. Execute Against Goals
+## 4. 目标驱动执行
 
-**Define success criteria first, then iterate until they are verifiably met.**
+**先定义成功标准，再循环直到可验证地达成。**
 
-Turn the task into verifiable goals, for example:
+把任务变成可验证目标，例如：
 
-- "Add validation" -> "write an invalid-input test first, then change code until it passes"
-- "Fix bug" -> "write a reproducing test first, then change code until it passes"
-- "Refactor X" -> "the test suite passes before and after"
+- 「加校验」→「先写非法入参测试，再改到通过」
+- 「修 bug」→「先写能复现的测试，再改到通过」
+- 「重构 X」→「前后测试套件均通过」
 
-For multi-step tasks, a short plan can be written:
+多步骤任务可写简短计划：
 
 ```
-1. [Step] -> Verify: [check method]
-2. [Step] -> Verify: [check method]
-3. [Step] -> Verify: [check method]
+1. [步骤] → 验证：[检查方式]
+2. [步骤] → 验证：[检查方式]
+3. [步骤] → 验证：[检查方式]
 ```
 
-The more concrete the success criteria, the easier it is to iterate independently; vague "just make it work" goals tend to cause repeated clarification.
+成功标准越具体，越能独立迭代；含糊的「跑通就行」会逼出反复追问。
 
 ---
 
-**Signals that the guidelines are working:** fewer unrelated changes in diffs, less rework from over-design, and **clarifying questions appear before implementation** rather than after a wrong implementation.
+**准则在起作用的信号：** diff 里无关改动变少、因过度设计返工变少、**澄清问题出现在实现之前**而不是做错之后。

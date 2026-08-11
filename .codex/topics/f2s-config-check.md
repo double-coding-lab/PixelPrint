@@ -1,45 +1,45 @@
-> **Task paths**: all `.task/` reads/writes must use **`TASK_ROOT` from `rules/f2s-task`** (` .task` or `.task/<developerId>`; config → git → legacy). Bare `.task/todo.json` / `.task/active/` below mean **`TASK_ROOT/...`**.
+> **任务路径**：凡 `.task/` 落盘与续作，**必须以 `rules/f2s-task` 解析的 `TASK_ROOT` 为准（`.task` 或 `.task/<developerId>`；config → git → legacy）。下文若仍出现 `.task/todo.json` / `.task/active/`，均视为 **`TASK_ROOT/...` 的简写**。
 
 
-# Mandatory Preflight for f2s Skills
+# f2s 技能前置强制步骤
 
-**The first action before running any `f2s-*` skill must be to read the project-root `flow2spec.config.json` with the Read tool**, obtain the actual `subAgent` and `switchAgentVerification` values, and then decide the orchestration approach.
+**执行任何 `f2s-*` 技能的第一个动作，必须用 Read 工具读取项目根 `flow2spec.config.json`**，获取 `subAgent` 与 `switchAgentVerification` 的实际值，再决定后续编排方式。
 
 ```
-Required: Read("flow2spec.config.json")  <- before any step in the skill body
+必须执行：Read("flow2spec.config.json")  ← 技能正文任何步骤之前
 ```
 
-| Read result | Behavior |
+| 读取结果 | 行为 |
 |---------|------|
-| `subAgent: true` | First make an explicit decision about whether the current skill meets the split preconditions / scale threshold; if it does, follow the skill's B/C mode to dispatch sub agents and record "whether this run split work, to whom, and why"; otherwise continue in the main agent, but still output the no-split reason |
-| `subAgent: false` | Complete everything in the main agent; do not split work to sub agents |
-| `switchAgentVerification: true` | Writes from a sub agent are verified by the main agent; writes from the main agent are verified by a sub agent (requires `subAgent=true` and an actual split subtask) |
-| `switchAgentVerification: false` | The writing side verifies its own work; no cross-verification |
-| File does not exist | Treat every field as `false` |
+| `subAgent: true` | 先显式判断当前技能是否满足拆子前提 / 规模阈值；满足时按技能 SKILL.md 的 B/C 模式派子 agent，并在回复或执行记录中写明「本次是否拆子、拆给谁、为什么」；不满足时主 agent 继续完成，但也必须输出不拆原因 |
+| `subAgent: false` | 全部在主 agent 内完成，不得拆子 agent |
+| `switchAgentVerification: true` | 子 agent 落盘的由主 agent 校验；主 agent 落盘的由子 agent 校验（须 subAgent=true 且已拆子任务） |
+| `switchAgentVerification: false` | 落盘侧自验，不交叉 |
+| 文件不存在 | 所有字段均视为 `false` |
 
-**Claude Code**: `f2s-config-session` injects one configuration summary at `SessionStart`; `f2s-config-inject` only acts as a guard reminder in `PreToolUse`, reminding that the first step before invoking an `f2s-*` Skill must be `Read("flow2spec.config.json")`. Neither replaces the Read requirement in this rule.
+**Claude Code**：`f2s-config-session` 在 `SessionStart` 注入一次配置摘要；`f2s-config-inject` 在 `PreToolUse` 仅作为守门提示，提醒调用 `f2s-*` Skill 前首步必须 `Read("flow2spec.config.json")`。两者都**不替代**本条 Read 要求。
 
-**Cursor**: configuration reading still relies on text constraints (this `alwaysApply` rule) and does not depend on hooks reading configuration automatically.
+**Cursor**：配置读取仍走文本约束（本规则 `alwaysApply`），不依赖 hook 自动读取配置。
 
-**Codex**: `SessionStart` injects one configuration summary, but before entering any `f2s-*` skill body you still must `Read("flow2spec.config.json")`. When `subAgent=true`, the main agent **must first make an explicit split/no-split decision** for the current skill based on its preconditions / thresholds before deciding whether to dispatch sub agents; even when deciding not to split, it must output the no-split reason. Codex does **not** have Claude's `PreToolUse Skill` guard, so this decision cannot remain implicit.
+**Codex**：`SessionStart` 会注入一次配置摘要；进入 `f2s-*` Skill 正文前仍必须 `Read("flow2spec.config.json")`，且当 `subAgent=true` 时，主 agent **必须先显式判断**当前技能是否满足拆子前提 / 阈值，再决定是否派子；即使判断不拆，也必须输出不拆原因。Codex **没有** Claude 的 `PreToolUse Skill` 守门，不能把“拆子判断”留给隐式心证。
 
-### changeTracking
+### changeTracking（变更追踪）
 
-| Field | Effective skill | Behavior |
+| 字段 | 生效技能 | 行为 |
 |------|---------|------|
-| `changeTracking.feat: true` | `f2s-kb-feat` | **Step 0 is mandatory**: create or continue a change-tracking task under `.task/active/` |
-| `changeTracking.feat: false` | `f2s-kb-feat` | Skip step 0 and do not create a `.task/` directory |
-| `changeTracking.fix: true` | `f2s-kb-fix` | **Step 0 is mandatory**: create or continue a change-tracking task under `.task/active/` |
-| `changeTracking.fix: false` | `f2s-kb-fix` | Skip step 0 and do not create a `.task/` directory |
-| `changeTracking.implement: true` | `f2s-implement-tech-design` | **Step 2.5 writes the task list, step 2.6 checks off `task.md` as implementation progresses, and step 5 archives after the archive gate passes** |
-| `changeTracking.implement: false` | `f2s-implement-tech-design` | Skip step 2.5, step 2.6, and the change-tracking portion of step 5 |
+| `changeTracking.feat: true` | `f2s-kb-feat` | **步骤 0 必须执行**：创建或续作 `.task/active/` 变更追踪任务 |
+| `changeTracking.feat: false` | `f2s-kb-feat` | 步骤 0 跳过，不创建 `.task/` 目录 |
+| `changeTracking.fix: true` | `f2s-kb-fix` | **步骤 0 必须执行**：创建或续作 `.task/active/` 变更追踪任务 |
+| `changeTracking.fix: false` | `f2s-kb-fix` | 步骤 0 跳过，不创建 `.task/` 目录 |
+| `changeTracking.implement: true` | `f2s-implement-tech-design` | **步骤 2.5 写入任务清单、步骤 2.6 随实现同步打钩 `task.md`、步骤 5 满足归档门禁后归档** |
+| `changeTracking.implement: false` | `f2s-implement-tech-design` | 步骤 2.5、2.6 和步骤 5 的变更追踪部分跳过 |
 
-### intentRecognition
+### intentRecognition（意图识别）
 
-| Field | Behavior |
+| 字段 | 行为 |
 |------|------|
-| `intentRecognition: true` | Enable intent recognition: high-confidence operational intents automatically enter the corresponding Skill according to `rules/f2s-intent-routing.*`; discussion, evaluation, and low-confidence input must not auto-invoke a Skill |
-| `intentRecognition: false` | Do not enable automatic routing; enter a Skill only for an explicit `$f2s-*` command or a clear request to run a specific skill |
-| Field does not exist | Treat as `false` |
+| `intentRecognition: true` | 启用意图识别：高置信操作意图按 `rules/f2s-intent-routing.*` 自动进入对应 Skill；讨论 / 评估 / 低置信输入不得自动调用 |
+| `intentRecognition: false` | 不启用自动分流；仅显式 `$f2s-*` / 明确要求执行某技能时进入对应 Skill |
+| 字段不存在 | 视为 `false` |
 
-**Do not enter any execution step in a skill body before this file has been read.**
+**禁止在未读该文件的情况下进入技能正文的任何执行步骤。**
