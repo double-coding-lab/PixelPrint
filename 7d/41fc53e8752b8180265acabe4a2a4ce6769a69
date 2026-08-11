@@ -1,0 +1,33 @@
+templates/skills/pp-d2c/bin/rules/R02-fills-image.mjs
+  s_8f566140fc4cb6::t_3a4cfcb4c27080 16
+templates/skills/pp-d2c/rules/R08-bg-landing-form.md
+  s_8f566140fc4cb6::t_e68a49222969e2 11
+templates/skills/pp-d2c/bin/rules/R01-fixed-position.mjs
+  s_8f566140fc4cb6::t_b6f974b770d462 2,10
+templates/skills/pp-d2c/rules/R09-btn-bgc-取值.md
+  s_8f566140fc4cb6::t_f6537329ea4cea 14-15
+templates/skills/pp-d2c/rules/README.md
+  s_8f566140fc4cb6::t_2b9817d2579002 5-25
+templates/skills/pp-d2c/SKILL.md
+  s_8f566140fc4cb6::t_7c4d40028b6f6e 135-136,925-936
+templates/skills/pp-d2c/bin/rules/R08-bg-landing-form.mjs
+  s_8f566140fc4cb6::t_b556dfafe35421 2,14
+templates/skills/pp-d2c/rules/R01-fixed-position.md
+  s_8f566140fc4cb6::t_f45afae5f489b9 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "7d41fc53e8752b8180265acabe4a2a4ce6769a69",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
