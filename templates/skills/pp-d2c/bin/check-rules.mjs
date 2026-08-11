@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// check-rules.mjs — pp-d2c 硬防线脚本 (v1.0.0)
-// 覆盖 R01/R02/R05/R06/R08 (本骨架先跑 R01/R02, T2 补齐 R05/R06/R08)
+// check-rules.mjs — pp-d2c 硬防线脚本 (v1.1.0)
+// 覆盖 R01/R02/R05/R06/R08/R16
 //
 // 用法:
 //   node check-rules.mjs --block <blockDir> --cache-key <fileKey>
@@ -23,8 +23,9 @@ import * as R02 from './rules/R02-fills-image.mjs';
 import * as R05 from './rules/R05-space-between.mjs';
 import * as R06 from './rules/R06-text-solid-last.mjs';
 import * as R08 from './rules/R08-bg-landing-form.mjs';
+import * as R16 from './rules/R16-no-flatten-text.mjs';
 
-const ALL_RULES = [R01, R02, R05, R06, R08];
+const ALL_RULES = [R01, R02, R05, R06, R08, R16];
 
 function parseArgv(argv) {
   const args = { mode: null, dir: null, cacheKey: null, forceSkip: [] };
@@ -44,14 +45,14 @@ function parseArgv(argv) {
 }
 
 function printHelp() {
-  process.stdout.write(`check-rules.mjs (pp-d2c v1.0.0)
+  process.stdout.write(`check-rules.mjs (pp-d2c v1.1.0)
 
 Usage:
   node check-rules.mjs --block <blockDir> --cache-key <fileKey>
   node check-rules.mjs --merge <pageDir>  --cache-key <fileKey>
   node check-rules.mjs --block <blockDir> --cache-key <fileKey> --force-skip R05,R06
 
-Rules covered: R01 R02 R05 R06 R08
+Rules covered: R01 R02 R05 R06 R08 R16
 Exit: 0=ok, 1=violations, 2=env-error
 `);
 }

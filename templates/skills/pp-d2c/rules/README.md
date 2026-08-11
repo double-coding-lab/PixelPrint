@@ -42,10 +42,11 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 | R13 | unit-scale | 软防线 | Figma px → 产物 px 未换算(应 `outputBase / figmaBase`) |
 | R14 | fixed-z-index | 软防线 | 多个 `fixed-` 节点,z-index 未递增 |
 | R15 | 同构 map 渲染 | 软防线 | 同层 ≥3 同构子节点,展开成重复代码而非 `.map()` |
+| R16 | no-flatten-text | 硬防线 | GROUP/FRAME/COMPONENT/INSTANCE 子树含 TEXT 且前缀非 `img-`/`bg-`,产物 jsx 出现 `<img data-node-id="该节点">` |
 
 ## 判定归属说明
 
-**硬防线** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R05 / R06 / R08。
+**硬防线** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R05 / R06 / R08 / R16。
 
 **软防线** (Rule-Scan sub-agent 识别): 需 LLM 语义判断,输出 `rule-hits.json` 给 UI sub-agent 参考 → R03 / R04 / R07 / R09 / R10 / R11 / R12 / R13 / R14 / R15。
 
@@ -65,10 +66,10 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 4. 输出 rule-hits.json (schema 见附)
 
 规则命中判定原则:
-- 硬防线规则 (R01/R02/R05/R06/R08): 你也扫,即使 check-rules.mjs 会兜底
+- 硬防线规则 (R01/R02/R05/R06/R08/R16): 你也扫,即使 check-rules.mjs 会兜底
 - 软防线规则 (R03/R04/R07/R09-R15): 你是唯一识别方
 - 排斥条件: 若节点命中高优先级规则, 低优先级规则不再重复列
-- 优先级 (由高到低): R02 > R01 > R05 > R11 > R03 > R04 > R07 > R06 > R09 > R08 > R14 > R15 > R13 > R12 > R10
+- 优先级 (由高到低): R16 > R02 > R01 > R05 > R11 > R03 > R04 > R07 > R06 > R09 > R08 > R14 > R15 > R13 > R12 > R10
 
 输出要求:
 - 每个 hit 包含 nodeId / rule / trigger 描述 / expected 描述 / context (关键 JSON 字段抽样)
@@ -109,7 +110,7 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 
 ### check-rules.mjs
 
-- **硬编码 R01/R02/R05/R06/R08 逻辑**,rules/*.md 是设计文档,不是执行文档
+- **硬编码 R01/R02/R05/R06/R08/R16 逻辑**,rules/*.md 是设计文档,不是执行文档
 - 假阳性时用 `--force-skip R0X,R0Y` 跳过,但 UI sub-agent 必须在 `assets.txt` 备注 `[脚本误判] R0X {nodeId} 理由: ...`
 - 详细 CLI 见 `templates/skills/pp-d2c/bin/check-rules.mjs --help`
 
@@ -132,10 +133,13 @@ R03 (implicit-image) ── R11 (mask-vector-css-able): R03 覆盖后者的常�
 R12 (flat-mode-naming) ── (无排斥,只影响 merge.mode='flat')
 R13 (unit-scale) ── (无排斥,单位)
 R15 (同构 map) ── (无排斥,结构)
+
+R16 (no-flatten-text) ── 最高优先级; 命中 R16 时 R02/R06 若源自同一"整体切图"违规则视为衍生, 不重复报
 ```
 
 ## 版本
 
+- v1.1.0 新增 R16 no-flatten-text 硬防线
 - v1.0.0 首次引入 rules/ 目录 + check-rules.mjs
 - v0.3.21 之前:硬规则文字散落在 SKILL.md §4.3 等章节
 

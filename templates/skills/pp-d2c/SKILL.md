@@ -1,6 +1,6 @@
 # pp-d2c Skill
 
-> **当前版本**：v1.0.0(h5 独享,不同步 pp-d2c-rn) —— 在 v0.3.21 基础上引入 **4 层防线**:(1) 硬防线 `bin/check-rules.mjs` 覆盖 R01/R02/R05/R06/R08 精确 grep + exit 1 拦截;(2) 软防线 `Rule-Scan sub-agent` 按 block 并行扫,输出 `rule-hits.json` 传给 UI sub-agent;(3) 补漏防线 UI sub-agent 允许自补,强制 `assets.txt` `[遗漏补捕]` 备注;(4) 兜底防线 主 agent §6.0.2 聚合 rule-hits + 合并后再跑一次 `check-rules.mjs`。硬规则详情迁到 `rules/*.md` (15 条 R0X 独立 md,SKILL.md 保留总概表)。核心哲学: 允许兜底的路径就是错误来源。
+> **当前版本**：v1.1.0(h5 独享,不同步 pp-d2c-rn) —— 在 v1.0.0 基础上加固 4 层防线:(1) 新增 **R16 no-flatten-text** 硬防线,禁止对含 TEXT 的 GROUP/FRAME 整体切图;(2) §6.0.2 **兜底门禁 N=0**,废除 `[整体切图兜底]` 标签, `[脚本误判]` 单次上限 3 条 + 三段证据格式;(3) **Step 0.5** 询问输出路径 + `bin/slugify.mjs` 中文 pinyin 兜底;(4) **Step 2.6** 前置切图,主 agent 调 `pp-d2c-reskin standalone --out-manifest` 一次性切完 img-/bg- 前缀,sub-agent 只消费清单不自补;(5) **bg 溢出检测**,reskin 切图后自动断言 png 尺寸 ≈ node bbox × scale,写入 manifest sizeWarning;(6) §2.5.2 **config.styleFormat 唯一权威**,废除"既有 import 实证 > 邻居 page 参考"三级判定链;(7) R01 匹配盲区修复,支持 SCSS `&__foo` 嵌套。硬规则详情迁到 `rules/*.md` (16 条 R0X 独立 md,SKILL.md 保留总概表)。核心哲学: 允许兜底的路径就是错误来源。
 >
 > 历史 changelog 查 `git log templates/skills/pp-d2c/SKILL.md`,不在本文件维护。所有规则以下文章节 + `rules/*.md` 为准;冲突时以 `rules/` 为准。
 
@@ -77,6 +77,22 @@ agent 在跑 pp-d2c 全流程时 **只允许问用户业务问题,禁止问 skil
    - config 缺失或语法错误（skill 无法读到必要字段）
 
 **其他任何"技术选择犹豫"都不允许打断用户**——不确定就按最接近规则兜底 + 写 QA 告警。
+
+### 用户口头"临时"的作用域（v1.1.0）
+
+用户在 CLI 或对话中说"临时的" / "临时占位" / "临时覆写" / "临时放这里" 时，**语义严格限于路径命名**（`output.dir` 子目录 / `images.assetsDir` 子目录 / 输出文件名），**不影响**任何硬规则:
+
+| 是 | 否 |
+|---|---|
+| "临时"可覆盖 `output.dir` 子目录 (放到 `pages/test-tmp/`) | "临时"**不**可豁免 R01/R02/R05/R06/R08/R16 任一硬规则 |
+| "临时"可覆盖 `images.assetsDir` 子目录 (放到 `static/test-tmp/`) | "临时"**不**可豁免"整体切图禁用" (R16) |
+| "临时"可覆盖 config.styleFormat 之外的其它临时命名 | "临时"**不**可豁免 §6.0.2 兜底门禁 N=0 |
+| | "临时"**不**可作为 assets.txt `[脚本误判]` / `[整体切图兜底]` 的豁免理由 |
+
+**agent 侧执行原则**：
+- 用户传"临时" → 只影响 Step 0.5 输出路径决策（见 §Step 0.5）；本轮生成的 jsx/scss 依然要满足全部硬规则、能通过 `check-rules.mjs` exit 0
+- 禁止在 assets.txt 用"用户明确临时"当豁免签
+- 用户如需真正跳过某条规则（极少），必须**明说规则号**（如"跳过 R05"），否则一律不豁免
 
 ## 执行流程
 
@@ -163,7 +179,65 @@ Read("pp-d2c.config.json")
 
 - "是否走 module"看 styleFormat 后缀是否带 `-modules`（`scss-modules` / `less-modules` / `css-modules`），不依赖文件后缀猜
 - 步骤 2.5.3 的 P-A/P-B/M-A/M-B 五档判定中，**M 系**（module）= styleFormat 带 `-modules`，**P 系**（plain）= 不带
-- 同一项目里 page A 走 module / page B 不走 module 时，**以当前 page 的实际 import 形式为准**（步骤 2.5.2 实证），config.styleFormat 仅是 hint
+- **v1.1.0 起**：不再"以当前 page 的实际 import 形式为准"；一律以 `config.styleFormat` 为唯一权威，见 §2.5.2
+
+---
+
+### 步骤 0.5：询问输出路径（v1.1.0）
+
+在读完 config、开始扫图层前,主 agent **必须**先问用户本次的输出路径:
+
+```
+配置根：<projectRoot>
+config.output.dir       = <output.dir 原值>
+config.images.assetsDir = <images.assetsDir 原值>
+
+请指定本次生成路径:
+  1) 代码放到 <output.dir> 下哪个子目录? (默认 <default-slug>)
+  2) 图片放到 <images.assetsDir> 下哪个子目录? (默认 <default-slug>)
+
+直接回车 = 用默认值; 也可 "同 1" 让图片子目录与代码子目录一致。
+```
+
+**默认 slug 生成规则**（按优先级尝试，第一次成功即用）:
+
+1. Figma 稿子的 **frame name** slug 化,通过内置脚本:
+   ```bash
+   node .claude/skills/pp-d2c/bin/slugify.mjs "<frame-name>" --fallback "<nodeId>"
+   ```
+   - ASCII 输入 → 保留 `[a-z0-9-]`, 其余替换为 `-`, 首尾去 `-`, lowercase, 连续 `-` 压成一个
+   - 中文 → 内置常用字 pinyin 表转换（覆盖 Figma 常见图层高频词, 未覆盖字直接丢弃）
+   - 转完 slug 空 or 仅含 `-` → 用规则 2 兜底
+2. `page-<nodeId-safe>` 兜底（`nodeId` 里 `:` 换 `_`;例 `211:31` → `page-211_31`）
+
+**用户回答后的处理**:
+
+- 用户显式指定 → 采用用户值,写入 `.d2c-tasks.md` "输出路径锁定"段
+- 用户回车 / 只答一个 → 未答项用默认 slug
+- 用户答 "同 1" (代码与图片同 slug) → 两者取同一值
+
+**`.d2c-tasks.md` 输出路径锁定段**（写在"大类锁定"段之前）:
+
+```markdown
+## 输出路径锁定（本次生成不可变）
+
+- projectRoot: <绝对路径>
+- 代码路径: <output.dir>/<code-slug>/         (例: pages/test-tmp/)
+- 图片路径: <images.assetsDir>/<asset-slug>/  (例: static/test-tmp/)
+- slug 来源: {frame-name-slug / page-nodeId / user-explicit / same-as-code}
+- 用户"临时"标记: {true / false}   ← 仅影响本段路径命名, 不豁免任何硬规则(见 §问题边界)
+```
+
+**跳过询问的条件**（旧兼容）:
+
+- 用户 CLI 一次性给出明确路径（如 `--out pages/test13 --assets static/test13`）→ 跳过询问,直接锁定
+- 用户前一句消息里已明确路径（如"放到 test12"）→ 跳过询问,直接锁定
+
+**禁止项**:
+
+- 禁止在未写入"输出路径锁定"段前进入步骤 1 扫图层
+- 禁止 sub-agent 修改锁定值
+- 禁止把用户"临时"标记扩用为豁免硬规则的理由（见 §问题边界 "用户口头临时" 的作用域）
 
 ---
 
@@ -324,17 +398,14 @@ img-*   → 主 agent 处理，生成 <img>
 
 执行写入前**必须先探测项目类型**，决定写入策略。按以下顺序检查（**逐项 Read 文件 / Grep 实证，不要凭印象判定**）：
 
-1. **判定该 page 的样式文件是否走 css-modules**（最关键）：
-   - 看页面入口的 import 形式：
-     - `import './index.scss'` / `'./index.less'` / `'./index.css'` → **普通 stylesheet（全局作用）**
-     - `import styles from './index.module.scss'` / `'.module.less'` / `'.module.css'` → **css-modules**
-   - 看文件名：`*.module.{scss,less,css}` → css-modules；`*.{scss,less,css}` 且非 module → 普通 stylesheet
-   - 看周边页面的引法：如果项目里既有普通形态又有 module 形态，**以本页面实际写法为准**
-   - **新 page 兜底**:如果当前正在**创建全新页面**(`output.dir` 下无已存在的目标 `.jsx`/`.tsx` 入口,或该入口存在但**尚未** import 任何样式文件),也没有相邻同 output 目录页面可参考(`output.dir` 下其他 page 一个都没有),此时**必须以 config `project.styleFormat` 为唯一权威**——见下方"新 page 空档"表;**禁止**脑补大类。
-   - **结论二选一：`plain stylesheet` / `css-modules`**（预处理语法用什么不影响这个结论）
+1. **判定该 page 的样式大类(v1.1.0 起：config `project.styleFormat` 唯一权威)**：
+   - 结论直接查 config `project.styleFormat`,按下方"styleFormat → 大类映射表"落 P / M / J
+   - **邻居 page 的写法只作参考,不作判据**：即使 `output.dir` 下其他 page 用 `.module.scss`,新 page 也**必须**按 config 生成 P/M/J,不再"跟邻居走"
+   - **既有目标 page 已有 import 实证与 config 冲突时**：以 config 为准,**主 agent 停下问用户是否要覆盖旧写法**;不允许 sub-agent 私自沿用旧邻居
+   - **结论三选一：`P` (plain stylesheet) / `M` (css-modules) / `J` (inline / tailwind / RN)**（预处理语法用什么不影响这个结论）
    > ⚠️ **关键**：`:global(body)` 语法**只在 css-modules 下有效**。在普通 stylesheet（无论 scss/less/css）里写 `:global(...)`，浏览器会原样接收选择器并解析失败，**body 背景不会生效**——这是 D2C 最常见的"我明明写了 body 背景但页面还是白底"的根因。
 
-   **新 page 空档权威表**：
+   **styleFormat → 大类映射表**：
 
    | config `styleFormat` | 大类 | 生成文件后缀 | className 写法 | 顶部 import |
    |---|---|---|---|---|
@@ -343,7 +414,7 @@ img-*   → 主 agent 处理，生成 <img>
    | `stylesheet` / `styled-components` / `nativewind`（RN） | **J** | 见 pp-d2c-rn | 见 pp-d2c-rn | 见 pp-d2c-rn |
    | `tailwind` / `inline` | **J** | 无独立样式文件（内联） | class 是 tailwind atomic / style 对象 | 无 |
 
-   **判定链权威等级**：既有 import 实证 > 项目内已存在同 output 目录 page 参考 > `config.project.styleFormat`（新 page 空档兜底权威）。同一项目里 page A 是 module、page B 是 plain 的情况仍然合法——若目标页面之前实际存在，仍按第一项实证；只有"当前是创建全新页面且无参考"这一情况才落到 config 权威。
+   > **v1.1.0 变更说明**：v1.0.0 及以前的"既有 import 实证 > 邻居 page 参考 > config.styleFormat"三级判定链已废除,合并为单一权威 `config.project.styleFormat`。原因: v1.0.0 test10-12 事故中,agent 因参照旧 module 邻居而把 config `scss` 生成成了 `.module.scss`,用户改 config 无法生效。
 
 2. **检查 `output.dir` 同级（或父级 1-2 层内）有几个 page 入口**：
    - `pages/` 下多个 `*.jsx` / `*.tsx`（Next.js / nfes 多页面） → 多页
@@ -354,17 +425,13 @@ img-*   → 主 agent 处理，生成 <img>
    - 候选文件：`pages/style/base.scss`、`src/styles/global.scss`、`pages/style/base.less`、`app.css`、`_app.js` 引入的全局样式入口
    - 用 grep 实证（**禁止猜**）
 
-4. **检查 config 的 `project.styleFormat`**：
-   - 取值参见 §0「样式方案标识符」表（`scss` / `scss-modules` / `less` / `less-modules` / `css` / `css-modules` / `tailwind` / `inline` / RN 的 `stylesheet`/`styled-components`/`nativewind`）
-   - 结合第 1 项探测结果做交叉验证；不一致时**以第 1 项实证为准**
-
-把以上 4 项探测结果**全部**写入 `.d2c-tasks.md` 的"页面级背景"段，作为选档的事实依据。
+把以上 3 项探测结果**全部**写入 `.d2c-tasks.md` 的"页面级背景"段，作为选档的事实依据。
 
 > **⚠️ 大类一致性硬约束**：主 agent 完成 §2.5.2 判定后，**必须在 `.d2c-tasks.md` 顶部写入"大类锁定"段**（一次生成一次锁定，不允许中途改）：
 >
 > ```markdown
 > ## 大类锁定（本次生成不可变）
-> - 判定源：{既有 import 实证 / 邻居 page 参考 / config.styleFormat 权威}
+> - 判定源：config.project.styleFormat = "<原始值>" → 大类 P/M/J
 > - 大类：**P** / **M** / **J**（三选一）
 > - 生成规则：
 >   - **P**：所有样式文件后缀 `.scss` / `.less` / `.css`（无 `.module`），`className="xxx"` 裸类名，`import './xxx.scss'`
@@ -541,6 +608,78 @@ useEffect(() => {
 - 禁止多页面项目使用 P-B / M-B（单页策略，会互相污染）
 - 禁止在普通 stylesheet（非 module 的 scss / less / css）里写 `:global(...)`（语法不识别，body 背景不会生效）
 - 禁止在 `*.module.{scss,less,css}` 里直接写 `body { ... }`（会被 hash 化变成 `.body-xxx`，不会作用到真正的 body）
+
+---
+
+### 步骤 2.6：前置切图（v1.1.0，正式进入 D2C 前必做）
+
+**执行时序**: 步骤 2 扫描 + 步骤 2.5 页面级背景 + 步骤 0.5 输出路径锁定完成后, 步骤 3 分发 sub-agent 前。
+
+**目的**: 一次性把稿子里所有 `img-` / `bg-` 前缀节点切完落盘, 生成 nodeId → filename 清单; sub-agent 生 jsx/scss 时**只消费清单**, 不再自己调 Figma API 现切现挂。
+
+**动作**:
+
+```bash
+node .claude/skills/pp-d2c-reskin/reskin-slice.mjs \
+  --theme <slug>=<figma-url> \
+  --out-manifest <projectRoot>/.d2c-cache/<fileKey>/slice-manifest-<slug>.json
+```
+
+- `<slug>` = 步骤 0.5 锁定的 `<asset-slug>`
+- `<figma-url>` = 步骤 1 解析出来的原 URL(带 nodeId)
+- reskin standalone 模式自扫 `img` / `bg` 前缀节点(含裸词), 落图到 `<images.assetsDir>/<asset-slug>/`
+- **清单 schema**(见 `slice-manifest-*.json`):
+  ```json
+  {
+    "generatedAt": "2026-08-11 17:00:00",
+    "mode": "standalone",
+    "themes": [{
+      "slug": "test13",
+      "outDir": "static/test13",
+      "hit": 21, "miss": 0,
+      "entries": [
+        { "nodeId": "211:37", "name": "bg-body", "parentName": "完整版11",
+          "filename": "bg-body.png", "filepath": "static/test13/bg-body.png",
+          "renderWidth": 750, "renderHeight": 1050,
+          "bboxWidth": 750, "bboxHeight": 1050,
+          "sizeWarning": null }
+      ]
+    }]
+  }
+  ```
+
+**bg 溢出告警检视（v1.1.0）**:
+
+reskin 每切一张图会**自动**做尺寸断言:`png 实际尺寸 vs node.absoluteBoundingBox × scale` 相差 > 4px → 写入 `entries[i].sizeWarning`。**主 agent 收到清单后必须扫一遍所有 entries[].sizeWarning**:
+
+- 有非 null 的告警 → **必须停下问用户**是否要拆解或让美术在 Figma 里加 mask 收紧 renderBounds; 禁止直接用溢出 png
+- 典型征兆:`bg-*` 节点 png 宽高远大于自身 bbox → Figma 把父容器兄弟节点渲染进 png（如 test12 事故 coupon-big-bg.png 里烤进 "1折"/"亚洲火车立减"）
+- Figma 侧修复选项:① 把 mask 拉大到包住 bg 自己;② 把兄弟节点移到 bg 外面,由代码单独渲染
+
+**产物消费契约（Sub-Agent 侧）**:
+
+- UI sub-agent 收到 `<blockDir>/rule-hits.json` 时, 同时收 `<projectRoot>/.d2c-cache/<fileKey>/slice-manifest-<slug>.json`
+- 生成 jsx 时, 引用 `img-` / `bg-` 节点必须从清单 `entries` 查 `filename`:
+  ```jsx
+  {/* nodeId 211:37 → 查清单 entries → filename=bg-body.png */}
+  <div className={...} style={{ backgroundImage: `url(${ASSET}bg-body.png)` }} />
+  ```
+- 清单里没有的 nodeId → **禁止 sub-agent 自补切图**, 必须在 `assets.txt` 写 `[清单缺失] nodeId=XXX name=XXX 需主 agent 补切`
+
+**主 agent 补切回路（v1.1.0）**:
+
+sub-agent 全部返回后, 主 agent 汇总所有 `blocks/*/assets.txt` 里的 `[清单缺失]` 条目:
+
+1. 数量为 0 → 直接进入步骤 5 合并
+2. 数量 > 0 → **主 agent 重跑一次** `reskin-slice.mjs` 只针对这些 nodeId 补切, 追加到同一清单文件, 然后让相关 sub-agent 用更新后的清单重生 jsx/scss
+3. 重跑仍无法补上（Figma 返回 404 / renderBounds 空等硬错误）→ 停下问用户排查, 禁止走整体切图兜底
+
+**禁止项**:
+
+- 禁止跳过步骤 2.6 直接进入步骤 3（无清单 = UI sub-agent 只能猜切图, 大概率违规）
+- 禁止 sub-agent 绕开清单直接调 `figma.mjs export-image` 或 `figma REST /v1/images`
+- 禁止把清单里的 `filename` 或 `renderWidth/Height` 改写后再消费（改写 = 幻觉 = 事故源）
+- 禁止 sub-agent 对含 TEXT 的 GROUP/FRAME 生成 `<img>` 兜底（R16 硬防线会拦，见 rules/R16-no-flatten-text.md）
 
 ---
 
@@ -899,8 +1038,9 @@ def rgb_to_hex(c):
 | R13 | unit-scale | Figma px → 产物 px | 忘换算 `outputBase / figmaBase` | `rules/R13-unit-scale.md` |
 | R14 | fixed-z-index | 多个 `fixed-` 节点 | z-index 未递增 | `rules/R14-fixed-z-index.md` |
 | R15 | 同构 map 渲染 | 同层 ≥3 同构子节点 | 展开重复代码 vs `.map()` | `rules/R15-同构 map 渲染.md` |
+| R16 | no-flatten-text | GROUP/FRAME 子树含 TEXT 且前缀非 `img-`/`bg-` | 整体切图把 TEXT/按钮烤成 png | `rules/R16-no-flatten-text.md` |
 
-**硬防线** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R05 / R06 / R08**
+**硬防线** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R05 / R06 / R08 / R16**
 **软防线** (Rule-Scan sub-agent 识别 `rule-hits.json`): **R03 / R04 / R07 / R09 / R10 / R11 / R12 / R13 / R14 / R15**
 
 ##### 硬规则详情
@@ -1825,6 +1965,45 @@ node .claude/skills/pp-d2c/bin/check-rules.mjs \
 - **exit 1** → 主 agent 必须修产物或回滚 sub-agent 产物,**不允许**把违规带到步骤 7 交付
 - 与步骤 4.0.pre 的 `--block` 模式区别: 那里只扫单个 block 目录;这里扫整个 page 目录,主要防合并时类名冲突/z-index 冲突/幻觉色被引入
 
+##### 兜底防线硬门禁 N=0(v1.1.0)
+
+**这是 4 层防线里的最后一道，与 R16 硬防线配套。**
+
+在整 page `check-rules.mjs` 复跑结果为 **exit 1** 时:
+
+1. **`violations.length > 0` → 一律禁止交付**,主 agent 必须**回滚 sub-agent 产物,重做**;禁止用任何标签"分类判定"后继续走到步骤 7
+2. **`[整体切图兜底]` 标签废除**(v1.1.0 起):
+   - v1.0.0 时期用于自签"整体切图是合法兜底"的路径已被 **R16 no-flatten-text** 硬防线覆盖
+   - assets.txt / 对话中出现该字样 → 视为 agent 试图豁免,必须回滚
+3. **`[脚本误判]` 标签**(仅允许豁免真误判):
+   - **单次上限 3 条**;第 4 条及以上出现 `[脚本误判]` → 强制回滚,不允许交付
+   - **三段证据格式**(缺一条即视为无效豁免):
+     ```
+     [脚本误判] R0X {nodeId} 理由:
+       ① 产物文件:行号 → 例 `pages/test12/index.scss:29`
+       ② 该行 grep 命令 → 例 `grep -n "position: fixed" pages/test12/index.scss`
+       ③ 产物内容截取(≤5 行) → 粘贴该 grep 命中的实际行
+     ```
+   - 无三段证据 → 视为无效豁免,该条不计入豁免额度,仍算违规
+4. **执行序**:
+   ```
+   check-rules.mjs → exit 1
+       ↓
+   分类 violations:
+       R16 命中?           → 一律不豁免,回滚
+       [整体切图兜底]?     → 一律不豁免,回滚(标签已废除)
+       [脚本误判] 三段证据? → 单次≤3 条豁免;超上限或缺证据 → 回滚
+       其余                → 修产物或回 sub-agent 重做
+       ↓
+   全部处理后重跑 check-rules.mjs → exit 0 → 才允许进入步骤 6.1
+   ```
+
+**禁止项**:
+
+- 禁止在 assets.txt / 对话中用"临时占位"、"参照邻居 page"、"整体切图兜底"、"用户明确临时"等措辞为违规签豁免
+- 禁止把违规条数"分类打标签"后 continue → 步骤 7
+- 禁止修改 check-rules.mjs 输出 JSON 里的 `ok` / `violations` 字段来"通过"
+
 #### 6.1 整体视觉验收
 
 1. 调 `figma.mjs screenshot <fileKey> <rootNodeId> --tag=whole` 获取原始设计稿**整体**截图，stdout 返回 `{path}`（`.d2c-tmp/screenshots/whole-<nodeId_safe>.png`）
@@ -1951,4 +2130,4 @@ EOF
 - 禁止 TEXT 节点交付时省略字色 fills 溯源
 - 禁止 sub-/block- 容器 min-height 写入值 = 兄弟 bg 层高度而非自身高度
 - 禁止页面根 padding-top 写入值 ≠ `figmaNode.paddingTop × scale`
-- 禁止在"新 page 空档"情形（output.dir 无同名入口、也无相邻 page 参考）脑补样式大类
+- 禁止在样式大类判定时 **参照邻居 page** 覆盖 config.styleFormat（v1.1.0 起 config 为唯一权威）
