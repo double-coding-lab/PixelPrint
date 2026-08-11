@@ -1,6 +1,6 @@
 # pp-d2c Skill
 
-> **当前版本**：v0.3.20(h5 独享,不同步 pp-d2c-rn) —— 在 v0.3.19 三条硬规则上扩到四条(加"结构性隐式图切图"),每条硬规则内嵌 sub-agent 交付前自证清单,把"事后 grep 兜底"提前成"sub-agent 交付前拦截"。核心哲学: 允许兜底的路径就是错误来源。
+> **当前版本**：v0.3.21(h5 独享,不同步 pp-d2c-rn) —— 在 v0.3.20 四条硬规则 + sub-agent 交付前自证的基础上,补 §4.1.1 TEXT fills 末位=GRADIENT/IMAGE 的落地形态(必须 `<span>` + `background-clip: text` + `color: transparent`,禁止凭空搓 solid color);sub-agent 自证与主 agent grep 断言同步扩到覆盖该场景。核心哲学: 允许兜底的路径就是错误来源。
 >
 > 历史 changelog 查 `git log templates/skills/pp-d2c/SKILL.md`,不在本文件维护。所有规则以下文章节为准。
 
@@ -793,7 +793,7 @@ def rgb_to_hex(c):
 
 **stroke position 关键区分**：mcp 里叫 `position`（值 `INSIDE`/`OUTSIDE`/`CENTER`），REST 里字段名叫 `strokeAlign`（值一样）。**v0.3 起统一按 REST 字段名 `strokeAlign` 取**。
 
-**TEXT 多层 fills 处理（v0.3.6 新增）**：
+**TEXT 多层 fills 处理（v0.3.6 新增,v0.3.21 补 GRADIENT/IMAGE 落地形态）**：
 
 Figma 里一个 TEXT 节点可以叠多层 `fills`。取字色遵循下表（详细说明见 pp-style §八「TEXT 多层 fills 处理」）：
 
@@ -802,19 +802,69 @@ Figma 里一个 TEXT 节点可以叠多层 `fills`。取字色遵循下表（详
 | 单层 SOLID | 直接取 |
 | 多层 SOLID，都 `visible !== false` | **按 fills[] 顺序取最末位**（Figma 渲染顺序：后写的覆盖先写的） |
 | 多层 SOLID，部分 `visible === false` | **跳过所有 visible:false**，再取"剩下的最末位" |
-| 单层 GRADIENT | `background-clip: text` + `color: transparent`（RN 侧退化为末位近似 SOLID + QA 告警） |
-| 多层混合（SOLID + GRADIENT） | 按 Figma 渲染顺序合成；若 GRADIENT 在最上层 → `background-clip: text`；SOLID 在最上层 → 取 SOLID 色 |
+| 单层 GRADIENT | **必须**包一层 `<span>`,span 上写 `background: linear-gradient(...)` + `-webkit-background-clip: text` + `background-clip: text` + `color: transparent`（RN 侧退化为末位近似 SOLID + QA 告警） |
+| 多层混合（SOLID + GRADIENT） | 按 Figma 渲染顺序取**末位可见**层;若末位可见是 GRADIENT → 走上面 GRADIENT 处理;末位可见是 SOLID → 取 SOLID 色 |
+| 末位可见 fills 是 IMAGE(极少) | 同 GRADIENT 处理,`background: url(...)` 替换 `linear-gradient` |
 | fills 为空 | 用 Figma 默认黑 `#000` + QA 告警 |
 
-**字色 fills 溯源证明（v0.3.10 强制，每个 TEXT 交付前写 assets.txt QA 一行）**：
+**GRADIENT 字色落地形态（v0.3.21 强制)**:
 
-sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA 段末尾追加**每个 TEXT 节点一行**的溯源记录，格式：
+JSX 必须多包一层 span(如果原来 TEXT 已经在按钮里则复用最里层 span,不再套):
 
+```jsx
+<button className={styles.btn}>
+  <span>领取</span>
+</button>
 ```
-· TEXT {nodeId} "{text}" fills层数={N} 可见SOLID列表=[#hex1, #hex2, ..., #hexN] 末位可见色={#hexN} 最终写入={#final}
+
+SCSS 上,渐变属性写在 span 上(不是父按钮),父按钮该有的背景色/边框/圆角不受影响:
+
+```scss
+.btn {
+  background-image: linear-gradient(...);  /* 按钮自身背景,来自父节点 fills/bgc- */
+  span {
+    background: linear-gradient(
+      {角度}deg,  /* 见下方 handle → 角度换算 */
+      {stops[0].color} {stops[0].position*100}%,
+      {stops[N].color} {stops[N].position*100}%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
 ```
 
-其中 `{#final}` 必须严格等于 `{#hexN}`。**违反即视为字色事故**（doctor CLR030 error）。
+**handle → CSS 角度换算**:Figma `gradientHandlePositions[0]`(起点)和 `[1]`(终点)是归一化坐标(0..1)。常见:
+
+| handle 起点/终点 | CSS 角度 |
+|---|---|
+| (0.5, 0) → (0.5, 1) | `180deg` (从上到下) |
+| (0, 0.5) → (1, 0.5) | `90deg` (从左到右) |
+| (0, 0) → (1, 1) | `135deg` (左上→右下) |
+| (1, 0) → (0, 1) | `225deg` (右上→左下) |
+
+不常见角度按 `angle = atan2(y1-y0, x1-x0) * 180/PI + 90` 换算(CSS gradient 0deg=向上,Figma 坐标 y 向下);拿不准直接写最近的 45deg 整数倍 + QA 段标注"角度近似"。
+
+**严格禁止**:不允许在 TEXT fills 是 GRADIENT / IMAGE 时凭空搓一个 SOLID color 塞进 CSS(典型幻觉:把渐变按钮字色搓成 `color: #3a2413` 之类不存在的深色)。命中即视为字色事故。
+
+**字色 fills 溯源证明（v0.3.10 强制，每个 TEXT 交付前写 assets.txt QA 一行,v0.3.21 扩含 GRADIENT/IMAGE）**：
+
+sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA 段末尾追加**每个 TEXT 节点一行**的溯源记录，格式（v0.3.21 起 SOLID 与 GRADIENT/IMAGE 分两种格式）：
+
+**SOLID 末位取值**:
+```
+· TEXT {nodeId} "{text}" fills层数={N} 类型=SOLID 可见SOLID列表=[#hex1, #hex2, ..., #hexN] 末位可见色={#hexN} 最终写入=color: {#hexN}
+```
+
+**GRADIENT / IMAGE**:
+```
+· TEXT {nodeId} "{text}" fills层数={N} 末位可见类型=GRADIENT_LINEAR|GRADIENT_RADIAL|IMAGE 末位可见 stops/imageRef=[...] 落地形态=span + background-clip:text 最终写入={CSS 字面量,如 background: linear-gradient(180deg, #fff8ee, #ffdbac)}
+```
+
+**违反即视为字色事故**（doctor CLR030 error）:
+- SOLID 场景 `{最终写入}` 的 color 值必须严格等于 `{#hexN}`
+- GRADIENT/IMAGE 场景不允许"最终写入 color: #xxx"这种降级写法(必须用 span + background-clip)
 
 **doctor NAM025（v0.3.6 新增）**：TEXT 节点 `fills` 有 ≥2 个可见 SOLID → info 提示，防止取错色。
 
@@ -900,7 +950,8 @@ sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA �
 
 ### 前缀语义合规扫描
 - fixed- 前缀节点: 是否所有产物 CSS 都含 position: fixed? [✅/❌ 违规节点]
-- TEXT 多层 fills: 是否所有多层 fills TEXT 字色取的都是"末位可见 SOLID"? [✅/❌ 违规节点]
+- TEXT 多层 fills 末位=SOLID: 是否字色取的都是"末位可见 SOLID"? [✅/❌ 违规节点]
+- TEXT fills 末位=GRADIENT_*/IMAGE(v0.3.21): 产物是否用 `<span>` + `background-clip: text` + `color: transparent` 表达? 是否禁止凭空搓 solid color? [✅/❌ 违规节点+错误写法(如 color: #xxx 凭空色)]
 - primaryAxisAlignItems=SPACE_BETWEEN 节点(Figma "两端对齐 / Auto gap"): 产物 CSS 是否含 `justify-content: space-between`? [✅/❌ 违规节点+错误写法(如 margin-auto/flex-end/gap: auto)]
 ```
 
@@ -1831,7 +1882,8 @@ fi
   - fixed- 前缀节点(取自 cache)在产物 CSS 中含 `position: fixed`? {✅/❌ 缺失节点列表}
   - fills 含 IMAGE 的节点(取自 cache)在产物中含 `url(` 引用? {✅/❌ 缺失节点列表}
   - `::before` / `::after` / inline `style={{background` 挂 bg 切图违规? {"无" or 违规文件+行}
-  - 多层 fills TEXT 字色是否 == cache 末位可见 SOLID 换算 HEX? {✅/❌ 违规 TEXT 列表}
+  - 多层 fills TEXT 末位=SOLID 字色是否 == cache 末位可见 SOLID 换算 HEX? {✅/❌ 违规 TEXT 列表}
+  - TEXT fills 末位=GRADIENT_*/IMAGE(v0.3.21) 产物是否用 span + background-clip:text? 是否有凭空搓 solid color? {✅/❌ 违规 TEXT 列表+错误写法}
   - primaryAxisAlignItems=SPACE_BETWEEN 节点(取自 cache)产物 CSS 是否含 `justify-content: space-between`? {✅/❌ 违规节点+错误写法(margin-auto/flex-end/gap:auto)}
 - 结果：{✅ 通过 / ❌ 失败}
 
