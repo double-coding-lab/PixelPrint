@@ -1,0 +1,19 @@
+{
+  "id": "m-pp-image-compress",
+  "includeAny": [
+    "无损压缩图片",
+    "图片压缩",
+    "压缩 PNG",
+    "压缩 JPEG",
+    "压缩 JPG",
+    "pp-image-compress",
+    "Pillow 压缩",
+    "compressed 子目录",
+    "保留 ICC",
+    "保留 EXIF",
+    "quality=keep",
+    "optimize compress_level",
+    "图片瘦身",
+    "无收益跳过压缩"
+  ]
+}

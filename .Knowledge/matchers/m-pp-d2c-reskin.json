@@ -1,0 +1,25 @@
+{
+  "id": "m-pp-d2c-reskin",
+  "includeAny": [
+    "reskin 切图",
+    "换肤切图",
+    "多套稿子切图",
+    "多套色版切图",
+    "按前缀切图",
+    "pp-d2c-reskin",
+    "img-* 切图",
+    "bg-* 切图",
+    "theme-<slug>",
+    "同名图层撞车",
+    "同名节点没切出来",
+    "img-icon 只切了一个",
+    "renderBounds",
+    "absoluteRenderBounds",
+    "absoluteBoundingBox",
+    "--dedupe-siblings",
+    "aligned-to-base",
+    "standalone 切图",
+    "换肤稿对齐基线",
+    "figma 切图 mask"
+  ]
+}
