@@ -1,0 +1,30 @@
+templates/skills/pp-d2c/bin/lib/loadCache.mjs
+  s_8f566140fc4cb6::t_5d50cf659e5a43 47
+templates/skills/pp-d2c/bin/rules/R06-text-solid-last.mjs
+  s_8f566140fc4cb6::t_b61e8ed652d2e9 1-119
+templates/skills/pp-d2c/bin/rules/R05-space-between.mjs
+  s_8f566140fc4cb6::t_c95c07b85d830d 1-86
+templates/skills/pp-d2c/bin/check-rules.mjs
+  s_8f566140fc4cb6::t_788edbe05855aa 1-15,20,26,28-53,55-111
+  s_8f566140fc4cb6::t_129294aef705a4 16-19,21-22
+  s_8f566140fc4cb6::t_b088ef9b25ff62 23-25,27
+  s_8f566140fc4cb6::t_244f36b30696d7 54
+templates/skills/pp-d2c/bin/rules/R08-bg-landing-form.mjs
+  s_8f566140fc4cb6::t_5be05eb4de516f 1-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "d82760a24bacc44336b825fdfb3a1b325fb13c4b",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
