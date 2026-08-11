@@ -327,6 +327,7 @@ $ npx @double-coding/pixel-print init --framework rn --adapter-preset custom
 | `pp-d2c-rn/` | RN 主 D2C 流程(6 大 RN 内核标签 + adapter) | framework=rn 时 |
 | `pp-strip-nodeid/` | 剥离 `data-node-id` 调试属性 + 生成 anchor 档案 | 总是装 |
 | `pp-fix-partial/` | 局部 UI 修复(v1.1.0+) | 总是装 |
+| `pp-image-compress/` | 无损压缩 PNG/JPEG(纯 Pillow,需 `pip install Pillow`) | 总是装 |
 | `pp-doctor/` `pp-style/` | 体检 / 样式速查 | ⚠️ 后期准备丢弃,默认不落地 |
 
 **配置与资产**:
