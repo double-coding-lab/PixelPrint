@@ -1,0 +1,24 @@
+.Knowledge/manifest-routing.json
+  s_97816464c07f4b::t_46ee9ea526dccf 2,115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "5d743ba7f82a9ec4a530092068bb6627f6c9ac7c",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_97816464c07f4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a05db5c0-1eb5-4b2d-92f0-c32a3e012fa0",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
