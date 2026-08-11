@@ -1,0 +1,23 @@
+templates/skills/pp-image-compress/compress.py
+  s_97816464c07f4b::t_68b758d6af4a01 1-190
+templates/skills/pp-image-compress/SKILL.md
+  s_97816464c07f4b::t_1dcdff981e7445 1-107
+docs/pixel-print-guide.md
+  s_97816464c07f4b::t_0332581b7db7b1 330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "faef0e97504fd52c9481985462b25e7f171397f8",
+  "prompts": {},
+  "sessions": {
+    "s_97816464c07f4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a05db5c0-1eb5-4b2d-92f0-c32a3e012fa0",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
