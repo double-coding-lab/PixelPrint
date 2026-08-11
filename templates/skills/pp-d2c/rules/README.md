@@ -2,6 +2,27 @@
 
 > pp-d2c skill 硬性规则的原始定义。当 rules/*.md 内容与 SKILL.md 冲突时以 rules/ 为准。
 
+## 内置前缀常量表(硬编码,不可配置)
+
+Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config 读取。所有规则(SKILL / rules/ / check-rules.mjs / Rule-Scan sub-agent / UI sub-agent)一律用下表值:
+
+| 前缀 | 语义 |
+|---|---|
+| `sub-` | 分块边界(sub-agent 派发单元) |
+| `block-` | 独立布局块(命名空间隔离) |
+| `img-` | 图片内容(生成 `<img>`,不递归) |
+| `bg-` | 背景图(挂父容器 background-image,自身不生成 DOM) |
+| `bgc-` | 背景纯色(全套盒级 CSS 写父,自身不生成 DOM) |
+| `btn-` | 可点击区域(永远 CSS 化) |
+| `scrollx-` | 横向滚动容器 |
+| `scrolly-` | 纵向滚动容器 |
+| `fixed-` | 视口固定定位(修饰前缀) |
+| `end-` | 逆向布局(贴父末端,修饰前缀) |
+| `input-` | 输入框(生成 `<input type="text">`,不递归) |
+| `x-` | 忽略(跳过整层,优先级最高) |
+
+**pp-d2c.config.json 里不再有 `layers` 段**——之前的 `layers.sub` / `layers.bg` / `layers.but` 等映射都已删除。
+
 ## 索引表
 
 | ID | 名称 | 判定归属 | 一句话触发条件 |

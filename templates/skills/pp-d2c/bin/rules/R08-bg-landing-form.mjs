@@ -1,5 +1,5 @@
 // R08 bg-landing-form
-// 触发: node.name.startsWith(config.layers.bg || 'bg-') 或 name === 'bg'
+// 触发: node.name.startsWith('bg-') 或 name === 'bg'
 // 反向扫产物,禁止:
 //   - jsx: <img ... src=".../bg-..." ... />  或  <img ... src=".../bg.<ext>" ... />
 //   - jsx: style={{ ... background... }}
@@ -11,7 +11,7 @@ export const name = 'bg-landing-form';
 
 export function check({ cache, product, config, classMap }) {
   const violations = [];
-  const bgPrefix = (config && config.layers && config.layers.bg) || 'bg-';
+  const bgPrefix = 'bg-';
 
   // 先看 cache 有没有 bg- 节点 — 用于生成 nodeId 提示
   const bgNodes = [];

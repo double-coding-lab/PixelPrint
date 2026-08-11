@@ -1,5 +1,5 @@
 // R01 fixed-position
-// 触发: node.name.startsWith(config.layers.fixed || 'fixed-')
+// 触发: node.name.startsWith('fixed-')
 // 期望: 产物 CSS 中该 node 对应类名规则内含 position: fixed
 
 export const id = 'R01';
@@ -7,7 +7,7 @@ export const name = 'fixed-position';
 
 export function check({ cache, product, config, classMap }) {
   const violations = [];
-  const prefix = (config && config.layers && config.layers.fixed) || 'fixed-';
+  const prefix = 'fixed-';
 
   for (const [nodeId, node] of Object.entries(cache.nodes)) {
     if (!node.name || !node.name.startsWith(prefix)) continue;

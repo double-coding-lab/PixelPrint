@@ -11,8 +11,8 @@
 
 ## 触发条件
 
-- **cache**: 存在 `node.name.startsWith(config.layers.but || 'btn-')` 节点
-- **且**: 该节点 children 里有 `child.name.startsWith(config.layers.bgColor || 'bgc-')`
+- **cache**: 存在 `node.name.startsWith('btn-')` 节点
+- **且**: 该节点 children 里有 `child.name.startsWith('bgc-')`
 - **且**: `bgc-` 层的 `fills` 是 `GRADIENT_*`(或多层含 GRADIENT)
 
 ## 期望产物

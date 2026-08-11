@@ -18,40 +18,7 @@
     "assetsDir": "static/",
     "imageBaseUrl": "http://127.0.0.1:8080/webapp/train/yun/xxxx/"
   },
-  "layers": {
-    "sub": "sub-",
-    "block": "block-",
-    "img": "img-",
-    "bg": "bg-",
-    "bgColor": "bgc-",
-    "but": "btn-",
-    "scrollX": "scrollx-",
-    "scrollY": "scrolly-",
-    "ignore": "x-"
-  },
   "output": {
     "dir": "pages/"
-  },
-  "health": {
-    "enabled": true,
-    "blockOnError": true,
-    "report": {
-      "markdown": true,
-      "json": true,
-      "dir": ""
-    },
-    "thresholds": {
-      "maxDepth": 6,
-      "subBlockMin": 3,
-      "subBlockMax": 20,
-      "totalNodesMax": 1500,
-      "hiddenRatioMax": 0.2,
-      "paddingAsymmetryMax": 32,
-      "bgSizeMin": 0.8,
-      "bgSizeMax": 1.2,
-      "colorDeltaEMin": 3
-    },
-    "rules": {}
   }
 }
-

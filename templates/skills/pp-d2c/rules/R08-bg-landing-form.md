@@ -8,7 +8,7 @@
 
 ## 触发条件
 
-- **cache**: `node.name.startsWith(config.layers.bg || 'bg-')` 或 `node.name === 'bg'`
+- **cache**: `node.name.startsWith('bg-')` 或 `node.name === 'bg'`
 - **命中信号**: 图层名以 `bg-` 开头(如 `bg-body`、`bg-header`、`bg-card`)或裸 `bg`
 
 ## 期望产物

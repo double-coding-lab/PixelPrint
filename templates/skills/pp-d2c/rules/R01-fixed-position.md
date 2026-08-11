@@ -8,7 +8,7 @@
 
 ## 触发条件
 
-- **cache**: `node.name.startsWith(config.layers.fixed || 'fixed-')`
+- **cache**: `node.name.startsWith('fixed-')`
 - **命中信号**: 图层名以 `fixed-` 开头(如 `fixed-状态栏`、`fixed-topbar`、`fixed-底部bar`)
 
 ## 期望产物

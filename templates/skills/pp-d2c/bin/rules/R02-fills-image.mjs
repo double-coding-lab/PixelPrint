@@ -13,7 +13,7 @@ export const name = 'fills-image';
 
 export function check({ cache, product, config, classMap }) {
   const violations = [];
-  const ignorePrefix = (config && config.layers && config.layers.ignore) || 'x-';
+  const ignorePrefix = 'x-';
 
   // 读 assets.txt (在 product root)
   const assetsPath = path.join(product.root, 'assets.txt');

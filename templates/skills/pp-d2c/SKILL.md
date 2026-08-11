@@ -130,18 +130,9 @@ Read("pp-d2c.config.json")
 | `unit.outputUnit` | 输出单位，`px` / `vw` / `rem`，默认 `px` |
 | `unit.outputBase` | 输出基准宽度（px 模式有效），默认 `750` |
 | `unit.scale` | 换算倍数（outputBase / figmaBase），默认 `2` |
-| `layers.sub` | 分块触发前缀，默认 `sub-` |
-| `layers.block` | 独立布局块前缀，默认 `block-` |
-| `layers.img` | 图片前缀，默认 `img-` |
-| `layers.bg` | 背景图前缀，默认 `bg-` |
-| `layers.but` | 可点击区域前缀，默认 `btn-` |
-| `layers.scrollX` | 横向滚动容器前缀，默认 `scrollx-` |
-| `layers.scrollY` | 纵向滚动容器前缀，默认 `scrolly-` |
-| `layers.fixed` | 视口固定定位前缀，默认 `fixed-` |
-| `layers.end` | 逆向布局前缀（贴父末端），默认 `end-` |
-| `layers.input` | 输入框前缀，默认 `input-` |
-| `layers.ignore` | 忽略前缀，默认 `x-` |
 | `output.dir` | 代码输出根目录 |
+
+> **图层前缀是内置常量,不可配置**:`sub-` / `block-` / `img-` / `bg-` / `bgc-` / `btn-` / `scrollx-` / `scrolly-` / `fixed-` / `end-` / `input-` / `x-` 由 skill 硬编码,pp-d2c.config.json 里**不再**有 `layers` 段。详见 `rules/README.md` 内置前缀常量表。
 
 #### 样式方案标识符（`project.styleFormat` 取值表）
 
@@ -931,18 +922,18 @@ def rgb_to_hex(c):
 
 | 前缀 | 语义 | 对生成代码的影响 |
 |------|------|----------------|
-| `sub-`（`layers.sub`） | 分块边界 | 仅用于步骤 2 分块，不影响渲染 |
-| `block-`（`layers.block`） | 独立布局块 | HTML 上作为独立根元素，CSS 类名以块名做命名空间，不与其他块共享样式 |
-| `x-`（`layers.ignore`） | 忽略 | 跳过整个图层，不生成任何代码，**优先级最高** |
-| `btn-`（`layers.but`） | 可点击区域 | 在内容外包一层可点击容器，不限定组件类型;**永远走 CSS 化(切图四条硬规则第 3 条)** |
-| `img-`（`layers.img`） | 图片内容 | 生成 `<img>` 引用，**不再向内递归**，命中即停止(切图四条硬规则第 1 条) |
-| `bg-`（`layers.bg`） | 背景图 | 将图片设置为**父元素**的 `background-image`，自身不生成独立 HTML 元素，**不再向内递归**(切图四条硬规则第 1 条) |
-| `bgc-`（`layers.bgColor`） | 背景纯色 | 将颜色/描边/圆角/阴影**全套盒级 CSS 属性**写到**父元素**，自身不生成独立 HTML 元素 |
-| `scrollx-`（`layers.scrollX`） | 横向滚动容器 | 容器开 `overflow-x: auto`、子元素 `flex-shrink: 0`、隐藏滚动条；**继续递归子层** |
-| `scrolly-`（`layers.scrollY`） | 纵向滚动容器 | 容器开 `overflow-y: auto`、隐藏滚动条；**继续递归子层** |
-| `fixed-`（`layers.fixed`） | 视口固定定位 | 在当前节点对应的容器上加 `position: fixed`，相对视口定位；top/bottom/left/right 根据 Figma constraints 推断；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加（这三个不生成节点，没法 fixed） |
-| `end-`（`layers.end`） | 逆向布局（贴父末端） | 让节点在父 autoLayout 里贴向末端：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。**主线机制**：把该 end- 节点前面的兄弟包成一个 wrapper，父 `justify-content: space-between`，天然把 end- 推到末端；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` / `input-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加 |
-| `input-`（`layers.input`） | 输入框（`<input type="text">`） | 生成语义化 `<input type="text">` 标签而非 `<div>`，取子 TEXT 节点 `characters` 作为 `placeholder`，左侧图标（若存在 vector/img 子）切图作为 `background-image` + `padding-left` 腾位置；**独立前缀**（决定生成什么元素，不是修饰），**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加（doctor NAM019/NAM020 error），**可**与 `fixed-` / `end-` / `sub-` 叠加；命中即停止向内递归 |
+| `sub-` | 分块边界 | 仅用于步骤 2 分块，不影响渲染 |
+| `block-` | 独立布局块 | HTML 上作为独立根元素，CSS 类名以块名做命名空间，不与其他块共享样式 |
+| `x-` | 忽略 | 跳过整个图层，不生成任何代码，**优先级最高** |
+| `btn-` | 可点击区域 | 在内容外包一层可点击容器，不限定组件类型;**永远走 CSS 化(切图四条硬规则第 3 条)** |
+| `img-` | 图片内容 | 生成 `<img>` 引用，**不再向内递归**，命中即停止(切图四条硬规则第 1 条) |
+| `bg-` | 背景图 | 将图片设置为**父元素**的 `background-image`，自身不生成独立 HTML 元素，**不再向内递归**(切图四条硬规则第 1 条) |
+| `bgc-` | 背景纯色 | 将颜色/描边/圆角/阴影**全套盒级 CSS 属性**写到**父元素**，自身不生成独立 HTML 元素 |
+| `scrollx-` | 横向滚动容器 | 容器开 `overflow-x: auto`、子元素 `flex-shrink: 0`、隐藏滚动条；**继续递归子层** |
+| `scrolly-` | 纵向滚动容器 | 容器开 `overflow-y: auto`、隐藏滚动条；**继续递归子层** |
+| `fixed-` | 视口固定定位 | 在当前节点对应的容器上加 `position: fixed`，相对视口定位；top/bottom/left/right 根据 Figma constraints 推断；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加（这三个不生成节点，没法 fixed） |
+| `end-` | 逆向布局（贴父末端） | 让节点在父 autoLayout 里贴向末端：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。**主线机制**：把该 end- 节点前面的兄弟包成一个 wrapper，父 `justify-content: space-between`，天然把 end- 推到末端；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` / `input-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加 |
+| `input-` | 输入框（`<input type="text">`） | 生成语义化 `<input type="text">` 标签而非 `<div>`，取子 TEXT 节点 `characters` 作为 `placeholder`，左侧图标（若存在 vector/img 子）切图作为 `background-image` + `padding-left` 腾位置；**独立前缀**（决定生成什么元素，不是修饰），**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加（doctor NAM019/NAM020 error），**可**与 `fixed-` / `end-` / `sub-` 叠加；命中即停止向内递归 |
 
 ##### 独立裸词规则
 
