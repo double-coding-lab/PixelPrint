@@ -1,6 +1,6 @@
 # pp-d2c Skill
 
-> **当前版本**：v0.3.19(h5 独享,不同步 pp-d2c-rn) —— 极简重写: 切图三条硬规则(bg/img 前缀切图 / fills 含 IMAGE 切图 / 其他 CSS 化),删除 v0.3.9-v0.3.17 所有例外通道。核心哲学: 允许兜底的路径就是错误来源。
+> **当前版本**：v0.3.20(h5 独享,不同步 pp-d2c-rn) —— 在 v0.3.19 三条硬规则上扩到四条(加"结构性隐式图切图"),每条硬规则内嵌 sub-agent 交付前自证清单,把"事后 grep 兜底"提前成"sub-agent 交付前拦截"。核心哲学: 允许兜底的路径就是错误来源。
 >
 > 历史 changelog 查 `git log templates/skills/pp-d2c/SKILL.md`,不在本文件维护。所有规则以下文章节为准。
 
@@ -51,8 +51,8 @@ agent 在跑 pp-d2c 全流程时 **只允许问用户业务问题，禁止问 sk
 
 | 类型 | 举例（对应 skill 章节） |
 |-----|---------------------|
-| **前缀语义** | "`btn-` 要不要切图？" → §4.3 切图三条硬规则已定；"`bg-` 切自身还是父容器？" → §4.3 已定 |
-| **兜底判定** | "这个纯色父容器要 CSS 还是切图？" → §4.3 切图三条硬规则第 3 条(其他一切走 CSS);"多层 fills 取哪个？" → §4.1.1 TEXT 多层 fills 处理已定取末位 |
+| **前缀语义** | "`btn-` 要不要切图？" → §4.3 切图四条硬规则已定；"`bg-` 切自身还是父容器？" → §4.3 已定 |
+| **兜底判定** | "这个纯色父容器要 CSS 还是切图？" → §4.3 切图四条硬规则第 4 条(其他一切走 CSS);"多层 fills 取哪个？" → §4.1.1 TEXT 多层 fills 处理已定取末位 |
 | **合并策略** | "flat 合并展开还是简化？" → §5.0.pre 禁"简化" sub-agent 产物 |
 | **尺寸单位** | "这个 500px 要不要换算？" → §4.5 单位换算 + `unit.scale` 已定 |
 | **命名冲突** | "类名重了怎么办？" → §5 flat 模式已定"加 block 前缀" |
@@ -831,9 +831,9 @@ sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA �
 
 前缀值从 config `layers` 读取，未配置时使用括号内默认值。
 
-##### 切图三条硬规则（v0.3.19,顺序判定,命中即停,零例外）
+##### 切图四条硬规则（v0.3.20,顺序判定,命中即停,零例外）
 
-**这是本 SKILL 决定"某个节点是否切图"的唯一入口**。历史上每加一个次级判定分支都在生事故,v0.3.19 后一律作废,只保留下面这三条硬规则。
+**这是本 SKILL 决定"某个节点是否切图"的唯一入口**。v0.3.19 用三条硬规则删掉了 v0.3.9-v0.3.17 所有例外通道;v0.3.20 在三条上加一条"结构性隐式图切图"覆盖"设计师忘打前缀但节点确实是一张纯视觉图"的情况,并在每条硬规则末尾内嵌 sub-agent 交付前自证清单。
 
 1. **前缀命中 `bg` / `img`**（含 `bg-xxx` / 裸词 `bg` / `img-xxx` / 裸词 `img`）→ **整体切图,子层不解析**
    - `bg` 类:切图挂父容器 `background: url(...) no-repeat center/cover`(写在父容器独立 `.scss`),bg 节点自身**不生成任何 DOM**
@@ -842,24 +842,82 @@ sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA �
    - **禁止**用 `::before` / `::after` / 空 div / inline style 挂 bg 切图
 
 2. **fills 含 IMAGE 类型**（无前缀也算）→ 通过 Figma REST `/v1/images` 拉 imageRef,挂**父容器** `background`
-   - 等价于把"节点带 IMAGE 填充"当作第三种切图触发条件
+   - 等价于把"节点带 IMAGE 填充"当作切图触发条件
    - 与 bg- 命中的落地方式一致(父容器独立 scss + `background: url(...)`)
+   - **多重 fills 里只要有一层 IMAGE**(即使还有 SOLID 底色) → 也必须切,底色和图叠加成复合 `background`,**不允许只写 background-color 忽略 IMAGE**
 
-3. **其他一切**（包括 `btn-` / `矩形` / `Frame xxx` / 无前缀 FRAME/GROUP / `bgc-` 等）→ **禁止切图**,读节点 fills/strokes/cornerRadius/effects 全部转 CSS,TEXT 子层生成 `<span>`
-   - `btn-` 前缀父容器不再是特殊规则,和其他非 bg/img 容器走同一条 CSS 化路径
+3. **结构性隐式图**(v0.3.20 新增,覆盖"设计师忘打前缀的纯视觉装饰节点") → 整体切图,挂父容器 `background` 或生成 `<img>`(按父上下文决定)
+
+   **同时满足**下列全部条件视为"结构性隐式图":
+   - 节点前缀**不是** `img-` / `bg-` / `btn-` / `input-` / `x-`(不能命中已有前缀规则)
+   - 节点是 GROUP / FRAME 且**子孙节点全部**是 `VECTOR` / `BOOLEAN_OPERATION` / `ELLIPSE` / `RECTANGLE` / `STAR` / `POLYGON` / `LINE`(装饰型图元),**至少含 1 个 VECTOR 或 BOOLEAN_OPERATION**
+   - 子树**不含任何 `TEXT` 节点**(文字必须可选/可翻译,有 TEXT 一律不切)
+   - 子树**不含任何 `INSTANCE` / `COMPONENT` 节点**(组件必须独立,有交互原子一律不切)
+   - 子树**不含带 `btn-` / `input-` / `sub-` / `block-` 前缀的子节点**(有交互/分块语义一律不切)
+
+   命中后按父上下文落地:
+   - 父是 FRAME/GROUP 且节点在父 autoLayout 顺流中,或用作装饰背景层 → 切图挂**父容器** `background`
+   - 父是 FRAME/GROUP 且节点是内容(独立占位) → 切图生成 `<img>`
+   - **filename 派生规则**: `{父节点 name 或 clean-id}-{当前节点 name}.png`(clean-id: nodeId 去冒号)
+
+   **反向自检**:任何子树里**含 TEXT / INSTANCE / COMPONENT / btn-/sub-/block- 前缀节点**的 → **不允许**走本条,即使视觉上看着像"一张图"。有子内容的应递归 CSS 化。
+
+4. **其他一切**（包括 `btn-` / `矩形` / `Frame xxx` / 无前缀 FRAME/GROUP / `bgc-` 等）→ **禁止切图**,读节点 fills/strokes/cornerRadius/effects 全部转 CSS,TEXT 子层生成 `<span>`
+   - `btn-` 前缀父容器不再是特殊规则,和其他非 bg/img/隐式图容器走同一条 CSS 化路径
    - fills SOLID → `background-color`;fills GRADIENT_LINEAR/RADIAL → `background-image: linear-gradient(...)` / `radial-gradient(...)`
    - strokes → `border` / `outline`;cornerRadius → `border-radius`;effects → `box-shadow` / `filter: blur()` / `backdrop-filter`
 
+##### 硬规则 sub-agent 交付前自证清单（v0.3.20 强制,每个 sub-agent 交付 assets.txt 时必写）
+
+每个 sub-agent 在 `blocks/{sub}/assets.txt` QA 段**必须**追加一段"四条硬规则自证",内容如下(N/M 为节点计数,列表非空必须列出 nodeId + name):
+
+```
+## 切图四条硬规则自证(v0.3.20 强制)
+
+### 规则 1: bg-/img- 前缀
+- 子树内 bg-/img-/裸词bg/裸词img 节点总数: N1={count}
+- 已切图并落地(bg 挂父 background / img 生 <img>)节点数: M1={count}
+- N1 == M1? [✅/❌]  差集: {nodeIds or "空"}
+- 落地形式违规扫描(::before/::after/空 div/inline style 挂 bg): {"无" or 违规节点列表}
+
+### 规则 2: fills 含 IMAGE
+- 子树内 fills 数组含至少一层 type='IMAGE' 的节点总数(不管前缀): N2={count}
+- 已拉 imageRef 并挂 background 的节点数: M2={count}
+- N2 == M2? [✅/❌]  差集: {nodeIds or "空"}
+- 多重 fills(SOLID + IMAGE 叠加)节点是否 SOLID 和 IMAGE 都写进 CSS: [✅ 都写 / ❌ 只写 SOLID 漏 IMAGE, 节点: xxx]
+
+### 规则 3: 结构性隐式图(v0.3.20 新增)
+- 子树内满足"无前缀 + 子孙全 VECTOR/BOOL/ELLIPSE/RECT/STAR/POLYGON/LINE + 含 ≥1 VECTOR|BOOL + 无 TEXT + 无 INSTANCE/COMPONENT + 无 btn-/input-/sub-/block- 前缀子层"节点总数: N3={count}
+- 已切图并落地节点数: M3={count}
+- N3 == M3? [✅/❌]  差集: {nodeIds or "空"}
+- 误判扫描(切了带 TEXT 或 INSTANCE 子层的节点): {"无" or 违规节点列表}
+
+### 规则 4: CSS 化(非切图路径)
+- 子树内不命中规则 1/2/3 的容器节点总数: N4={count}
+- 已生成 CSS(fills/strokes/cornerRadius/effects 至少写了对应属性)节点数: M4={count}
+- N4 == M4? [✅/❌]  差集: {nodeIds or "空"}
+- 误切扫描(把该走 CSS 的节点整体切图了): {"无" or 违规节点列表}
+
+### 前缀语义合规扫描
+- fixed- 前缀节点: 是否所有产物 CSS 都含 position: fixed? [✅/❌ 违规节点]
+- TEXT 多层 fills: 是否所有多层 fills TEXT 字色取的都是"末位可见 SOLID"? [✅/❌ 违规节点]
+- primaryAxisAlignItems=SPACE_BETWEEN 节点(Figma "两端对齐 / Auto gap"): 产物 CSS 是否含 `justify-content: space-between`? [✅/❌ 违规节点+错误写法(如 margin-auto/flex-end/gap: auto)]
+```
+
+**任一 ❌ 或差集非空** → sub-agent 交付作废,立即回滚重做;不允许 sub-agent 用 QA 备注放行(参考 v0.3.9 "文本标注不是豁免许可证"原则)。主 agent 合并前 grep 断言该自证块存在(§6.0.2)。
+
+**违反后果**:doctor SUB030(v0.3.20 新增,error)—— sub-agent 交付未含"四条硬规则自证"块,或自证块存在 ❌ 项但仍交付。
+
 ##### 通用节点 fills / strokes / cornerRadius / effects → CSS 翻译规则（v0.3.19）
 
-**作用范围**：所有不命中"切图三条硬规则"的容器节点(前缀 `btn-` / `sub-` / `block-` / `bgc-` / 无前缀 FRAME/GROUP)。取值写入**节点自身容器 CSS**;`bgc-` 是唯一例外(不生成独立 HTML,写入**父元素** CSS)。
+**作用范围**：所有不命中"切图四条硬规则"的容器节点(前缀 `btn-` / `sub-` / `block-` / `bgc-` / 无前缀 FRAME/GROUP)。取值写入**节点自身容器 CSS**;`bgc-` 是唯一例外(不生成独立 HTML,写入**父元素** CSS)。
 
 | Figma 属性 | CSS 属性 |
 |-----------|---------|
 | `fills[*].type === 'SOLID'` | `background-color: #xxx`(取 HEX) |
 | `fills[*].type === 'GRADIENT_LINEAR'` | `background-image: linear-gradient(...)` |
 | `fills[*].type === 'GRADIENT_RADIAL'` | `background-image: radial-gradient(...)` |
-| `fills[*].type === 'IMAGE'` | **走切图三条硬规则第 2 条**——拉 imageRef 挂父容器 background,即使节点无 bg-/img- 前缀 |
+| `fills[*].type === 'IMAGE'` | **走切图四条硬规则第 2 条**——拉 imageRef 挂父容器 background,即使节点无 bg-/img- 前缀 |
 | 多重 fills | 按 Figma 渲染顺序合成 `background` 复合属性 |
 | `strokes[*]` + `strokeAlign === 'OUTSIDE'` | `outline: {weight}px solid #xxx`(gradient stroke 降级 `box-shadow: 0 0 0 {weight}px ...`) |
 | `strokes[*]` + `strokeAlign === 'INSIDE'` | `border: {weight}px solid #xxx` + `box-sizing: border-box` |
@@ -885,9 +943,9 @@ sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA �
 | `sub-`（`layers.sub`） | 分块边界 | 仅用于步骤 2 分块，不影响渲染 |
 | `block-`（`layers.block`） | 独立布局块 | HTML 上作为独立根元素，CSS 类名以块名做命名空间，不与其他块共享样式 |
 | `x-`（`layers.ignore`） | 忽略 | 跳过整个图层，不生成任何代码，**优先级最高** |
-| `btn-`（`layers.but`） | 可点击区域 | 在内容外包一层可点击容器，不限定组件类型;**永远走 CSS 化(切图三条硬规则第 3 条)** |
-| `img-`（`layers.img`） | 图片内容 | 生成 `<img>` 引用，**不再向内递归**，命中即停止(切图三条硬规则第 1 条) |
-| `bg-`（`layers.bg`） | 背景图 | 将图片设置为**父元素**的 `background-image`，自身不生成独立 HTML 元素，**不再向内递归**(切图三条硬规则第 1 条) |
+| `btn-`（`layers.but`） | 可点击区域 | 在内容外包一层可点击容器，不限定组件类型;**永远走 CSS 化(切图四条硬规则第 3 条)** |
+| `img-`（`layers.img`） | 图片内容 | 生成 `<img>` 引用，**不再向内递归**，命中即停止(切图四条硬规则第 1 条) |
+| `bg-`（`layers.bg`） | 背景图 | 将图片设置为**父元素**的 `background-image`，自身不生成独立 HTML 元素，**不再向内递归**(切图四条硬规则第 1 条) |
 | `bgc-`（`layers.bgColor`） | 背景纯色 | 将颜色/描边/圆角/阴影**全套盒级 CSS 属性**写到**父元素**，自身不生成独立 HTML 元素 |
 | `scrollx-`（`layers.scrollX`） | 横向滚动容器 | 容器开 `overflow-x: auto`、子元素 `flex-shrink: 0`、隐藏滚动条；**继续递归子层** |
 | `scrolly-`（`layers.scrollY`） | 纵向滚动容器 | 容器开 `overflow-y: auto`、隐藏滚动条；**继续递归子层** |
@@ -928,7 +986,7 @@ sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA �
 | 条件 | 处理 |
 |------|------|
 | 图层类型为 TEXT | 生成文字节点 `<span>` |
-| 图层 fills 含 IMAGE 类型 | 走**切图三条硬规则第 2 条**(拉 imageRef 挂父容器 background) |
+| 图层 fills 含 IMAGE 类型 | 走**切图四条硬规则第 2 条**(拉 imageRef 挂父容器 background) |
 | 其他所有情况 | **走 CSS 化**(读 fills/strokes/cornerRadius/effects 转 CSS,子层递归解析,TEXT 子层生成 `<span>`) |
 
 ##### 组合优先级（v0.3.19 简化）
@@ -937,7 +995,7 @@ sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA �
 2. 含 `img-` → 生成 `<img>`，**立即停止**，不再处理任何子图层
 3. 含 `bg-` → 将图片写入父元素 `background-image`，自身不生成 HTML，**不递归**
 4. 含 `bgc-` → 将 fills/strokes/cornerRadius/effects **全套盒级属性**写到父元素，自身不生成 HTML
-5. 提取 `btn-` → 生成可点击容器,**走 CSS 化**(切图三条硬规则第 3 条),内部 TEXT 生成 `<span>`
+5. 提取 `btn-` → 生成可点击容器,**走 CSS 化**(切图四条硬规则第 4 条),内部 TEXT 生成 `<span>`
 6. 提取 `scrollx-` / `scrolly-` → 记录"需要包滚动容器"（容器层级；继续递归子层）
 7. 无内容前缀 → 走 CSS 化(读 fills/strokes/cornerRadius/effects,TEXT 子层生成 `<span>`)
 8. 若有 `fixed-`，在最终容器上加 `position: fixed` + 根据 Figma constraints 推断 top/bottom/left/right
@@ -996,7 +1054,7 @@ sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA �
   }
   ```
 - **前置条件**：容器必须有"被限定的宽度"（横向）或"被限定的高度"（纵向），否则 overflow 不会触发。Figma 中宽/高模式 = "Hug Contents" 或 fill 100% 父宽（且父也未限宽）时**仍生成代码**，但在 QA / doctor 中标注：「`scrollx-` 容器宽度不固定，运行时滚动可能不触发」。
-- **强制递归生成 DOM 列表项**：`scrollx-` / `scrolly-` 必须继续递归子层,不允许整体切图(切图三条硬规则不涵盖 scrollx-/scrolly-)。**同构 ≥3 个必须 `.map()` 数据驱动渲染**(把每个节点内部随位置变化的原子字段抽成数据数组元素,位置和结构不变的部分留在 JSX 模板)。
+- **强制递归生成 DOM 列表项**：`scrollx-` / `scrolly-` 必须继续递归子层,不允许整体切图(切图四条硬规则不涵盖 scrollx-/scrolly-)。**同构 ≥3 个必须 `.map()` 数据驱动渲染**(把每个节点内部随位置变化的原子字段抽成数据数组元素,位置和结构不变的部分留在 JSX 模板)。
 
 ##### 布局规则：每 Frame 独立走判定优先级 + 间距单一来源
 
@@ -1219,7 +1277,7 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 
 ##### 4.4.0 切图强制忠实执行（v0.3.6 新增）
 
-**核心原则**：命中切图三条硬规则（bg 前缀 / img 前缀 / fills 含 IMAGE）时，必须调 `figma.mjs export-image`（走 REST API）产出图片；**不允许**"看到 assetsDir 里有同名文件就跳过"或"从其他来源复用"。
+**核心原则**：命中切图四条硬规则（bg 前缀 / img 前缀 / fills 含 IMAGE）时，必须调 `figma.mjs export-image`（走 REST API）产出图片；**不允许**"看到 assetsDir 里有同名文件就跳过"或"从其他来源复用"。
 
 **流程（每张切图必走）**：
 
@@ -1256,18 +1314,18 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
    ```
    这 3 行在 flat 和 component 两种 merge.mode 下都**必须**出现，用户复现时能直接对比 md5 判定 skill 是否忠实执行了 API 调用。
 
-**doctor IMG026（v0.3.6 新增）**：命中切图三条硬规则，但 images.json 里对应 nodeId 缺失 → **error**（说明本次 skill 没走 REST 就落图，属于严重忠实度事故）。
+**doctor IMG026（v0.3.6 新增）**：命中切图四条硬规则，但 images.json 里对应 nodeId 缺失 → **error**（说明本次 skill 没走 REST 就落图，属于严重忠实度事故）。
 
 ##### 4.4 图片处理主段（v0.3.6 起以 §4.4.0 为前提）
 
-所有图片（切图三条硬规则命中）通过 `figma.mjs export-image` 导出。脚本内置：两步式下载 / `use_absolute_bounds=true` 默认开 / 存在即跳过 / 3 次指数退避 / 回写 `images.json` / 绝对路径写入 `{projectRoot}/{assetsDir}/{filename}.{ext}`。
+所有图片（切图四条硬规则命中）通过 `figma.mjs export-image` 导出。脚本内置：两步式下载 / `use_absolute_bounds=true` 默认开 / 存在即跳过 / 3 次指数退避 / 回写 `images.json` / 绝对路径写入 `{projectRoot}/{assetsDir}/{filename}.{ext}`。
 
 **⚠️ 调脚本前的强制前置自检（sub-agent 每张图都必须做,且必须把 3 行输出到对话）**：
 
 ```
 · 切图源 nodeId:{要写进 --ids 的值}
 · 切图源 name:{该 nodeId 对应节点的图层名}
-· 交叉验证前缀:切图源 name 是否以「bg-」/「img-」开头,或完全等于裸词「bg」/「img」,或该节点 fills 含 IMAGE 类型?{是 → 继续切图 / 否 → 立即停下,回归 §4.3 三条硬规则重判}
+· 交叉验证前缀:切图源 name 是否以「bg-」/「img-」开头,或完全等于裸词「bg」/「img」,或该节点 fills 含 IMAGE 类型?{是 → 继续切图 / 否 → 立即停下,回归 §4.3 四条硬规则重判}
 ```
 
 **交叉验证判定**：
@@ -1747,7 +1805,7 @@ fi
 
 **doctor 关联规则**：IMG028（v0.3.7 新增，error）—— assets.txt 声明的切图文件在最终产物中未被引用，参见 pp-doctor §3.6q。
 
-#### 6.0.2 合并忠实度证明块（v0.3.19 精简）
+#### 6.0.2 合并忠实度证明块（v0.3.20 扩:加四条硬规则自证聚合）
 
 主 agent 在步骤 7（输出交付物清单）**之前**必须在对话中输出以下证明块，作为"我的合并过程忠实"的自证；**未输出即视为交付不合格**：
 
@@ -1764,6 +1822,17 @@ fi
 - sub-agent 声明切图数：{count(F₁)}
 - 最终产物引用切图数：{count(F₂)}
 - 差集 F₁ - F₂：{"空" 或 "unused: file1.png, file2.png, ..."}
+- 结果：{✅ 通过 / ❌ 失败}
+
+## 四条硬规则自证聚合（§4.3,v0.3.20 强制）
+- 每个 sub-agent 的 assets.txt 是否含"## 切图四条硬规则自证(v0.3.20 强制)"段：{全含 ✅ / 缺失: [sub 名]}
+- 各 sub-agent 自证 4 条规则的 N==M 断言全部 ✅ ？{是 / 否: [sub-规则-差集 nodeId]}
+- 产物 grep 交叉验证:
+  - fixed- 前缀节点(取自 cache)在产物 CSS 中含 `position: fixed`? {✅/❌ 缺失节点列表}
+  - fills 含 IMAGE 的节点(取自 cache)在产物中含 `url(` 引用? {✅/❌ 缺失节点列表}
+  - `::before` / `::after` / inline `style={{background` 挂 bg 切图违规? {"无" or 违规文件+行}
+  - 多层 fills TEXT 字色是否 == cache 末位可见 SOLID 换算 HEX? {✅/❌ 违规 TEXT 列表}
+  - primaryAxisAlignItems=SPACE_BETWEEN 节点(取自 cache)产物 CSS 是否含 `justify-content: space-between`? {✅/❌ 违规节点+错误写法(margin-auto/flex-end/gap:auto)}
 - 结果：{✅ 通过 / ❌ 失败}
 
 ## 未打断用户核查（v0.3.8，§问题边界）
@@ -1872,7 +1941,7 @@ EOF
 ## 禁止项
 
 - 禁止把 `img-` / `bg-` 前缀图层拆解为 CSS 实现(硬规则第 1 条:整体切图,子层不解析)
-- 禁止对非 `bg` / `img` 前缀且 fills 不含 IMAGE 的节点整体切图(硬规则第 3 条:走 CSS 化)
+- 禁止对非 `bg` / `img` 前缀、fills 不含 IMAGE、也不命中"结构性隐式图"(硬规则第 3 条)的节点整体切图(硬规则第 4 条:走 CSS 化)
 - 禁止在代码中写 HEX 色值或 px 魔法数字（使用 Token 变量，若项目有）
 - 禁止跳过步骤 -1 的预检
 - 禁止使用 Figma node ID 作为图片文件名
@@ -1905,7 +1974,7 @@ EOF
 - 禁止 `fixed-` 节点跳过 Figma constraints 读取
 - 禁止组件函数名、组件文件目录名以 `sub-` / `Sub` 开头
 - 禁止 TEXT 节点有多层可见 SOLID fills 时直接取 `fills[0]`：必须按 §4.1.1「TEXT 多层 fills 处理」按 Figma 渲染顺序取末位可见 SOLID
-- 禁止命中切图三条硬规则但跳过 REST API 调用：必须按 §4.4.0「切图强制忠实执行」流程走
+- 禁止命中切图四条硬规则但跳过 REST API 调用：必须按 §4.4.0「切图强制忠实执行」流程走
 - 禁止在 assets.txt 中省略 §4.4.0 定义的 3 行溯源
 - 禁止 flat 模式合并时用父容器整体切图替代 sub-agent 的拆分产物
 - 禁止对 `sub-*` / `block-*` 前缀节点调用 `figma.mjs export-image` 整体切图
