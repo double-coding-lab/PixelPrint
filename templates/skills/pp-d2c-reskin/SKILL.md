@@ -90,6 +90,7 @@ node .claude/skills/pp-d2c-reskin/reskin-slice.mjs \
 | `--dry-run` / `-n` | 只扫基线切图清单(有基线时),不拉稿子也不切图 |
 | `--base <figmaUrl>` | 显式指定基线 URL(优先级高于 `last-page.json`) |
 | `--prefix <list>` | 覆盖切图前缀(逗号分隔,不带 `-`;默认 `img,bg`) |
+| `--dedupe-siblings` | 同父下同名节点只切第一个。默认关闭 —— 全都切,同名冲突用父路径前缀区分。**仅在 auto-layout 循环卡片刻意重复、切一次就够的场景才打开** |
 
 ## 切图清单如何认定
 
@@ -102,18 +103,24 @@ node .claude/skills/pp-d2c-reskin/reskin-slice.mjs \
 
 **裸 `img` / `bg` 的产物文件名**:因为没有子名,skill 会用**父节点 name** 作为文件名基础(如父节点 `sub-hero-card` 下的裸 `bg` → `hero-card__bg.png`),避免多个裸 `bg` 撞名。
 
-**同 name 去重**:同一 name 在 auto-layout 里重复出现只切一次(通常是设计稿里循环卡片背景之类)。
+**同 name 处理(默认全切,加 `--dedupe-siblings` 才去重)**:
+
+- 跨父同名(3 个 `img-icon` 分处 Frame 722 / 726 / 730)→ **全部切出**,文件名自动加最近具体祖先前缀区分:`frame-722__icon.png` / `frame-726__icon.png` / `frame-730__icon.png`
+- 同父同名(auto-layout 里循环卡片背景之类)→ 默认也全切,但如果确定只需一份,加 `--dedupe-siblings` 只切第一个
+- 极少数二次撞名(父路径 slug 又相同)→ 再拼 nodeId 兜底,不丢图
+
+**不再要求美术回改图层名**;skill 端自动消解冲突。
 
 ## 换肤节点匹配规则(仅有基线时执行)
 
-**只有"有基线"模式才做跨稿匹配**。对每一个基线切图位,在换肤子树里找**同 key** 的第一个节点:
+**只有"有基线"模式才做跨稿匹配**。对每一个基线切图位,在换肤子树里找**同 key** 的对应节点:
 
-- 带子名(`img-hero` / `bg-card-top`)→ key = name(全局唯一)
-- 裸标签(`img` / `bg`)→ key = `<父节点 name>||<name>`(避免同名裸标签撞车)
-- 命中 → 切图落到 `<assetsDir>/theme-<slug>/<原文件名>.png`
-- 未命中 → 记入 miss 报告并**继续处理下一项**,不中断整套
+- 匹配 key 恒为 **`<父节点 name>||<name>`**(裸标签、带子名统一走此规则)
+- 同 matchKey 的多个节点(3 个 `img-icon` 各挂不同父)按遍历顺序**一一配对**:基线第 1 个对应换肤稿第 1 个,基线第 2 个对应换肤稿第 2 个
+- 命中 → 切图落到 `<assetsDir>/theme-<slug>/<原文件名>.png`(文件名由 `resolveFilenameCollisions` 决定,同 basename 会加父路径前缀)
+- 未命中 → 记入 miss 报告并**继续处理下一项**,不中断整套;miss 原因会区分「换肤稿无对应节点」还是「换肤稿仅 N 个同结构节点,基线第 M 个无匹配」
 
-**为什么这样匹配**:换肤稿本质是"复制基线稿改颜色",图层名理应保持一致。设计侧若改了图层名,skill 报 miss 让美术回改,比容错匹配可能"切错节点"要好。
+**为什么这样匹配**:换肤稿本质是"复制基线稿改颜色",图层树理应保持一致(含父节点命名与循环结构数量)。若换肤稿把**父 Frame 改名了**、或循环卡片数量与基线不一致,skill 会报 miss 让美术回改 —— 比容错匹配可能"切错节点"要好。
 
 **无基线模式(standalone)** 不做跨稿匹配 —— 每套稿子按自身图层树独立扫,前缀命中就切,不与其它稿子对齐。
 
@@ -143,6 +150,29 @@ const heroSrc = `./assets/${THEME_DIR[themeKey]}hero.png`
 ```
 
 **无基线模式下文件名以每套稿子内实际图层名为准**,不同稿子间不保证文件名一致(靠美术自己保持图层命名规范)。
+
+## 排查切图不符预期(给下游 agent 的硬规)
+
+跑完 skill 后若发现某张 PNG "少东西 / 尺寸不对 / 内容不符预期",按以下顺序排查,**别自己临时写脚本发挥**:
+
+1. **断言 PNG 内容前必须先重跑本 skill**  
+   本地 `.png` 是**上一次跑的产物**,设计稿改动后不会自动同步。拿旧 PNG 当"当前行为"的证据是最常见的误诊来源。汇总行会打**产物写入时间**,与设计稿修改时间对比,晚于设计稿改动才是当前状态。
+
+2. **看 `absoluteRenderBounds`,不是 `absoluteBoundingBox`**  
+   Figma REST 返回**两个** bbox 字段:
+   - `absoluteBoundingBox` = 图层名义框(不含描边 / 投影 / 子元素溢出)
+   - `absoluteRenderBounds` = **实际渲染范围**(含以上所有),**Figma 出图按此裁剪**  
+   本 skill 主 log 每一行 `render=W×H` 就是 renderBounds,直接读它,别 curl API 挑错字段。
+
+3. **同名图层现在会全部切出**(带父路径前缀区分),**不要**建议美术回改图层名  
+   3 个 `img-icon` 分处不同父 Frame → 会看到 `frame-722__icon.png` / `frame-726__icon.png` / `frame-730__icon.png`。若只想切一次(循环卡片背景之类),用 `--dedupe-siblings`。
+
+4. **mask / clip 会锁 renderBounds**  
+   GROUP 内有 mask RECTANGLE 时,Figma 的 renderBounds 会被锁在 mask 之内,子节点跑出 mask 范围的部分不会出图。这是 Figma 的规则,skill 端**无法绕过**(`/v1/images` 不接自定义 bbox)。修复只能改设计稿:
+   - 把 mask 拉大到包住溢出内容,或
+   - 把溢出的子节点(如浮动文字)移出 GROUP,由代码单独渲染
+
+5. **想深入排查**:直接 `curl -H "X-Figma-Token: $FIGMA_TOKEN" "https://api.figma.com/v1/files/<key>/nodes?ids=<a>:<b>"` 拉节点树,先看 `absoluteRenderBounds`,再决定"是设计稿问题"还是"skill 问题"。
 
 ## 与其他 skill 的分工
 
