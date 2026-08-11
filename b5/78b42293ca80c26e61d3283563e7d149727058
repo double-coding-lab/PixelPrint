@@ -1,0 +1,51 @@
+templates/skills/pp-d2c-reskin/SKILL.md
+  s_97816464c07f4b::t_422e4dd947046a 116,118-121,123
+  s_97816464c07f4b::t_5160a4253976db 93
+  s_97816464c07f4b::t_a084e25667ef10 154-175
+  s_97816464c07f4b::t_2b14fab1f644f7 106-112
+templates/skills/pp-d2c-reskin/reskin-slice.mjs
+  s_8f566140fc4cb6::t_add7735d1af324 607-629
+  s_8f566140fc4cb6::t_b8c8c792ca2667 538
+  s_97816464c07f4b::t_43b6a3af3ac198 292,294-295,297-298,301
+  s_8f566140fc4cb6::t_5d1414dbb11dd7 546,557-566,575-577,590
+  s_97816464c07f4b::t_8edb1db45a9ed2 415-432,434,436-438
+  s_8f566140fc4cb6::t_0ce64125190c85 119-122,128
+  s_97816464c07f4b::t_dc7911b8d0bd37 552-555
+  s_97816464c07f4b::t_a483d2c7dc744a 15-16
+  s_8f566140fc4cb6::t_3bae867c26f617 213-253
+  s_8f566140fc4cb6::t_87f4fddd9bcc09 545,567-574,578,589
+  s_97816464c07f4b::t_6c9a3bdfa84035 117-118,126
+  s_97816464c07f4b::t_508d33d17d7614 268-271,277-278,289-291,304-318,321-354,356
+  s_97816464c07f4b::t_167549f42ee511 49-50,58-66
+  s_97816464c07f4b::t_15535b443ed59b 479-481,485-489,493-494,497-500,502-505,517,519-528,530-537,539-540
+  s_97816464c07f4b::t_a399bff063601a 597-599
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "b578b42293ca80c26e61d3283563e7d149727058",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    },
+    "s_97816464c07f4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a05db5c0-1eb5-4b2d-92f0-c32a3e012fa0",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
