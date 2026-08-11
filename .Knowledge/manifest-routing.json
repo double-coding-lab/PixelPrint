@@ -25,7 +25,8 @@
     "pp-doctor": ".Knowledge/topics/pp-doctor.md",
     "pp-d2c": ".Knowledge/topics/pp-d2c.md",
     "pp-d2c-rn": ".Knowledge/topics/pp-d2c-rn.md",
-    "pp-fix-partial": ".Knowledge/topics/pp-fix-partial.md"
+    "pp-fix-partial": ".Knowledge/topics/pp-fix-partial.md",
+    "pp-install-dispatch": ".Knowledge/topics/pp-install-dispatch.md"
   },
   "taskToTopicRules": [
     {
@@ -100,6 +101,14 @@
       "topics": [
         "pp-fix-partial"
       ]
+    },
+    {
+      "task": "pp-install-dispatch",
+      "matcherId": "m-pp-install-dispatch",
+      "matcherPath": ".Knowledge/matchers/m-pp-install-dispatch.json",
+      "topics": [
+        "pp-install-dispatch"
+      ]
     }
   ],
   "pkgRev": 2,
@@ -159,6 +168,13 @@
     "pp-fix-partial": {
       "primary": "feature",
       "confidence": "manual",
+      "tags": [
+        "module"
+      ]
+    },
+    "pp-install-dispatch": {
+      "primary": "policy",
+      "confidence": "inferred",
       "tags": [
         "module"
       ]

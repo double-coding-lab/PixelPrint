@@ -1,0 +1,32 @@
+{
+  "id": "m-pp-install-dispatch",
+  "includeAny": [
+    "install.js",
+    "installFiles",
+    "OPT_IN_ONLY",
+    "skill 分发",
+    "skill 登记",
+    "新增 skill 要登记",
+    "新 skill 自动复制",
+    "templates/skills",
+    ".claude/skills",
+    "自动复制到下游",
+    "自动落地",
+    "下游项目",
+    "npx pixel-print init",
+    "npx pixel-print install",
+    "pixel-print install",
+    "skill 白名单",
+    "skill 黑名单",
+    "framework 过滤",
+    "skipRn",
+    "skipH5",
+    "覆盖已有 skill",
+    "force 覆盖",
+    "不想让 skill 落地",
+    "opt-in only",
+    "运行时依赖 skill",
+    "pip install 依赖",
+    "skill python 依赖"
+  ]
+}
