@@ -1,0 +1,21 @@
+.Knowledge/req-docs/pp-d2c-rule-scan_需求澄清.md
+  s_8f566140fc4cb6::t_b89917e036ecd5 1-440
+.Knowledge/req-docs/pp-d2c-rule-scan_技术方案.md
+  s_8f566140fc4cb6::t_5d1b2ad48eb18b 1-733
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "4df26a134e2519e4dc1998fb52d8228dd0c3fb0c",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
