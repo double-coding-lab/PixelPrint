@@ -63,15 +63,15 @@ node .claude/skills/pp-d2c-reskin/reskin-slice.mjs \
 ```
 
 **有基线模式** 对每套稿子:
-1. `figma.mjs fetch-node` 拉换肤子树
+1. 内嵌的 Figma REST 客户端拉换肤稿子树
 2. 按 **name 严格匹配**基线切图清单里的每一项
-3. 命中 → `figma.mjs export-image` 切图 → 归位到 `<assetsDir>/theme-<slug>/<原文件名>.png`
+3. 命中 → `GET /v1/images` 拿 CDN URL → 下载到 `<assetsDir>/theme-<slug>/<原文件名>.png`
 4. 未命中 → 记入 miss 报告(不阻断其它命中)
 
 **无基线模式** 对每套稿子:
-1. `figma.mjs fetch-node` 拉稿子子树
+1. 内嵌的 Figma REST 客户端拉稿子子树
 2. 直接遍历,`img` / `bg` / `img-*` / `bg-*` 前缀命中的节点就是切图位(每套稿子自扫独立清单)
-3. 逐位 `export-image` → `<assetsDir>/theme-<slug>/<name>.png`
+3. 逐位导出 → `<assetsDir>/theme-<slug>/<name>.png`
 4. 切图报错 → 记入 err 列表(不阻断其它)
 
 ### 步骤 3:产出汇总
@@ -156,13 +156,13 @@ const heroSrc = `./assets/${THEME_DIR[themeKey]}hero.png`
 
 ## 缓存与幂等
 
-- 复用 pp-d2c 的 `.d2c-cache/figma/` / `.d2c-cache/images/` 缓存,同一 (fileKey, nodeId) 已切过的图直接复用(`figma.mjs export-image` 内置)
-- 想强制重切某套 → `npx @double-coding/pixel-print clean-cache` 清整个 `.d2c-cache/`,或手动删 `.d2c-cache/<themeFileKey>/`
+- **无缓存**:本 skill 是纯 REST 直连 Figma,每次都拉最新数据。这是刻意选择 —— 换肤场景通常是"美术改稿后重跑",缓存反而让你切到旧图
 - 已存在的 `theme-<slug>/<name>.png` 会被**覆盖**(每次都从 figma 拉新的);想保护旧文件用 git 复核
+- 想改成有缓存,自己在 `exportImageToPath` 加一层文件存在检查即可
 
 ## 禁止
 
 - **有基线时**禁止跳过 dry-run 直接切图:一旦基线清单认错(比如 `last-page.json` 是老的 fileKey)会白切一堆无用图。**无基线时**没有跨稿清单可预览,直接跑即可
 - 禁止把 `--theme` 的 name 写成含 `/` 或空格的字符串:会被 slug 化成 `-`,可读性差;推荐纯英文小写短名(red / gold / cny-2026)
-- 禁止直接改 `figma.mjs`:切图能力从 pp-d2c 借,主 SKILL 升级 figma.mjs 时本 skill 自动跟随
 - 禁止指望本 skill 生成代码:它只切图,不产任何 `.tsx` / `.jsx`;要代码走主 pp-d2c / pp-d2c-rn
+- 禁止让本 skill 依赖兄弟 skill 的脚本(`pp-d2c/bin/figma.mjs` 等):本 skill 是**独立** REST 客户端,只依赖 `pp-d2c.config.json` 读 `assetsDir` + `.env` 读 `FIGMA_TOKEN`;兄弟 skill 不装也能跑

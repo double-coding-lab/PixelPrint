@@ -1,29 +1,28 @@
 #!/usr/bin/env node
 // reskin-slice.mjs — pp-d2c-reskin skill 主脚本
 //
-// 流程:
-//   1. 读 .d2c-cache/last-page.json 拿基线 (fileKey, rootNodeId)
-//   2. 通过 figma.mjs fetch-node 拉基线子树,遍历出所有切图位 (img- / bg- / bgc-)
-//   3. 解析用户传入的换肤稿 URL(可多个),对每套稿子:
-//      a. figma.mjs fetch-node 拉换肤子树
-//      b. 按 name 严格匹配基线切图清单里的每一项
-//      c. 命中 → figma.mjs export-image 到 assetsDir 根(临时名 theme-<slug>__<orig>)
-//      d. 移到 <assetsDir>/theme-<slug>/<orig>.png 子目录
-//      e. 未命中 → 记入 missed 报告
-//   4. 输出汇总 + 每套稿子的 hit/miss 表
+// 定位:完全独立的切图 skill,只依赖 Node 18+ 内置能力(fetch),不 spawn 任何兄弟 skill 的脚本。
 //
-// 依赖:pp-d2c/bin/figma.mjs 已存在(即项目已跑过 pp-d2c init)
-// 参数:
-//   --theme <name>=<figmaUrl>   一套换肤稿,可重复传多次
-//   --dry-run                   只扫基线清单,不拉换肤稿也不切图
-//   --base <figmaUrl>           覆盖基线 URL(默认读 last-page.json)
-//   --prefix <list>             限定切图前缀(默认 img,bg,bgc)
+// 两种工作模式:
+//   1. 有基线(--base <url> 或读到 .d2c-cache/last-page.json):按基线切图清单去每套 --theme 稿子
+//      找同名节点切图,报 miss;文件名与基线对齐,便于业务代码写 themeKey→dir 映射。
+//   2. 无基线(standalone):每套 --theme 独立扫自己图层树,前缀命中就切,不做跨稿匹配。
+//
+// 前缀规则(与 pp-d2c §4 图层前缀体系对齐):
+//   - img / img-*  → 整层导出 PNG
+//   - bg  / bg-*   → 背景图 PNG
+//   - 裸标签 img / bg 用父节点 name 辅助命名(sub-hero-card > bg → hero-card__bg.png)
+//   - 同一父节点下同名裸标签只切第一个,基线↔换肤按 <parent>||<name> 复合 key 对齐
+//
+// 依赖: pp-d2c.config.json(读 images.assetsDir)、.env FIGMA_TOKEN、Node 18+
 
-import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 
 const CWD = process.cwd()
+const FIGMA_API = 'https://api.figma.com'
+const MAX_RETRIES = 3
 
 // ─── util ───────────────────────────────────────────────────────
 
@@ -42,11 +41,45 @@ function findProjectRoot(startDir = CWD) {
   }
 }
 
+function ensureDir(p) {
+  if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true })
+}
+
 function slugify(s) {
   return String(s)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'theme'
+}
+
+// 极简 .env 解析:KEY=VALUE,支持引号和 # 注释,不做变量插值
+function parseEnvFile(text) {
+  const out = {}
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#')) continue
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/)
+    if (!m) continue
+    let val = m[2]
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1)
+    }
+    out[m[1]] = val
+  }
+  return out
+}
+
+// token 读取:process.env > 项目根 .env > 兜底 config.figma.token(老项目兼容)
+function loadFigmaToken(projectRoot, config) {
+  if (process.env.FIGMA_TOKEN) return process.env.FIGMA_TOKEN
+  const envPath = path.join(projectRoot, '.env')
+  if (fs.existsSync(envPath)) {
+    try {
+      const parsed = parseEnvFile(fs.readFileSync(envPath, 'utf8'))
+      if (parsed.FIGMA_TOKEN) return parsed.FIGMA_TOKEN
+    } catch {}
+  }
+  return config.figma?.token || null
 }
 
 // figma URL 形态:https://www.figma.com/design/<fileKey>/<name>?node-id=<a>-<b>
@@ -58,7 +91,7 @@ function parseFigmaUrl(u) {
     const fileKey = m[2]
     const rawNode = url.searchParams.get('node-id')
     if (!rawNode) return { fileKey, nodeId: null }
-    // node-id 参数用 - 分隔(如 138-2050),内部 API 用 : 分隔(138:2050)
+    // URL 里 node-id 用 - 分隔(如 138-2050),API 里用 : 分隔(138:2050)
     const nodeId = rawNode.includes(':') ? rawNode : rawNode.replace(/-/, ':')
     return { fileKey, nodeId }
   } catch {
@@ -73,7 +106,6 @@ function parseArgs(argv) {
     if (a === '--dry-run' || a === '-n') { out.dryRun = true; continue }
     if (a === '--base') { out.base = argv[++i]; continue }
     if (a === '--prefix') {
-      // --prefix img,bg 或 --prefix img-,bg-,bgc-  两种写法都兼容:剥去末尾 - 只保留裸词
       out.prefixes = argv[++i].split(',').map(p => p.replace(/-+$/, ''))
       continue
     }
@@ -89,30 +121,76 @@ function parseArgs(argv) {
   return out
 }
 
-// ─── figma.mjs 调用封装 ─────────────────────────────────────────
+// ─── Figma REST 封装(内嵌,不 spawn) ─────────────────────────
 
-function runFigma(figmaScript, args, opts = {}) {
-  const res = spawnSync('node', [figmaScript, ...args], {
-    encoding: 'utf8',
-    ...opts,
-  })
-  if (res.status !== 0) {
-    // figma.mjs 失败时会 stdout 一行 JSON {ok:false,error}
+async function figmaFetch(pathAndQuery, token) {
+  let lastErr
+  for (let i = 0; i < MAX_RETRIES; i++) {
     try {
-      const j = JSON.parse(res.stdout.trim().split('\n').pop())
-      throw new Error(j.error || res.stderr || 'figma.mjs failed')
+      const res = await fetch(`${FIGMA_API}${pathAndQuery}`, {
+        headers: { 'X-Figma-Token': token },
+      })
+      if (res.status === 403 || res.status === 401) {
+        throw new Error(`Figma API auth failed (HTTP ${res.status}); token invalid, expired, or lacks permission`)
+      }
+      if (!res.ok) {
+        const body = await res.text()
+        throw new Error(`Figma API error HTTP ${res.status}: ${body.slice(0, 200)}`)
+      }
+      const json = await res.json()
+      if (json.err) throw new Error(`Figma API returned err: ${json.err}`)
+      return json
     } catch (e) {
-      throw new Error(res.stderr || res.stdout || `figma.mjs exit=${res.status}`)
+      lastErr = e
+      if (i < MAX_RETRIES - 1) await sleep(Math.pow(2, i) * 1000)
     }
   }
-  const line = res.stdout.trim().split('\n').pop()
-  return JSON.parse(line).data
+  throw lastErr
 }
 
-// ─── 遍历子树抽切图位 ─────────────────────────────────────────
+async function downloadToFile(url, destPath) {
+  let lastErr
+  for (let i = 0; i < MAX_RETRIES; i++) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`download HTTP ${res.status}`)
+      const buf = Buffer.from(await res.arrayBuffer())
+      ensureDir(path.dirname(destPath))
+      fs.writeFileSync(destPath, buf)
+      return
+    } catch (e) {
+      lastErr = e
+      if (i < MAX_RETRIES - 1) await sleep(Math.pow(2, i) * 1000)
+    }
+  }
+  throw lastErr
+}
 
-// 判断节点 name 是否为切图位:裸词(img / bg)或带子名(img-* / bg-*)都算
-// prefixes 是裸词数组(如 ['img','bg']),从 --prefix 参数或默认值来
+// 拉一个 frame 的子树 JSON
+async function fetchNodeTree(fileKey, nodeId, token) {
+  const q = new URLSearchParams({ ids: nodeId })
+  const resp = await figmaFetch(`/v1/files/${fileKey}/nodes?${q.toString()}`, token)
+  const doc = resp.nodes?.[nodeId]?.document
+  if (!doc) throw new Error(`Figma /v1/files/${fileKey}/nodes 未返回 ${nodeId} 的 document`)
+  return doc
+}
+
+// 单节点导出为 PNG,直接落到指定路径
+async function exportImageToPath(fileKey, nodeId, token, destPath, scale = 2) {
+  const q = new URLSearchParams({
+    ids: nodeId,
+    format: 'png',
+    scale: String(scale),
+    use_absolute_bounds: 'true',
+  })
+  const resp = await figmaFetch(`/v1/images/${fileKey}?${q.toString()}`, token)
+  const url = resp.images?.[nodeId]
+  if (!url) throw new Error(`Figma /v1/images 未返回 ${nodeId} 的 URL`)
+  await downloadToFile(url, destPath)
+}
+
+// ─── 前缀匹配 + 图层遍历 ─────────────────────────────────────
+
 function isSliceName(name, prefixes) {
   for (const p of prefixes) {
     if (name === p) return true
@@ -125,9 +203,6 @@ function collectSliceNodes(node, prefixes, out = [], pathStack = [], parentName 
   if (!node) return out
   const name = node.name || ''
   if (isSliceName(name, prefixes)) {
-    // 基线切图产物文件名:
-    //   - 带子名 img-hero / bg-card-top → hero / card-top
-    //   - 裸 img / bg → 借父节点 name 拼:<parent>__<prefix>(避免多个裸 bg 撞名)
     out.push({
       id: node.id,
       name,
@@ -144,15 +219,21 @@ function collectSliceNodes(node, prefixes, out = [], pathStack = [], parentName 
   return out
 }
 
+// 裸标签 img/bg 借父节点 name 拼可区分文件名;带子名去前缀 slug 化
 function figmaNameToFilename(name, parentName) {
-  // 裸词 img / bg → 借父节点 name(去前缀 + slug 化)拼出可区分的文件名
   if (name === 'img' || name === 'bg') {
-    const parent = parentName ? slugify(parentName.replace(/^(img|bg|sub|block|scrollx|scrolly|fixed|end|btn|input|x)-/, '')) : 'root'
+    const parent = parentName
+      ? slugify(parentName.replace(/^(img|bg|sub|block|scrollx|scrolly|fixed|end|btn|input|x)-/, ''))
+      : 'root'
     return `${parent || 'root'}__${name}`
   }
-  // 带子名 img-hero / bg-card-top → 去前缀 + slug 化
   const stripped = name.replace(/^(img|bg)-/, '')
   return slugify(stripped)
+}
+
+function matchKey(name, parentName) {
+  if (name === 'img' || name === 'bg') return `${parentName || 'root'}||${name}`
+  return name
 }
 
 // ─── 主流程 ────────────────────────────────────────────────────
@@ -166,19 +247,14 @@ async function main() {
   const config = JSON.parse(fs.readFileSync(path.join(projectRoot, 'pp-d2c.config.json'), 'utf8'))
   const assetsDir = (config.images?.assetsDir || 'static/').replace(/^\//, '')
 
-  // 定位 figma.mjs:优先 pp-d2c(H5),回退 pp-d2c-rn
-  const figmaCandidates = [
-    path.join(projectRoot, '.claude/skills/pp-d2c/bin/figma.mjs'),
-    path.join(projectRoot, '.claude/skills/pp-d2c-rn/bin/figma.mjs'),
-  ]
-  const figmaScript = figmaCandidates.find(p => fs.existsSync(p))
-  if (!figmaScript) die(`未找到 figma.mjs:${figmaCandidates.join(' 或 ')}`)
+  const token = loadFigmaToken(projectRoot, config)
+  if (!token) die('FIGMA_TOKEN 未配置,请在项目根 .env 写 FIGMA_TOKEN=xxx')
 
   if (args.themes.length === 0 && !args.dryRun) {
     die('未传 --theme <name>=<figmaUrl>;至少传一套稿子,或加 --dry-run 只扫基线')
   }
 
-  // ─── 尝试拿基线(可选):优先 --base,其次 last-page.json,都没有则走 standalone 模式 ───
+  // ─── 基线来源:--base > last-page.json > 无(standalone) ─────
   let baseFileKey = null, baseNodeId = null, baseSource = null
   if (args.base) {
     const parsed = parseFigmaUrl(args.base)
@@ -209,19 +285,16 @@ async function main() {
   console.log(`[pp-d2c-reskin] mode        : ${args.dryRun ? 'dry-run' : 'export'}`)
   console.log('')
 
-  // ─── 有基线:拉基线子树 → 生成切图清单(用于跨稿 name 对齐 + miss 报告) ───
+  // ─── 有基线:先拉基线子树 → 生成切图清单 ─────────────────
   let uniqSlices = null
   if (hasBase) {
     console.log('[pp-d2c-reskin] 拉基线子树...')
-    const baseTree = runFigma(figmaScript, ['fetch-node', baseFileKey, baseNodeId])
-    const sliceList = collectSliceNodes(baseTree.node || baseTree.nodes?.[baseNodeId]?.document || baseTree, args.prefixes)
+    const baseDoc = await fetchNodeTree(baseFileKey, baseNodeId, token)
+    const sliceList = collectSliceNodes(baseDoc, args.prefixes)
 
-    // 去重 key:裸 img/bg → <parent>||<name>;带子名 → name
     const seenKeys = new Set()
     uniqSlices = sliceList.filter(s => {
-      const k = (s.name === 'img' || s.name === 'bg')
-        ? `${s.parentName || 'root'}||${s.name}`
-        : s.name
+      const k = matchKey(s.name, s.parentName)
       if (seenKeys.has(k)) return false
       seenKeys.add(k)
       s._matchKey = k
@@ -242,7 +315,7 @@ async function main() {
     return
   }
 
-  // ─── 逐套稿子:切图 + 归子目录 ─────────────
+  // ─── 逐套稿子:切图 + 归子目录 ─────────────────────────
   const reports = []
   for (const theme of args.themes) {
     console.log(`\n[pp-d2c-reskin] === theme: ${theme.name} (slug=${theme.slug}) ===`)
@@ -254,25 +327,21 @@ async function main() {
     }
     const { fileKey: themeFileKey, nodeId: themeNodeId } = parsed
 
-    let themeTree
+    let themeDoc
     try {
-      themeTree = runFigma(figmaScript, ['fetch-node', themeFileKey, themeNodeId])
+      themeDoc = await fetchNodeTree(themeFileKey, themeNodeId, token)
     } catch (e) {
-      console.log(`  × fetch-node 失败:${e.message}`)
+      console.log(`  × fetchNodeTree 失败:${e.message}`)
       reports.push({ theme: theme.name, error: e.message, hit: 0, miss: hasBase ? uniqSlices.length : 0 })
       continue
     }
 
-    // 输出目录:<assetsDir>/theme-<slug>/
     const outDirRel = path.join(assetsDir, `theme-${theme.slug}`)
     const outDirAbs = path.join(projectRoot, outDirRel)
-    fs.mkdirSync(outDirAbs, { recursive: true })
+    ensureDir(outDirAbs)
 
-    // ─── 决定这套稿子要切哪些位 ─────────────
-    // 有基线:按基线清单去换肤稿里找同 key 节点,miss 单独报
-    // 无基线:直接扫当前稿子自己的子树,前缀命中的节点就是切图位
-    let sliceItems  // 形如 [{ name, parentName, filename, nodeId, matchedFrom: 'base'|'self' }, ...]
-    let missNames = []
+    // 决定这套稿子要切哪些位
+    let sliceItems, missNames = []
 
     if (hasBase) {
       // 建换肤稿匹配表(与基线 _matchKey 语义一致)
@@ -280,17 +349,15 @@ async function main() {
       ;(function walk(n, parentName) {
         if (!n) return
         const name = n.name || ''
-        const key = (name === 'img' || name === 'bg')
-          ? `${parentName || 'root'}||${name}`
-          : name
+        const key = matchKey(name, parentName)
         if (name && !themeNameMap.has(key)) themeNameMap.set(key, n.id)
         if (Array.isArray(n.children)) n.children.forEach(c => walk(c, name))
-      })(themeTree.node || themeTree.nodes?.[themeNodeId]?.document || themeTree, null)
+      })(themeDoc, null)
 
       sliceItems = []
       for (const slice of uniqSlices) {
-        const themeNode = themeNameMap.get(slice._matchKey)
-        if (!themeNode) {
+        const themeNodeIdInSkin = themeNameMap.get(slice._matchKey)
+        if (!themeNodeIdInSkin) {
           console.log(`  ? miss  ${slice.name}${slice.parentName ? ` (under ${slice.parentName})` : ''}  (换肤稿无对应节点)`)
           missNames.push(slice.name)
           continue
@@ -299,18 +366,16 @@ async function main() {
           name: slice.name,
           parentName: slice.parentName,
           filename: slice.filename,
-          nodeId: themeNode,
+          nodeId: themeNodeIdInSkin,
         })
       }
     } else {
       // standalone:直接扫当前稿子
-      const selfList = collectSliceNodes(themeTree.node || themeTree.nodes?.[themeNodeId]?.document || themeTree, args.prefixes)
+      const selfList = collectSliceNodes(themeDoc, args.prefixes)
       const seenKeys = new Set()
       sliceItems = []
       for (const s of selfList) {
-        const key = (s.name === 'img' || s.name === 'bg')
-          ? `${s.parentName || 'root'}||${s.name}`
-          : s.name
+        const key = matchKey(s.name, s.parentName)
         if (seenKeys.has(key)) continue
         seenKeys.add(key)
         sliceItems.push({
@@ -323,22 +388,15 @@ async function main() {
       console.log(`  自扫切图清单:${sliceItems.length} 项`)
     }
 
-    // ─── 逐位切图 ─────────────
+    // 逐位切图(串行,避免 Figma /v1/images 并发限流)
     const hits = []
     for (const item of sliceItems) {
-      // export-image 落到 assetsDir 根,临时名加 theme slug 前缀避免与基线冲突
-      const tmpFilename = `__reskin_tmp_${theme.slug}_${item.filename}`
+      const destAbs = path.join(outDirAbs, `${item.filename}.png`)
       try {
-        const r = runFigma(figmaScript, [
-          'export-image', themeFileKey, item.nodeId,
-          `--filename=${tmpFilename}`,
-          '--format=png',
-        ])
-        const finalAbs = path.join(outDirAbs, `${item.filename}.png`)
-        fs.renameSync(r.path, finalAbs)
-        const finalRel = path.relative(projectRoot, finalAbs)
-        console.log(`  · hit   ${item.name}  →  ${finalRel}${r.reused ? ' (reused)' : ''}`)
-        hits.push({ name: item.name, path: finalRel })
+        await exportImageToPath(themeFileKey, item.nodeId, token, destAbs)
+        const destRel = path.relative(projectRoot, destAbs)
+        console.log(`  · hit   ${item.name}  →  ${destRel}`)
+        hits.push({ name: item.name, path: destRel })
       } catch (e) {
         console.log(`  × err   ${item.name}  (${e.message})`)
         missNames.push(`${item.name} (${e.message})`)
@@ -353,7 +411,7 @@ async function main() {
     console.log(`  → ${theme.name}: hit=${hits.length}, ${hasBase ? 'miss' : 'err'}=${missNames.length}`)
   }
 
-  // ─── 汇总 ─────────────────────────────────────────────
+  // 汇总
   console.log('\n[pp-d2c-reskin] ── 汇总 ──')
   for (const r of reports) {
     const tag = r.error ? `× ${r.error}` : `✓ hit=${r.hit} ${r.mode === 'standalone' ? 'err' : 'miss'}=${r.miss} [${r.mode}]`
