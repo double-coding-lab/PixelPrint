@@ -1,0 +1,49 @@
+templates/skills/pp-d2c/rules/R12-flat-mode-naming.md
+  s_8f566140fc4cb6::t_873000eac5adb4 1-88
+templates/skills/pp-d2c/rules/R13-unit-scale.md
+  s_8f566140fc4cb6::t_9bf9ded55c44d6 1-100
+templates/skills/pp-d2c/rules/R08-bg-landing-form.md
+  s_8f566140fc4cb6::t_0e507f1bef701a 1-97
+templates/skills/pp-d2c/rules/R07-multi-fills.md
+  s_8f566140fc4cb6::t_eb17bde59da172 1-91
+templates/skills/pp-d2c/rules/R04-text-gradient.md
+  s_8f566140fc4cb6::t_07cf82885394fe 1-134
+templates/skills/pp-d2c/rules/R06-text-solid-last.md
+  s_8f566140fc4cb6::t_af4416e826f0e5 1-80
+templates/skills/pp-d2c/rules/R11-mask-vector-css-able.md
+  s_8f566140fc4cb6::t_b756aa92a4c42c 1-116
+templates/skills/pp-d2c/rules/README.md
+  s_8f566140fc4cb6::t_9cb81c20d44bdd 1-77,79-117,119-126
+templates/skills/pp-d2c/rules/R02-fills-image.md
+  s_8f566140fc4cb6::t_7d1b0cc7a69b6e 1-88
+templates/skills/pp-d2c/rules/R01-fixed-position.md
+  s_8f566140fc4cb6::t_3fe0ec2ed55580 1-76
+templates/skills/pp-d2c/rules/R10-no-fake-solid-color.md
+  s_8f566140fc4cb6::t_066c6ebf50b099 1-72
+templates/skills/pp-d2c/rules/R14-fixed-z-index.md
+  s_8f566140fc4cb6::t_8a0cc307c5fd5a 1-88
+templates/skills/pp-d2c/rules/R09-btn-bgc-取值.md
+  s_8f566140fc4cb6::t_1c99f8459a70f5 1-96
+templates/skills/pp-d2c/rules/R03-implicit-image.md
+  s_8f566140fc4cb6::t_dc1ded4ea1b81b 1-79
+templates/skills/pp-d2c/rules/R05-space-between.md
+  s_8f566140fc4cb6::t_95c71998f86360 1-85
+"templates/skills/pp-d2c/rules/R15-同构 map 渲染.md"
+  s_8f566140fc4cb6::t_250947911b56e8 1-126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "765f0b55e1a1e62c677697b7bc02a1364be4b528",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
