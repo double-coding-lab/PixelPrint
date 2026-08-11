@@ -25,13 +25,13 @@
 
 **唯一真正"被执行"的事情有两类**：（1）调用 Figma REST API（通过 Bash 执行 curl）读取节点属性 / 导出图片 / 截图，以及本地文件读写；（2）在对话里产出文本（包括代码、JSON、报告、决策）。其余"调用"、"派发"、"返回"全部由 agent 自己按文档说明顺序操作完成。
 
-> **v0.3 起本 SKILL 完全走 Figma REST API，不再依赖任何 `mcp__plugin_figma_figma__*` 工具**。这样做的理由：MCP 工具会附带"AI 生成的参考代码"字段，容易让 agent 信参考代码结构 > 信项目前缀规则（历史事故：`bg-` 节点被 MCP 参考代码展开成 `display: contents` 子结构，agent 跟着递归 DOM 化）。REST API 只返回原始节点 JSON，前缀规则永远优先。
+> **本 SKILL 完全走 Figma REST API,不使用任何 `mcp__plugin_figma_figma__*` 工具**。REST 只返回原始节点 JSON,前缀规则永远优先。
 
 > 误把伪代码当真函数会卡死流程（等待一个永远不会到来的"返回值"），或者绕过关键步骤。
 
 ## 问题边界
 
-agent 在跑 pp-d2c 全流程时 **只允许问用户业务问题，禁止问 skill 已定死的技术决策问题**。历史事故：跑 <下游项目> 时 agent 就"要不要整体切图 / 用不用 CSS 表达 / 合并这块用什么方式"等 skill 已明确规定的技术选择反复打断用户，属于 agent 遇复杂就问用户的偷懒路径。
+agent 在跑 pp-d2c 全流程时 **只允许问用户业务问题,禁止问 skill 已定死的技术决策问题**。
 
 ### ✅ 允许问的业务问题（设计稿无法推断的产品/交互/数据）
 
@@ -339,7 +339,7 @@ img-*   → 主 agent 处理，生成 <img>
      - `import styles from './index.module.scss'` / `'.module.less'` / `'.module.css'` → **css-modules**
    - 看文件名：`*.module.{scss,less,css}` → css-modules；`*.{scss,less,css}` 且非 module → 普通 stylesheet
    - 看周边页面的引法：如果项目里既有普通形态又有 module 形态，**以本页面实际写法为准**
-   - **新 page 兜底**：如果当前正在**创建全新页面**（`output.dir` 下无已存在的目标 `.jsx`/`.tsx` 入口，或该入口存在但**尚未** import 任何样式文件），也没有相邻同 output 目录页面可参考（`output.dir` 下其他 page 一个都没有），此时**必须以 config `project.styleFormat` 为唯一权威**——见下方"新 page 空档"表；**禁止**脑补大类（历史事故：<下游项目> 明确配 `"styleFormat":"scss"`（plain P），agent 生成新 page 时脑补成 `.module.scss` + `className={styles.x}` M 大类）。
+   - **新 page 兜底**:如果当前正在**创建全新页面**(`output.dir` 下无已存在的目标 `.jsx`/`.tsx` 入口,或该入口存在但**尚未** import 任何样式文件),也没有相邻同 output 目录页面可参考(`output.dir` 下其他 page 一个都没有),此时**必须以 config `project.styleFormat` 为唯一权威**——见下方"新 page 空档"表;**禁止**脑补大类。
    - **结论二选一：`plain stylesheet` / `css-modules`**（预处理语法用什么不影响这个结论）
    > ⚠️ **关键**：`:global(body)` 语法**只在 css-modules 下有效**。在普通 stylesheet（无论 scss/less/css）里写 `:global(...)`，浏览器会原样接收选择器并解析失败，**body 背景不会生效**——这是 D2C 最常见的"我明明写了 body 背景但页面还是白底"的根因。
 
@@ -381,7 +381,7 @@ img-*   → 主 agent 处理，生成 <img>
 >   - **J**：tailwind / inline / styled-components，不生成独立样式文件
 > ```
 >
-> **sub-agent 生成 block 时**：**必须先 Read `.d2c-tasks.md` 的"大类锁定"段**，严格按锁定值生成 block 内部样式文件（`blocks/*/index.{scss,module.scss,...}`）+ `className` 写法，**禁止**每个 block 独立再走一次判定（各 sub-agent 拿到的 `styleFormat` config 一样，但历史事故显示 sub-agent 之间的判断会飘）。
+> **sub-agent 生成 block 时**:**必须先 Read `.d2c-tasks.md` 的"大类锁定"段**,严格按锁定值生成 block 内部样式文件(`blocks/*/index.{scss,module.scss,...}`) + `className` 写法,**禁止**每个 block 独立再走一次判定(sub-agent 之间的判断可能飘)。
 >
 > **主 agent 合并前 grep 自证**（放到 §6.0.2 合并忠实度证明块）：
 >
@@ -761,11 +761,11 @@ node .claude/skills/pp-d2c/bin/figma.mjs fetch-node <fileKey> <nodeId> --depth=8
 - **文本**：`characters` / `style`（TEXT 节点）
 - **可见性**：`visible`
 
-> **v0.3 铁律：不再使用 MCP `get_design_context` 返回的"参考代码"字段**。REST API 只返回原始节点 JSON，agent 按项目前缀规则（§4.0 / §4.3）自主判断如何渲染，不受任何"AI 生成的通用 D2C 参考代码"干扰。
+> **铁律：不再使用 MCP `get_design_context` 返回的"参考代码"字段**。REST API 只返回原始节点 JSON，agent 按项目前缀规则（§4.0 / §4.3）自主判断如何渲染，不受任何"AI 生成的通用 D2C 参考代码"干扰。
 
 > `layoutMode` 字段是 Figma autoLayout 的核心信号。**每处理一个 Frame 节点，必须先读 `layoutMode`**（`HORIZONTAL` / `VERTICAL` / 缺失 = 无 autoLayout）；这是 §4.3 布局判定的入口条件，跳过读它会直接退化成 absolute 定位泛滥。
 
-> **v0.3.1 补丁：`layoutPositioning`（读每个子节点时必读）**：Figma auto-layout 支持"子节点脱离父顺流"——子节点 `layoutPositioning === 'ABSOLUTE'` 表示该子在父 autoLayout 里挖了个洞独立定位；其他兄弟仍按 flex 顺流。**读子节点时必读此字段**，值为 `ABSOLUTE` 时子走绝对定位、父仍走 flex（见 §4.3 判定优先级第 0 条）。
+> **补丁：`layoutPositioning`（读每个子节点时必读）**：Figma auto-layout 支持"子节点脱离父顺流"——子节点 `layoutPositioning === 'ABSOLUTE'` 表示该子在父 autoLayout 里挖了个洞独立定位；其他兄弟仍按 flex 顺流。**读子节点时必读此字段**，值为 `ABSOLUTE` 时子走绝对定位、父仍走 flex（见 §4.3 判定优先级第 0 条）。
 
 #### 4.1.1 REST 原始 JSON 字段取值指引
 
@@ -1290,7 +1290,7 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 - fills 含 IMAGE(第 2 条硬规则) → 无前缀要求,直接切图挂父 background
 - **裸词识别范围**:仅 `bg` / `bgc` / `btn` / `img` / `input` 五个独立/内容前缀允许裸词
 
-**这是"把兄弟节点文字烤进 bg 位图"这类 bug 的唯一防线**——历史事故根因就是 sub-agent 拿了 `bg-` 的**父容器 nodeId** 传给 API,Figma 会把父容器**整棵子树**(含兄弟节点的文字/图标/其他 block)一起 render 成位图。
+**这是"把兄弟节点文字烤进 bg 位图"这类 bug 的唯一防线**——若 sub-agent 拿了 `bg-` 的**父容器 nodeId** 传给 API,Figma 会把父容器**整棵子树**(含兄弟节点的文字/图标/其他 block)一起 render 成位图,必须避免。
 
 **调用**：
 
