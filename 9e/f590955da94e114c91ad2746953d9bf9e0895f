@@ -1,0 +1,27 @@
+.Knowledge/topics/pp-install-dispatch.md
+  s_97816464c07f4b::t_d3bb2d367598ad 1-60
+.Knowledge/manifest-routing.json
+  s_97816464c07f4b::t_938437a3776b13 174-180
+  s_97816464c07f4b::t_37d6d65a661bd5 104-111
+  s_97816464c07f4b::t_1e7082de00b75e 28-29
+.Knowledge/index.md
+  s_97816464c07f4b::t_c76ec72b55075f 35
+.Knowledge/matchers/m-pp-install-dispatch.json
+  s_97816464c07f4b::t_aa1df66b4adf7b 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "9ef590955da94e114c91ad2746953d9bf9e0895f",
+  "prompts": {},
+  "sessions": {
+    "s_97816464c07f4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a05db5c0-1eb5-4b2d-92f0-c32a3e012fa0",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
