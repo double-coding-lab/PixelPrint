@@ -1,3 +1,11 @@
+---
+id: pp-d2c-rn
+revision: 0
+summary: pp-d2c-rn
+primary: feature
+confidence: manual
+tags: [module, config]
+---
 # pp-d2c-rn
 
 > D2C RN SKILL(`templates/skills/pp-d2c-rn/`)的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md(约 1700 行),本 topic 是路由摘要 + 关键边界。**与 [[pp-d2c]](h5)完全独立并列**,共享前缀识别 / 布局判定 / 图片处理决策逻辑,但输出层完全不同。

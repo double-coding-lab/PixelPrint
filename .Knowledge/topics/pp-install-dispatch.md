@@ -1,3 +1,11 @@
+---
+id: pp-install-dispatch
+revision: 0
+summary: pp-install-dispatch
+primary: policy
+confidence: inferred
+tags: [module]
+---
 # pp-install-dispatch
 
 > `bin/install.js` 分发 `templates/skills/` 到下游项目 `.claude/skills/` 的规则:黑名单 + framework 过滤,不是白名单。新 skill **默认自动分发**,不需要在 install.js 里登记。

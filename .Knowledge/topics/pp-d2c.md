@@ -1,3 +1,11 @@
+---
+id: pp-d2c
+revision: 0
+summary: pp-d2c
+primary: policy
+confidence: inferred
+tags: [feature, config]
+---
 # pp-d2c
 
 > D2C 主 SKILL（`templates/skills/pp-d2c/`）的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md（共约 770 行），本 topic 是路由摘要 + 关键边界，不重复长篇内容。
