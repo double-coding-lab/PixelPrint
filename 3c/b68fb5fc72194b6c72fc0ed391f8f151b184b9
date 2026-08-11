@@ -1,0 +1,19 @@
+templates/skills/pp-d2c/SKILL.md
+  s_8f566140fc4cb6::t_4596e0283d67a5 3,796,805-807,810,812,814-860,862,865-867,953-954,1885-1886
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "3cb68fb5fc72194b6c72fc0ed391f8f151b184b9",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
