@@ -1,0 +1,23 @@
+templates/skills/pp-d2c-reskin/SKILL.md
+  s_97816464c07f4b::t_297c07f4f556b8 66,68,72,74
+  s_97816464c07f4b::t_1e868f8b5b96d0 168
+  s_97816464c07f4b::t_9f5e86cde35c01 159,161
+templates/skills/pp-d2c-reskin/reskin-slice.mjs
+  s_97816464c07f4b::t_acfe3925847001 4,6-18,21,24-25,44-47,55-84,94,124,126-128,130-142,144-145,148,151-192,222,225-227,234-238,250-251,257,288,292-293,297,318,330,332,334,341,343-344,352,355,359-360,369,374,378,391,394,396-399,414
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "4c4b115e8458409f172e44c2cc46aeb0963da393",
+  "prompts": {},
+  "sessions": {
+    "s_97816464c07f4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a05db5c0-1eb5-4b2d-92f0-c32a3e012fa0",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
