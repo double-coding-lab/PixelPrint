@@ -1,0 +1,38 @@
+.Knowledge/matchers/m-pp-image-compress.json
+  s_97816464c07f4b::t_60b4f71de1f14f 1-19
+.Knowledge/topics/pp-d2c-reskin.md
+  s_97816464c07f4b::t_087170579d421c 1-99
+.Knowledge/.last-sync.json
+  s_97816464c07f4b::t_acff683523b025 2-3
+.Knowledge/matchers/m-pp-d2c-reskin.json
+  s_97816464c07f4b::t_7aa3e939090e28 1-25
+.Knowledge/manifest-routing.json
+  s_97816464c07f4b::t_8a0f43e83cf39d 29-31
+  s_97816464c07f4b::t_eb3f1de6df544c 199-213
+  s_97816464c07f4b::t_76ad7a70a55dd8 114-129
+.Knowledge/topics/pp-image-compress.md
+  s_97816464c07f4b::t_09d5808cc1abfc 1-58
+.Knowledge/index.md
+  s_97816464c07f4b::t_2af2bc4c319e64 36-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "55eb4d02ba2924c938a2497d5cd2396e66b74b1d",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_97816464c07f4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a05db5c0-1eb5-4b2d-92f0-c32a3e012fa0",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
