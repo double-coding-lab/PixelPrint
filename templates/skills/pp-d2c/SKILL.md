@@ -1,8 +1,8 @@
 # pp-d2c Skill
 
-> **当前版本**：v0.3.21(h5 独享,不同步 pp-d2c-rn) —— 在 v0.3.20 四条硬规则 + sub-agent 交付前自证的基础上,补 §4.1.1 TEXT fills 末位=GRADIENT/IMAGE 的落地形态(必须 `<span>` + `background-clip: text` + `color: transparent`,禁止凭空搓 solid color);sub-agent 自证与主 agent grep 断言同步扩到覆盖该场景。核心哲学: 允许兜底的路径就是错误来源。
+> **当前版本**：v1.0.0(h5 独享,不同步 pp-d2c-rn) —— 在 v0.3.21 基础上引入 **4 层防线**:(1) 硬防线 `bin/check-rules.mjs` 覆盖 R01/R02/R05/R06/R08 精确 grep + exit 1 拦截;(2) 软防线 `Rule-Scan sub-agent` 按 block 并行扫,输出 `rule-hits.json` 传给 UI sub-agent;(3) 补漏防线 UI sub-agent 允许自补,强制 `assets.txt` `[遗漏补捕]` 备注;(4) 兜底防线 主 agent §6.0.2 聚合 rule-hits + 合并后再跑一次 `check-rules.mjs`。硬规则详情迁到 `rules/*.md` (15 条 R0X 独立 md,SKILL.md 保留总概表)。核心哲学: 允许兜底的路径就是错误来源。
 >
-> 历史 changelog 查 `git log templates/skills/pp-d2c/SKILL.md`,不在本文件维护。所有规则以下文章节为准。
+> 历史 changelog 查 `git log templates/skills/pp-d2c/SKILL.md`,不在本文件维护。所有规则以下文章节 + `rules/*.md` 为准;冲突时以 `rules/` 为准。
 
 ## 触发条件
 - 用户提供 Figma 设计稿 URL
@@ -613,10 +613,142 @@ useEffect(() => {
 - 图层解析规则（完整规则见步骤 4）
 - `agentIndex`
 - config 快照：`framework`、`styleFormat`、`images`、`layers`、`output.dir`
+- **(v1.0.0 新增)** 对应 `blocks/{sub}/rule-hits.json` 路径(由步骤 3.5 生成)
+
+---
+
+### 步骤 3.5：Rule-Scan sub-agent 派发 (v1.0.0 新增)
+
+**目的**:让每个 UI sub-agent 干活前, 先由独立 **Rule-Scan sub-agent** 扫出本 block 命中的规则, 输出 `rule-hits.json` 作为作业指引。这是**软防线**——覆盖 R03/R04/R07/R09-R15 语义类规则(硬防线 R01/R02/R05/R06/R08 由 `bin/check-rules.mjs` 在步骤 4 尾兜底拦截)。
+
+**执行时序**: 步骤 3 分块清单生成后、步骤 4 UI sub-agent 开工前。
+
+**流程**:
+
+1. **for each block in 执行清单(步骤 3 生成的分块列表)**:
+   派发 **Rule-Scan sub-agent**, 输入:
+   - block 的 nodeIds 分片(主 agent 步骤 2 生成)
+   - `.d2c-cache/<fileKey>/nodes/<nodeId>.json` (相关分片)
+   - **全部** `templates/skills/pp-d2c/rules/*.md` (Read,15+1 个文件)
+   - `pp-d2c.config.json.layers`(前缀配置)
+
+2. **Rule-Scan sub-agent 职责边界(强制)**:
+   - **只识别规则命中,不实现 UI**
+   - 不写 JSX / SCSS
+   - 不改 cache
+   - 不派下级 sub-agent
+   - 输出为 JSON,不带 markdown 代码块围栏,不加解释文字
+
+3. **Rule-Scan sub-agent 输出**: 落盘 `blocks/{sub}/rule-hits.json`,schema:
+   ```json
+   {
+     "block": "sub-MAIN",
+     "cache_key": "s7ILyhLgFeLlgM66vQ1RXG",
+     "generated_at": "2026-08-11T09:15:00Z",
+     "generated_by": "rule-scan-subagent",
+     "hits": [
+       {
+         "rule": "R01",
+         "rule_name": "fixed-position",
+         "nodeId": "211:32",
+         "name": "fixed-状态栏",
+         "type": "GROUP",
+         "trigger": "name.startsWith('fixed-')",
+         "expected": "css 含 position: fixed + 由 constraints 推 top/left",
+         "context": { "constraints": {...}, "bbox": {...} }
+       }
+     ]
+   }
+   ```
+
+4. **完整 sub-agent prompt** 见 `rules/README.md` 的"使用方式 → Rule-Scan sub-agent"段;派发时主 agent 拼装原文,不改写。
+
+5. **主 agent 不聚合全量 rule-hits**,只在 §6.0.2 合并前做一次聚合读。
+
+**降级路径**:
+- Rule-Scan sub-agent **首次挂了**(API 错 / 超时 / 输出 JSON 格式错) → 主 agent **重派一次**
+- **二次挂了** → 降级到 v0.3.21 前的自己判断模式:
+  1. UI sub-agent Read **全部** `rules/*.md` (回退到读全量规则库模式)
+  2. `blocks/{sub}/rule-hits.json` 写入 `{ "generated_by": "v0.3.21-fallback", "hits": [] }` 占位
+  3. UI sub-agent 在 `assets.txt` 记 `[Rule-Scan 降级] block={sub} 原因={二次失败原因}`
+  4. UI sub-agent 依然要跑 `check-rules.mjs`(硬防线不受影响)
+  5. 主 agent §6.0.2 记录降级并输出 QA 告警
+
+**性能预算**:
+- 每 block 一个 Rule-Scan sub-agent,输入 cache JSON 5-50 个节点
+- 输出 `rule-hits.json` < 200 行
+- 单个 sub-agent 平均耗时 15-30 秒(LLM 推理)
+- N blocks 并行 → 总耗时约 30 秒(与 UI sub-agent 组合后总耗时 60-90 秒)
 
 ---
 
 ### 步骤 4：sub-agent 实现单个 block
+
+#### 4.0.pre Rule-Scan 消费与硬防线交付前自检 (v1.0.0 新增)
+
+**执行时序**: sub-agent 拿到 block 后、进入 §4.0 根节点前缀检查前。
+
+**输入(v0.3.21 → v1.0.0 新增)**:
+- 本 block 的 `blocks/{sub}/rule-hits.json`(来自步骤 3.5 Rule-Scan sub-agent)
+
+**强制动作**:
+
+1. **Read `rule-hits.json`**,列出所有 `hits[].rule` 命中,记录该 block 需要按哪些 R0X 落地
+2. **按每条 hit 的 `expected` 字段设计产物**:
+   - R01 fixed-position → `position: fixed` + top/left/right/bottom 由 constraints 推
+   - R02 fills-image → 切图 + assets.txt 登记 + jsx `<img>` 或 css `background-image`
+   - R03 implicit-image → 整体切图 + `<img>` 挂父 or 自成节点
+   - R04 text-gradient → `<span>` + `background: <gradient>` + `background-clip: text` + `color: transparent`
+   - R05 space-between → `justify-content: space-between`
+   - R06 text-solid-last → `color: {hex}`(取自 fills 末位可见 SOLID)
+   - R07 multi-fills → 每层 fills 都落地(SOLID + IMAGE / GRADIENT + IMAGE 等)
+   - R08 bg-landing-form → **父容器** `background-image`;不允许 `<img src="bg-..">`/inline/伪元素/空 div 挂 bg
+   - R09 btn-bgc-取值 → btn 父 CSS `background` 取 bgc- 子层真 fills
+   - R10 no-fake-solid-color → 产物出现 `#RRGGBB` 必须能反查到 cache fills 源头
+   - R11 mask-vector-css-able → 复合几何切图,不硬 CSS
+   - R12 flat-mode-naming → flat 模式类名带 block 前缀
+   - R13 unit-scale → `figmaPx × (outputBase/figmaBase)`
+   - R14 fixed-z-index → 多 fixed 递增 z-index
+   - R15 同构 map 渲染 → `.map()` 而非重复展开
+   - 详情各条 `rules/R0X.md`
+
+3. **补漏规则(v1.0.0)**:sub-agent 生 JSX/SCSS 时如果发现某节点应命中某 R0X 但 `rule-hits.json` 里没有 → **允许自补**,但**必须**在 `assets.txt` 用 `[遗漏补捕]` 前缀记录:
+   ```
+   [遗漏补捕] R04 211:411>211:91 "2026 (TEXT)": Rule-Scan 未识别, 自动补齐落地 = <span> + linear-gradient(180deg, #FFF7EE, #FFDBAA) + bg-clip:text + color:transparent
+   ```
+   逐条 nodeId + rule id + 落地说明,漏备注会被主 agent §6.0.2 diff 出并 QA 告警。
+
+4. **交付前必跑 `check-rules.mjs`**:生完 `index.jsx` + `index.module.scss` + `assets.txt` 后:
+   ```bash
+   node .claude/skills/pp-d2c/bin/check-rules.mjs \
+     --block blocks/{sub}/ \
+     --cache-key <fileKey>
+   ```
+   - **exit 0** → 继续到 §4.0
+   - **exit 1** → 按 stdout `violations[]` 列表回滚代码,重做,重新跑脚本
+   - **exit 2** → 停下,报告环境错误给主 agent
+   - **假阳性时** → 用 `--force-skip R0X,R0Y` 跳过,**必须**在 `assets.txt` 加 `[脚本误判] R0X {nodeId} 理由: ...`
+
+5. **assets.txt QA 段追加"rule-hits 消费证明"** (v1.0.0 强制格式):
+   ```
+   ## rule-hits 消费证明 (v1.0.0)
+
+   - 输入 rule-hits 条数: N
+   - 处理到位条数: M (M == N 时 ✅)
+   - 处理列表:
+     - { nodeId: "211:32", rule: "R01", 落地类型: "css position: fixed + top/left" }
+     - { nodeId: "211:411>211:91", rule: "R04", 落地类型: "span + background-clip:text" }
+   - 遗漏补捕: K 条(逐条格式见上文 §3)
+   - check-rules.mjs 通过: ✅ / ❌ + violations 简述
+   - Rule-Scan 降级: 无 / [Rule-Scan 降级] {原因}
+   ```
+
+**降级路径**:若 `rule-hits.json` 的 `generated_by === "v0.3.21-fallback"`(Rule-Scan 二次挂):
+1. sub-agent Read **全部** `rules/*.md` 自己判断
+2. 落地后依然跑 `check-rules.mjs`(硬防线不受影响)
+3. `assets.txt` QA 段的"rule-hits 消费证明"里注明 `[Rule-Scan 降级] block={sub}`
+
+---
 
 #### 4.0 根节点前缀检查（优先于一切）
 
@@ -881,9 +1013,32 @@ sub-agent 交付每个 block 前，必须在 `blocks/{sub}/assets.txt` 的 QA �
 
 前缀值从 config `layers` 读取，未配置时使用括号内默认值。
 
-##### 切图四条硬规则（v0.3.20,顺序判定,命中即停,零例外）
+##### 硬规则总概表 (v1.0.0 索引,详情看 rules/R0X.md)
 
-**这是本 SKILL 决定"某个节点是否切图"的唯一入口**。v0.3.19 用三条硬规则删掉了 v0.3.9-v0.3.17 所有例外通道;v0.3.20 在三条上加一条"结构性隐式图切图"覆盖"设计师忘打前缀但节点确实是一张纯视觉图"的情况,并在每条硬规则末尾内嵌 sub-agent 交付前自证清单。
+| ID | 规则名 | 一句话触发 | 违反后果 | 详情 |
+|---|---|---|---|---|
+| R01 | fixed-position | 前缀 `fixed-` | 缺 `position: fixed` | `rules/R01-fixed-position.md` |
+| R02 | fills-image | `fills[].type === 'IMAGE'` | 凭空搓 gradient 代替切图 | `rules/R02-fills-image.md` |
+| R03 | implicit-image | 无前缀 + 子树全 VECTOR + 无 TEXT/INSTANCE + 无 btn-/input-/sub-/block- 前缀 | 该切图没切,变成 vector CSS 堆 | `rules/R03-implicit-image.md` |
+| R04 | text-gradient | TEXT 末位可见 fills = GRADIENT/IMAGE | 凭空搓 solid color 代替 span+bg-clip | `rules/R04-text-gradient.md` |
+| R05 | space-between | `primaryAxisAlignItems === 'SPACE_BETWEEN'` | 用 margin-auto / flex-end 模拟 | `rules/R05-space-between.md` |
+| R06 | text-solid-last | TEXT 多层可见 SOLID | 取错层(通常取到中间层白色) | `rules/R06-text-solid-last.md` |
+| R07 | multi-fills | fills 多层可见非全 SOLID | 只写 SOLID 忽略 IMAGE/GRADIENT | `rules/R07-multi-fills.md` |
+| R08 | bg-landing-form | `bg-` 前缀(含裸 bg) | 用 `<img>` / inline / ::before / 空 div 挂 bg | `rules/R08-bg-landing-form.md` |
+| R09 | btn-bgc-取值 | btn 内 bgc 子层的真 fills | 凭空搓 gradient 代替真值 | `rules/R09-btn-bgc-取值.md` |
+| R10 | no-fake-solid-color | 产物 `color: #xxx` 但 cache 找不到源头 | 幻觉色 | `rules/R10-no-fake-solid-color.md` |
+| R11 | mask-vector-css-able | 复合 mask / 多层 vector | 判"CSS 表达不了" → 应切图 | `rules/R11-mask-vector-css-able.md` |
+| R12 | flat-mode-naming | flat 合并模式类名 | 跨 block 覆盖 | `rules/R12-flat-mode-naming.md` |
+| R13 | unit-scale | Figma px → 产物 px | 忘换算 `outputBase / figmaBase` | `rules/R13-unit-scale.md` |
+| R14 | fixed-z-index | 多个 `fixed-` 节点 | z-index 未递增 | `rules/R14-fixed-z-index.md` |
+| R15 | 同构 map 渲染 | 同层 ≥3 同构子节点 | 展开重复代码 vs `.map()` | `rules/R15-同构 map 渲染.md` |
+
+**硬防线** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R05 / R06 / R08**
+**软防线** (Rule-Scan sub-agent 识别 `rule-hits.json`): **R03 / R04 / R07 / R09 / R10 / R11 / R12 / R13 / R14 / R15**
+
+##### 切图四条硬规则(v0.3.20,顺序判定,命中即停,零例外)
+
+**这是本 SKILL 决定"某个节点是否切图"的唯一入口**。v0.3.19 用三条硬规则删掉了 v0.3.9-v0.3.17 所有例外通道;v0.3.20 在三条上加一条"结构性隐式图切图"覆盖"设计师忘打前缀但节点确实是一张纯视觉图"的情况,并在每条硬规则末尾内嵌 sub-agent 交付前自证清单。**v1.0.0 起,四条硬规则的执行由 `bin/check-rules.mjs` 兜底拦截(R01/R02/R08 属硬防线,R03 属软防线由 Rule-Scan sub-agent 识别)。**
 
 1. **前缀命中 `bg` / `img`**（含 `bg-xxx` / 裸词 `bg` / `img-xxx` / 裸词 `img`）→ **整体切图,子层不解析**
    - `bg` 类:切图挂父容器 `background: url(...) no-repeat center/cover`(写在父容器独立 `.scss`),bg 节点自身**不生成任何 DOM**
@@ -1323,6 +1478,26 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 **典型案例**：`.baseBackground { padding-top: 236px }` = fixed-状态栏 118×2 → 错。应取页面 `paddingTop=166` × 2 = **332px**。
 
 **doctor 关联规则**：DIM032（v0.3.10 新增，error）—— 页面根 padding-top 写入值 ≠ `figmaNode.paddingTop × scale`，参见 pp-doctor §3.6t。
+
+##### SKILL.md 老规则 → rules/*.md 索引 (v1.0.0)
+
+以下 SKILL.md 现有段落的详情已迁移到 `rules/`, 遇到不一致时以 `rules/` 为准:
+
+| SKILL.md 章节 | rules/*.md |
+|---|---|
+| §4.1.1 TEXT 多层 fills 处理 | `rules/R04-text-gradient.md`, `rules/R06-text-solid-last.md` |
+| §4.3 切图四条硬规则 (第 1-4 条) | `rules/R01-fixed-position.md`, `rules/R02-fills-image.md`, `rules/R03-implicit-image.md`, `rules/R08-bg-landing-form.md` |
+| §4.3 CSS 翻译表 (fills SOLID/GRADIENT) | `rules/R07-multi-fills.md`, `rules/R09-btn-bgc-取值.md` |
+| §4.4.pre.b 子树结构禁切规则 (v0.3.9) | `rules/R11-mask-vector-css-able.md` |
+| §4.5 单位换算 | `rules/R13-unit-scale.md` |
+| §5.1 data-node-id 守恒律 | (不需要拆, 属主 agent §6.0.2 校验) |
+| primaryAxisAlignItems 布局 | `rules/R05-space-between.md` |
+| flat 合并模式类名 | `rules/R12-flat-mode-naming.md` |
+| 多个 fixed- 节点 z-index | `rules/R14-fixed-z-index.md` |
+| 同层 ≥3 同构节点渲染 | `rules/R15-同构 map 渲染.md` |
+| SOLID 色源核对 (无幻觉色) | `rules/R10-no-fake-solid-color.md` |
+
+**rules/ 是设计文档**;执行链条:Rule-Scan sub-agent Read 全部 `rules/*.md` → 输出 `rule-hits.json` → UI sub-agent Read 命中的 R0X.md 按"期望产物"落地。`check-rules.mjs` 硬编码 R01/R02/R05/R06/R08 逻辑,不依赖 rules/*.md 运行。
 
 #### 4.4 图片处理
 
@@ -1910,6 +2085,40 @@ fi
 ```
 
 任意一条 ❌ 失败 → 合并阶段不算完成，主 agent 必须回滚，重新按 sub-agent 产物逐字展开。
+
+##### rule-hits 聚合(v1.0.0 强制,在原自证块之外新增)
+
+主 agent 合并 sub-agent 产物前,必须 Read 所有 `blocks/*/rule-hits.json` 与所有 `blocks/*/assets.txt` 的"rule-hits 消费证明"块,输出以下 diff:
+
+```
+## rule-hits 聚合(v1.0.0)
+
+- Rule-Scan 全部条数(聚合 blocks/*/rule-hits.json): N
+- UI sub-agent 实际处理条数(汇总 assets.txt "rule-hits 消费证明"): M
+- 遗漏补捕总数: K
+- 每个补捕都有 [遗漏补捕] 备注: ✅ / ❌ + 无备注的补捕列表
+- 每个 sub-agent 的 check-rules.mjs 都通过: ✅ / ❌ + 未通过 block 列表
+- Rule-Scan 降级发生(对哪些 block): 无 / [block 列表 + 原因]
+```
+
+**diff 判定**:
+- **N ≠ M 且无 [遗漏补捕] 备注** → 主 agent QA 告警,列出未处理的 nodeId+rule
+- **check-rules.mjs 未通过的 block** → 主 agent 必须回滚该 block 产物,让 sub-agent 修复
+- **Rule-Scan 降级** → 主 agent 在最终交付 QA 段警示;下轮排查 Rule-Scan 挂的原因
+
+##### 整 page check-rules.mjs 复跑(v1.0.0 强制,防合并打散产物)
+
+主 agent 合并完成、生成整个 page 目录后,必须重跑一次 `check-rules.mjs`:
+
+```bash
+node .claude/skills/pp-d2c/bin/check-rules.mjs \
+  --merge pages/{page}/ \
+  --cache-key <fileKey>
+```
+
+- exit code: 0(通过) / 1(违规) / 2(环境错)
+- **exit 1** → 主 agent 必须修产物或回滚 sub-agent 产物,**不允许**把违规带到步骤 7 交付
+- 与步骤 4.0.pre 的 `--block` 模式区别: 那里只扫单个 block 目录;这里扫整个 page 目录,主要防合并时类名冲突/z-index 冲突/幻觉色被引入
 
 #### 6.1 整体视觉验收
 
