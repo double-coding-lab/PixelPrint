@@ -14,12 +14,10 @@
 
 **SKILL.md 是给 LLM 读的自然语言操作手册，不是可执行代码。**
 
-下文出现的 `doctor.run({...})`、`return X`、`派发新 sub-agent`、`sub-agent 上报` 等表述都是**伪代码 / 隐喻**，不是真函数调用、不是真多进程通信。**全程只有当前这一个 LLM agent**（即此对话里的 Claude）按 SKILL 步骤顺序执行：
+下文出现的 `派发新 sub-agent`、`sub-agent 上报` 等表述都是**伪代码 / 隐喻**，不是真函数调用、不是真多进程通信。**全程只有当前这一个 LLM agent**（即此对话里的 Claude）按 SKILL 步骤顺序执行：
 
 | 文档表述 | 实际操作 |
 |---------|---------|
-| "调用 doctor SKILL" / `doctor.run({...})` | 当前 agent `Read .claude/skills/pp-doctor/SKILL.md` 并按其步骤执行 |
-| "doctor 集成模式 return JSON" | 当前 agent 在对话里输出 §5.4 描述的 JSON 字符串，下一段步骤自己读 |
 | "派发新 sub-agent 处理 sub-X" | 当前 agent 重新进入 §4.0 流程，把根节点重置为 sub-X 的 nodeId、depth +1，重走一遍 |
 | "sub-agent 上报 subslots.json" | 当前 agent 把 JSON 内容写到磁盘文件，下一轮处理时自己读 |
 | `<__SUBSLOT__ nodeId="..." />` | **真实字符串**，要字面写进 JSX 文件作占位符 |
@@ -29,7 +27,7 @@
 
 > **v0.3 起本 SKILL 完全走 Figma REST API，不再依赖任何 `mcp__plugin_figma_figma__*` 工具**。这样做的理由：MCP 工具会附带"AI 生成的参考代码"字段，容易让 agent 信参考代码结构 > 信项目前缀规则（历史事故：`bg-` 节点被 MCP 参考代码展开成 `display: contents` 子结构，agent 跟着递归 DOM 化）。REST API 只返回原始节点 JSON，前缀规则永远优先。
 
-> 误把伪代码当真函数会卡死流程（等待一个永远不会到来的"返回值"），或者绕过关键步骤（"既然 SKILL 里说 doctor.run() 就行，那直接跳到 §1"）。
+> 误把伪代码当真函数会卡死流程（等待一个永远不会到来的"返回值"），或者绕过关键步骤。
 
 ## 问题边界（v0.3.8 新增，硬约束）
 
@@ -144,8 +142,6 @@ Read("pp-d2c.config.json")
 | `layers.input` | 输入框前缀，默认 `input-` |
 | `layers.ignore` | 忽略前缀，默认 `x-` |
 | `output.dir` | 代码输出根目录 |
-| `health.enabled` | 是否启用前置体检（默认 true） |
-| `health.blockOnError` | 体检 grade=F 时是否阻塞生成（默认 true） |
 
 #### 样式方案标识符（`project.styleFormat` 取值表）
 
@@ -212,53 +208,6 @@ node .claude/skills/pp-d2c/bin/figma.mjs cache-check <fileKey>
 - 禁止在同一次 SKILL 运行里多次 `cache-check`（主 agent 校验一次即可，sub-agent 只读缓存不校）
 - 禁止绕过脚本直接手写 curl 或手动管理 `.d2c-cache/` 内容
 - 禁止把 QA 截图落到 `.d2c-cache/`（脚本 `screenshot` 命令固定落 `.d2c-tmp/`，别改）
-
----
-
-### 步骤 0.5：调用设计稿体检（health 启用时）
-
-`health.enabled === true` 时，**在解析 URL 前**先做一次设计稿体检。
-
-**不要把下面当成函数调用**——SKILL.md 里没有任何函数会真的被运行。这一步的实际行为是：
-
-> **同一个主 agent**（你这个 LLM）做以下事情：
-> 1. `Read .claude/skills/pp-doctor/SKILL.md`，按其 §-1 → §5.4 流程执行体检
-> 2. 把"集成模式（integrated）"作为这次体检的执行约束（来自 doctor §5.4）：
->    - 不写 `.d2c-health.md` / `.d2c-health.json` 磁盘文件（避免污染 output 目录）
->    - 体检完毕后，按 doctor §5.4 给出的字段结构（见下）**在对话里以 JSON 形式输出体检摘要**，作为本步骤的"返回值"
-> 3. 主 agent 自己读这份 JSON 摘要，按下面的决策表决定下一步
-
-**体检摘要 JSON 结构**（来自 doctor §5.4，必填字段）：
-
-```jsonc
-{
-  "passed": true,                  // grade !== 'F'
-  "score": {
-    "total": 85,
-    "grade": "B",
-    "dimensions": { /* NAM/LAY/STR/STY/AST/FEA 各维度得分 */ },
-    "coverage": { /* namedPrefixCoverage / autoLayoutCoverage 等 */ }
-  },
-  "issues": [ /* 每条含 id / level / nodeId / problem / consequence / fix / figmaUrl */ ],
-  "summary": { "error": 0, "warn": 5, "info": 2 },
-  "todoByRole": {
-    "designer": [ /* 设计师待办 */ ],
-    "developer": [ /* 开发待办 */ ]
-  }
-}
-```
-
-**根据这份 JSON 摘要决策**：
-
-| 条件 | 处理 |
-|------|------|
-| `passed === false && config.health.blockOnError === true` | 输出阻塞提示，**等待用户输入「强制继续」/「跳过体检」/「先去修设计稿」**；用户不明确同意则终止流程 |
-| `passed === false && config.health.blockOnError === false` | 输出警告但继续生成 |
-| `passed === true && summary.error > 0` | 输出 error 数量提示并继续（罕见，通常 error 会让 grade=F） |
-| `passed === true && summary.warn > 0` | 输出一句简短提示并继续，例如：`⚠️ 体检发现 N 个警告，详情见对话上方报告，继续生成。` |
-| `passed === true && summary.error === 0 && summary.warn === 0` | 静默继续 |
-
-**用户主动跳过**：用户在调用主 SKILL 时明确说"跳过体检/不要 doctor"，可跳过本步骤。
 
 ---
 
