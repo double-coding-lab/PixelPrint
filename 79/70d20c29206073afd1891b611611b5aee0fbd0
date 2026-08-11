@@ -1,0 +1,46 @@
+.Knowledge/topics/f2s-stock-docs-vs-req-docs.md
+  s_97816464c07f4b::t_562e2b902cdd59 1-7
+.Knowledge/topics/f2s-implement-tech-design.md
+  s_97816464c07f4b::t_562e2b902cdd59 1-8
+.Knowledge/topics/f2s-task.md
+  s_97816464c07f4b::t_562e2b902cdd59 1-7
+.Knowledge/topics/pp-d2c-rn.md
+  s_97816464c07f4b::t_562e2b902cdd59 1-8
+.Knowledge/topics/f2s-fallback-triage.md
+  s_97816464c07f4b::t_562e2b902cdd59 1-7
+.Knowledge/index.md
+  s_97816464c07f4b::t_89a377d5a72cb7 3,5-6,10,12-17,21,23,25-38,42,44-48,52,54,56-60,62,66,68,70-73,75
+.Knowledge/topics/pp-d2c.md
+  s_97816464c07f4b::t_562e2b902cdd59 1-8
+.Knowledge/topics/pp-doctor.md
+  s_97816464c07f4b::t_562e2b902cdd59 1-8
+.Knowledge/topics/pp-install-dispatch.md
+  s_97816464c07f4b::t_562e2b902cdd59 1-8
+.Knowledge/topics/f2s-req-plan.md
+  s_97816464c07f4b::t_562e2b902cdd59 1-8
+.Knowledge/topics/pp-fix-partial.md
+  s_97816464c07f4b::t_562e2b902cdd59 1-9
+.Knowledge/topics/f2s-config-precheck.md
+  s_97816464c07f4b::t_562e2b902cdd59 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "7970d20c29206073afd1891b611611b5aee0fbd0",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_97816464c07f4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a05db5c0-1eb5-4b2d-92f0-c32a3e012fa0",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
