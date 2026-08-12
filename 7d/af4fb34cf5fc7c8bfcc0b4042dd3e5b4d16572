@@ -1,0 +1,24 @@
+README.md
+  s_8449a76820d5a9::t_c62b2f52a5559e 7
+  s_8449a76820d5a9::t_b3939d1380347e 62-63
+docs/pixel-print-guide.md
+  s_8449a76820d5a9::t_b76112b8f559b1 513-514
+  s_8449a76820d5a9::t_e1b2ed7e0857c5 615-617
+  s_8449a76820d5a9::t_cdb32059b50c11 35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "7daf4fb34cf5fc7c8bfcc0b4042dd3e5b4d16572",
+  "prompts": {},
+  "sessions": {
+    "s_8449a76820d5a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a9422b6-ce20-42b5-8067-a6d8bf49264a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
