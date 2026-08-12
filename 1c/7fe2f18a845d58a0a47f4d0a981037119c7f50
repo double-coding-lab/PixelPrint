@@ -1,0 +1,95 @@
+templates/skills/pp-d2c-fast/rules/R20-absolute-position.md
+  ai_agent 1-93
+templates/skills/pp-d2c-fast/rules/R21-node-id-coverage.md
+  ai_agent 1-85
+templates/skills/pp-d2c-fast/rules/R10-no-fake-solid-color.md
+  ai_agent 1-72
+templates/skills/pp-d2c-fast/bin/rules/R01-fixed-position.mjs
+  ai_agent 1-57
+templates/skills/pp-d2c-fast/rules/R11-mask-vector-css-able.md
+  ai_agent 1-116
+templates/skills/pp-d2c-fast/rules/R07-multi-fills.md
+  ai_agent 1-91
+templates/skills/pp-d2c-fast/SKILL.md
+  ai_agent 1-2123
+templates/skills/pp-d2c-fast/bin/rules/R18-flex-direction.mjs
+  ai_agent 1-61
+templates/skills/pp-d2c-fast/bin/rules/R16-no-flatten-text.mjs
+  ai_agent 1-98
+templates/skills/pp-d2c-fast/rules/R05-space-between.md
+  ai_agent 1-85
+templates/skills/pp-d2c-fast/rules/R16-no-flatten-text.md
+  ai_agent 1-109
+templates/skills/pp-d2c-fast/bin/figma.mjs
+  ai_agent 1-390
+templates/skills/pp-d2c-fast/rules/R13-unit-scale.md
+  ai_agent 1-100
+templates/skills/pp-d2c-fast/rules/R18-flex-direction.md
+  ai_agent 1-84
+templates/skills/pp-d2c-fast/bin/lib/loadCache.mjs
+  ai_agent 1-124
+templates/skills/pp-d2c-fast/bin/slugify.mjs
+  ai_agent 1-134
+templates/skills/pp-d2c-fast/rules/R01-fixed-position.md
+  ai_agent 1-76
+templates/skills/pp-d2c-fast/bin/rules/R20-absolute-position.mjs
+  ai_agent 1-111
+templates/skills/pp-d2c-fast/rules/R06-text-solid-last.md
+  ai_agent 1-80
+templates/skills/pp-d2c-fast/bin/rules/R06-text-solid-last.mjs
+  ai_agent 1-102
+templates/skills/pp-d2c-fast/bin/lib/nodeIdToClassName.mjs
+  ai_agent 1-72
+templates/skills/pp-d2c-fast/bin/lib/report.mjs
+  ai_agent 1-17
+templates/skills/pp-d2c-fast/rules/R08-bg-landing-form.md
+  ai_agent 1-97
+templates/skills/pp-d2c-fast/rules/R09-btn-bgc-取值.md
+  ai_agent 1-96
+templates/skills/pp-d2c-fast/rules/R14-fixed-z-index.md
+  ai_agent 1-88
+templates/skills/pp-d2c-fast/rules/R19-padding.md
+  ai_agent 1-86
+bin/install.js
+  ai_agent 224
+templates/skills/pp-d2c-fast/bin/rules/R02-fills-image.mjs
+  ai_agent 1-93
+templates/skills/pp-d2c-fast/bin/rules/R17-no-baked-dom.mjs
+  ai_agent 1-60
+templates/skills/pp-d2c-fast/rules/R03-implicit-image.md
+  ai_agent 1-79
+templates/skills/pp-d2c-fast/bin/rules/R05-space-between.mjs
+  ai_agent 1-86
+templates/skills/pp-d2c-fast/rules/R04-text-gradient.md
+  ai_agent 1-134
+templates/skills/pp-d2c-fast/bin/rules/R21-node-id-coverage.mjs
+  ai_agent 1-73
+templates/skills/pp-d2c-fast/rules/README.md
+  ai_agent 1-166
+templates/skills/pp-d2c-fast/bin/lib/cssMatch.mjs
+  ai_agent 1-90
+templates/skills/pp-d2c-fast/bin/rules/R19-padding.mjs
+  ai_agent 1-110
+templates/skills/pp-d2c-fast/bin/lib/loadProduct.mjs
+  ai_agent 1-43
+templates/skills/pp-d2c-fast/bin/rules/R08-bg-landing-form.mjs
+  ai_agent 1-83
+"templates/skills/pp-d2c-fast/rules/R15-同构 map 渲染.md"
+  ai_agent 1-126
+templates/skills/pp-d2c-fast/rules/R17-no-baked-dom.md
+  ai_agent 1-77
+docs/pixel-print-guide.md
+  ai_agent 327
+templates/skills/pp-d2c-fast/rules/R02-fills-image.md
+  ai_agent 1-88
+templates/skills/pp-d2c-fast/bin/check-rules.mjs
+  ai_agent 1-122
+templates/skills/pp-d2c-fast/rules/R12-flat-mode-naming.md
+  ai_agent 1-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "1c7fe2f18a845d58a0a47f4d0a981037119c7f50",
+  "prompts": {}
+}
