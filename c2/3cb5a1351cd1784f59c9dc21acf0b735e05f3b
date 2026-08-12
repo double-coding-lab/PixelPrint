@@ -1,0 +1,37 @@
+templates/skills/pp-d2c/bin/lib/loadCache.mjs
+  s_8f566140fc4cb6::t_ec1f4c6f39b46d 20-28,33-34
+templates/skills/pp-d2c/bin/rules/R21-node-id-coverage.mjs
+  s_8f566140fc4cb6::t_b43dfe7ebc2f75 1-73
+templates/skills/pp-d2c/bin/check-rules.mjs
+  s_8f566140fc4cb6::t_136d77d1cb374a 2,58,65
+  s_8f566140fc4cb6::t_94d537a469a1aa 3,7-8
+  s_8f566140fc4cb6::t_04481d97289068 36,38
+templates/skills/pp-d2c/bin/rules/R02-fills-image.mjs
+  s_8f566140fc4cb6::t_52b0159b89a628 29-30
+templates/skills/pp-d2c/bin/rules/R06-text-solid-last.mjs
+  s_8f566140fc4cb6::t_1ff5940e004c63 32-34
+  s_8f566140fc4cb6::t_904d99fc24e148 18-19
+templates/skills/pp-d2c/bin/rules/R17-no-baked-dom.mjs
+  s_8f566140fc4cb6::t_4571fb00b18d96 21-26,32-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "c23cb5a1351cd1784f59c9dc21acf0b735e05f3b",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
