@@ -1,3 +1,8 @@
+---
+name: pp-d2c-rn
+description: 根据 Figma 设计稿 URL 生成 React Native 页面代码与资源；触发：pp-d2c-rn、RN D2C、Figma URL 生成 RN、还原设计稿到 RN
+---
+
 # pp-d2c-rn Skill
 
 > **v0.3.13(2026-08-08,RN 独享)**:修复 RN 侧 autoLayout 顺流子被 agent 用 `absoluteBoundingBox` 逆推成 `marginTop` / `position:absolute` 的事故——父 Frame 为 VERTICAL/primary=CENTER/itemSpacing=N,产物中顺流子分别写 `marginTop:<y1>` / `marginTop:<y2>` / `position:absolute; top:<y3>`,绕过父 flex 语义视觉整体下移;同批命中:父 VERTICAL Frame 的顺流子被逆推成 `position:absolute; top:<y>` / `bottom:<y'>`,且子 style `paddingLeft:<n>` 凭空捏造、`flex:1` 违反 FIXED sizing。改动：§4.3 新增「顺流子位置来源硬约束」章节——父 `layoutMode!=NONE` 且子 `layoutPositioning!=ABSOLUTE` 时，子 style 禁止出现 `position:absolute` / `top` / `left` / `right` / `bottom` / `marginTop` / `marginBottom` / `marginLeft` / `marginRight` / 凭空 `padding*` / 违反 FIXED sizing 的 `flex:1`；位置由父 flex 5 字段（flexDirection / justifyContent / alignItems / gap / padding）负责；配 grep 自证脚本。**本次改动只在 pp-d2c-rn 生效**，不同步到 pp-d2c（h5），doctor 暂不加规则。

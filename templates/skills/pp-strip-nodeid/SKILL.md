@@ -1,3 +1,8 @@
+---
+name: pp-strip-nodeid
+description: 清理 D2C 产物中的 data-node-id 调试锚点，并保存 nodeId→代码位置映射供局部修复定位；触发：pp-strip-nodeid、清理 data-node-id、去掉 nodeId、上线前清理调试属性
+---
+
 # pp-strip-nodeid Skill
 
 > 一键清理 D2C 生成产物里注入的 `data-node-id="..."` 调试锚点,同时**顺手把 nodeId → 代码位置的映射存到 `.d2c-cache/anchors/`**,供 `pp-fix-partial` 局部修复时精确定位。

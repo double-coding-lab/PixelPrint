@@ -1,3 +1,8 @@
+---
+name: pp-d2c
+description: 根据 Figma 设计稿 URL 生成 React H5 页面代码与资源；触发：pp-d2c、D2C、Figma URL、生成代码、还原设计稿、帮我还原这个设计稿
+---
+
 # pp-d2c Skill
 
 > **当前版本**：v1.2.1(h5 独享,不同步 pp-d2c-rn) —— 校验范式从「黑名单抽查」升级为「以 cache 为真值的逐节点对账」,并借机简化防线。**v1.2.1 补丁**:(a) `_inBakedSubtree` 移除 bgc-(bgc- 盒级 CSS 写父、非切图,子孙误放 TEXT 应被 R06/R21 暴露而非静默吞);(b) 新增 **R21 node-id-coverage** 把 §5.1.1 data-node-id 铁律机械强制(应渲染节点漏挂 id 即 exit 1,堵 R18/R19/R20 遇空 classMap 静默 continue);(c) §6.0.2 禁生成流程用 `--force-skip`。v1.2.0 核心变更:(1) `bin/lib/loadCache.mjs` 为每节点标注 **`_inBakedSubtree`**(祖先含 bg-/bgc-/img-/x- 整体切图)/**`_hidden`**(自身或祖先 visible=false)/**`_templateDup`**(`.map()` 列表同构兄弟的非首个数据副本);R02/R06 跳过这三类,**假阳性从根源清除**(test13 实测 89→14);(2) 抽 **`bin/lib/cssMatch.mjs`** 共享 SCSS `&__foo`/`&-foo` 嵌套匹配,R01/R02/R06/R18/R19 统一走,修掉"产物用嵌套写法、正则找平铺类"的全线盲区;(3) 新增 4 条对账规则——**R17 no-baked-dom**(baked 子孙禁止再出 DOM,拦双重渲染)/**R18 flex-direction**(layoutMode↔flex-direction 忠实度)/**R19 padding**(padding↔Figma×scale 忠实度)/**R20 absolute-position**(ABSOLUTE 子节点 top/left=(子bbox−父bbox)×scale 忠实度);(4) §6.0.2 **封逃逸口**:禁"语义盲点/装饰性内容/父层整体切图承载"批量豁免话术,"需人工核对"不再适用于可机械计算的坐标/尺寸/方向/间距;(5) §5.1.1 **data-node-id 全覆盖铁律**:凡承载 Figma 语义的 DOM 必挂 node-id,`.map()` 模板挂代表项(variant a)id;(6) §4.3 新增**「含 TEXT 容器 压平 vs 拆」唯一裁决树** + **bg- 背景直接挂父 vs 独立层**判定。硬规则详情迁到 `rules/*.md`,SKILL.md 保留总概表。核心哲学: **允许兜底的路径就是错误来源;校验以 cache 为唯一真值逐节点对账,而非抽查已知坏味道。**

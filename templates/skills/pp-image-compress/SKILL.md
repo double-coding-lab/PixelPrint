@@ -1,3 +1,8 @@
+---
+name: pp-image-compress
+description: 无损压缩指定文件夹下的 PNG/JPEG 图片到 compressed/ 子目录（Python + Pillow）；触发：pp-image-compress、压缩图片、无损压缩、优化图片体积
+---
+
 # pp-image-compress Skill
 
 > 无损压缩指定文件夹下的 PNG / JPEG 图片，输出到 `<folder>/compressed/` 子目录，原图不动。**纯 Python + Pillow 方案**，零系统依赖。
