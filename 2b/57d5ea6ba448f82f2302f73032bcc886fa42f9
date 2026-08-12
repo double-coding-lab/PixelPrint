@@ -1,0 +1,33 @@
+.Knowledge/index.md
+  s_8f566140fc4cb6::t_30baec97d6749f 35
+.Knowledge/topics/pp-install-dispatch.md
+  s_8f566140fc4cb6::t_3bb29a0b7a2af9 34-36
+  s_8f566140fc4cb6::t_428e82aec484f1 11
+  s_8f566140fc4cb6::t_e8437a37c9011c 63
+  s_8f566140fc4cb6::t_bf9d683f0313cb 32
+.Knowledge/matchers/m-pp-install-dispatch.json
+  s_8f566140fc4cb6::t_2578d231163d43 30-37
+.Knowledge/.last-sync.json
+  s_8f566140fc4cb6::t_3e935dee0efc0b 2,5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "2b57d5ea6ba448f82f2302f73032bcc886fa42f9",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
