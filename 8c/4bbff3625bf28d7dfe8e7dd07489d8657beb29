@@ -1,0 +1,28 @@
+.Knowledge/manifest-routing.json
+  s_8f566140fc4cb6::t_062f8e54895646 134-141
+  s_8f566140fc4cb6::t_2b603ce954f995 16-18
+  s_8f566140fc4cb6::t_65ccfb95339096 226-232
+  s_8f566140fc4cb6::t_d84185f7f8816e 34-35
+.Knowledge/topics/pp-d2c-fast.md
+  s_8f566140fc4cb6::t_913e4465d3f790 1-57
+.Knowledge/matchers/m-pp-d2c-fast.json
+  s_8f566140fc4cb6::t_b3e7ae4ea345ac 1-18
+.Knowledge/index.md
+  s_8f566140fc4cb6::t_cf9d190ee9e2eb 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "8c4bbff3625bf28d7dfe8e7dd07489d8657beb29",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
