@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-// check-rules.mjs — pp-d2c 硬防线脚本 (v1.2.0)
-// 覆盖 R01/R02/R05/R06/R08/R16/R17/R18/R19/R20
+// check-rules.mjs — pp-d2c 硬防线脚本 (v1.2.1)
+// 覆盖 R01/R02/R05/R06/R08/R16/R17/R18/R19/R20/R21
 // v1.2.0 对账升级：loadCache 标注 _inBakedSubtree / _hidden / _templateDup；
 //   R02/R06 跳过 baked·隐藏·模板副本 + SCSS &__ 嵌套匹配（lib/cssMatch.mjs）消除假阳性；
 //   R17 禁 baked 子孙出 DOM（双重渲染）；R18 flex-direction 忠实度；R19 padding 忠实度；R20 绝对定位坐标忠实度。
+// v1.2.1：_inBakedSubtree 移除 bgc-（bgc- 非 baked，子孙走正常规则暴露误放）；
+//   新增 R21 node-id-coverage（应渲染节点必挂 data-node-id，机械强制 §5.1.1 铁律，堵 R18/R19/R20 空 classMap 逃逸）。
 //
 // 用法:
 //   node check-rules.mjs --block <blockDir> --cache-key <fileKey>
@@ -31,8 +33,9 @@ import * as R17 from './rules/R17-no-baked-dom.mjs';
 import * as R18 from './rules/R18-flex-direction.mjs';
 import * as R19 from './rules/R19-padding.mjs';
 import * as R20 from './rules/R20-absolute-position.mjs';
+import * as R21 from './rules/R21-node-id-coverage.mjs';
 
-const ALL_RULES = [R01, R02, R05, R06, R08, R16, R17, R18, R19, R20];
+const ALL_RULES = [R01, R02, R05, R06, R08, R16, R17, R18, R19, R20, R21];
 
 function parseArgv(argv) {
   const args = { mode: null, dir: null, cacheKey: null, forceSkip: [] };
@@ -52,14 +55,14 @@ function parseArgv(argv) {
 }
 
 function printHelp() {
-  process.stdout.write(`check-rules.mjs (pp-d2c v1.2.0)
+  process.stdout.write(`check-rules.mjs (pp-d2c v1.2.1)
 
 Usage:
   node check-rules.mjs --block <blockDir> --cache-key <fileKey>
   node check-rules.mjs --merge <pageDir>  --cache-key <fileKey>
   node check-rules.mjs --block <blockDir> --cache-key <fileKey> --force-skip R05,R06
 
-Rules covered: R01 R02 R05 R06 R08 R16 R17 R18 R19 R20
+Rules covered: R01 R02 R05 R06 R08 R16 R17 R18 R19 R20 R21
 Exit: 0=ok, 1=violations, 2=env-error
 `);
 }

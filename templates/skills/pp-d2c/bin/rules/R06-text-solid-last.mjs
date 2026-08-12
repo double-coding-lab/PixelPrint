@@ -15,8 +15,8 @@ export function check({ cache, product, config, classMap }) {
   for (const [nodeId, node] of Object.entries(cache.nodes)) {
     if (node.type !== 'TEXT') continue;
     if (!Array.isArray(node.fills) || node.fills.length === 0) continue;
-    // 处于 bg-/bgc-/img-/x- 整体切图子树内的 TEXT → 文字像素已烤进父层切图，
-    // 不作为独立 DOM 渲染，无需校验字色。跳过，消除对账假阳性（v1.2.0）。禁 DOM 交由 R17。
+    // 处于 bg-/img- 整体切图子树（文字像素已烤进父层 PNG）或 x- 忽略子树内的 TEXT →
+    // 不作为独立 DOM 渲染，无需校验字色。跳过（v1.2.0；v1.2.1 起不含 bgc-）。禁 DOM 交由 R17。
     if (node._inBakedSubtree) continue;
     if (node._hidden) continue; // 隐藏 TEXT 不渲染，不校验
     if (node._templateDup) continue; // .map() 列表数据副本，只校验代表项
@@ -29,20 +29,9 @@ export function check({ cache, product, config, classMap }) {
     if (!expectedHex) continue;
 
     const classes = classMap[nodeId] || [];
-    if (classes.length === 0) {
-      violations.push({
-        rule: id,
-        nodeId,
-        name: node.name || '(no name)',
-        type: node.type,
-        expected: `css 含 color: ${expectedHex}`,
-        actual: '产物中无对应 className',
-        file: '(missing in jsx)',
-        line: 0,
-        snippet: '',
-      });
-      continue;
-    }
+    // 不可追溯（无 className/data-node-id）→ 交由 R21 node-id-coverage 统一报"应挂 id"，
+    // R06 只负责"可追溯 TEXT 的字色是否取对"，避免与 R21 双报同一节点（v1.2.1）。
+    if (classes.length === 0) continue;
 
     let ok = false;
     let hitFile = null;

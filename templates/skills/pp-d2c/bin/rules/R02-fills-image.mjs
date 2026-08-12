@@ -26,8 +26,8 @@ export function check({ cache, product, config, classMap }) {
     const hasImage = node.fills.some((f) => f && f.type === 'IMAGE' && f.visible !== false);
     if (!hasImage) continue;
     if (node.name && node.name.startsWith(ignorePrefix)) continue;
-    // 处于 bg-/bgc-/img-/x- 整体切图子树内 → 像素已烤进父层切图（或被整体忽略），
-    // 不应逐个溯源。跳过，消除对账假阳性（v1.2.0）。这类子孙的"禁 DOM"约束交由 R17。
+    // 处于 bg-/img- 整体切图子树（像素已烤进父层 PNG）或 x- 忽略子树内 → 不应逐个溯源。
+    // 跳过，消除对账假阳性（v1.2.0；v1.2.1 起不含 bgc-）。这类子孙的"禁 DOM"约束交由 R17。
     if (node._inBakedSubtree) continue;
     if (node._hidden) continue; // 隐藏节点不渲染，不校验
     if (node._templateDup) continue; // .map() 列表数据副本，只校验代表项

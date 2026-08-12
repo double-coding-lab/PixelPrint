@@ -18,13 +18,19 @@ export function check({ cache, product }) {
 
     const hit = findDomNode(product, nodeId);
     if (hit) {
+      const bakedByNode = node._bakedBy ? cache.nodes[node._bakedBy] : null;
+      const bakedByName = (bakedByNode && bakedByNode.name) || node._bakedBy || '?';
+      const isIgnored = /^x[-]?/.test(String(bakedByName).trim()) || String(bakedByName).trim() === 'x';
+      const kind = isIgnored
+        ? `处于 x- 忽略子树内（bakedBy=${bakedByName}），该内容被整体忽略，不该渲染`
+        : `处于整体切图子树内（bakedBy=${bakedByName}），像素已烤进父层 PNG`;
       violations.push({
         rule: id,
         nodeId,
         name: node.name || '(no name)',
         type: node.type,
-        expected: `节点处于整体切图子树内（bakedBy=${node._bakedBy}），像素已在父层切图，产物不应有其 data-node-id 元素`,
-        actual: `产物 ${hit.rel} 出现 data-node-id="${nodeId}"（双重渲染：切图里已有一份，DOM 又画一份）`,
+        expected: `节点${kind}，产物不应有其 data-node-id 元素`,
+        actual: `产物 ${hit.rel} 出现 data-node-id="${nodeId}"（${isIgnored ? '被忽略内容却出 DOM' : '双重渲染：切图一份 + DOM 一份'}）`,
         file: hit.rel,
         line: hit.line,
         snippet: hit.snippet,

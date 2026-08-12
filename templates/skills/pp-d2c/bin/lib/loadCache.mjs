@@ -17,17 +17,21 @@ export function loadConfig(projectRoot) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
-// 非递归类前缀：命中即"整体导出 / 忽略"，不再向内递归（见 topic pp-d2c §边界与禁止）。
-// 其全部子孙的像素要么已烤进父层切图（bg-/bgc-/img-），要么被整体忽略（x-）——
-// 无论哪种，子孙都不应再作为独立 DOM 节点出现，也不应被 R02/R06 逐个溯源。
-const NON_RECURSIVE_PREFIXES = ['bg-', 'bgc-', 'img-', 'x-'];
-const NON_RECURSIVE_BARE = ['bg', 'bgc', 'img', 'x'];
+// "子孙不生成独立 DOM" 的前缀：命中即整体导出 / 忽略，不再向内递归，其子孙不应作为
+// 独立 DOM 出现，也不应被 R02/R06 逐个溯源。**仅两类**：
+//   - bg- / img-（含裸词 bg/img）：整体切图，子孙像素**已烤进父层 PNG**（baked，可见）
+//   - x-：整体忽略，子孙**被丢弃**（ignored，不可见）
+// **不含 bgc-**：bgc- 是"把盒级 CSS(fills/描边/圆角/阴影) 写到父元素"，子孙**没有烤进任何位图**。
+//   若把 bgc- 也算作 baked，会让误放在 bgc- 下的 TEXT 被静默跳过 R06 + R17 禁 DOM → 静默丢内容。
+//   故 bgc- 子孙走正常规则：R06 会报"无 className"、R21 会报"不可追溯"，把结构错误暴露出来而非吞掉。
+const NO_RENDER_PREFIXES = ['bg-', 'img-', 'x-'];
+const NO_RENDER_BARE = ['bg', 'img', 'x'];
 
 export function isNonRecursivePrefix(name) {
   if (!name || typeof name !== 'string') return false;
   const n = name.trim();
-  if (NON_RECURSIVE_PREFIXES.some((p) => n.startsWith(p))) return true;
-  if (NON_RECURSIVE_BARE.includes(n)) return true; // 裸词 bg / img（与 R16 白名单口径一致）
+  if (NO_RENDER_PREFIXES.some((p) => n.startsWith(p))) return true;
+  if (NO_RENDER_BARE.includes(n)) return true; // 裸词 bg / img / x（与 R16 白名单口径一致）
   return false;
 }
 
