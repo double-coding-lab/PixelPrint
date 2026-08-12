@@ -221,7 +221,7 @@ function installFiles(forceSkills = false, skipConfig = false, options = {}) {
     // 目的是避免另一分支的主 SKILL 污染当前项目.claude/skills/,让 Claude Code
     // 只看到匹配当前 framework 的主 SKILL(pp-strip-nodeid / pp-fix-partial 等辅助 SKILL 两端通用,继续装)
     if (skipRn && entry.name === 'pp-d2c-rn') continue
-    if (skipH5 && entry.name === 'pp-d2c') continue
+    if (skipH5 && (entry.name === 'pp-d2c' || entry.name === 'pp-d2c-fast')) continue
     if (OPT_IN_ONLY.has(entry.name)) continue
     for (const skillsDst of skillsDsts) {
       copyDir(path.join(skillsSrc, entry.name), path.join(skillsDst, entry.name), forceSkills, silent)
