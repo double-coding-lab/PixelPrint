@@ -27,6 +27,13 @@
     "opt-in only",
     "运行时依赖 skill",
     "pip install 依赖",
-    "skill python 依赖"
+    "skill python 依赖",
+    "init 支持 codex",
+    "install codex",
+    ".codex/skills",
+    "双写镜像",
+    "codex 分发",
+    "分发到 codex",
+    "两处镜像"
   ]
 }

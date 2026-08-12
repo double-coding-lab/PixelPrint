@@ -8,7 +8,7 @@ tags: [module]
 ---
 # pp-install-dispatch
 
-> `bin/install.js` 分发 `templates/skills/` 到下游项目 `.claude/skills/` 的规则:黑名单 + framework 过滤,不是白名单。新 skill **默认自动分发**,不需要在 install.js 里登记。
+> `bin/install.js` 分发 `templates/skills/` 到下游项目 `.claude/skills/` 与 `.codex/skills/` 两处(无条件双写镜像)的规则:黑名单 + framework 过滤,不是白名单。新 skill **默认自动分发**,不需要在 install.js 里登记。
 
 ## 适用范围
 
@@ -29,9 +29,11 @@ tags: [module]
    - 辅助 skill(`pp-strip-nodeid` / `pp-fix-partial` / 新增的 `pp-image-compress` 等)两端通用,不参与 framework 过滤
 2. **黑名单 `OPT_IN_ONLY`**:`new Set(['pp-style', 'pp-doctor'])` 里的强制跳过
    - 这两个后期准备丢弃,保留在 templates/ 只为过渡期兼容
-3. **其余全部拷贝**到 `<CWD>/.claude/skills/<skill-name>/`,包括子目录递归
+3. **其余全部拷贝**到 `<CWD>/.claude/skills/<skill-name>/` 与 `<CWD>/.codex/skills/<skill-name>/` 两处,包括子目录递归(`installFiles` 用 `skillsDsts` 数组循环双写;同一 skill 的 framework 过滤 / 黑名单判定在外层,通过后才拷两份)
 
-**结论**:新增 skill 目录只要放到 `templates/skills/`,下游 `init` / `install` 会自动落地,**不需要**改 install.js。要想让新 skill 不默认落地,才需要把名字加入 `OPT_IN_ONLY`。
+**结论**:新增 skill 目录只要放到 `templates/skills/`,下游 `init` / `install` 会自动落地(两处一并),**不需要**改 install.js。要想让新 skill 不默认落地,才需要把名字加入 `OPT_IN_ONLY`。
+
+> **分发到位 ≠ codex 跑通编排**:双写只保证 SKILL 文件到 `.codex/skills/`。pp-d2c SKILL 步骤 3/3.5 依赖 Claude Code Task 并行 sub-agent,codex 无等价能力,拷过去后编排退化为主 agent 串行。codex 要识别这些 skill,项目还需 `.codex/AGENTS.md` 指向 `.codex/skills/`(flow2spec init codex 或手动);install.js 只复制文件,不生成 AGENTS.md。
 
 ## 覆盖策略(force 参数)
 
@@ -58,7 +60,7 @@ tags: [module]
 ## 依赖
 
 - **写入侧**:`bin/install.js:202-234` `installFiles` 是唯一分发入口
-- **读取侧**:下游用户项目根 `.claude/skills/` 是落地目标
+- **读取侧**:下游用户项目根 `.claude/skills/`(Claude Code)与 `.codex/skills/`(Codex)是落地目标;`.codex/skills` 约定由 flow2spec 建立,结构与 `.claude/skills` 一致(`.codex/AGENTS.md`「可用技能位于 ./.codex/skills/」)
 - **不受影响**:`manifest-routing.json` / `.Knowledge/` 与本 topic 无关(那是 f2s 侧路由,不是 skill 分发)
 
 ## 禁止
