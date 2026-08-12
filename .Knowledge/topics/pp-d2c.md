@@ -51,6 +51,19 @@ tags: [feature, config]
 
 **集成关系**：主 SKILL 步骤 0.5 在 `health.enabled=true` 时**调用** doctor 做集成体检，根据返回的 `passed` 决定是否阻塞生成（详见 SKILL.md §0.5）。doctor 的内部规则不影响主 SKILL 的生成逻辑——两者各自独立可读，**无强 dependency**。
 
+## 设计原理概述
+
+一句收敛：**允许兜底的路径就是错误来源；校验以 cache 为唯一真值逐节点对账，而非抽查已知坏味道。**
+
+- **四层架构**：数据层(`figma.mjs`) / 规则层(`SKILL.md`+`rules/`) / 执行层(LLM) / 校验层(`check-rules.mjs`)——两个确定性脚本层夹住一个概率性 LLM 层，机械动作(HTTP/缓存/下载/校验)从 LLM 手里拿走，LLM 只做"理解结构+产出代码"。
+- **前缀即协议**：图层名前缀是硬编码内置常量(config 无 `layers` 段)，设计师用前缀显式写意图，skill 不猜。组合优先级 `x- > img- > bg- > bgc- > btn- > 滚动 > 无前缀`，`fixed-`/`end-` 是修饰前缀最后叠加；裸词白名单 `bg/bgc/btn/img/input`。
+- **双防线**：软防线 Rule-Scan(生成前识别语义类 R03/R04/R07/R09–R15) + 硬防线 check-rules(交付前逐节点对账 R01/R02/R05/R06/R08/R16–R21)。软管提效(先扫作业指引再动笔)、硬管保质(exit 1 回滚)。
+- **sub-agent 分块是质量保证非性能优化**：单 agent 同时处理全局协调+局部细节时细节退化，故 `sub-` 强制分发、最深 3 层、`<__SUBSLOT__>`+`subslots.json` 上报-派发。
+- **data-node-id 贯穿全流程**：对账绑定 / 守恒律差集 / review 反查 / 局部修复锚点，四用途；R21 把"全覆盖"变硬规则。
+- **封逃逸口 + 自证代替信任**：已知逃逸路径(整体切图代拆结构/凭空搓渐变/幻觉 padding)显式禁止 + 机械拦截；豁免须三段证据且单次 ≤3；生成流程禁 `--force-skip`。
+
+> 完整原理（四层架构 / 执行流水线 步骤-1→7 / 前缀协议 / sub-agent 分块 / 对账范式 / 忠实度契约 / 设计取舍）见 `docs/pp-d2c-principles.md`。
+
 ## v1.2.0/v1.2.1 对账范式（校验从「抽查」升级为「逐节点对账」）
 
 **背景**：v1.1.0 及以前，`check-rules.mjs` 是「黑名单抽查」——只找已枚举的坏味道（inline style、缺 url、flex-end 冒充 space-between），抓不到「没被列举的错误」（flex 方向反、padding 幻觉、绝对坐标猜测、双重渲染）。且 R02/R06 对「整体切图子树里的 TEXT/IMAGE」逐个校验会产生大量假阳性，agent 用「语义盲点/装饰性内容」批量豁免，把真遗漏（如 cd-num 背景漏切）一起放行。v1.2.0 转向「以 Figma cache 为唯一真值，逐节点对账」。
