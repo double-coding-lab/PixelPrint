@@ -315,6 +315,15 @@ input-{name}              ← Frame,自身 fills(输入框底色) + strokes + co
 
 **典型场景**：登录表单(手机号/密码)、订单填写(乘车人姓名/身份证/备注)、搜索框、评论框。
 
+## 视觉验收机制（截图对比）
+
+步骤 6 视觉验收有**两条截图链路**，工具化程度不同：
+
+- **设计稿侧（脚本化）**：`bin/figma.mjs screenshot <fileKey> <nodeId> --tag=leaf|block|whole [--scale=2]` 调 Figma REST `/v1/images` 导出**设计稿节点**的 PNG，落 `.d2c-tmp/screenshots/`（不入 `.d2c-cache/`），SKILL 结束由 `cleanup-tmp` 统一 `rm -rf`。三档 tag：`leaf`（§6.0 逐叶子 block）/ `block`（§4.8 sub-agent 自验）/ `whole`（§6.1 整页）。这是视觉对比的**真值来源**。
+- **产物侧（软要求，无工具支撑）**：§6.0 第 2 步要求「在浏览器或 dev-server 中定位渲染出的 DOM 区域，截图相同区域」，再与设计稿并排比对（尺寸 / 颜色 ΔE≤3 / 字号字重 / 位置）。产物截图**如何获得无任何规定**——无无头浏览器（puppeteer / playwright / headless）、无 dev-server 启动脚本、无自动截图与 diff 工具（全仓 SKILL + bin 无相关实现）。
+
+**薄弱点**：产物侧截图依赖 agent 手动操作，缺工具支撑时易被"脑补"跳过，是 §6.0 视觉对比不可靠的根因。要把该环节从软要求变为可机器执行，需补「无头浏览器自动截产物图 + 与设计稿 diff」能力，方向与 v1.2 对账「质量从 agent 自觉搬到工具」一致。
+
 ## 工具链注意事项（install.js / config 完整性）
 
 **install.js `runInit()` 写 config 时必须包含完整字段**（v0.2 修订）。历史 bug：`runInit()` 只写了 project / figma / merge / unit / images / output 六大段，**漏了 layers / health / images.preserveEffectIds**，导致用户项目 config 缺关键字段。
