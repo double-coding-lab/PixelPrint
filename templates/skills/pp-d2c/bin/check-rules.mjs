@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-// check-rules.mjs — pp-d2c 硬防线脚本 (v1.1.0)
-// 覆盖 R01/R02/R05/R06/R08/R16
+// check-rules.mjs — pp-d2c 硬防线脚本 (v1.2.0)
+// 覆盖 R01/R02/R05/R06/R08/R16/R17/R18/R19/R20
+// v1.2.0 对账升级：loadCache 标注 _inBakedSubtree / _hidden / _templateDup；
+//   R02/R06 跳过 baked·隐藏·模板副本 + SCSS &__ 嵌套匹配（lib/cssMatch.mjs）消除假阳性；
+//   R17 禁 baked 子孙出 DOM（双重渲染）；R18 flex-direction 忠实度；R19 padding 忠实度；R20 绝对定位坐标忠实度。
 //
 // 用法:
 //   node check-rules.mjs --block <blockDir> --cache-key <fileKey>
@@ -24,8 +27,12 @@ import * as R05 from './rules/R05-space-between.mjs';
 import * as R06 from './rules/R06-text-solid-last.mjs';
 import * as R08 from './rules/R08-bg-landing-form.mjs';
 import * as R16 from './rules/R16-no-flatten-text.mjs';
+import * as R17 from './rules/R17-no-baked-dom.mjs';
+import * as R18 from './rules/R18-flex-direction.mjs';
+import * as R19 from './rules/R19-padding.mjs';
+import * as R20 from './rules/R20-absolute-position.mjs';
 
-const ALL_RULES = [R01, R02, R05, R06, R08, R16];
+const ALL_RULES = [R01, R02, R05, R06, R08, R16, R17, R18, R19, R20];
 
 function parseArgv(argv) {
   const args = { mode: null, dir: null, cacheKey: null, forceSkip: [] };
@@ -45,14 +52,14 @@ function parseArgv(argv) {
 }
 
 function printHelp() {
-  process.stdout.write(`check-rules.mjs (pp-d2c v1.1.0)
+  process.stdout.write(`check-rules.mjs (pp-d2c v1.2.0)
 
 Usage:
   node check-rules.mjs --block <blockDir> --cache-key <fileKey>
   node check-rules.mjs --merge <pageDir>  --cache-key <fileKey>
   node check-rules.mjs --block <blockDir> --cache-key <fileKey> --force-skip R05,R06
 
-Rules covered: R01 R02 R05 R06 R08 R16
+Rules covered: R01 R02 R05 R06 R08 R16 R17 R18 R19 R20
 Exit: 0=ok, 1=violations, 2=env-error
 `);
 }

@@ -5,8 +5,10 @@
 //   - 产物 CSS (或 jsx <img>) 引用该切图
 // 排斥: 节点前缀是 x- → 忽略
 
+// v1.2.0: 跳过 baked 子树与隐藏节点；CSS url 匹配走 lib/cssMatch.mjs（修 &__ 嵌套盲区）。
 import fs from 'node:fs';
 import path from 'node:path';
+import { collectRuleBodies } from '../lib/cssMatch.mjs';
 
 export const id = 'R02';
 export const name = 'fills-image';
@@ -24,6 +26,11 @@ export function check({ cache, product, config, classMap }) {
     const hasImage = node.fills.some((f) => f && f.type === 'IMAGE' && f.visible !== false);
     if (!hasImage) continue;
     if (node.name && node.name.startsWith(ignorePrefix)) continue;
+    // 处于 bg-/bgc-/img-/x- 整体切图子树内 → 像素已烤进父层切图（或被整体忽略），
+    // 不应逐个溯源。跳过，消除对账假阳性（v1.2.0）。这类子孙的"禁 DOM"约束交由 R17。
+    if (node._inBakedSubtree) continue;
+    if (node._hidden) continue; // 隐藏节点不渲染，不校验
+    if (node._templateDup) continue; // .map() 列表数据副本，只校验代表项
 
     // 检查 assets.txt 里是否提到此 nodeId
     const inAssets = assetsText.includes(nodeId);
@@ -74,10 +81,8 @@ function mentionsNodeIdAsset(product, nodeId, classMap) {
   const classes = classMap[nodeId] || [];
   for (const cls of classes) {
     for (const s of product.style) {
-      const re = new RegExp(`\\.${escapeRegex(cls)}\\b[^{]*\\{([\\s\\S]*?)\\}`, 'g');
-      let m;
-      while ((m = re.exec(s.content)) !== null) {
-        if (/url\(/i.test(m[1]) || /background-image\s*:/i.test(m[1])) return { hit: true };
+      for (const r of collectRuleBodies(s.content, cls)) {
+        if (/url\(/i.test(r.body) || /background-image\s*:/i.test(r.body)) return { hit: true };
       }
     }
   }
@@ -85,8 +90,4 @@ function mentionsNodeIdAsset(product, nodeId, classMap) {
     if (s.content.includes(nodeId) || s.content.includes(idNorm)) return { hit: true };
   }
   return { hit: false };
-}
-
-function escapeRegex(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

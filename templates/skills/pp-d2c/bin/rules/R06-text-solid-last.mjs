@@ -3,6 +3,9 @@
 // 期望: 对应 CSS 类含 color: #HEX (与 SOLID.color 匹配)
 // 排斥: 末位可见 fill 是 GRADIENT/IMAGE → 归 R04 判定,不在此处
 
+// v1.2.0: 跳过 baked 子树 TEXT 与隐藏节点；SCSS 嵌套匹配走 lib/cssMatch.mjs（修 &__ 盲区假阳性）。
+import { collectRuleBodies } from '../lib/cssMatch.mjs';
+
 export const id = 'R06';
 export const name = 'text-solid-last';
 
@@ -12,6 +15,11 @@ export function check({ cache, product, config, classMap }) {
   for (const [nodeId, node] of Object.entries(cache.nodes)) {
     if (node.type !== 'TEXT') continue;
     if (!Array.isArray(node.fills) || node.fills.length === 0) continue;
+    // 处于 bg-/bgc-/img-/x- 整体切图子树内的 TEXT → 文字像素已烤进父层切图，
+    // 不作为独立 DOM 渲染，无需校验字色。跳过，消除对账假阳性（v1.2.0）。禁 DOM 交由 R17。
+    if (node._inBakedSubtree) continue;
+    if (node._hidden) continue; // 隐藏 TEXT 不渲染，不校验
+    if (node._templateDup) continue; // .map() 列表数据副本，只校验代表项
 
     const lastVisible = pickLastVisibleFill(node.fills);
     if (!lastVisible) continue; // 全 invisible → 走默认 (略过)
@@ -44,7 +52,7 @@ export function check({ cache, product, config, classMap }) {
 
     for (const cls of classes) {
       for (const s of product.style) {
-        const rules = collectRules(s.content, cls);
+        const rules = collectRuleBodies(s.content, cls);
         for (const r of rules) {
           const colorMatch = r.body.match(/(?:^|[^-\w])color\s*:\s*(#[0-9a-fA-F]{3,8})/);
           if (colorMatch) {
@@ -52,7 +60,7 @@ export function check({ cache, product, config, classMap }) {
             if (found === expectedHex) { ok = true; break; }
             if (!actualColor) actualColor = found;
           }
-          if (!hitFile) { hitFile = s.rel; hitLine = r.line; hitSnippet = r.snippet; }
+          if (!hitFile) { hitFile = s.rel; hitLine = r.line; hitSnippet = r.body.slice(0, 200); }
         }
         if (ok) break;
       }
@@ -103,17 +111,3 @@ function normalizeHex(hex) {
   return h;
 }
 
-function collectRules(css, className) {
-  const re = new RegExp(`\\.${escapeRegex(className)}\\b[^{]*\\{([\\s\\S]*?)\\}`, 'g');
-  const out = [];
-  let m;
-  while ((m = re.exec(css)) !== null) {
-    const line = css.slice(0, m.index).split('\n').length;
-    out.push({ line, body: m[1], snippet: m[0].slice(0, 200) });
-  }
-  return out;
-}
-
-function escapeRegex(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
