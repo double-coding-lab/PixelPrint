@@ -82,8 +82,6 @@
 - 5 个 SKILL 目录 `ctrip-train-*` → `pp-*`；知识库 / install / 文档全量 rebrand + 中性化（去业务域专名，为开源做准备）
 - **注意：此时 pp-d2c skill 本体还在 v0.3.4**——「稳定版」稳定的是产品形态（包名/目录/分发），规则体系的大改造还在后头
 
----
-
 ## 2026-08-04 · RN 分支独立 + adapter 机制（rebrand pixel-pilot）
 
 - **RN 独立 SKILL**（`ctrip-train-d2c-rn`，后来的 pp-d2c-rn）：不再一份 SKILL 条件分支伺候两端
