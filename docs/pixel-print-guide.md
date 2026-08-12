@@ -611,6 +611,8 @@ SKILL.md 里所有类似 `doctor.run({...})` / `partial.replace(file, str)` 的�
 
 ## 14. 版本历史
 
+> 完整版本编年史（时间逆序，含 ctrip-train-d2c 起源、MCP → REST 转折、npm 与 skill 两条版本线的交错）见 [`pp-d2c-history.md`](./pp-d2c-history.md)。
+
 | 版本 | 里程碑 |
 |---|---|
 | **v1.3.0** | **init/install 支持 Codex:skill 双写 `.claude/skills/` 与 `.codex/skills/`;SKILL 模板补 YAML frontmatter(name/description,Codex 识别触发的前提);新增 [`pp-d2c-principles.md`](./pp-d2c-principles.md) 原理文档** |
