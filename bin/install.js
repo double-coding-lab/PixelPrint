@@ -204,7 +204,12 @@ function installFiles(forceSkills = false, skipConfig = false, options = {}) {
   if (!silent) console.log('\npp-d2c: installing files...\n')
   resetCopyStats()
   const skillsSrc = path.join(TEMPLATES_DIR, 'skills')
-  const skillsDst = path.join(CWD, '.claude/skills')
+  // 无条件双写:同一 skill 同时落到 .claude/skills(Claude Code) 与 .codex/skills(Codex)。
+  // .codex/skills 约定由 flow2spec 建立,结构与 .claude/skills 一致;两处一视同仁。
+  const skillsDsts = [
+    path.join(CWD, '.claude/skills'),
+    path.join(CWD, '.codex/skills'),
+  ]
   // pp-style 是 pp-d2c 的规则速查手册,pp-doctor 是静态体检 skill;两者当前无独立触发入口、
   // 没有工具调用能力、内容与主 SKILL 重复,**后期准备丢弃**,默认不落到用户项目。
   // 保留在 templates/skills/ 只为过渡期兼容,不建议引导用户手动启用。
@@ -218,7 +223,9 @@ function installFiles(forceSkills = false, skipConfig = false, options = {}) {
     if (skipRn && entry.name === 'pp-d2c-rn') continue
     if (skipH5 && entry.name === 'pp-d2c') continue
     if (OPT_IN_ONLY.has(entry.name)) continue
-    copyDir(path.join(skillsSrc, entry.name), path.join(skillsDst, entry.name), forceSkills, silent)
+    for (const skillsDst of skillsDsts) {
+      copyDir(path.join(skillsSrc, entry.name), path.join(skillsDst, entry.name), forceSkills, silent)
+    }
     installedSkills.push(entry.name)
   }
   if (!skipConfig) {
@@ -228,7 +235,7 @@ function installFiles(forceSkills = false, skipConfig = false, options = {}) {
     // 汇总一行:动词按主要动作挑(overwrite > copy > skip),文件总数 + skill 列表
     const total = _copyStats.copy + _copyStats.overwrite + _copyStats.skip
     const verb = _copyStats.overwrite > 0 ? '刷新' : _copyStats.copy > 0 ? '安装' : '跳过'
-    console.log(`  ${verb} ${installedSkills.length} 个 skill(${installedSkills.join(' / ')}),共 ${total} 个文件到 .claude/skills/`)
+    console.log(`  ${verb} ${installedSkills.length} 个 skill(${installedSkills.join(' / ')}),共 ${total} 个文件到 .claude/skills/ 与 .codex/skills/`)
   }
   if (!silent) console.log('')
 }
@@ -755,18 +762,19 @@ async function runInit(cliArgs = {}) {
   }
 
   // 将单位规则注入主 Skill(按 framework 分叉:react → h5 SKILL;rn → rn SKILL)
-  const skillPath = framework === 'rn'
-    ? path.join(CWD, '.claude/skills/pp-d2c-rn/SKILL.md')
-    : path.join(CWD, '.claude/skills/pp-d2c/SKILL.md')
-  if (fs.existsSync(skillPath)) {
+  // 双写:.claude/skills 与 .codex/skills 两处的主 SKILL 都注入(与 installFiles 分发一致)
+  const skillRel = framework === 'rn' ? 'pp-d2c-rn/SKILL.md' : 'pp-d2c/SKILL.md'
+  const unitExample = outputUnit === 'px'
+    ? `Figma \`16px\` → 代码写 \`${16 * scale}px\``
+    : outputUnit === 'vw'
+    ? `Figma \`${outputBase}px\` → 代码写 \`${(outputBase * scale / outputBase * 100).toFixed(3)}vw\``
+    : `Figma \`${outputBase}px\` → 代码写 \`1rem\``
+  const section = `\n## 项目个性化规则\n> 由 npx @double-coding/pixel-print init 生成，重新执行可更新。\n\n### 单位换算\n- 设计稿基准：${figmaBase}px\n- 代码单位：${outputUnit}，基准：${outputBase}\n- 换算倍数：×${scale}\n- 示例：${unitExample}\n`
+  const marker = '\n## 项目个性化规则'
+  for (const agentSkillsDir of ['.claude/skills', '.codex/skills']) {
+    const skillPath = path.join(CWD, agentSkillsDir, skillRel)
+    if (!fs.existsSync(skillPath)) continue
     let skillContent = fs.readFileSync(skillPath, 'utf8')
-    const unitExample = outputUnit === 'px'
-      ? `Figma \`16px\` → 代码写 \`${16 * scale}px\``
-      : outputUnit === 'vw'
-      ? `Figma \`${outputBase}px\` → 代码写 \`${(outputBase * scale / outputBase * 100).toFixed(3)}vw\``
-      : `Figma \`${outputBase}px\` → 代码写 \`1rem\``
-    const section = `\n## 项目个性化规则\n> 由 npx @double-coding/pixel-print init 生成，重新执行可更新。\n\n### 单位换算\n- 设计稿基准：${figmaBase}px\n- 代码单位：${outputUnit}，基准：${outputBase}\n- 换算倍数：×${scale}\n- 示例：${unitExample}\n`
-    const marker = '\n## 项目个性化规则'
     skillContent = skillContent.includes(marker)
       ? skillContent.slice(0, skillContent.indexOf(marker)) + section
       : skillContent + section
