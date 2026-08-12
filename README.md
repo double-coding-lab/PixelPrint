@@ -4,7 +4,7 @@
 >
 > npm 包名:`@double-coding/pixel-print` · GitHub:[double-coding-lab/PixelPrint](https://github.com/double-coding-lab/PixelPrint) · License MIT
 
-**PixelPrint 是一套让 Claude Code 学会「把 Figma 稿子还原成代码」的知识包**。装到项目里,把设计稿链接发给 Claude,它自己拆图层、切图、出代码、逐块视觉对比。
+**PixelPrint 是一套让 AI 编程 agent 学会「把 Figma 稿子还原成代码」的知识包**。装到项目里(skill 双写 `.claude/skills/` 与 `.codex/skills/`,Claude Code 和 Codex 都能用),把设计稿链接发给 agent,它自己拆图层、切图、出代码、逐块视觉对比。
 
 **H5(React)** / **React Native** / **RN 系跨端(xtaro / taro / 自定义)** 三端产物一套 SKILL 全覆盖。走 Figma 原生 REST API,不装 MCP 插件、不走 OAuth。
 
@@ -58,6 +58,8 @@ Claude 自动:探活 Token → 跑体检 → 拆图层 → 派 sub-agent 并行�
 ## 想了解更多
 
 📖 **详细文档:[`docs/pixel-print-guide.md`](./docs/pixel-print-guide.md)** — 包含架构说明、init 交互实录(3 种模式)、CLI 参数、配置字段、Token 说明、故障排查、版本历史、效果图。
+
+🔬 **原理文档:[`docs/pp-d2c-principles.md`](./docs/pp-d2c-principles.md)** — pp-d2c 内部如何运转:四层架构、前缀协议、sub-agent 分块、软/硬双防线、以 cache 为真值的逐节点对账。想理解或改造 skill 的看这篇。
 
 🎨 **给设计师看:[`docs/design-guide.md`](./docs/design-guide.md)** — 图层命名规范速查(sub- / img- / bg- / fixed- / …)。
 
