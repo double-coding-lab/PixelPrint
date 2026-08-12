@@ -1,0 +1,30 @@
+docs/pixel-print-guide.md
+  s_8f566140fc4cb6::t_ce4eb577f323d6 35
+  s_8f566140fc4cb6::t_efb3b146ed2274 322
+bin/install.js
+  s_8f566140fc4cb6::t_e745ffd8259442 238
+  s_8f566140fc4cb6::t_526f13974ad4f4 226-228
+  s_8f566140fc4cb6::t_d5b280f19f9398 207-212
+  s_8f566140fc4cb6::t_3c72994f261410 765-776
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "25fdcfde85bf1083b1567e12ecad77f67b960136",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
