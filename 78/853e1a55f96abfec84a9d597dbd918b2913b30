@@ -1,0 +1,26 @@
+.Knowledge/index.md
+  s_8f566140fc4cb6::t_4d7b774ef8fc12 32
+.Knowledge/.last-sync.json
+  s_8f566140fc4cb6::t_6e44a3c1304898 2-3
+.Knowledge/topics/pp-d2c.md
+  s_8f566140fc4cb6::t_3244fb9464d065 323
+  s_8f566140fc4cb6::t_bc77e87d609887 318-322,324-326
+.Knowledge/matchers/m-pp-d2c.json
+  s_8f566140fc4cb6::t_521f3a78714f0d 157-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "78853e1a55f96abfec84a9d597dbd918b2913b30",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
