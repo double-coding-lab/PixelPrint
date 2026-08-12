@@ -1,0 +1,19 @@
+docs/pp-d2c-principles.md
+  s_8449a76820d5a9::t_8399943830e65b 1-232
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "d1ed9c583fcd45c13fc3e353115e8a38f482fc95",
+  "prompts": {},
+  "sessions": {
+    "s_8449a76820d5a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a9422b6-ce20-42b5-8067-a6d8bf49264a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
