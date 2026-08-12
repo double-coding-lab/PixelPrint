@@ -1,6 +1,8 @@
 # pp-d2c Skill
 
-> **当前版本**：v1.1.0(h5 独享,不同步 pp-d2c-rn) —— 在 v1.0.0 基础上加固 4 层防线:(1) 新增 **R16 no-flatten-text** 硬防线,禁止对含 TEXT 的 GROUP/FRAME 整体切图;(2) §6.0.2 **兜底门禁 N=0**,废除 `[整体切图兜底]` 标签, `[脚本误判]` 单次上限 3 条 + 三段证据格式;(3) **Step 0.5** 询问输出路径 + `bin/slugify.mjs` 中文 pinyin 兜底;(4) **Step 2.6** 前置切图,主 agent 调 `pp-d2c-reskin standalone --out-manifest` 一次性切完 img-/bg- 前缀,sub-agent 只消费清单不自补;(5) **bg 溢出检测**,reskin 切图后自动断言 png 尺寸 ≈ node bbox × scale,写入 manifest sizeWarning;(6) §2.5.2 **config.styleFormat 唯一权威**,废除"既有 import 实证 > 邻居 page 参考"三级判定链;(7) R01 匹配盲区修复,支持 SCSS `&__foo` 嵌套。硬规则详情迁到 `rules/*.md` (16 条 R0X 独立 md,SKILL.md 保留总概表)。核心哲学: 允许兜底的路径就是错误来源。
+> **当前版本**：v1.2.0(h5 独享,不同步 pp-d2c-rn) —— 校验范式从「黑名单抽查」升级为「以 cache 为真值的逐节点对账」,并借机简化防线。核心变更:(1) `bin/lib/loadCache.mjs` 为每节点标注 **`_inBakedSubtree`**(祖先含 bg-/bgc-/img-/x- 整体切图)/**`_hidden`**(自身或祖先 visible=false)/**`_templateDup`**(`.map()` 列表同构兄弟的非首个数据副本);R02/R06 跳过这三类,**假阳性从根源清除**(test13 实测 89→14);(2) 抽 **`bin/lib/cssMatch.mjs`** 共享 SCSS `&__foo`/`&-foo` 嵌套匹配,R01/R02/R06/R18/R19 统一走,修掉"产物用嵌套写法、正则找平铺类"的全线盲区;(3) 新增 4 条对账规则——**R17 no-baked-dom**(baked 子孙禁止再出 DOM,拦双重渲染)/**R18 flex-direction**(layoutMode↔flex-direction 忠实度)/**R19 padding**(padding↔Figma×scale 忠实度)/**R20 absolute-position**(ABSOLUTE 子节点 top/left=(子bbox−父bbox)×scale 忠实度);(4) §6.0.2 **封逃逸口**:禁"语义盲点/装饰性内容/父层整体切图承载"批量豁免话术,"需人工核对"不再适用于可机械计算的坐标/尺寸/方向/间距;(5) §5.1.1 **data-node-id 全覆盖铁律**:凡承载 Figma 语义的 DOM 必挂 node-id,`.map()` 模板挂代表项(variant a)id;(6) §4.3 新增**「含 TEXT 容器 压平 vs 拆」唯一裁决树** + **bg- 背景直接挂父 vs 独立层**判定。硬规则详情迁到 `rules/*.md`,SKILL.md 保留总概表。核心哲学: **允许兜底的路径就是错误来源;校验以 cache 为唯一真值逐节点对账,而非抽查已知坏味道。**
+>
+> **v1.1.0 历史**:R16 no-flatten-text 硬防线 + §6.0.2 兜底门禁 N=0 + Step 0.5 询问输出路径 + Step 2.6 前置切图 + bg 溢出检测 + §2.5.2 config.styleFormat 唯一权威 + R01 SCSS 嵌套匹配。详见 `git log`。
 >
 > 历史 changelog 查 `git log templates/skills/pp-d2c/SKILL.md`,不在本文件维护。所有规则以下文章节 + `rules/*.md` 为准;冲突时以 `rules/` 为准。
 
@@ -1039,9 +1041,15 @@ def rgb_to_hex(c):
 | R14 | fixed-z-index | 多个 `fixed-` 节点 | z-index 未递增 | `rules/R14-fixed-z-index.md` |
 | R15 | 同构 map 渲染 | 同层 ≥3 同构子节点 | 展开重复代码 vs `.map()` | `rules/R15-同构 map 渲染.md` |
 | R16 | no-flatten-text | GROUP/FRAME 子树含 TEXT 且前缀非 `img-`/`bg-` | 整体切图把 TEXT/按钮烤成 png | `rules/R16-no-flatten-text.md` |
+| R17 | no-baked-dom | 节点处于 bg-/bgc-/img-/x- 整体切图子树内(`_inBakedSubtree`) | 像素已进 PNG 却又出 DOM(双重渲染) | `rules/R17-no-baked-dom.md` |
+| R18 | flex-direction | autolayout 容器(`layoutMode` HORIZONTAL/VERTICAL) | flex 方向写反(VERTICAL 却 row) | `rules/R18-flex-direction.md` |
+| R19 | padding | autolayout 容器有/无 padding | padding 凭空捏造 或 漏写 或数值错 | `rules/R19-padding.md` |
+| R20 | absolute-position | `layoutPositioning === 'ABSOLUTE'` 子节点 | top/left 靠猜(应 =(子bbox−父bbox)×scale) | `rules/R20-absolute-position.md` |
 
-**硬防线** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R05 / R06 / R08 / R16**
+**硬防线** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R05 / R06 / R08 / R16 / R17 / R18 / R19 / R20**
 **软防线** (Rule-Scan sub-agent 识别 `rule-hits.json`): **R03 / R04 / R07 / R09 / R10 / R11 / R12 / R13 / R14 / R15**
+
+> **v1.2.0 对账基座**:R02/R06/R17/R18/R19/R20 依赖 `loadCache.mjs` 标注的 `_inBakedSubtree`/`_hidden`/`_templateDup` 与 `cssMatch.mjs` 的 SCSS 嵌套匹配。这六条是"以 cache 为真值逐节点对账"的落点;它们报数即真值,不接受"语义盲点/装饰性内容"批量豁免(§6.0.2)。
 
 ##### 硬规则详情
 
@@ -1051,6 +1059,35 @@ def rgb_to_hex(c):
 - Rule-Scan sub-agent(步骤 3.5) **必须** Read **全部 15 条** `rules/R0X-*.md`,输出 `rule-hits.json`
 - UI sub-agent(步骤 4) **必须** Read `rule-hits.json` 里被命中的每条 `rules/R0X-*.md`,按其"期望产物"逐字落地
 - 冲突时**以 rules/ 为准**;SKILL.md 只保留总概表,不再复述规则细节
+
+##### 含 TEXT 容器的「压平 vs 拆结构」唯一裁决树（v1.2.0）
+
+R16(不压平文字)与 bg-/img-(整体切图)在**含 TEXT 的容器**上会打架:到底把文字烤进 PNG,还是拆出来当 DOM?下表给**唯一裁决**,不允许"既烤又留"(=双重渲染,R17 硬拦,典型 test13:title/subtitle 既进 main.png 又出 DOM):
+
+| 容器前缀 | 动作 | 必然后果(硬约束) |
+|---------|------|----------------|
+| `bg-` / `img-`(含裸词 `bg`/`img`) | **压平**:整体切图,TEXT 像素进 PNG。用于**装饰性、文案不需动态替换**的容器 | 子孙(含 TEXT)**禁止再出 DOM**(R17 拦);loadCache 已把子孙标 `_inBakedSubtree`,R02/R06 不再逐个溯源 |
+| 普通 GROUP/FRAME/COMPONENT/INSTANCE 含 TEXT | **拆结构**:R16 禁止整体切图;TEXT 出 DOM,背景单独切成**不含文字**的 bg | TEXT 正常生成 DOM + 挂字色;背景层若含文字像素=切错,回头重切 |
+
+**判定顺序**:先看前缀 → `bg-`/`img-` 走压平(子孙禁 DOM),其余含 TEXT 走拆结构(R16)。**二选一,没有中间态**。若某容器"文案是装饰但又想可选中/可换" → 与用户确认后,要么加 `bg-`/`img-` 前缀走压平,要么去前缀走拆结构;**不允许 agent 自己两头下注**。
+
+##### bg- 背景:直接挂父 vs 独立定位层(v1.2.0,解决过度分层)
+
+`bg-`/`layoutPositioning:ABSOLUTE` 的背景层,**默认直接把 `background` 写到父元素**,不生成独立 `__bg` 层:
+
+```scss
+&__main { background: url('#{$prefix}main.png') no-repeat top center / {w}px {h}px; }
+```
+
+**仅当背景 bbox 超出父容器 bbox(背景要溢出容器不被裁)时,才生成独立 `position:absolute` 层**:
+
+| 条件 | 做法 |
+|------|------|
+| 背景 bbox ≤ 父容器 bbox(放得进) | **直接挂父** `background`,少一层 DOM(默认,多数场景) |
+| 背景 bbox > 父容器 bbox(溢出,如 `main.png` 562.5 > `sub-MAIN` 520) | 生成独立 `&__main-bg { position:absolute; ... }` 保溢出不裁,**或**父 `overflow:visible`+直接背景 |
+| 页面根容器全屏背景(§4.3 判定第 6 条) | 按该条:根内 ABSOLUTE bg 层 `inset:0` + `background-size:cover` |
+
+**判定**:比较 bg 节点 `absoluteBoundingBox` 与父容器 `absoluteBoundingBox`;不溢出就别独立成层(独立层的 `z-index:-1`/`pointer-events:none` 易写错,能少则少)。
 
 ##### 解析方式：多前缀组合
 
@@ -1781,6 +1818,18 @@ fi
 
 **doctor 关联规则**：SUB027—— sub-agent 产物的 data-node-id 在最终产物中丢失时触发，参见 pp-doctor §3.6p。
 
+#### 5.1.1 data-node-id 全覆盖铁律（v1.2.0，对账前提）
+
+守恒律（§5.1）只保证"sub-agent 已挂的 id 不丢失",但 v1.2.0 的对账校验（R17/R18/R19/R20/R06）**靠 data-node-id 把产物元素绑回 Figma cache**——没挂 id 的节点等于逃出全部对账。故追加**全覆盖铁律**：
+
+1. **凡产物里生成的、承载某个 Figma 节点语义的 DOM 元素,必须带 `data-node-id="<该 Figma nodeId>"`**。这包括 sub-agent 拆出的每个块、每个可见 TEXT、每个 img/btn/input、以及**合并阶段新引入的结构节点**。
+2. **`.map()` 数据驱动列表的模板项:用"代表项"(列表第一个同构兄弟,即 variant a)的 nodeId 挂在模板元素上**。例:三张同构券卡 `.map(CARDS)` 渲染,模板里 `<div className="__small-card-top" data-node-id="211:221">`(取 variant a 的 `211:221`),模板内每个文字/按钮元素同理挂 variant a 对应子节点 id。
+   - **为什么取代表项**:DOM 里不能让 3 个元素共用一个 nodeId(重复),也不能一行模板挂 3 个不同 id。对账端 `loadCache.mjs` 已把 variant b/c 整棵子树标 `_templateDup` 并跳过,**只校验代表项**——故模板只需挂 variant a 的 id,b/c 的忠实度由"同一模板"保证。
+   - **禁止**:模板元素**完全不挂** data-node-id(典型 test13 事故:`<div className="__small-card-top">` 无 id → R18/R19 无法绑定 → flex 方向反 / 幻觉 padding 逃逸上线)。
+3. **唯一例外——虚拟 wrapper**:v0.3.2 的 `__front-group` 等**Figma 里不存在对应节点**的合成 wrapper,按 §wrapper 规则**不写** data-node-id(它没有可绑的 Figma nodeId)。此例外仅限"无源节点的纯布局壳",不含上面第 2 条的模板代表项(那是有真实 Figma 源的)。
+
+**自检**:主 agent §6.0.2 合并忠实度证明块前,对每个 `layoutMode` 非空的容器 / 每个可见 TEXT,确认产物有其 `data-node-id`(模板项确认挂了代表项 id);缺失即补,不补则 R06/R18/R19 会报"产物中无对应 className"。
+
 ---
 
 ### 步骤 6：主 agent 合并验收
@@ -1990,19 +2039,23 @@ node .claude/skills/pp-d2c/bin/check-rules.mjs \
    check-rules.mjs → exit 1
        ↓
    分类 violations:
-       R16 命中?           → 一律不豁免,回滚
+       R16 / R17 命中?      → 一律不豁免,回滚(R16 压平文字 / R17 baked 子孙双渲染,都是硬伤)
        [整体切图兜底]?     → 一律不豁免,回滚(标签已废除)
        [脚本误判] 三段证据? → 单次≤3 条豁免;超上限或缺证据 → 回滚
-       其余                → 修产物或回 sub-agent 重做
+       其余(含 R02/R06/R18/R19/R20) → 修产物或回 sub-agent 重做
        ↓
    全部处理后重跑 check-rules.mjs → exit 0 → 才允许进入步骤 6.1
    ```
 
+**v1.2.0 对账升级后,check-rules 的报数即真值**:R02/R06 已在 `lib/loadCache.mjs` 层剔除三类假阳性来源(整体切图 baked 子树 / 隐藏节点 / `.map()` 模板数据副本),并统一走 `lib/cssMatch.mjs` 匹配 SCSS `&__` 嵌套。**因此"checker 语义盲点""bg- 父层整体切图承载""装饰性内容"这套 v1.1.0 时期的批量豁免叙事已失去事实基础**——现在 R02 报的就是真遗漏(如 cd-num bg)、R06 报的就是真不可追溯 TEXT、R17 报的就是真双渲染。
+
 **禁止项**:
 
 - 禁止在 assets.txt / 对话中用"临时占位"、"参照邻居 page"、"整体切图兜底"、"用户明确临时"等措辞为违规签豁免
+- **禁止用"语义盲点"、"checker 与 bg- 规则冲突"、"装饰性内容"、"父层整体切图承载"、"实际视觉正确"等叙事为 R02/R06/R17/R18/R19/R20 违规批量豁免**(v1.2.0:这些假阳性来源已在 loadCache 层清除,再出现即真违规)
 - 禁止把违规条数"分类打标签"后 continue → 步骤 7
 - 禁止修改 check-rules.mjs 输出 JSON 里的 `ok` / `violations` 字段来"通过"
+- **禁止对"能从 Figma 精确计算的量"(绝对定位 top/left = (子bbox−父bbox)×scale、尺寸 = bbox×scale、flex 方向 = layoutMode、padding = Figma padding×scale)使用「需人工核对」兜底交付**——这些必须算对,`[需人工核对]` 只留给"设计稿本身语义歧义 / skill 未覆盖的新形态",不含可机械推导的坐标/尺寸/方向/间距(R18/R19/R20 会硬校验,写错即 exit 1)
 
 #### 6.1 整体视觉验收
 

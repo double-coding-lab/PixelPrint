@@ -43,12 +43,18 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 | R14 | fixed-z-index | 软防线 | 多个 `fixed-` 节点,z-index 未递增 |
 | R15 | 同构 map 渲染 | 软防线 | 同层 ≥3 同构子节点,展开成重复代码而非 `.map()` |
 | R16 | no-flatten-text | 硬防线 | GROUP/FRAME/COMPONENT/INSTANCE 子树含 TEXT 且前缀非 `img-`/`bg-`,产物 jsx 出现 `<img data-node-id="该节点">` |
+| R17 | no-baked-dom | 硬防线 | 节点 `_inBakedSubtree`(处于 bg-/bgc-/img-/x- 整体切图子树内),产物却有其 `data-node-id`(双重渲染) |
+| R18 | flex-direction | 硬防线 | autolayout 容器 `layoutMode` 与产物 `flex-direction` 不符(VERTICAL 却非 column / HORIZONTAL 却 column) |
+| R19 | padding | 硬防线 | autolayout 容器 padding 与 `Figma paddingT/R/B/L × scale` 不符(凭空加 / 漏写 / 数值错) |
+| R20 | absolute-position | 硬防线 | `layoutPositioning === 'ABSOLUTE'`(非 fixed-),top/left ≠ (子bbox−父bbox)×scale |
 
 ## 判定归属说明
 
-**硬防线** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R05 / R06 / R08 / R16。
+**硬防线** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R05 / R06 / R08 / R16 / R17 / R18 / R19 / R20。
 
 **软防线** (Rule-Scan sub-agent 识别): 需 LLM 语义判断,输出 `rule-hits.json` 给 UI sub-agent 参考 → R03 / R04 / R07 / R09 / R10 / R11 / R12 / R13 / R14 / R15。
+
+**v1.2.0 对账基座**: R02 / R06 / R17 / R18 / R19 / R20 依赖 `bin/lib/loadCache.mjs` 标注的 `_inBakedSubtree`(整体切图子树)/`_hidden`(隐藏)/`_templateDup`(`.map()` 数据副本),以及 `bin/lib/cssMatch.mjs` 的 SCSS `&__foo` 嵌套匹配。这些标注把"整体切图子树 / 隐藏 / 列表副本 / 嵌套写法"四类假阳性从根源清除,使硬防线报数即真值,校验从"黑名单抽查"升级为"以 cache 为真值逐节点对账"。
 
 ## 使用方式
 
@@ -60,16 +66,16 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 你是 Rule-Scan sub-agent, 只做规则识别, 不写 UI 代码.
 
 任务:
-1. Read templates/skills/pp-d2c/rules/*.md (全部 15 条)
+1. Read templates/skills/pp-d2c/rules/*.md (全部 19 条)
 2. Read .d2c-cache/<cache-key>/nodes/ 下与本 block nodeIds 相关的 JSON
 3. 对本 block 的每个节点, 判断命中了哪些规则
 4. 输出 rule-hits.json (schema 见附)
 
 规则命中判定原则:
-- 硬防线规则 (R01/R02/R05/R06/R08/R16): 你也扫,即使 check-rules.mjs 会兜底
+- 硬防线规则 (R01/R02/R05/R06/R08/R16/R17/R18/R19/R20): 你也扫,即使 check-rules.mjs 会兜底
 - 软防线规则 (R03/R04/R07/R09-R15): 你是唯一识别方
 - 排斥条件: 若节点命中高优先级规则, 低优先级规则不再重复列
-- 优先级 (由高到低): R16 > R02 > R01 > R05 > R11 > R03 > R04 > R07 > R06 > R09 > R08 > R14 > R15 > R13 > R12 > R10
+- 优先级 (由高到低): R16 > R17 > R02 > R01 > R05 > R11 > R03 > R04 > R07 > R06 > R09 > R08 > R20 > R18 > R19 > R14 > R15 > R13 > R12 > R10
 
 输出要求:
 - 每个 hit 包含 nodeId / rule / trigger 描述 / expected 描述 / context (关键 JSON 字段抽样)
@@ -110,7 +116,7 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 
 ### check-rules.mjs
 
-- **硬编码 R01/R02/R05/R06/R08/R16 逻辑**,rules/*.md 是设计文档,不是执行文档
+- **硬编码 R01/R02/R05/R06/R08/R16/R17/R18/R19/R20 逻辑**,rules/*.md 是设计文档,不是执行文档
 - 假阳性时用 `--force-skip R0X,R0Y` 跳过,但 UI sub-agent 必须在 `assets.txt` 备注 `[脚本误判] R0X {nodeId} 理由: ...`
 - 详细 CLI 见 `templates/skills/pp-d2c/bin/check-rules.mjs --help`
 
@@ -135,10 +141,16 @@ R13 (unit-scale) ── (无排斥,单位)
 R15 (同构 map) ── (无排斥,结构)
 
 R16 (no-flatten-text) ── 最高优先级; 命中 R16 时 R02/R06 若源自同一"整体切图"违规则视为衍生, 不重复报
+
+R17 (no-baked-dom) ── 与 R16 配套(压平 vs 拆两面); R02/R06 跳过 _inBakedSubtree 节点(不报"缺 url/color"), "禁 DOM" 交 R17 正向兜底
+R18 (flex-direction) ─┬─ 与 R19 成对(autolayout 容器忠实度); 靠 data-node-id 绑定, 模板项挂代表项 id
+R19 (padding) ────────┘
+R20 (absolute-position) ── 排斥 fixed-(那走 R01/constraints); 只管非 fixed 的 layoutPositioning:ABSOLUTE
 ```
 
 ## 版本
 
+- **v1.2.0** 校验范式从"黑名单抽查"→"以 cache 为真值逐节点对账": loadCache 标注 `_inBakedSubtree`/`_hidden`/`_templateDup` + cssMatch 共享 SCSS 嵌套匹配(R02/R06 假阳性根源清除); 新增 R17 no-baked-dom / R18 flex-direction / R19 padding / R20 absolute-position 四条对账规则
 - v1.1.0 新增 R16 no-flatten-text 硬防线
 - v1.0.0 首次引入 rules/ 目录 + check-rules.mjs
 - v0.3.21 之前:硬规则文字散落在 SKILL.md §4.3 等章节
