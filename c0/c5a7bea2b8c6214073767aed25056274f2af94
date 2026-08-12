@@ -1,0 +1,63 @@
+templates/skills/pp-d2c/bin/lib/cssMatch.mjs
+  s_8f566140fc4cb6::t_c119e410100dda 1-90
+templates/skills/pp-d2c/bin/rules/R19-padding.mjs
+  s_8f566140fc4cb6::t_7a68a45e7ce5d2 1-80,88-110
+  s_8f566140fc4cb6::t_3c5951abf066ac 81-87
+templates/skills/pp-d2c/bin/rules/R06-text-solid-last.mjs
+  s_8f566140fc4cb6::t_95f7ea1aeecf12 6-8,21
+  s_8f566140fc4cb6::t_ae0baf9266219b 18-20
+  s_8f566140fc4cb6::t_adbc3c38f20739 22
+  s_8f566140fc4cb6::t_7cf68a238a1fa7 55,63
+templates/skills/pp-d2c/bin/rules/R18-flex-direction.mjs
+  s_8f566140fc4cb6::t_2e3c70698a0650 1-61
+templates/skills/pp-d2c/bin/lib/loadCache.mjs
+  s_8f566140fc4cb6::t_4a59d720c71c23 72
+  s_8f566140fc4cb6::t_d3569e08f892d2 74
+  s_8f566140fc4cb6::t_e5c9a30ee49e72 85,93-94,100
+  s_8f566140fc4cb6::t_026ac678c1dabb 20-33,73,81-84,87-92,97-99,102-108
+  s_8f566140fc4cb6::t_d96733c9575085 79,86,95-96,101,109-111,113,115-116,118
+  s_8f566140fc4cb6::t_a448e5faa4286c 34-56
+templates/skills/pp-d2c/bin/rules/R02-fills-image.mjs
+  s_8f566140fc4cb6::t_cafe540f3e4392 29-31
+  s_8f566140fc4cb6::t_5afb879d6bbcd4 84-85
+  s_8f566140fc4cb6::t_71bf3d3e5f8560 8,11
+  s_8f566140fc4cb6::t_b69c062d0489e7 32
+  s_8f566140fc4cb6::t_52bed30372cad0 33
+templates/skills/pp-d2c/bin/rules/R01-fixed-position.mjs
+  s_8f566140fc4cb6::t_b785401ad93917 40-41,49-51
+  s_8f566140fc4cb6::t_aa6f759ccd015a 9-11,22
+templates/skills/pp-d2c/bin/rules/R17-no-baked-dom.mjs
+  s_8f566140fc4cb6::t_df3400034fc077 1-54
+templates/skills/pp-d2c/bin/rules/R20-absolute-position.mjs
+  s_8f566140fc4cb6::t_d3ffb72f58693e 39-42
+  s_8f566140fc4cb6::t_05cd8ed82861a7 1-21,24-38,43,46,53-81,85,111
+  s_8f566140fc4cb6::t_32b11713028696 82-84,86-110
+  s_8f566140fc4cb6::t_5c2fdb4eb7e381 44-45,47-52
+  s_8f566140fc4cb6::t_f7ff0205a0f1f0 22-23
+templates/skills/pp-d2c/bin/check-rules.mjs
+  s_8f566140fc4cb6::t_14206d89269126 62
+  s_8f566140fc4cb6::t_d51604cf1ed8a4 55
+  s_8f566140fc4cb6::t_34b3f9bd977a3e 2-6
+  s_8f566140fc4cb6::t_38cad33ff12735 30-33,35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "c0c5a7bea2b8c6214073767aed25056274f2af94",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
