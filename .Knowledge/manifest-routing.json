@@ -13,6 +13,9 @@
     ],
     "pp-fix-partial": [
       "pp-d2c"
+    ],
+    "pp-d2c-fast": [
+      "pp-d2c"
     ]
   },
   "topicPaths": {
@@ -28,7 +31,8 @@
     "pp-fix-partial": ".Knowledge/topics/pp-fix-partial.md",
     "pp-install-dispatch": ".Knowledge/topics/pp-install-dispatch.md",
     "pp-d2c-reskin": ".Knowledge/topics/pp-d2c-reskin.md",
-    "pp-image-compress": ".Knowledge/topics/pp-image-compress.md"
+    "pp-image-compress": ".Knowledge/topics/pp-image-compress.md",
+    "pp-d2c-fast": ".Knowledge/topics/pp-d2c-fast.md"
   },
   "taskToTopicRules": [
     {
@@ -127,6 +131,14 @@
       "topics": [
         "pp-image-compress"
       ]
+    },
+    {
+      "task": "pp-d2c-fast",
+      "matcherId": "m-pp-d2c-fast",
+      "matcherPath": ".Knowledge/matchers/m-pp-d2c-fast.json",
+      "topics": [
+        "pp-d2c-fast"
+      ]
     }
   ],
   "projectRev": 2,
@@ -210,6 +222,13 @@
       "confidence": "inferred",
       "tags": [
         "module"
+      ]
+    },
+    "pp-d2c-fast": {
+      "primary": "feature",
+      "confidence": "inferred",
+      "tags": [
+        "policy"
       ]
     }
   }

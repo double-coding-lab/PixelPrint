@@ -324,6 +324,7 @@ $ npx @double-coding/pixel-print init --framework rn --adapter-preset custom
 | SKILL | 作用 | 何时落地 |
 |---|---|---|
 | `pp-d2c/` | H5 主 D2C 流程 | framework=react 时 |
+| `pp-d2c-fast/` | H5 快速模式(pp-d2c 砍冗余自证的精简版,省 token/turn,原版不动) | framework=react 时 |
 | `pp-d2c-rn/` | RN 主 D2C 流程(6 大 RN 内核标签 + adapter) | framework=rn 时 |
 | `pp-strip-nodeid/` | 剥离 `data-node-id` 调试属性 + 生成 anchor 档案 | 总是装 |
 | `pp-fix-partial/` | 局部 UI 修复(v1.1.0+) | 总是装 |
@@ -609,6 +610,8 @@ SKILL.md 里所有类似 `doctor.run({...})` / `partial.replace(file, str)` 的�
 ---
 
 ## 14. 版本历史
+
+> 完整版本编年史（时间逆序，含 ctrip-train-d2c 起源、MCP → REST 转折、npm 与 skill 两条版本线的交错）见 [`pp-d2c-history.md`](./pp-d2c-history.md)。
 
 | 版本 | 里程碑 |
 |---|---|
