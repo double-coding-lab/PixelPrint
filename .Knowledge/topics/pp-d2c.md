@@ -51,6 +51,15 @@ tags: [feature, config]
 
 **集成关系**：主 SKILL 步骤 0.5 在 `health.enabled=true` 时**调用** doctor 做集成体检，根据返回的 `passed` 决定是否阻塞生成（详见 SKILL.md §0.5）。doctor 的内部规则不影响主 SKILL 的生成逻辑——两者各自独立可读，**无强 dependency**。
 
+## 版本口径（skill 版本 ≠ npm 版本）
+
+pp-d2c 有**两套独立版本号**，不一致是正常的：
+
+- **SKILL 版本**：`SKILL.md` banner 里的 `v1.2.x`——追踪 skill **规则 / 防线的演化**（如 v1.2.0 对账范式、v1.2.1 R21）。
+- **npm 包版本**：`package.json` 的 `version`（如 `1.3.1`）——追踪 npm 包 `@double-coding/pixel-print` 的**整体发布**，覆盖所有 skill + `install.js` + docs。
+
+二者独立递增：改一条 skill 规则会 bump SKILL 版本但未必 bump npm；发一次 npm 可能只动 `install.js` 而 SKILL 版本不变。**看到 SKILL `v1.2.1` 与 npm `1.3.1` 不一致属预期，不是 bug**。（pp-d2c-rn `v0.4`、pp-d2c-fast 等各 skill 的 SKILL 版本同样与 npm 独立。）
+
 ## 设计原理概述
 
 一句收敛：**允许兜底的路径就是错误来源；校验以 cache 为唯一真值逐节点对账，而非抽查已知坏味道。**
