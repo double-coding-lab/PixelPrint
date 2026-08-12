@@ -1,0 +1,33 @@
+templates/skills/pp-d2c/SKILL.md
+  s_8449a76820d5a9::t_779309c41a262a 1-5
+templates/skills/pp-strip-nodeid/SKILL.md
+  s_8449a76820d5a9::t_779309c41a262a 1-5
+templates/skills/pp-d2c-reskin/SKILL.md
+  s_8449a76820d5a9::t_779309c41a262a 1-5
+templates/skills/pp-doctor/SKILL.md
+  s_8449a76820d5a9::t_779309c41a262a 1-5
+templates/skills/pp-d2c-rn/SKILL.md
+  s_8449a76820d5a9::t_779309c41a262a 1-5
+templates/skills/pp-image-compress/SKILL.md
+  s_8449a76820d5a9::t_779309c41a262a 1-5
+templates/skills/pp-fix-partial/SKILL.md
+  s_8449a76820d5a9::t_779309c41a262a 1-5
+templates/skills/pp-style/SKILL.md
+  s_8449a76820d5a9::t_779309c41a262a 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "610559c749ee76dfc26f094ef42ef9c768702881",
+  "prompts": {},
+  "sessions": {
+    "s_8449a76820d5a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a9422b6-ce20-42b5-8067-a6d8bf49264a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
