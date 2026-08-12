@@ -1,0 +1,118 @@
+templates/skills/pp-d2c-fast/rules/R16-no-flatten-text.md
+  ai_agent 1-109
+templates/skills/pp-d2c-fast/rules/R09-btn-bgc-取值.md
+  ai_agent 1-96
+templates/skills/pp-d2c-fast/rules/R11-mask-vector-css-able.md
+  ai_agent 1-116
+templates/skills/pp-d2c-fast/rules/R17-no-baked-dom.md
+  ai_agent 1-77
+templates/skills/pp-d2c-fast/bin/lib/cssMatch.mjs
+  ai_agent 1-90
+templates/skills/pp-d2c-fast/bin/figma.mjs
+  ai_agent 1-390
+templates/skills/pp-d2c-fast/bin/rules/R06-text-solid-last.mjs
+  ai_agent 1-102
+templates/skills/pp-d2c-fast/rules/R01-fixed-position.md
+  ai_agent 1-76
+docs/pixel-print-guide.md
+  s_8f566140fc4cb6::t_28c3b9807fb39a 327
+templates/skills/pp-d2c-fast/bin/lib/report.mjs
+  ai_agent 1-17
+templates/skills/pp-d2c-fast/rules/R03-implicit-image.md
+  ai_agent 1-79
+templates/skills/pp-d2c-fast/rules/R14-fixed-z-index.md
+  ai_agent 1-88
+templates/skills/pp-d2c-fast/rules/R02-fills-image.md
+  ai_agent 1-88
+templates/skills/pp-d2c-fast/bin/rules/R16-no-flatten-text.mjs
+  ai_agent 1-98
+templates/skills/pp-d2c-fast/rules/R04-text-gradient.md
+  ai_agent 1-134
+templates/skills/pp-d2c-fast/rules/R20-absolute-position.md
+  ai_agent 1-93
+templates/skills/pp-d2c-fast/bin/rules/R08-bg-landing-form.mjs
+  ai_agent 1-83
+templates/skills/pp-d2c-fast/bin/rules/R18-flex-direction.mjs
+  ai_agent 1-61
+templates/skills/pp-d2c-fast/rules/R18-flex-direction.md
+  ai_agent 1-84
+templates/skills/pp-d2c-fast/bin/rules/R01-fixed-position.mjs
+  ai_agent 1-57
+templates/skills/pp-d2c-fast/bin/lib/nodeIdToClassName.mjs
+  ai_agent 1-72
+templates/skills/pp-d2c-fast/rules/R08-bg-landing-form.md
+  ai_agent 1-97
+templates/skills/pp-d2c-fast/bin/rules/R21-node-id-coverage.mjs
+  ai_agent 1-73
+templates/skills/pp-d2c-fast/bin/lib/loadCache.mjs
+  ai_agent 1-124
+templates/skills/pp-d2c-fast/rules/R06-text-solid-last.md
+  ai_agent 1-80
+templates/skills/pp-d2c-fast/rules/R19-padding.md
+  ai_agent 1-86
+templates/skills/pp-d2c-fast/rules/R12-flat-mode-naming.md
+  ai_agent 1-88
+bin/install.js
+  s_8f566140fc4cb6::t_e88f4482da1cb0 224
+templates/skills/pp-d2c-fast/bin/rules/R17-no-baked-dom.mjs
+  ai_agent 1-60
+templates/skills/pp-d2c-fast/bin/rules/R20-absolute-position.mjs
+  ai_agent 1-111
+templates/skills/pp-d2c-fast/rules/R05-space-between.md
+  ai_agent 1-85
+templates/skills/pp-d2c-fast/SKILL.md
+  s_8f566140fc4cb6::t_02ea9531d0c86c 1809
+  s_8449a76820d5a9::t_ba0366150bdb0b 1-114,116-214,216-259,261-300,302-719,721-810,812-878,880-1463,1465-1466,1468-1469,1471-1808,1810-1835,1837-1943,1945-2070,2072-2115,2117-2119,2121-2123
+  s_8f566140fc4cb6::t_43991a030b8a72 2120
+  s_8f566140fc4cb6::t_a7f471fc8f0a97 115,215,260,301,811,879,1464,1467,1470,1836,1944,2071
+  s_8f566140fc4cb6::t_052add9849fa07 2116
+  s_8f566140fc4cb6::t_5d938fc83af02f 720
+templates/skills/pp-d2c-fast/bin/check-rules.mjs
+  ai_agent 1-122
+templates/skills/pp-d2c-fast/bin/rules/R05-space-between.mjs
+  ai_agent 1-86
+templates/skills/pp-d2c-fast/rules/R21-node-id-coverage.md
+  ai_agent 1-85
+templates/skills/pp-d2c-fast/bin/rules/R02-fills-image.mjs
+  ai_agent 1-93
+templates/skills/pp-d2c-fast/rules/README.md
+  ai_agent 1-166
+templates/skills/pp-d2c-fast/bin/rules/R19-padding.mjs
+  ai_agent 1-110
+"templates/skills/pp-d2c-fast/rules/R15-同构 map 渲染.md"
+  ai_agent 1-126
+templates/skills/pp-d2c-fast/rules/R10-no-fake-solid-color.md
+  ai_agent 1-72
+templates/skills/pp-d2c-fast/bin/slugify.mjs
+  ai_agent 1-134
+templates/skills/pp-d2c-fast/rules/R07-multi-fills.md
+  ai_agent 1-91
+templates/skills/pp-d2c-fast/bin/lib/loadProduct.mjs
+  ai_agent 1-43
+templates/skills/pp-d2c-fast/rules/R13-unit-scale.md
+  ai_agent 1-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "31956bc2b1c99f83604f94f070739dfc61c7459f",
+  "prompts": {},
+  "sessions": {
+    "s_8449a76820d5a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a9422b6-ce20-42b5-8067-a6d8bf49264a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    },
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
