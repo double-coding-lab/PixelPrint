@@ -1,0 +1,42 @@
+templates/skills/pp-d2c/rules/R19-padding.md
+  s_8f566140fc4cb6::t_5b32f7c4c44c13 1-86
+templates/skills/pp-d2c/rules/R18-flex-direction.md
+  s_8f566140fc4cb6::t_a0cf935f5e0b6f 1-84
+templates/skills/pp-d2c/rules/R17-no-baked-dom.md
+  s_8f566140fc4cb6::t_c6ab6fb5fb90e7 1-77
+templates/skills/pp-d2c/SKILL.md
+  s_8f566140fc4cb6::t_7882fcc81f3689 3-5
+  s_8f566140fc4cb6::t_c452cf3d8cc044 1044-1047,1049,1052
+  s_8f566140fc4cb6::t_8b7bdcf3806111 1821-1832
+  s_8f566140fc4cb6::t_9adeb731b40278 1063-1091
+  s_8f566140fc4cb6::t_f26858434333e7 2042,2045,2050-2051,2055,2058
+templates/skills/pp-d2c/rules/R20-absolute-position.md
+  s_8f566140fc4cb6::t_27d64c024afb12 1-93
+templates/skills/pp-d2c/rules/README.md
+  s_8f566140fc4cb6::t_629b7ac8b5e89c 144-148,153
+  s_8f566140fc4cb6::t_ef7e30eefa3d37 46-49,53,57
+  s_8f566140fc4cb6::t_9e13a31608bae8 119
+  s_8f566140fc4cb6::t_f029eb4f3974ad 69
+  s_8f566140fc4cb6::t_412ae5ff6aa940 75,78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "123581eae125353e64b1e6f5e81655fde77dcbc4",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
