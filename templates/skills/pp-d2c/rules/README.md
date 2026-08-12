@@ -47,10 +47,11 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 | R18 | flex-direction | 硬防线 | autolayout 容器 `layoutMode` 与产物 `flex-direction` 不符(VERTICAL 却非 column / HORIZONTAL 却 column) |
 | R19 | padding | 硬防线 | autolayout 容器 padding 与 `Figma paddingT/R/B/L × scale` 不符(凭空加 / 漏写 / 数值错) |
 | R20 | absolute-position | 硬防线 | `layoutPositioning === 'ABSOLUTE'`(非 fixed-),top/left ≠ (子bbox−父bbox)×scale |
+| R21 | node-id-coverage | 硬防线 | 应渲染节点(TEXT/autolayout 容器/ABSOLUTE/img-·btn-·input-)在产物 JSX 里找不到 data-node-id |
 
 ## 判定归属说明
 
-**硬防线** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R05 / R06 / R08 / R16 / R17 / R18 / R19 / R20。
+**硬防线** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R05 / R06 / R08 / R16 / R17 / R18 / R19 / R20 / R21。
 
 **软防线** (Rule-Scan sub-agent 识别): 需 LLM 语义判断,输出 `rule-hits.json` 给 UI sub-agent 参考 → R03 / R04 / R07 / R09 / R10 / R11 / R12 / R13 / R14 / R15。
 
@@ -72,10 +73,10 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 4. 输出 rule-hits.json (schema 见附)
 
 规则命中判定原则:
-- 硬防线规则 (R01/R02/R05/R06/R08/R16/R17/R18/R19/R20): 你也扫,即使 check-rules.mjs 会兜底
+- 硬防线规则 (R01/R02/R05/R06/R08/R16/R17/R18/R19/R20/R21): 你也扫,即使 check-rules.mjs 会兜底
 - 软防线规则 (R03/R04/R07/R09-R15): 你是唯一识别方
 - 排斥条件: 若节点命中高优先级规则, 低优先级规则不再重复列
-- 优先级 (由高到低): R16 > R17 > R02 > R01 > R05 > R11 > R03 > R04 > R07 > R06 > R09 > R08 > R20 > R18 > R19 > R14 > R15 > R13 > R12 > R10
+- 优先级 (由高到低): R21 > R16 > R17 > R02 > R01 > R05 > R11 > R03 > R04 > R07 > R06 > R09 > R08 > R20 > R18 > R19 > R14 > R15 > R13 > R12 > R10（R21 最高:节点不可追溯则其余绑定类规则无从谈起）
 
 输出要求:
 - 每个 hit 包含 nodeId / rule / trigger 描述 / expected 描述 / context (关键 JSON 字段抽样)
@@ -146,10 +147,12 @@ R17 (no-baked-dom) ── 与 R16 配套(压平 vs 拆两面); R02/R06 跳过 _i
 R18 (flex-direction) ─┬─ 与 R19 成对(autolayout 容器忠实度); 靠 data-node-id 绑定, 模板项挂代表项 id
 R19 (padding) ────────┘
 R20 (absolute-position) ── 排斥 fixed-(那走 R01/constraints); 只管非 fixed 的 layoutPositioning:ABSOLUTE
+R21 (node-id-coverage) ── 最高优先级; 节点无 data-node-id 则 R06/R18/R19/R20 全绑定不上, 先补 id 再谈其余; 排斥 baked/hidden/templateDup 与 bg-/bgc-/x-(不生成独立 DOM)
 ```
 
 ## 版本
 
+- **v1.2.1** `_inBakedSubtree` 移除 bgc-(bgc- 盒级 CSS 写父、非切图,子孙误放 TEXT 应被 R06/R21 暴露而非静默吞); 新增 **R21 node-id-coverage**(应渲染节点漏挂 data-node-id 即 exit 1,机械强制 §5.1.1 铁律,堵 R18/R19/R20 遇空 classMap 静默 continue 的逃逸); §6.0.2 禁生成流程用 `--force-skip`
 - **v1.2.0** 校验范式从"黑名单抽查"→"以 cache 为真值逐节点对账": loadCache 标注 `_inBakedSubtree`/`_hidden`/`_templateDup` + cssMatch 共享 SCSS 嵌套匹配(R02/R06 假阳性根源清除); 新增 R17 no-baked-dom / R18 flex-direction / R19 padding / R20 absolute-position 四条对账规则
 - v1.1.0 新增 R16 no-flatten-text 硬防线
 - v1.0.0 首次引入 rules/ 目录 + check-rules.mjs

@@ -12,7 +12,7 @@
 
 **同时满足**:
 
-1. 节点处于 `bg-` / `bgc-` / `img-` / `x-` 前缀（含裸词 `bg`/`img`）节点的**子树内**（`loadCache.mjs` 标注 `_inBakedSubtree === true`，`_bakedBy` 指向那个前缀节点）
+1. 节点处于 `bg-` / `img-`（整体切图，含裸词 `bg`/`img`）或 `x-`（整体忽略）前缀节点的**子树内**（`loadCache.mjs` 标注 `_inBakedSubtree === true`，`_bakedBy` 指向那个前缀节点）。**不含 `bgc-`**：bgc- 是盒级 CSS 写父、非切图，其子孙走正常规则（见 R21）
 2. 产物 JSX 中出现该节点的 `data-node-id="<nodeId>"` 元素（跨行 / 属性顺序任意）
 
 命中 → 违规（双重渲染）。
