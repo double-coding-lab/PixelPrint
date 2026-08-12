@@ -1,128 +1,128 @@
 ---
 name: f2s-doc-arch
-description: Generate a first draft of project architecture documentation from user notes, documents, or code scanning; no fixed format is required as long as the explanation is clear. Triggers: 项目架构说明、f2s-doc-arch、架构初稿、architecture draft、project architecture
+description: 根据用户说明或文档（或扫描代码）生成项目架构说明初稿，无固定格式，描述清楚即可；触发：项目架构说明、f2s-doc-arch、架构初稿
 ---
-> Execution scope: this skill writes its artifact to `.Knowledge/stock-docs/` by default; later knowledge-base skill chains such as `f2s-doc-final` and `f2s-kb-build` sync it into `.Knowledge/topics/index/manifest`.
+> 执行口径：本技能产物默认写入 `.Knowledge/stock-docs/`，后续由知识库技能链（如 `f2s-doc-final`、`f2s-kb-build`）同步到 `.Knowledge/topics/index/manifest`。
 
-## Orchestration (main / sub agent)
+## 编排（主 / 子 agent）
 
-- The semantics of `subAgent` / `switchAgentVerification` use the unified entry as the only source of truth: **Cursor/Claude** read the config-root `rules/f2s-flow2spec-unified-entry.*`; **Codex** reads `.codex/topics/f2s-flow2spec-unified-entry.md` (same source, mirrored by `flow2spec init`). This section does not restate those semantics.
-- When `subAgent=true`, choose one of the following sub-agent strategies:
-  - **Mode B (default, single-round parallel)**: the main agent first produces an "inventory" (entry points + core module names, handwritten by the main agent) and a "scanning contract" (readable paths / directories forbidden to scan / unified output fields). Sub agents then perform parallel read-only scans and return tables. The main agent merges and deduplicates once, writes the `stock-docs` draft, and keeps user confirmation and acceptance in the main agent.
-  - **Mode C (multi-round correction)**: switch to this mode when any of the following is true: multiple workspaces / monorepo; extremely deep directories or > 20 source paths; the first-round sub-agent tables are contradictory or obviously thin; multiple source narratives overlap or conflict heavily.
-- **Sub-agent delivery hard constraint**: sub agents must not trim directory scope on their own. They must follow the main agent's handwritten inventory. Their delivery must follow the "sub-agent delivery YAML schema" (fields: `source` / `scope` / `cross_refs` / `pending`); prose-style returns are forbidden.
-- **Write-authority hard constraint**: `.Knowledge/index.md` / `manifest-routing.json` are always written by the main agent. Sub agents must not touch them.
-- The writing side self-verifies. This SKILL does not bind to cross-agent verification.
+- `subAgent` / `switchAgentVerification` 两字段语义以统一入口为唯一事实源：**Cursor/Claude** 读配置根 `rules/f2s-flow2spec-unified-entry.*`；**Codex** 读 `.codex/topics/f2s-flow2spec-unified-entry.md`（与上同源，`flow2spec init` 镜像）。本节不复述。
+- 当 `subAgent=true` 时，从以下两种子策略择一：
+  - **B 模式（默认，单轮并行）**：主先产出「inventory（入口 + 核心模块名，主手写）」+「扫描契约（可读路径 / 禁扫目录 / 统一产出字段）」→ 子 agent 并行只读扫表 → 主一轮合并去重 → 写 `stock-docs` 初稿 → 用户确认与验收在主 agent 内完成。
+  - **C 模式（多轮纠偏）**：切换判据为以下任一 —— 多 workspace / monorepo、目录极深或源路径 > 20 条、首轮子表矛盾或空洞明显、多源叙述重合 / 矛盾严重。
+- **子交付硬约束**：子 agent 不得自行裁剪目录范围，必须按主手写 inventory 执行；子交付按「子交付 YAML schema」（字段：`source` / `scope` / `cross_refs` / `pending`），禁止散文式回传。
+- **写权硬约束**：`.Knowledge/index.md` / `manifest-routing.json` 恒由主 agent 落盘，子 agent 不得触碰。
+- 落盘侧自验；本 SKILL 不绑定交叉校验。
 
-# Generate Project Architecture Documentation (Draft)
+# 生成项目架构说明（初稿）
 
-This skill helps users generate **project architecture documentation** in a **draft** form. There is no fixed format; the goal is to **explain things clearly**. The user may provide plain-text notes, an existing document, or, when no input is provided, allow the AI to scan code as a fallback (not recommended; fallback only).
+本技能用于**帮助用户生成项目架构的文档说明**，产出形态类似**初稿**：无固定格式规范，以**描述清楚**为目标。用户可提供纯文字说明、已有文档，或在不提供时由 AI 扫描代码生成（不推荐，仅作兜底）。
 
-**Division of responsibility with f2s-kb-add**: this skill is responsible **only** for the "architecture documentation **draft**" step. By default, it does **not** write the final version in the same skill and does not directly run **f2s-kb-build**. If the user wants to parse an **already completed capability** into the knowledge base **in one pass** from multiple related file paths (draft -> final -> topics/index/manifest), use **`f2s-kb-add`**. **Do not use this skill to impersonate that workflow**.
+**与 f2s-kb-add 的分工**：本技能**只**负责「架构说明类**初稿**」这一环，默认**不**在同一技能内写终稿、不直接执行 **f2s-kb-build**。若用户在工作中要把**已做好的能力**依据多份相关文件路径**一次**解析进知识库（初稿→终稿→topics/index/manifest），应使用 **`f2s-kb-add`**，**勿用本技能冒充该流程**。
 
 ---
 
-## Inputs (All Optional)
+## 入参（均可选）
 
-| Parameter | Description |
+| 参数           | 说明                                                                                                                                                              |
 | -------------- | -------------------------- |
-| **First argument** | Optional. One of: **a plain-text description** written after the command, or **a local document path** such as `.Knowledge/stock-docs/xxx.md`, `.Knowledge/req-docs/README.md`, or `README.md`. If omitted, enter the "no input" flow. |
-| **Second argument** | Optional. Output file path. If omitted, default to `.Knowledge/stock-docs/architecture-overview_draft.md` (the project name may be inferred from `package.json` `name` or the directory name, then sanitized for a valid filename). |
+| **第一个参数** | 可选。可为以下之一：**一段纯文字说明**（直接写在命令后）、**本地文档路径**（如 `.Knowledge/stock-docs/xxx.md`、`.Knowledge/req-docs/README.md`、`README.md`）。不传则进入「无输入」流程。 |
+| **第二个参数** | 可选。输出文件路径；若不传，默认写入 `.Knowledge/stock-docs/架构说明_初稿.md`（项目名可从 package.json 的 name 或目录名推断，做合法文件名处理）。 |
 
-**Note**: when no description or document is provided, the skill uses **AI scanning of project code and directories** to generate the architecture draft, and **quality is not guaranteed**. Before executing, you **must first ask the user**: "Do you confirm that no arguments will be provided and that AI should still scan the code to generate the draft? (quality not guaranteed)" Continue only after the user explicitly confirms.
-
----
-
-## Execution Flow
-
-### 1. If the User Provides Notes or a Document
-
-1. **Read and understand**
-   - If the first argument is a **document path**: read that file under the parent directory of the config root (supports text formats such as .md and .txt).
-   - If the first argument is a **plain-text description**: use the user input directly as "user notes".
-2. **Supplement with project context**
-   - Based on clues in the user notes such as **code paths, module names, and entry points**, combine the actual directory structure and key files under the parent directory of the config root (for example package.json, entry files, config files) to **summarize and complete** the architecture.
-   - If the user notes are broad (for example "an admin system"), **actively guide** the user to add: main code paths, module/package split, entry points and startup approach, boundaries with external systems, and similar details, so the architecture documentation is more accurate.
-3. **Generate the draft**
-   - If splitting is enabled (Mode B), sub agents must scan according to the main agent's handwritten inventory, and their delivery must follow the sub-agent delivery YAML schema.
-   - Produce a **project architecture document**. It may include, but is not limited to: project positioning, technology stack, directory/module split, key paths and entry points, configuration and deployment notes, and how this document maps to documentation artifact stages if applicable.
-   - **No fixed format**: clear headings and paragraphs are enough. Do not force the `final-overview-template`.
-4. **Output**
-   - Default output: `.Knowledge/stock-docs/architecture-overview_draft.md`. If the user provides a second argument, write to that path.
-   - If the directory does not exist, create it first.
-
-### 2. If the User Provides No Notes or Document
-
-1. **Warn and confirm**
-   - Clearly state: "**No arguments were received.** Without notes or a document, AI will scan project code and directories to generate an architecture draft. **Quality is not guaranteed**, and it may miss key points or fail to distinguish priority. I recommend providing a brief description or existing document (such as README or design doc) before running this skill."
-   - **Must ask the user**: "Do you confirm that no arguments will be provided and that AI should still scan the code to generate the draft? (quality not guaranteed)"
-   - Continue to Step 2 only after the user **explicitly confirms** (for example "确认", "yes", "directly scan"). If the user does not confirm or cancels, do not scan or generate.
-2. **Scan and generate**
-   - Based on the parent directory of the config root: list main directories and representative files (with package.json, common entry names, and config filenames when useful), and summarize "directory structure, likely modules, entry points, and configuration".
-   - Generate an **architecture draft**, and state inside the document: "This draft was generated by scanning the project structure; it should be further completed with business notes and code details."
-3. **Output**
-   - Same as above: default `.Knowledge/stock-docs/architecture-overview_draft.md`, or the second argument specified by the user.
+**注意**：不传任何说明或文档时，将使用 **AI 扫描项目代码与目录** 生成架构说明初稿，**不保证质量**。执行时**必须先提示用户**：「是否确认不传递参数，仍使用 AI 扫描代码生成？（不保证质量）」，仅当用户明确确认后才继续。
 
 ---
 
-## Guidance and Iteration
+## 执行流程
 
-- If the user's description has a **large scope** (for example "the entire middle platform"), suggest adding **main code paths, submodule/package names, external entry points, dependencies**, and similar details. The user may add them in this or later conversations and rerun this skill to update the draft.
+### 1. 若用户提供了说明或文档
 
-## Large-Feature Split Recommendation
+1. **读取与理解**
+   - 若第一参数是**文档路径**：在配置根的父目录下按路径读取该文件内容（支持 .md、.txt 等文本格式）。
+   - 若第一参数是**纯文字说明**：直接以用户输入为「用户说明」。
+2. **结合项目补充**
+   - 根据用户说明中的**代码路径、模块名、入口**等线索，结合配置根的父目录下的实际目录结构、关键文件（如 package.json、入口文件、配置文件）进行**归纳与补全**。
+   - 若用户说明较宽泛（如只说了「一个后台系统」），**主动引导**用户补充：主要代码路径、模块/包划分、入口与启动方式、与外部系统的边界等，便于生成更贴合的架构说明。
+3. **生成初稿**
+   - 若启用拆子（B 模式），子 agent 必须按主手写 inventory 执行扫描，交付遵循子交付 YAML schema。
+   - 产出一份**项目架构说明**：可包含但不限于：项目定位、技术栈、目录/模块划分、关键路径与入口、配置与部署要点、与文档产物阶段的对应说明（若适用）。
+   - **无固定格式**：采用清晰的标题与段落即可，不强制套用《终稿模版》。
+4. **输出**
+   - 默认写入 `.Knowledge/stock-docs/架构说明_初稿.md`；若用户传入第二参数则写入该路径。
+   - 若目录不存在则先创建。
 
-After scanning or understanding the source/notes, if any of the following signals appear, output a "拆分建议" section at the **end** of the draft for the user's reference (does not block generation):
+### 2. 若用户未提供任何说明或文档
 
-- Total source volume exceeds **~5000 lines**, or more than **20 files** are involved;
-- More than **3 unrelated responsibility domains** are clearly identifiable (for example API layer / core rules / data model / external dependencies are independent);
-- The user notes already mention "multiple submodules" or "multiple features".
+1. **提醒并确认**
+   - 明确说明：「**未收到任何参数。** 不传递说明或文档时，将使用 AI 扫描项目代码与目录生成架构说明初稿，**不保证质量**，且易遗漏重点、难以区分主次。建议先提供一段简要说明或已有文档（如 README、设计 doc）再执行本技能。」
+   - **必须询问用户**：「是否确认不传递参数，仍使用 AI 扫描代码生成？（不保证质量）」
+   - 仅当用户**明确确认**（如回复「确认」「是」「直接扫描」等）后，才继续步骤 2；若用户未确认或表示取消，则不再执行扫描与生成。
+2. **扫描与生成**
+   - 基于配置根的父目录：列出主要目录与代表性文件（可结合 package.json、常见入口与配置文件名），归纳出「目录结构、疑似模块、入口与配置」等。
+   - 生成一份**架构说明初稿**，并在文中注明「本初稿由扫描项目结构生成，建议结合业务说明与代码细节进一步补充」。
+3. **输出**
+   - 同上，默认 `.Knowledge/stock-docs/架构说明_初稿.md`，或用户指定的第二参数。
 
-**Split recommendation format** (write at the end of the draft as a standalone section):
+---
+
+## 引导与迭代
+
+- 用户说明若**范围较大**（如「整个中台」），可提示：建议补充**主要代码路径、子模块/包名、对外入口、依赖关系**等，并可在本次或后续对话中分批补充，再重新执行本技能更新初稿。
+
+## 大功能拆分建议
+
+扫描或理解完源码/说明后，若识别出以下任一信号，须在初稿**末尾**输出「拆分建议」段落，供用户参考（不阻断生成）：
+
+- 源码总量超过 **~5000 行**，或涉及文件超过 **20 个**；
+- 能明显识别出 **3 个以上不相干职责域**（如接口层 / 核心规则 / 数据模型 / 外部依赖各自独立）；
+- 用户说明本身已提到「多个子模块」或「多个功能」。
+
+**拆分建议格式**（写在初稿末尾，独立节）：
 
 ```
-## Split Recommendation
+## 拆分建议
 
-The current feature is large. Split it into multiple focused stock-docs, each mapped to an independent topic:
+当前功能体量较大，建议拆成多份 focused stock-doc，各自对应一个独立 topic：
 
-| Suggested document | Main content | Suggested topic primary |
+| 建议文档 | 主要内容 | 建议 topic primary |
 |---|---|---|
-| <feature-name>-overview_draft.md | Entry boundaries, submodule relationships, quick index | feature |
-| <feature-name>-business-rules_draft.md | Core flows, gates, state machine | policy |
-| <feature-name>-data-model_draft.md | Table structure, enums, model conventions | module |
-| <feature-name>-external-dependencies_draft.md | SOA/QMQ/Redis/risk-control wrappers | config |
+| <功能名>-概述_初稿.md | 入口边界、子模块关系、快速索引 | feature |
+| <功能名>-业务规则_初稿.md | 核心流程、门禁、状态机 | policy |
+| <功能名>-数据模型_初稿.md | 表结构、枚举、模型约定 | module |
+| <功能名>-外部依赖_初稿.md | SOA/QMQ/Redis/风控封装 | config |
 
-After splitting, each sub-topic is independently matched through its own matcher, while the main topic body contains navigation links.
-Do not chain "overview -> details" through topicDependencies (see f2s-topic-authoring section 5).
+拆分后各子 topic 通过各自 matcher 独立命中，主 topic 正文写导航链接；
+不通过 topicDependencies 串联"概述 → 详情"（见 f2s-topic-authoring 第 5 节）。
 ```
 
-The user may choose: **A) run `f2s-doc-arch` separately for each split recommendation** (recommended), or **B) continue with the current single draft** for later steps.
+用户可选择：**A) 按拆分建议分别执行 `f2s-doc-arch`**（推荐），或 **B) 继续用当前单份初稿**进入后续流程。
 
-## Next Step After Completion (Hard Constraint)
+## 完成后的下一步（硬约束）
 
-This skill **only produces a draft**. At the end, guide the user in the following order. **Do not** let the user skip the final version and directly run `f2s-kb-build`:
+本技能**只产出初稿**；结束时须按下列顺序引导，**禁止**让用户跳过终稿直接 `f2s-kb-build`：
 
-1. Tell the user the draft path and recommend reviewing and completing it first.
-2. **The next step must be `f2s-doc-final`**: use the draft path as input and produce `.Knowledge/stock-docs/<design-name>_final.md` in the `final-overview-template` standard format.
-3. **Only after the final document is written** guide the user to **`f2s-kb-build`**, and its input must be the final path (containing `_final` or just generated by `f2s-doc-final`).
-4. **Do not** write only "please run `f2s-kb-build`" in the completion reply with input pointing to `*_draft.md`; **do not** present `f2s-kb-build` and `f2s-doc-final` as alternatives.
-5. **Only exception**: the user **explicitly requests** skipping the final step, and the draft has already been manually made compliant with the `final-overview-template`. First explain the risk of skipping finalization, then allow `f2s-kb-build`.
+1. 告知初稿路径，建议用户先审阅、补充内容。
+2. **下一步必须为 `f2s-doc-final`**：以初稿路径为入参，产出 `.Knowledge/stock-docs/<方案名>_终稿.md`（《终稿模版》规范格式）。
+3. **仅在终稿落盘后**再引导 **`f2s-kb-build`**，且入参须为终稿路径（含 `_终稿` 或由 `f2s-doc-final` 刚生成）。
+4. **禁止**在完成回复中单独写「请执行 `f2s-kb-build`」且入参指向 `*_初稿.md`；**禁止**将 `f2s-kb-build` 与 `f2s-doc-final` 并列成「二选一」。
+5. **唯一例外**：用户**明确要求**跳过终稿、且初稿已人工符合终稿模版——须先说明跳过终稿的风险，再允许指向 `f2s-kb-build`。
 
-**Completion reply template** (must include both `f2s-doc-final` and `f2s-kb-build`, with ctx-build after the final document):
+**完成回复模板**（须同时包含 `f2s-doc-final` 与 `f2s-kb-build`，且 ctx-build 在终稿之后）：
 
-> Architecture draft generated: `<draft-path>`. Please review and edit it first; next run **`f2s-doc-final <draft-path>`** to convert it to a final document, then run **`f2s-kb-build <final-path>`** to sync knowledge routing topics and indexes.
-
----
-
-## Path and Output Conventions
-
-- All paths are relative to the **parent directory of the config root**.
-- **Default output**: `.Knowledge/stock-docs/architecture-overview_draft.md`; the project name is taken from `package.json` `name` (with scope and illegal characters removed) or the current directory name.
-- If the user provides the second argument as an output path, use it first. If the directory does not exist, create it first.
+> 已生成架构说明初稿：`<初稿路径>`。请先审阅修改；下一步请执行 **`f2s-doc-final <初稿路径>`** 转为终稿，再执行 **`f2s-kb-build <终稿路径>`** 同步知识路由主题与索引。
 
 ---
 
-## Constraints and Notes
+## 路径与输出约定
 
-- **No mandatory format**: this skill produces an "architecture documentation draft"; clarity is the priority. It does not need to conform to the `final-overview-template` or a fixed section structure.
-- **Must confirm when no arguments are provided**: if the user provides no argument, first ask "Do you confirm that no arguments will be provided and that AI should still scan the code to generate the draft? (quality not guaranteed)". Execute scanning and generation only after explicit confirmation.
-- Summarize according to the "completion reply template" above: draft path + **must run `f2s-doc-final` before `f2s-kb-build`**; do not recommend build only.
+- 所有路径均相对于**配置根的父目录**。
+- **默认输出**：`.Knowledge/stock-docs/架构说明_初稿.md`；项目名取自 `package.json` 的 `name`（去掉 scope 与非法字符）或当前目录名。
+- 若用户传入第二参数为输出路径，则优先使用该路径；若目录不存在则先创建。
+
+---
+
+## 约束与注意
+
+- **不强制格式**：本技能产出为「架构说明初稿」，以描述清楚为主，不要求符合《终稿模版》或固定章节结构。
+- **无参数时必须确认**：用户未传任何参数时，必须先提示「是否确认不传递参数，仍使用 AI 扫描代码生成？（不保证质量）」，仅当用户明确确认后才执行扫描与生成。
+- 完成后按上文「完成回复模板」总结：初稿路径 + **必须先 `f2s-doc-final` 再 `f2s-kb-build`**；不得仅推荐 build。

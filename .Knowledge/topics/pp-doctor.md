@@ -1,3 +1,11 @@
+---
+id: pp-doctor
+revision: 0
+summary: pp-doctor
+primary: policy
+confidence: inferred
+tags: [config, module]
+---
 # pp-doctor
 
 > D2C 设计稿健康检测 SKILL（`templates/skills/pp-doctor/`）的执行约定与卡顿排查路由摘要。完整规则定义见 `docs/d2c-health-check-spec.md`，可执行步骤见同名 SKILL.md。

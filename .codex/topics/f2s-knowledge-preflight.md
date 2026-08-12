@@ -1,67 +1,67 @@
-# Flow2Spec KB Preflight
+# Flow2Spec 知识库首读（KB Preflight）
 
-This rule coexists with `f2s-flow2spec-unified-entry`; for answers involving implementation, configuration, troubleshooting, or Flow2Spec knowledge routing **inside the current repository**, this rule determines **when the on-disk knowledge base must be read first**. The read order in the unified entry continues to apply after this rule has been satisfied.
+本条与 `f2s-flow2spec-unified-entry` **并存**；凡涉及**当前仓库**内实现、配置、排错与 Flow2Spec 知识路由的回答，**以本条约束「何时必须先读磁盘上的知识库」为准**。统一入口中的读取顺序在**满足本条之后**继续适用。
 
-## Scope (Preflight Required)
+## 适用范围（须执行首读）
 
-If the user question may depend on any of the following information, it counts as requiring knowledge-base preflight:
+用户问题若可能依赖下列任一类信息，即视为「须先走知识库」：
 
-- **Implementation code** in the current repository, directory and module conventions, build/deploy/runtime behavior, `.Knowledge/`, `f2s-*` skills, topic routing described by `manifest-routing`, and similar repository facts;
-- Context that clearly depends on current-repository facts, unless the user explicitly states it is unrelated to the current repository.
+- 当前仓库中的**实现代码**、目录与模块约定、构建/部署/运行时行为、`.Knowledge/`、`f2s-*` 技能、`manifest-routing` 所描述的主题路由等；
+- 用户未明确声明「与当前仓库无关」、但语境明显依赖本仓库事实时。
 
-## Hard Constraint: First Tool Call
+## 硬约束：首工具调用
 
-Before giving a substantive conclusion or modification suggestion:
+在给出实质性结论或修改建议之前：
 
-1. **For this user message**, if no tool has yet read **`.Knowledge/manifest-routing.json`**, then the **first** code/knowledge-base tool used must be:
+1. **在本轮用户消息下**，若尚未用工具读取过 **`.Knowledge/manifest-routing.json`**，则 **第一个** 使用的代码/知识库类工具 **必须** 为：
 
-   `Read` -> path **`.Knowledge/manifest-routing.json`** (relative to the project root, consistent with the unified entry).
+   `Read` → 路径 **`.Knowledge/manifest-routing.json`**（项目根相对路径，与统一入口一致）。
 
-2. After reading the manifest, `Read` a **single** matcher shard and **`.Knowledge/topics/<topic>.md`** (plus `topicDependencies`) **as needed** according to `taskToTopicRules` / `matcherPath`. Only then may `SemanticSearch`, `Grep`, or `Read` be used on business source paths **outside `.Knowledge/`**.
+2. 读完 manifest 后，再按 `taskToTopicRules` / `matcherPath` **按需** `Read` **单个** matcher 分片与 **`.Knowledge/topics/<topic>.md`**（及 `topicDependencies`），然后才允许对 **除 `.Knowledge/` 以外的业务源码路径** 使用 `SemanticSearch`、`Grep` 或 `Read`。
 
-3. **Prohibited**: without step 1, directly asserting repository-specific paths, configuration, or behavior from memory/training data. If the manifest or topic already covers the point, **the KB is authoritative**; source code may verify or fill in details missing from the KB.
+3. **禁止**：在未执行步骤 1 的情况下，用「凭记忆/凭训练数据」直接断言本仓库特有的路径、配置或行为；若 manifest 或 topic 已明确覆盖，**须以 KB 为准**，源码用于印证或补全 KB 未写细节。
 
-4. **At the end of the answer (one short line is enough)**: state the KB paths used this turn, for example "Read manifest + `topics/<topic>.md`". If the manifest did not match and the `fallbackTopic` topic was read, state that fallback triage was used.
+4. **回答末尾（简短一行即可）**：注明本轮依据的 KB 路径（例如「已读 manifest + `topics/<topic>.md`」）；若 manifest 无命中且已读 `fallbackTopic` 对应 topic，写明「走 fallback 分诊」。
 
-## Rare Cases Where Preflight Can Be Skipped
+## 可跳过首读（极少数）
 
-- The user only asks about **IDE/editor usage itself**, unrelated to the current repository directory;
-- The user provides an **absolute path + explicit instruction** (for example "only change this line to x") and the edit is purely mechanical and unrelated to business knowledge;
-- In the **same session**, `.Knowledge/manifest-routing.json` has already been read for the current workspace and the user has not requested "reroute / full check"; for a direct follow-up, the answer may begin with "manifest was read earlier in this session; continuing with the previous route" and avoid reading the manifest again.
+- 用户仅询问 **IDE/编辑器本身**用法、且与当前仓库目录无关；
+- 用户给出 **绝对路径 + 明确指令**（例如「只把该行改为 x」）且与业务知识无关的纯机械编辑；
+- **同一会话内**已对当前工作区执行过 `Read(".Knowledge/manifest-routing.json")` 且用户未要求「重新路由/全量检查」的**直接续问**：可在回答首句写「manifest 已读本会话，沿用上次路由」，**不再重复 Read** manifest。
 
-## Answer Closing Check (After Source-Code Follow-Up)
+## 回答收口检查（源码补答后）
 
-Knowledge-base follow-up suggestions after ordinary Q&A reads business source code are governed solely by **`f2s-kb-feedback-closing`**. This rule only keeps the trigger relationship: after reading the first business source file, treat this turn as having triggered `sourceFallbackUsed=true`; if the final answer cites source-code facts, the four-case self-check in `f2s-kb-feedback-closing` must run before sending the answer. If this turn has already entered an `f2s-*` skill, `implement-tech-design`, `f2s-git-commit`, or another existing follow-up flow, do not repeat the suggestion.
+普通问答读取业务源码后的知识库补充建议，以 **`f2s-kb-feedback-closing`** 为单一规则源。本条只保留触发关系：读完首个业务源码文件后，视为本轮已触发 `sourceFallbackUsed=true`；若最终答案引用源码事实，发出回答前必须执行 `f2s-kb-feedback-closing` 的四 case 自检。若本轮已经进入 `f2s-*` 技能、`implement-tech-design`、`f2s-git-commit` 或其他已有后续流程，不重复提示。
 
-Consistent with **"Knowledge gaps and responses"** in **`f2s-flow2spec-unified-entry`**, when case **1b (matched but context is insufficient)** or **2 (the KB has no corresponding document)** is reached, also obey:
+与 **`f2s-flow2spec-unified-entry`** 中 **「知识缺口与对策」** 一致；命中 **1b（命中但上下文不够）** 或 **2（库里没有对应文档）** 时，还须遵守：
 
-1. **Explain to the user before expanding tools**: after reading `manifest-routing.json` and the required `topics/*.md` (plus dependency topics), if the KB alone still cannot answer the user question precisely, **first** state in natural language: **which KB paths were read**, **what information is still missing**, and **which 1-2 source files you plan to read** or **which `req-docs`/stock-docs document the user should provide**. Do not silently stack "find another entry point" style exploration.
-2. **Exploration limit**: before giving the gap note above, do **not** launch **4 or more consecutive** `Grep` calls or targetless `SemanticSearch` calls whose only purpose is broadening the search surface. After the note is given and the user tacitly allows it (or the question explicitly asks to chase it down), drill down in an orderly way.
-3. **Prefer single-point drilling**: if only behavior details need confirmation, prefer to **Read one** implementation file most relevant to the question and answer from it. Do not chain into multiple files under third-party dependency directories for the same subquestion without a new hypothesis, unless the user explicitly asks to read dependencies thoroughly.
+1. **先对用户说明，再扩工具**：在已读 `manifest-routing.json` 与应读的 `topics/*.md`（及依赖 topic）之后，若仍**无法仅凭 KB** 精确回答用户问题，**必须先**用自然语言说明：**已读哪些 KB 路径**、**仍缺哪类信息**、**你打算只读哪 1～2 个源码文件**或**请用户补哪篇文档**；不得沉默地连续堆叠「再找入口」式探索。
+2. **探索次数上限**：在未向用户发出上述缺口说明前，**禁止**连续发起 **4 次及以上**仅以扩大搜索面为目的的 `Grep` / 无明确目标的 `SemanticSearch`。说明并获用户默许（或问题明确要求追到底）后，再有序下钻。
+3. **单点下钻优先**：若仅需确认行为细节，应优先 **Read 一个**与问题最相关的实现文件并据此作答；**禁止**为同一子问题在无新假设的情况下链式深入第三方依赖目录中多文件，除非用户明确要求通读依赖。
 
-### Gap Gate (For "Rule Exists, Execution Skipped")
+### 缺口闸门（针对「规则有写、执行跳过」）
 
-Only when **manifest + required topics** have already been read, the situation is still judged as **1b / 2**, and the **next step** is to use `Read` / `Grep` / `SemanticSearch` against the **business source tree** (not `.Knowledge/`):
+当且仅当已读完 **manifest + 应读 topics** 后，仍判定为 **1b / 2**、且**下一步**要使用指向**业务源码树**（非 `.Knowledge/`）的 `Read` / `Grep` / `SemanticSearch` 时：
 
-- **First output** a piece of **visible natural language for the end user** (it may be shown with a brief conclusion) that includes at least: **(a)** KB paths read; **(b)** one sentence describing the gap (what kind of information the topic lacks or that the KB has no document); **(c)** the **1-2 concrete file paths** to open next, or a question asking whether the user would rather add `req-docs`/stock-docs first.
-- **Prohibited**: if no visible note satisfying (a)(b)(c) has ever been output, do not launch multiple source-side tool calls used only to "find another entry point"; this is exactly the execution-level omission where "the rule says it, but the gap note was skipped."
-- When source drilling later reports facts such as **behavior, status codes, or error text**, those facts **must come from source code and contracts actually read in this turn**; do not fill them from speculation or external project experience unrelated to the current repository.
+- **必须先**产出一段**终端用户可见**的自然语言（可与简短结论同屏），且至少包含：**(a)** 已读的 KB 路径；**(b)** 缺口一句（topic 缺哪类信息或库中无文档）；**(c)** 拟打开的 **1～2 个具体文件路径**或征询用户是否先补 `req-docs`/stock-docs。
+- **禁止**在**从未**输出过满足 (a)(b)(c) 的可见说明的情况下，连续发起多轮仅用于「再找入口」的源码侧工具调用（此即「规则已写但未先做缺口说明」的执行层遗漏）。
+- 下钻后给出**行为、状态码、错误文案**等事实时，**须以本次实际读到的源码与契约为准**；不得凭推测或与当前仓库无关的外部项目经验填写。
 
-The (a)(b)(c) requirements above have the same meaning as "ask the user for a document or path" and "explicitly acknowledge no KB coverage" in the **`f2s-flow2spec-unified-entry`** table. Do not substitute an internal judgment of "this is 1b" for a **written visible gap note** to the user.
+上述 (a)(b)(c) 与 **`f2s-flow2spec-unified-entry`** 表中「向用户要文档或路径」「明确承认知识库无覆盖」**同一语义**：不得用「已在内心判定为 1b」代替**已对用户写出**的缺口说明。
 
-### Interaction With Execution Environments (Permissions and Confirmation Noise)
+### 与执行环境的交互（权限、确认类噪音）
 
-In IDEs with sandbox or permission gates, launching many `Grep` / `SemanticSearch` / broad file reads in a short time often appears as repeated prompts for the same kind of permission or confirmation. This is not directly caused by whether Flow2Spec rules mention the constraint; it is usually amplified by an exploration chain that is too long and lacks stop conditions. Following this section's "gap gate", "exploration limit", and the "search volume and answer rhythm" below, while preferring single-file `Read`, can substantially reduce such interruptions.
+在带沙箱或权限门控的 IDE 中，**短时间连续**发起多轮 `Grep` / `SemanticSearch` / 大范围读盘，常表现为**对同类权限或确认的重复询问**。这与 Flow2Spec 规则是否写明无直接关系，多由**探索链过长、无停止条件**放大。遵守本节「缺口闸门」「探索次数上限」与下文「检索体积与作答节奏」、优先单文件 `Read`，可显著减少此类打扰。
 
-## Search Volume and Answer Rhythm (Reduce Multi-Round Scans and Perceived Slowness)
+## 检索体积与作答节奏（降低多轮扫描、体感变慢）
 
-This section targets common causes in **Codex / terminal IDE** environments where a single Q&A turn performs multiple rounds of `grep`, produces huge output, and takes a long time. It does **not conflict** with "read manifest first": still `Read` the manifest first, then narrow the search surface.
+本节针对 **Codex / 终端 IDE** 等环境中「一次问答多轮 `grep`、输出量巨大、总耗时长」的常见根因，与「首读 manifest」**不冲突**：仍须先 `Read` manifest，再收窄搜索面。
 
-1. **`Grep` / text-search scope**: when the matched topic has already been read and gives a **specific file or directory path**, the search scope must not exceed that path. If no path is given, narrow to the **single** most likely directory, such as `src/utils/` or `src/functions/<activity-dir>/`. **Prohibited**: without an explicit user request for "full-repo check" and without meeting the unified entry's "full matcher fallback search trigger", do not run one huge broad scan across multiple parallel roots such as **`src/` root, all of `src/functions`, and `.Knowledge`**.
-2. **When matches are excessive**: if one search returns obviously too many hits, stop expanding keywords or paths and instead prefer to **Read the 1-2 main files named by the topic or stock-docs**. If still insufficient, perform a **second** narrow `Grep` with a smaller pattern or directory.
-3. **Two-stage answers**: if the user did not explicitly ask to "list all implementation details / read dependencies thoroughly / audit the full chain", and manifest + required topics (plus any stock/req materials named by the topic) are already enough to form a conclusion, **first output a short useful answer**. Implementation details and additional file lists should be drilled only when the user asks for evidence or expansion. Do not lengthen the exploration chain solely for self-verification completeness.
-4. **Avoid repeated disk reads**: in the same session, if a file has already been fully `Read` and there is no new user instruction or hypothesis, do **not** launch an equivalent full-file `Read` again.
+1. **`Grep` / 文本搜索范围**：在已读命中 topic 且其中给出**具体文件或目录路径**时，搜索**不得**大于该路径；无路径时再缩到**单一**最可能目录（如 `src/utils/` 或 `src/functions/<活动目录>/`）。**禁止**在无用户明确要求「全仓检查」且未满足统一入口「全量补检索触发门槛」时，对 **`src/` 根、`src/functions` 全域、`.Knowledge` 等多处并列**做一次超大范围扫描。
+2. **大命中量时**：若单次搜索命中行数明显过多，应**停止扩大关键词或路径**，改为优先 **`Read` topic 或 stock-docs 已点名的 1～2 个主文件**；仍不足再缩小模式或目录做**第二次**窄 `Grep`。
+3. **两阶段作答**：用户未明确要求「列出全部实现细节 / 通读依赖 / 审计全链路」时，在 manifest + 应读 topics（及 stock/req 中 topic 已指明的材料）已足以形成结论时，**可先输出对用户有用的短答案**；实现细节、额外文件清单仅在用户追问依据或「展开」时再下钻，**禁止**仅为自验完备而拉长探索链。
+4. **避免重复读盘**：本会话内已对某文件做过**全文** `Read` 且无新用户指令或新假设时，**禁止**再次对该文件发起等价全文 `Read`。
 
-## Agent Self-Check
+## 对 Agent 自检
 
-If you notice that you are answering a current-repository question without having `Read` the manifest, **stop writing immediately**, `Read` the manifest and the matched topic, then correct or continue the answer. If this turn read business source code and cites source-code facts, continue with `f2s-kb-feedback-closing` before sending the answer.
+若你发现自己在回答当前仓库相关问题时尚未 `Read` manifest，**须立即停止补写**，先 `Read` manifest 与命中 topic，再更正或续答。若本轮读取过业务源码并引用源码事实，发出回答前须继续执行 `f2s-kb-feedback-closing`。

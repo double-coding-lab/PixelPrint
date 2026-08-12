@@ -1,3 +1,11 @@
+---
+id: pp-d2c
+revision: 0
+summary: pp-d2c
+primary: policy
+confidence: inferred
+tags: [feature, config]
+---
 # pp-d2c
 
 > D2C 主 SKILL（`templates/skills/pp-d2c/`）的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md（共约 770 行），本 topic 是路由摘要 + 关键边界，不重复长篇内容。
@@ -7,6 +15,7 @@
 - 用户提供 Figma 设计稿 URL 并说"还原"、"D2C"、"生成代码"
 - 维护者修改主 SKILL 时定位读哪几节
 - 排查"切出来的图带画板背景色 / 光晕 / 间距对不上 / 列表被压平成背景图 / token 过期生成失败 / bg- 套 bgc- 揉到一张图 / 描边丢失 / `doctor.run()` 函数找不到"等典型 bug
+- 排查"文字/图双重渲染（切图里一份 + DOM 一份）/ flex 方向反 / padding 凭空加 / 绝对定位坐标靠猜 / `.map()` 模板节点漏挂 data-node-id / check-rules 报一堆 R02·R06 假阳性被『语义盲点』批量豁免"等 v1.2.0 对账类 bug
 
 ## SKILL.md 是给 LLM 读的操作手册，不是可执行代码（v0.2 关键澄清）
 
@@ -41,6 +50,41 @@
 | **主 SKILL** | 解析图层、分发 sub-agent、生成 JSX/SCSS、下载图片 | 完整可运行的页面代码 |
 
 **集成关系**：主 SKILL 步骤 0.5 在 `health.enabled=true` 时**调用** doctor 做集成体检，根据返回的 `passed` 决定是否阻塞生成（详见 SKILL.md §0.5）。doctor 的内部规则不影响主 SKILL 的生成逻辑——两者各自独立可读，**无强 dependency**。
+
+## v1.2.0/v1.2.1 对账范式（校验从「抽查」升级为「逐节点对账」）
+
+**背景**：v1.1.0 及以前，`check-rules.mjs` 是「黑名单抽查」——只找已枚举的坏味道（inline style、缺 url、flex-end 冒充 space-between），抓不到「没被列举的错误」（flex 方向反、padding 幻觉、绝对坐标猜测、双重渲染）。且 R02/R06 对「整体切图子树里的 TEXT/IMAGE」逐个校验会产生大量假阳性，agent 用「语义盲点/装饰性内容」批量豁免，把真遗漏（如 cd-num 背景漏切）一起放行。v1.2.0 转向「以 Figma cache 为唯一真值，逐节点对账」。
+
+### 对账基座（`bin/lib/`）
+
+- **`loadCache.mjs` 给每个节点打标**（对账规则据此跳过假阳性来源）：
+  - `_inBakedSubtree`：祖先含 **`bg-`/`img-`（整体切图，像素进 PNG）或 `x-`（整体忽略）** 前缀 → 子孙不生成独立 DOM。**v1.2.1 起不含 `bgc-`**（bgc- 是盒级 CSS 写父、非切图，其子孙误放的 TEXT 应被 R06/R21 暴露而非静默吞）。
+  - `_hidden`：自身或祖先 `visible === false` → 不渲染。
+  - `_templateDup`：`.map()` 列表里**同构兄弟的非首个**（数据副本）→ 只校验代表项（variant a），副本跳过。
+  - `_parentId`：供 R20 查父节点 bbox。
+- **`cssMatch.mjs` 共享 SCSS 嵌套匹配**：产物按 `config.styleFormat` 可能是平铺 `.page__foo` 或 SCSS `&__foo`/`&-foo` 嵌套；R01/R02/R06/R18/R19 统一走它，修掉「产物用嵌套写法、规则用平铺正则 → 整体匹配不到」的全线假阳性盲区。
+
+### 五条新硬规则（R17–R21，全部 exit 1 拦截）
+
+| 规则 | 抓什么 |
+|------|--------|
+| **R17 no-baked-dom** | baked 子孙（`_inBakedSubtree`）又出现在产物 DOM = 双重渲染（典型：bg-main 的 title/subtitle 既进 main.png 又出 `<span>`） |
+| **R18 flex-direction** | `layoutMode: VERTICAL` 却写 `flex-direction: row`（或反之） |
+| **R19 padding** | padding 凭空捏造 / 漏写 / 数值 ≠ Figma paddingT/R/B/L × scale |
+| **R20 absolute-position** | `layoutPositioning: ABSOLUTE` 子节点 top/left ≠ (子bbox − 父bbox) × scale（排斥 `fixed-`，那走 R01/constraints） |
+| **R21 node-id-coverage** | 应渲染节点（TEXT / autolayout 容器 / ABSOLUTE / img-·btn-·input-）在产物里漏挂 `data-node-id` → 逃出全部对账。**优先级最高**：没 id 则 R06/R18/R19/R20 全绑定不上 |
+
+### 配套的三条硬约束（SKILL.md）
+
+- **§6.0.2 封逃逸口**：禁「语义盲点/装饰性内容/父层整体切图承载」批量豁免话术；「需人工核对」不再适用于可机械计算量（坐标/尺寸/flex 方向/padding）；**生成流程禁用 `--force-skip`**（仅维护者调试用），唯一合法豁免是 assets.txt 的 `[脚本误判]` 三段证据（单次 ≤ 3 条）。
+- **§5.1.1 data-node-id 全覆盖铁律**：凡承载 Figma 语义、会渲染的 DOM 必挂 `data-node-id`；`.map()` 模板挂**代表项（variant a）**的 nodeId。R21 是它的机械执行体。
+- **§4.3 含 TEXT 容器「压平 vs 拆」唯一裁决树**：`bg-`/`img-` 前缀 → 压平（整体切图，子孙禁 DOM）；普通含 TEXT 容器 → 拆结构（R16，TEXT 出 DOM + 背景不含文字）；**二选一，禁止「既烤又留」**。附 **bg- 背景直接挂父 vs 独立层**判定：背景 bbox ≤ 容器 → 直接 `background` 挂父（默认）；溢出 → 独立 `position:absolute` 层。
+
+### 核心哲学
+
+> **允许兜底的路径就是错误来源；校验以 cache 为唯一真值逐节点对账，而非抽查已知坏味道。**
+
+完整规则定义见 `templates/skills/pp-d2c/rules/R17~R21.md` 与 `rules/README.md`；对账基座实现见 `bin/lib/loadCache.mjs` / `bin/lib/cssMatch.mjs`。
 
 ## 关键执行约束（按重要度排序）
 

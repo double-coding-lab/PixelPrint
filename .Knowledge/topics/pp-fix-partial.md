@@ -1,3 +1,12 @@
+---
+id: pp-fix-partial
+revision: 0
+summary: pp-fix-partial
+dependsOn: [pp-d2c]
+primary: feature
+confidence: manual
+tags: [module]
+---
 # pp-fix-partial
 
 > 局部 UI 修复 SKILL 的执行约定、缓存分层、图层匹配三种形态、防污染硬规则。首次实现整页走 [[pp-d2c]] / [[pp-d2c-rn]];已经出码但某一小块要重生成才用本 topic。

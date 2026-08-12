@@ -1,70 +1,70 @@
 # Flow2Spec Knowledge Index
 
-> **Path convention**: paths such as **`.Knowledge/`** and **`manifest-routing.json`** below are relative to **this repository root** (the current project where `flow2spec init` has been run).
+> **路径约定**：下文 **`.Knowledge/`**、**`manifest-routing.json`** 等路径均相对于**本仓库根目录**（即已运行 `flow2spec init` 的当前项目）。
 
-This file is **human-readable navigation**: topic descriptions, related-document summaries, and semantic boundaries.  
-The **machine-readable source of truth** is `.Knowledge/manifest-routing.json` plus the `.Knowledge/matchers/*.json` shards pointed to by `taskToTopicRules[].matcherPath` (`.Knowledge/manifest-matchers.json` is no longer used).
-
----
-
-## Recommended Reading Order
-
-1. `.Knowledge/manifest-routing.json` (task routing, `topicPaths`, `topicDependencies`, `fallbackTopic`)
-2. As needed: read `.Knowledge/matchers/<id>.json` from `matcherPath` (`includeAny` keywords)
-3. As needed: this `index.md` (topic semantics and boundaries)
-4. `.Knowledge/topics/<topic>.md` (execution constraints and flows)
-5. As needed: `.Knowledge/stock-docs/`, `.Knowledge/req-docs/`
-6. Drill into business code only if still insufficient
+本文件是 **人读导航**：主题说明、关联文档摘要、语义边界。  
+**机读事实源** 以 `.Knowledge/manifest-routing.json` + `taskToTopicRules[].matcherPath` 指向的 `.Knowledge/matchers/*.json` 分片为准（不再使用 `.Knowledge/manifest-matchers.json`）。
 
 ---
 
-## Topic Overview
+## 推荐阅读顺序
 
-| Topic | Path | Applies when | Related documents (summary) |
+1. `.Knowledge/manifest-routing.json`（任务路由、`topicPaths`、`topicDependencies`、`fallbackTopic`）
+2. 按需：由 `matcherPath` 读取 `.Knowledge/matchers/<id>.json`（`includeAny` 关键词）
+3. 按需：本 `index.md`（主题语义与边界）
+4. `.Knowledge/topics/<topic>.md`（执行约束与流程）
+5. 按需：`.Knowledge/stock-docs/`、`.Knowledge/req-docs/`
+6. 仍不足再下钻业务代码
+
+---
+
+## 主题一览
+
+| 主题 | 路径 | 适用场景 | 关联文档（摘要） |
 | --- | --- | --- | --- |
-| implement-tech-design | `.Knowledge/topics/f2s-implement-tech-design.md` | Implement code from a technical spec | req: [technical spec](.Knowledge/req-docs/<technical-spec>.md) (required) |
-| f2s-doc-routing | `.Knowledge/topics/f2s-stock-docs-vs-req-docs.md` | stock-docs / req-docs directory responsibilities | stock: [directory boundary notes](.Knowledge/stock-docs/<directory-boundary-notes>.md) (optional) |
-| fallback-triage | `.Knowledge/topics/f2s-fallback-triage.md` | No hit or low confidence: triage and clarification | stock: [routing triage notes](.Knowledge/stock-docs/<triage-notes>.md) (optional) |
-| config-precheck | `.Knowledge/topics/f2s-config-precheck.md` | Read `flow2spec.config.json` / orchestration switches before executing `f2s-*` | Codex long-form: repository-root `.codex/topics/f2s-config-check.md`; [routing summary](topics/f2s-config-precheck.md) |
-| f2s-task | `.Knowledge/topics/f2s-task.md` | Change tracking, `.task/` task lists, and cross-session resume | Long-form: configuration-root `rules/f2s-task.*`; Codex: `.codex/topics/f2s-task.md` |
-| f2s-req-plan | `.Knowledge/topics/f2s-req-plan.md` | Requirement/spec planning and implementation; always maintain `.task/` | Skill: `skills/f2s-req-plan/SKILL.md`; depends on `f2s-task` |
+| implement-tech-design | `.Knowledge/topics/f2s-implement-tech-design.md` | 按技术方案实现代码 | req：[技术方案](.Knowledge/req-docs/<技术方案>.md)（必填） |
+| f2s-doc-routing | `.Knowledge/topics/f2s-stock-docs-vs-req-docs.md` | stock-docs / req-docs 目录分工 | stock：[目录边界说明](.Knowledge/stock-docs/<目录边界说明>.md)（可选） |
+| fallback-triage | `.Knowledge/topics/f2s-fallback-triage.md` | 未命中或低置信度：分诊与澄清 | stock：[路由分诊说明](.Knowledge/stock-docs/<分诊说明>.md)（可选） |
+| config-precheck | `.Knowledge/topics/f2s-config-precheck.md` | 执行 `f2s-*` 前读 `flow2spec.config.json` / 编排开关 | Codex 长文：仓库根 `.codex/topics/f2s-config-check.md`；[路由摘要](topics/f2s-config-precheck.md) |
+| f2s-task | `.Knowledge/topics/f2s-task.md` | 变更追踪、`.task/` 任务清单与跨会话续作 | 长文：配置根 `rules/f2s-task.*`；Codex：`.codex/topics/f2s-task.md` |
+| f2s-req-plan | `.Knowledge/topics/f2s-req-plan.md` | 需求/方案规划与实现；始终维护 `.task/` | 技能：`skills/f2s-req-plan/SKILL.md`；依赖 `f2s-task` |
 
-Keep **1-3** clickable summary links per topic. Full path mappings are written to `.Knowledge/migration-report.md` in migration scenarios.  
-Among these, **`implement-tech-design`**, **`f2s-doc-routing`**, **`config-precheck`**, and **`f2s-task`** are **routing summaries** under `topics/`; long-form execution instructions live in configuration-root **`rules/f2s-*.md(c)`**. When using Codex, see **`.codex/AGENTS.md`** and **`.codex/topics/f2s-*.md`** (`f2s-config-check` shares the same pre-step source as `AGENTS`; open on demand). **`f2s-knowledge-preflight`** and **`f2s-kb-feedback-closing`** are gates for initial reads in ordinary Q&A and closure after source-code supplementation. They are effective as configuration-root rules / Codex long-form topics and are not written into `topicPaths` or `taskToTopicRules`.
-
----
-
-## Match and Execute (consistent with the unified entry)
-
-- **Routing**: `taskToTopicRules` maps tasks to topic sets; **keywords** live in matcher-shard `includeAny`.
-- **Dependencies**: before using the main topic, read dependency topics according to `topicDependencies`.
-- **Fallback**: `fallbackTopic` points to a triage topic (such as `fallback-triage`) and is only low-confidence context. It **must not** be treated as a final hit for direct code changes.
-- **Execution chain**: `match → expand → verify → act`; `expand` must include dependency expansion and keep the next-highest candidate for validation.
-- **Full supplemental search**: cross-matcher supplemental search is allowed only when there is no hit, candidate margins are too small, the gap check fails, or the user explicitly requests a "full check".
+每主题保留 **1–3 条** 可点击摘要链接；全量路径对照写入 `.Knowledge/migration-report.md`（迁移场景）。  
+其中 **`implement-tech-design`**、**`f2s-doc-routing`**、**`config-precheck`**、**`f2s-task`** 在 `topics/` 内为**路由摘要**；执行长文见配置根 **`rules/f2s-*.md(c)`**；使用 Codex 时见 **`.codex/AGENTS.md`**、**`.codex/topics/f2s-*.md`**（`f2s-config-check` 与 `AGENTS` 前置同源，按需打开）。**`f2s-knowledge-preflight`** 与 **`f2s-kb-feedback-closing`** 是普通问答首读 / 源码补答收口门禁，作为配置根规则 / Codex 专题长文生效，不写入 `topicPaths` 或 `taskToTopicRules`。
 
 ---
 
-## Directory Responsibilities
+## 命中与执行（与统一入口一致）
 
-| Directory | Responsibility |
+- **路由**：`taskToTopicRules` 给出任务 → 主题集合；**关键词**在 matcher 分片的 `includeAny`。
+- **依赖**：命中主主题前，按 `topicDependencies` 先读依赖主题。
+- **兜底**：`fallbackTopic` 指向分诊主题（如 `fallback-triage`），仅低置信度上下文，**不得**当作最终命中直接改代码。
+- **执行链**：`match → expand → verify → act`；`expand` 须含依赖展开，并保留次高候选做校验。
+- **全量补检索**：仅当无命中、候选分差过小、缺口检查失败，或用户明确要求「全量检查」时允许跨 matcher 补检索。
+
+---
+
+## 目录职责
+
+| 目录 | 职责 |
 | --- | --- |
-| `topics/` | Topic rules and execution flows |
-| `matchers/` | Matcher shards (pointed to by `matcherPath`) |
-| `stock-docs/` | Existing knowledge deposits (architecture, final drafts, etc.) |
-| `req-docs/` | Requirements and technical specs (implementation drivers) |
-| `template/` | Final-draft and spec templates |
+| `topics/` | 专题规则与执行流程 |
+| `matchers/` | matcher 分片（`matcherPath` 指向） |
+| `stock-docs/` | 存量沉淀（架构、终稿等） |
+| `req-docs/` | 需求与技术方案（驱动实现） |
+| `template/` | 终稿与方案模版 |
 
-The routing manifest is maintained by `f2s-*` skill flows and does not depend on an additional CLI subcommand.
+路由清单由 `f2s-*` 技能链路维护，不依赖额外 CLI 子命令。
 
 ---
 
-## How to Handle Common Gaps (consistent with the unified entry)
+## 常见缺口怎么处理（与统一入口一致）
 
-| Situation | What to do |
+| 情况 | 你怎么做 |
 | --- | --- |
-| Docs exist but are not routed (1a) | Maintenance side: use `f2s-kb-build` / `f2s-kb-sync` / `f2s-kb-add` to supplement routing and `includeAny`. Execution side: use the triage topic to clarify task type; **do not** replace the manifest with full-repository scanning. |
-| Routed but insufficient (1b) | Follow dependencies and next-highest candidates -> in `verify`, name the missing document; if still missing, ask the user for the path or add `req-docs`. |
-| Not in the KB (2) | Acknowledge the gap -> drill into code or ask the user to add requirement/spec documents. |
-| Repeated manifest reads waste tokens (2a) | Within the same task line, treat routing as a snapshot; read only the single matcher for the hit; do not enumerate the entire `matchers/` directory; do not repeatedly refresh `index.md` and routing against each other. |
+| 有文档但没配到（1a） | 维护侧：`f2s-kb-build` / `f2s-kb-sync` / `f2s-kb-add` 补路由与 `includeAny`。执行侧：分诊主题澄清任务类型，**不**用全仓扫替代 manifest。 |
+| 配到了但不够（1b） | 走依赖与次高候选 → `verify` 点名缺哪篇文档；仍缺则向用户要路径或补 `req-docs`。 |
+| 库里没有（2） | 承认缺口 → 代码下钻或请用户补需求/方案文档。 |
+| 反复读 manifest 费 token（2a） | 同一任务线内 routing 只当快照；只读命中项的单个 matcher；不遍历整个 `matchers/` 目录枚举；`index.md` 勿与 routing 循环互刷。 |
 
-**Note**: "routing/knowledge has been updated" means output from `f2s-*` flows (such as `f2s-kb-build`, `f2s-kb-sync`, `f2s-kb-add`, `f2s-kb-fix`) or manual edits to `manifest-routing` / `matchers` shards. **`flow2spec init` does not author business documents**; it mainly fills templates and writes configuration roots. Do not confuse it with knowledge-base content updates.
+**说明**：「路由/知识已更新」指 `f2s-*`（如 `f2s-kb-build`、`f2s-kb-sync`、`f2s-kb-add`、`f2s-kb-fix` 等）产出或手改 `manifest-routing` / `matchers` 分片；**`flow2spec init` 不撰写业务文档**，以模板补齐与配置根落盘为主，勿与知识库内容更新混为一谈。

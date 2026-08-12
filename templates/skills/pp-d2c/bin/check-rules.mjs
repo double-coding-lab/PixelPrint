@@ -1,0 +1,122 @@
+#!/usr/bin/env node
+// check-rules.mjs — pp-d2c 硬防线脚本 (v1.2.1)
+// 覆盖 R01/R02/R05/R06/R08/R16/R17/R18/R19/R20/R21
+// v1.2.0 对账升级：loadCache 标注 _inBakedSubtree / _hidden / _templateDup；
+//   R02/R06 跳过 baked·隐藏·模板副本 + SCSS &__ 嵌套匹配（lib/cssMatch.mjs）消除假阳性；
+//   R17 禁 baked 子孙出 DOM（双重渲染）；R18 flex-direction 忠实度；R19 padding 忠实度；R20 绝对定位坐标忠实度。
+// v1.2.1：_inBakedSubtree 移除 bgc-（bgc- 非 baked，子孙走正常规则暴露误放）；
+//   新增 R21 node-id-coverage（应渲染节点必挂 data-node-id，机械强制 §5.1.1 铁律，堵 R18/R19/R20 空 classMap 逃逸）。
+//
+// 用法:
+//   node check-rules.mjs --block <blockDir> --cache-key <fileKey>
+//   node check-rules.mjs --merge <pageDir>  --cache-key <fileKey>
+//   node check-rules.mjs --block <blockDir> --cache-key <fileKey> --force-skip R05,R06
+//
+// exit code:
+//   0 — ok=true, 全通过 (可能有 warnings)
+//   1 — ok=false, 有 violations
+//   2 — 环境错误 (cache/产物/config 缺失)
+
+import path from 'node:path';
+import { findProjectRoot, loadConfig, loadCache } from './lib/loadCache.mjs';
+import { loadProduct } from './lib/loadProduct.mjs';
+import { buildNodeIdToClassName } from './lib/nodeIdToClassName.mjs';
+import { makeReport, printReport } from './lib/report.mjs';
+
+import * as R01 from './rules/R01-fixed-position.mjs';
+import * as R02 from './rules/R02-fills-image.mjs';
+import * as R05 from './rules/R05-space-between.mjs';
+import * as R06 from './rules/R06-text-solid-last.mjs';
+import * as R08 from './rules/R08-bg-landing-form.mjs';
+import * as R16 from './rules/R16-no-flatten-text.mjs';
+import * as R17 from './rules/R17-no-baked-dom.mjs';
+import * as R18 from './rules/R18-flex-direction.mjs';
+import * as R19 from './rules/R19-padding.mjs';
+import * as R20 from './rules/R20-absolute-position.mjs';
+import * as R21 from './rules/R21-node-id-coverage.mjs';
+
+const ALL_RULES = [R01, R02, R05, R06, R08, R16, R17, R18, R19, R20, R21];
+
+function parseArgv(argv) {
+  const args = { mode: null, dir: null, cacheKey: null, forceSkip: [] };
+  for (let i = 2; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--block') { args.mode = 'block'; args.dir = argv[++i]; }
+    else if (a === '--merge') { args.mode = 'merge'; args.dir = argv[++i]; }
+    else if (a === '--cache-key') { args.cacheKey = argv[++i]; }
+    else if (a === '--force-skip') {
+      args.forceSkip = (argv[++i] || '').split(',').map((s) => s.trim()).filter(Boolean);
+    } else if (a === '-h' || a === '--help') {
+      printHelp();
+      process.exit(0);
+    }
+  }
+  return args;
+}
+
+function printHelp() {
+  process.stdout.write(`check-rules.mjs (pp-d2c v1.2.1)
+
+Usage:
+  node check-rules.mjs --block <blockDir> --cache-key <fileKey>
+  node check-rules.mjs --merge <pageDir>  --cache-key <fileKey>
+  node check-rules.mjs --block <blockDir> --cache-key <fileKey> --force-skip R05,R06
+
+Rules covered: R01 R02 R05 R06 R08 R16 R17 R18 R19 R20 R21
+Exit: 0=ok, 1=violations, 2=env-error
+`);
+}
+
+function fatal(msg) {
+  process.stderr.write(`[check-rules] ERROR: ${msg}\n`);
+  process.exit(2);
+}
+
+function main() {
+  const args = parseArgv(process.argv);
+  if (!args.mode || !args.dir) fatal('missing --block <dir> or --merge <dir>');
+  if (!args.cacheKey) fatal('missing --cache-key <fileKey>');
+
+  const productDir = path.resolve(args.dir);
+  const product = loadProduct(productDir);
+  if (product.error) fatal(product.error);
+  if (product.jsx.length === 0 && product.style.length === 0) {
+    fatal(`no jsx/style found under ${productDir}`);
+  }
+
+  const projectRoot = findProjectRoot(productDir);
+  if (!projectRoot) fatal('pp-d2c.config.json not found in ancestors of ' + productDir);
+  const config = loadConfig(projectRoot);
+  if (!config) fatal('failed to load pp-d2c.config.json at ' + projectRoot);
+
+  const cache = loadCache(projectRoot, args.cacheKey);
+  if (cache.error) fatal(cache.error);
+
+  const classMap = buildNodeIdToClassName(product.jsx);
+
+  const checked = [];
+  const skipped = [];
+  const violations = [];
+  const warnings = [];
+
+  for (const rule of ALL_RULES) {
+    checked.push(rule.id);
+    if (args.forceSkip.includes(rule.id)) {
+      skipped.push(rule.id);
+      warnings.push({ rule: rule.id, reason: 'skipped via --force-skip' });
+      continue;
+    }
+    try {
+      const hits = rule.check({ cache, product, config, classMap });
+      for (const h of hits) violations.push(h);
+    } catch (e) {
+      warnings.push({ rule: rule.id, reason: `rule crashed: ${e.message}` });
+    }
+  }
+
+  const report = makeReport({ checked, skipped, violations, warnings });
+  printReport(report);
+  process.exit(report.ok ? 0 : 1);
+}
+
+main();

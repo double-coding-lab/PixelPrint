@@ -1,15 +1,15 @@
 ---
-description: Distinguish .Knowledge/stock-docs (existing context) from .Knowledge/req-docs (requirements and technical designs); do not mix paths or downstream targets
+description: 区分 .Knowledge/stock-docs（存量上下文）与 .Knowledge/req-docs（需求与技术方案）；禁止混用路径与链出目标
 paths:
   - "**/.Knowledge/stock-docs/**/*.md"
   - "**/.Knowledge/req-docs/**/*.md"
 ---
 
-> **Single long-form rule**: this file is the complete convention for **f2s-doc-routing**. `.Knowledge/topics/f2s-stock-docs-vs-req-docs.md` is only a routing summary; **Codex** reads `.codex/topics/f2s-stock-docs-vs-req-docs.md` (automatically mirrored from this file by `flow2spec init`) as the equivalent rule text.
+> **唯一长文**：本文件为 **f2s-doc-routing** 的完整约定。`.Knowledge/topics/f2s-stock-docs-vs-req-docs.md` 仅为路由摘要；**Codex** 读取 `.codex/topics/f2s-stock-docs-vs-req-docs.md`（由 `flow2spec init` 从本文件自动镜像）作为等效条令。
 
-# stock-docs and req-docs
+# stock-docs 与 req-docs
 
-- **`.Knowledge/stock-docs/`**: **existing source documents** such as PDFs, drafts, final drafts, and architecture notes. Document writes from `f2s-kb-build`, `f2s-doc-final`, `f2s-doc-arch`, and `f2s-kb-add` should prefer this directory. Always write `sourceDoc` as `.Knowledge/stock-docs/<filename>.md`.
-- **`.Knowledge/req-docs/`**: requirement clarifications, technical designs (frontend/backend/data/tasks, etc.), and "implement from design" MD files output by `f2s-doc-pdf`. The trigger scope for `implement-tech-design` is `.Knowledge/req-docs/**/*.md`.
+- **`.Knowledge/stock-docs/`**：PDF/初稿/终稿/架构说明等**存量源文档**；`f2s-kb-build`、`f2s-doc-final`、`f2s-doc-arch`、`f2s-kb-add` 的文档落盘优先在此。`sourceDoc` 统一写 `.Knowledge/stock-docs/<文件名>.md`。
+- **`.Knowledge/req-docs/`**：需求澄清、技术方案（前后端/数据/任务等）、`f2s-doc-pdf` 输出的「按方案实现」MD；`implement-tech-design` 的触发范围为 `.Knowledge/req-docs/**/*.md`。
 
-For the complete convention, see this rule and **`skills/f2s-doc-routing/SKILL.md`**; `.Knowledge/topics/f2s-stock-docs-vs-req-docs.md` is the routing summary.
+完整约定见本规则与 **`skills/f2s-doc-routing/SKILL.md`**；`.Knowledge/topics/f2s-stock-docs-vs-req-docs.md` 为路由摘要。

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * flow2spec SessionStart hook — checks for version updates on the first conversation each day.
- * Compares the local knowledge-base manifest-routing.json version with the latest npm version:
- *   - Same or local is newer -> exit silently
- *   - Behind -> inject one notice into Agent context (suggest running f2s-kb-upgrade)
- * If already checked and no upgrade is needed, stay silent; if already checked and an upgrade is still needed, keep injecting the reminder in each new session.
- * Written by flow2spec init to the corresponding agent's hooks/f2s-update-check.js.
+ * flow2spec SessionStart hook — 每天第一次对话时检查版本更新。
+ * 比较本地知识库 manifest-routing.json 的 version 与 npm 最新版本：
+ *   - 一致或本地更新 → 静默退出
+ *   - 落后 → 向 Agent 上下文注入一行提示（建议执行 f2s-kb-upgrade）
+ * 已检查过且无需升级则静默；已检查且仍需升级时，每个新会话继续注入提醒。
+ * 由 flow2spec init 写入对应 agent 的 hooks/f2s-update-check.js。
  */
 const fs   = require('fs');
 const path = require('path');
@@ -18,7 +18,7 @@ const CACHE_FILE   = path.join(CACHE_DIR, 'update-check.json');
 const PACKAGE_NAME_PLACEHOLDER = '__FLOW2SPEC_' + 'PACKAGE_NAME__';
 const PACKAGE_NAME = '@double-coding/flow2spec';
 
-// ── Cache ───────────────────────────────────────────────────────────────────
+// ── 缓存 ────────────────────────────────────────────────────────────────────
 
 function readCache() {
   if (!fs.existsSync(CACHE_FILE)) return null;
@@ -41,9 +41,9 @@ function getProjectName() {
 }
 
 function buildNotice(latestNpm, manifestVersion) {
-  const userMsg = `📦 [flow2spec] The current project "${getProjectName()}" knowledge-base version is v${manifestVersion}, which is lower than the latest package version v${latestNpm}. You can run the f2s-kb-upgrade skill to align templates and routing.`;
+  const userMsg = `📦 [flow2spec] 当前项目「${getProjectName()}」知识库版本 v${manifestVersion}，低于最新包版本 v${latestNpm}。可执行 f2s-kb-upgrade skill 对齐模板与路由。`;
   return [
-    `[flow2spec/agent-instruction] At the start of this response, you must relay the following upgrade notice to the user verbatim. Do not omit it or skip it after only internal judgment:`,
+    `[flow2spec/agent-instruction] 你必须在本轮回复开头将下列升级提示原文转告用户，不得省略、不得仅在内部判断后跳过：`,
     ``,
     userMsg,
   ].join('\n');
@@ -84,7 +84,7 @@ function deleteCache() {
   } catch (_) {}
 }
 
-// ── Version comparison ───────────────────────────────────────────────────────
+// ── 版本比较 ─────────────────────────────────────────────────────────────────
 
 function parseVer(v) {
   return String(v || '').replace(/^v/, '').split(/[.-]/).slice(0, 3).map((p) => {
@@ -93,7 +93,7 @@ function parseVer(v) {
   });
 }
 
-/** a < b -> negative; a === b -> 0; a > b -> positive */
+/** a < b → 负数；a === b → 0；a > b → 正数 */
 function cmpVer(a, b) {
   const av = parseVer(a), bv = parseVer(b);
   for (let i = 0; i < 3; i++) {
@@ -103,7 +103,7 @@ function cmpVer(a, b) {
   return 0;
 }
 
-// ── Reads ────────────────────────────────────────────────────────────────────
+// ── 读取 ─────────────────────────────────────────────────────────────────────
 
 function getManifestVersion() {
   if (!fs.existsSync(MANIFEST_PATH)) return null;
@@ -127,7 +127,7 @@ function queryNpmLatest(pkgName) {
   }).trim();
 }
 
-// ── Configuration switch ─────────────────────────────────────────────────────
+// ── 配置开关 ──────────────────────────────────────────────────────────────────
 
 function isEnabled() {
   try {
@@ -140,14 +140,14 @@ function isEnabled() {
   } catch (_) { return true; }
 }
 
-// ── Main flow ────────────────────────────────────────────────────────────────
+// ── 主流程 ────────────────────────────────────────────────────────────────────
 
 function main() {
   if (process.env.CI || process.env.CONTINUOUS_INTEGRATION) return;
   if (!isEnabled()) return;
   const cache = readCache();
   if (cache) {
-    // If already checked today, do not query npm again; if the cache still says an upgrade is needed, keep reminding in each new session.
+    // 今天已检查过则不重复查 npm；若缓存显示仍需升级，每个新会话继续提醒。
     const needsUpgrade = cache.needsUpgrade === true ||
       cmpVer(cache.manifestVersion, cache.latestNpm) < 0;
     if (needsUpgrade) {
@@ -157,7 +157,7 @@ function main() {
         deleteCache();
         return;
       }
-      // SessionStart enters a new session: cache hit and upgrade still needed, so emit directly.
+      // SessionStart 进入新会话：缓存命中且仍需升级，直接 emit。
       const notice = buildNotice(cache.latestNpm, cache.manifestVersion);
       emitNotice(notice);
     }
@@ -165,20 +165,20 @@ function main() {
   }
 
   const manifestVersion = getManifestVersion();
-  if (!manifestVersion) return;  // No knowledge base, skip
+  if (!manifestVersion) return;  // 无知识库，跳过
 
   let latestNpm;
   try {
     const pkgName = getPackageName();
     latestNpm = queryNpmLatest(pkgName);
   } catch (_) {
-    return;  // Network unavailable, exit silently without writing cache (retry next time)
+    return;  // 网络不通，静默退出，不写缓存（下次还会重试）
   }
 
-  // Write cache (whether or not upgrade is needed, do not repeat the check today)
+  // 写缓存（无论是否需要升级，今天不再重复检查）
   writeCache(latestNpm, manifestVersion);
 
-  if (cmpVer(manifestVersion, latestNpm) >= 0) return;  // Already up to date
+  if (cmpVer(manifestVersion, latestNpm) >= 0) return;  // 已是最新
 
   const notice = buildNotice(latestNpm, manifestVersion);
   emitNotice(notice);

@@ -1,92 +1,92 @@
 ---
 name: f2s-doc-final
-description: Convert a PDF or MD document into the `final-overview-template` standard format so f2s-kb-build can later sync topics/index/manifest; triggers: f2s-doc-final、转成概述模板、终稿模版、final-overview-template, final template、convert to final draft
+description: 将 PDF 或 MD 转为《终稿模版》规范格式，便于后续用 f2s-kb-build 同步 topics/index/manifest；触发：f2s-doc-final、转成概述模板、终稿模版
 ---
 
-> Execution scope: drafts and final documents are both written to `.Knowledge/stock-docs/`; prefer reading `.Knowledge/template/final-overview-template.md` as the template.
+> 执行口径：初稿/终稿统一写入 `.Knowledge/stock-docs/`；模板优先读取 `.Knowledge/template/终稿模版.md`。
 
-## Orchestration (main / sub agent)
+## 编排（主 / 子 agent）
 
-- The semantics of `subAgent` / `switchAgentVerification` use the unified entry as the only source of truth: **Cursor/Claude** read the config-root `rules/f2s-flow2spec-unified-entry.*`; **Codex** reads `.codex/topics/f2s-flow2spec-unified-entry.md` (same source, mirrored by `flow2spec init`). This section does not restate those semantics.
-- **Do not split by default**: MD / PDF -> `final-overview-template` conversion is most coherent when the main session completes understanding, template mapping, and finalization in one pass.
-- **Optional split** (only when `subAgent=true` and the input is large / multi-file; threshold: PDF **> 50 pages** or **> ~5MB of text**): a sub agent may produce a **draft** for template mapping, formatting, and structural transfer; the main agent compares it against the `final-overview-template`, identifies gaps, asks the user follow-up questions, aligns with the user, and **finalizes / accepts** the document. **A sub agent must not claim the final document is compliant on its own**.
-- Do not split by default just because "format conversion can be isolated": final compliance depends on template semantics plus business wording, and the main-side acceptance cost usually remains.
-- Verification is performed by the writing agent. This skill does not bind to cross-agent verification.
+- `subAgent` / `switchAgentVerification` 两字段语义以统一入口为唯一事实源：**Cursor/Claude** 读配置根 `rules/f2s-flow2spec-unified-entry.*`；**Codex** 读 `.codex/topics/f2s-flow2spec-unified-entry.md`（与上同源，`flow2spec init` 镜像）。本节不复述。
+- **默认不拆子**：MD / PDF → 终稿模版的连贯性最好，由主会话一气呵成完成理解、套模版与定稿。
+- **可选拆子**（仅当 `subAgent=true` 且大体量 / 多文件，阈值：PDF **> 50 页** 或 **> ~5MB 文本**）：子 agent 做「套模版、排版与结构搬运」**草稿**；主 agent 对照终稿模版、识别缺口并向用户追问、与用户对齐并**定稿 / 验收**；**子 agent 不得单独宣称终稿已合规**。
+- 不为「格式转换可独立」默认拆子：终稿合规依赖模版语义 + 业务表述，主侧验收成本通常仍在。
+- 校验：落盘侧 agent 自验，本 SKILL 不绑定交叉校验。
 
-# Convert a PDF or MD into the `final-overview-template` Standard Format (spec -> context)
+# 将 PDF 或 MD 转换为《终稿模版》规范格式（spec → context）
 
-The user provides **at least one argument** after this skill: the **first argument** is a local **PDF file path** or **Markdown file path** (required); the **second argument** (optional) is an output file path and overrides the default output location. Execute the following workflow based on the file type, and output a final-style Markdown document that can later be consumed by **f2s-kb-build**.
+用户会在本技能后附带**至少一个参数**：**第一个参数**为本地 **PDF 文件路径**或 **Markdown 文件路径**（必填）；**第二个参数**（可选）为输出文件路径，若提供则覆盖默认输出位置。请根据文件类型按下列流程执行，输出便于后续由 **f2s-kb-build** 技能消费的终稿风格 Markdown 文档。
 
-**The `final-overview-template` is only guidance**: if `.Knowledge/template/final-overview-template.md` exists, read it as a structural reference. Do not force an exact template fit.
+**终稿模版仅作提示**：若存在 `.Knowledge/template/终稿模版.md`，可读取作为结构参考；不强制套用。
 
-## Embedded Template Structure (Use When `.Knowledge/template/final-overview-template.md` Does Not Exist)
+## 内嵌模板结构（当项目内无 `.Knowledge/template/终稿模版.md` 时使用）
 
-Standard requirements:
+规范要求：
 
-- **Level-1 heading**: design name (for example `# xxx Technical Design`).
-- **Level-2 headings should include at least**: `## Core Concepts`, `## Business Rules`, `## Key Flows`; add or remove others as needed (for example status and transitions, APIs, configuration/table design/error codes, implementation locations and integration approach).
-- **Core concepts**: use a table listing terms, entities, and key IDs (columns: concept, description).
-- **Status and transitions**: if there is a state machine, list states and transitions; otherwise summarize briefly or omit.
-- **Business rules**: list constraints, validations, and configuration items.
-- **Key flows**: describe the main user-side or system-side flows; list flow name, brief steps, entry API/method, and result.
-- **Optional sections**: APIs, configuration/table design/error codes, implementation locations and integration approach. Keep and fill them as needed.
-
----
-
-## Flow 1: The User Provides Markdown (`.md`)
-
-1. **Read** the `.md` file provided by the user.
-2. **Reference format** (not mandatory): if `.Knowledge/template/final-overview-template.md` exists, read it as structural guidance; otherwise use the embedded template structure below.
-3. **Analyze and convert**:
-  - Understand the source topic and structure, and extract the "design name", "core concepts", "business rules", "key flows", and other source-relevant sections (such as status and transitions, APIs, configuration/table design/error codes, implementation locations, and so on).
-  - Reorganize the content into clear final-style Markdown: the level-1 heading is the design name; the document should include at least the three level-2 headings `Core Concepts`, `Business Rules`, and `Key Flows`; add or remove other sections according to the source and need. Table/list formatting may reference the template but does not need to match exactly.
-  - If the source lacks a section, mark it as `（待补充）` or infer and complete it from the source. If the source structure is already clear, keep the original section names.
-4. **Output**:
-  - Default output is `.Knowledge/stock-docs/<design-name>_final.md` (the final artifact includes the `_final` marker).
-  - If the user specifies an output path as the second argument, use that path; otherwise use the default.
-5. **Reply**: tell the user that `.Knowledge/stock-docs/<design-name>_final.md` has been generated, and say they may continue with `f2s-kb-build` to sync `.Knowledge/topics`, `.Knowledge/index.md`, and `manifest` if needed.
+- **一级标题**：方案名（如 `# xxx 技术方案设计`）。
+- **二级标题至少包含**：`## 核心概念`、`## 业务规则`、`## 关键流程`；其余可按需增删（如 状态与流转、接口、配置/表设计/错误码、实现位置与对接方式）。
+- **核心概念**：用表格列出术语、实体、关键 ID（列：概念、说明）。
+- **状态与流转**：若有状态机，用列表写状态及流转；若无可简述或省略。
+- **业务规则**：列表写约束、校验、配置项。
+- **关键流程**：按「用户侧或系统侧」主流程，列表写流程名、步骤简述、入口接口/方法、结果。
+- **可选章节**：接口、配置/表设计/错误码、实现位置与对接方式，按需保留并填写。
 
 ---
 
-## Flow 2: The User Provides a PDF (`.pdf`)
+## 流程一：用户传入的是 Markdown（.md）
 
-Complete this in two stages: **first PDF -> draft MD, then after user confirmation draft MD -> template-format MD**.
-
-### Step A: First Execution (PDF Path Provided)
-
-1. **Try to read the PDF**: read the PDF from the user-provided path (absolute or relative to the project root, for example `.Knowledge/stock-docs/xxx.pdf`).
-  - If the current environment can parse PDF text: extract the body and convert it to a Markdown draft (preserve heading hierarchy, lists, paragraphs, and tables if recognizable).
-  - If the PDF cannot be read directly (for example only binary data is available): ask the user to export the PDF content to `.Knowledge/stock-docs/xxx.md` and then run the skill again.
-2. **Generate the draft**:
-  - Save the extracted content as `.Knowledge/stock-docs/<design-name>_draft.md` (infer the design name from the PDF filename or first heading).
-  - In the reply, **show the full draft or its main structure**, and clearly state:
-    - "The draft has been saved as `.Knowledge/stock-docs/<design-name>_draft.md`; please review and edit it."
-    - "After confirming it is correct, run: `f2s-doc-final .Knowledge/stock-docs/<design-name>_draft.md`."
-3. **Do not perform template-format conversion in this round**. This round only completes PDF -> draft MD.
-
-### Step B: Second Execution After User Confirmation (Draft `.md` Path Provided)
-
-When the user **runs this skill again with the draft `.md` path** (for example `.Knowledge/stock-docs/技术方案设计_draft.md`):
-
-- Execute Steps 2-5 from **"Flow 1: The User Provides Markdown"**: read the format guidance -> analyze and convert -> output template-format content.
-- **Output suggestion**: generate `.Knowledge/stock-docs/<design-name>_final.md`.
-- **Reply**: tell the user the standardized version has been generated, and say they may continue with `f2s-kb-build` to sync `.Knowledge/topics` and the index.
+1. **读取**用户传入的 `.md` 文件内容。
+2. **参考格式**（不强制）：若存在 `.Knowledge/template/终稿模版.md`，可读取作为结构提示；否则可参考下方内嵌模板结构。
+3. **分析与转换**：
+  - 理解原文主题与结构，提炼「方案名」「核心概念」「业务规则」「关键流程」及与原文相关的其他章节（如状态与流转、接口、配置/表设计/错误码、实现位置等）。
+  - 将内容重组为结构清晰的终稿风格 Markdown：一级标题为方案名；建议至少包含 核心概念、业务规则、关键流程 三个二级标题，其余按原文有无与需要增删；表格/列表格式可参考模版，不必完全一致。
+  - 若原文缺少某节，可标「（待补充）」或根据原文推断补全；若原文结构已清晰，可保留原文章节命名。
+4. **输出**：
+  - 默认写入 `.Knowledge/stock-docs/<方案名>_终稿.md`（最终产物带 `_终稿` 标识）。
+  - 若用户希望指定输出路径，可在命令后附带第二个参数作为输出路径；否则用默认。
+5. **回复**：告知用户已生成 `.Knowledge/stock-docs/<方案名>_终稿.md`，并提示可按 `f2s-kb-build` 继续同步 `.Knowledge/topics`、`.Knowledge/index.md`（必要时 `manifest`）。
 
 ---
 
-## Path and Output Conventions
+## 流程二：用户传入的是 PDF（.pdf）
 
-- All paths are relative to the project root. Drafts and final documents are both placed under `.Knowledge/stock-docs/`.
-- **Input**: the first argument is a required file path, such as `.Knowledge/stock-docs/方案.pdf` or `.Knowledge/stock-docs/方案_draft.md`; the second argument is optional.
-- **Output**:
-  - First PDF run: `.Knowledge/stock-docs/<design-name>_draft.md`
-  - MD or draft MD: `.Knowledge/stock-docs/<design-name>_final.md`
-- If `.Knowledge/stock-docs/` does not exist, create it before writing.
+分两步完成：**先 PDF → 初稿 MD，用户确认后再 初稿 MD → 模板格式 MD**。
+
+### 步骤 A：首次执行（传入 PDF 路径）
+
+1. **尝试读取 PDF**：按用户传入路径读取 PDF（可为绝对路径，或相对项目根；如 `.Knowledge/stock-docs/xxx.pdf`）。
+  - 若当前环境可解析 PDF 文本：提取正文，转为 Markdown 初稿（保留标题层级、列表、段落，表格若可识别则保留）。
+  - 若无法直接读取 PDF（如仅能拿到二进制）：回复用户可将 PDF 内容转存为 `.Knowledge/stock-docs/xxx.md` 后再执行。
+2. **生成初稿**：
+  - 将提取出的内容保存为 `.Knowledge/stock-docs/<方案名>_初稿.md`（方案名可从 PDF 文件名或首标题推断）。
+  - 在回复中**展示初稿的全文或主要结构**，并明确说明：
+    - 「初稿已保存为 `.Knowledge/stock-docs/<方案名>_初稿.md`，请检查并修改。」
+    - 「确认无误后，请执行：`f2s-doc-final .Knowledge/stock-docs/<方案名>_初稿.md`。」
+3. **本轮不进行模板格式转换**，仅完成 PDF → 初稿 MD。
+
+### 步骤 B：用户确认后再次执行（传入初稿 .md 路径）
+
+当用户**再次执行本技能并传入初稿的 .md 路径**（如 `.Knowledge/stock-docs/技术方案设计_初稿.md`）时：
+
+- 按 **「流程一：用户传入的是 Markdown」** 的步骤 2～5 执行：读取格式规范 → 分析与转换 → 输出为模板格式。
+- **输出建议**：生成 `.Knowledge/stock-docs/<方案名>_终稿.md`。
+- **回复**：告知已生成规范版，并提示可按 `f2s-kb-build` 继续同步 `.Knowledge/topics` 与索引。
 
 ---
 
-## Constraints and Notes
+## 路径与输出约定
 
-- During conversion, **do not copy the source verbatim**. Extract, summarize, and complete it according to the template so core concepts, business rules, and key flows are easy to find.
-- It is recommended, but not mandatory, to keep the three level-2 headings **Core Concepts**, **Business Rules**, and **Key Flows**. Add or remove other sections based on the source and need. The `final-overview-template` is guidance only and is not mandatory.
-- End with a one-sentence summary: the generated draft/final path and the next step, `f2s-kb-build`, for syncing knowledge routing topics and indexes.
+- 所有路径均相对于项目根；初稿/终稿统一放在 `.Knowledge/stock-docs/`。
+- **输入**：第一个参数为文件路径（必填），如 `.Knowledge/stock-docs/方案.pdf` 或 `.Knowledge/stock-docs/方案_初稿.md`；第二个参数可选。
+- **输出**：
+  - PDF 首次：`.Knowledge/stock-docs/<方案名>_初稿.md`
+  - MD 或初稿 MD：`.Knowledge/stock-docs/<方案名>_终稿.md`
+- 若 `.Knowledge/stock-docs/` 目录不存在，先创建再写入。
+
+---
+
+## 约束与注意
+
+- 转换时**不要照抄原文**，要按模板**提炼、归纳、补全**，使核心概念、业务规则、关键流程清晰可查。
+- 建议（不强制）保留 **核心概念、业务规则、关键流程** 三个二级标题；其余章节按原文与需求增删，终稿模版仅作提示，不强制套用。
+- 完成后一句话总结：已生成初稿/终稿路径，并说明下一步可用 `f2s-kb-build` 同步知识路由主题与索引。

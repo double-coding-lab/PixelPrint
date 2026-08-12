@@ -1,156 +1,156 @@
 ---
 name: f2s-req-plan
-description: Plan and implement tasks from a technical design, requirement description, or change description; always maintain `.task/` according to f2s-task; supports parallel sub-agent implementation. Triggers: f2s-req-plan、创建任务、任务规划、我需要任务清单、task planning、create task list
+description: 根据技术方案/需求描述/变更描述规划并实现任务；始终按 f2s-task 维护 .task/；支持子 agent 并行实现；触发：f2s-req-plan、创建任务、任务规划、我需要任务清单
 ---
 
-> **Task paths**: all `.task/` reads/writes must use **`TASK_ROOT` from `rules/f2s-task`** (` .task` or `.task/<developerId>`; config → git → legacy). Bare `.task/todo.json` / `.task/active/` below mean **`TASK_ROOT/...`**.
+> **任务路径**：凡 `.task/` 落盘与续作，**必须以 `rules/f2s-task` 解析的 `TASK_ROOT` 为准（`.task` 或 `.task/<developerId>`；config → git → legacy）。下文若仍出现 `.task/todo.json` / `.task/active/`，均视为 **`TASK_ROOT/...` 的简写**。
 
 
-# Requirement Task Planning and Implementation (f2s-req-plan)
+# 需求任务规划与实现（f2s-req-plan）
 
-Start from a requirement or technical design and cover the full "plan -> implement" chain. This skill **does not depend on** `changeTracking.*`, but the full `.task/` lifecycle **must use `f2s-task` as the only source of truth** (directory structure, format, continuation, checkbox updates, archiving, and user-todos). Knowledge-base sync is invoked later by the user as needed through `f2s-kb-feat` / `f2s-kb-sync`.
+从需求/技术方案出发，完整覆盖「规划 → 实现」链路。**不依赖** `changeTracking.*`，但 **`.task/` 全生命周期必须以 `f2s-task` 为唯一真值源**（目录、格式、续作、打钩、归档、user-todos）。知识库同步由用户后续按需调用 `f2s-kb-feat` / `f2s-kb-sync`。
 
-## Relationship with f2s-task (Hard Constraint)
+## 与 f2s-task 的关系（硬约束）
 
-| Item | Description |
+| 项 | 说明 |
 | --- | --- |
-| **Source of truth** | Config-root **`rules/f2s-task.*`** (`alwaysApply: true`); Codex reads **`.codex/topics/f2s-task.md`** (init mirror, same source as rules) |
-| **This skill's responsibility** | Planning draft, code implementation, and sub-agent orchestration; **must not** define a custom `.task/` structure or weaken checkbox/archive requirements |
-| **Relationship with changeTracking** | `f2s-req-plan` is **not constrained by** `changeTracking.feat/fix/implement`; it **always** uses task lists. See `f2s-task` "Activation Conditions" |
+| **真值源** | 配置根 **`rules/f2s-task.*`**（`alwaysApply: true`）；Codex 读 **`.codex/topics/f2s-task.md`**（init 镜像，与 rules 同源） |
+| **本技能职责** | 规划草稿、实现代码、子 agent 编排；**不得**自定 `.task/` 结构或弱化打钩/归档 |
+| **与 changeTracking** | `f2s-req-plan` **不受** `changeTracking.feat/fix/implement` 约束，**始终**走任务清单；见 `f2s-task`「生效条件」 |
 
-**All three clients must read the full `f2s-task` text (Step 0 is mandatory, before any step below):**
+**三端读取 `f2s-task` 全文（步骤 0 必做，先于下文任何步骤）**：
 
-| Client | Path |
+| 端 | 路径 |
 | --- | --- |
-| **Cursor** | Config-root `rules/f2s-task.mdc`; or initialized `.cursor/rules/f2s-task.mdc` |
+| **Cursor** | 配置根 `rules/f2s-task.mdc`；或已 init 的 `.cursor/rules/f2s-task.mdc` |
 | **Claude Code** | `.claude/rules/f2s-task.md` |
 | **Codex** | `.codex/topics/f2s-task.md` |
 
-## Orchestration (main / sub agent)
+## 编排（主 / 子 agent）
 
-- `subAgent` / `switchAgentVerification` use the unified entry as the only source of truth: **Cursor/Claude** -> `rules/f2s-flow2spec-unified-entry.*`; **Codex** -> `.codex/topics/f2s-flow2spec-unified-entry.md`.
-- **Step 1 (continuation triage + parsing)**: the main agent must perform `f2s-task` "Task Start" 1-2. Document parsing may be split to a sub agent (read-only).
-- **Step 2 (draft confirmation)**: must be handled by the main agent. Before confirmation, do not create `.task/` and do not write business code.
-- **Step 3 (write task files)**: follow `f2s-task` "Task Start" 3.a-3.f. `todo.json` is **main-agent only**. Drafts of `task.md` / `context.md` / `user-todos.md` may be created by a sub agent; additions to `user-todos.md` during execution are merged by the main agent.
-- **Step 4 (implementation)**: sub agents may write only business code. **Sub agents must not** write `todo.json` or modify `task.md` checkboxes. The main agent checks off items after merging.
-- **Step 5 (archive)**: main agent only. Execute only after the archive gates in `f2s-task` "Task Completion" are satisfied.
-- Worktree hygiene follows `f2s-flow2spec-unified-entry`; interruption/end-of-session handling follows `f2s-task` "Interruption and Session End".
+- `subAgent` / `switchAgentVerification` 以统一入口为唯一事实源：**Cursor/Claude** → `rules/f2s-flow2spec-unified-entry.*`；**Codex** → `.codex/topics/f2s-flow2spec-unified-entry.md`。
+- **步骤 1（续作分诊 + 解析）**：主 agent 必做 `f2s-task`「任务开始」1–2；解析文档可拆子 agent（只读）。
+- **步骤 2（草稿确认）**：必须主 agent；未确认前禁止创建 `.task/` 或写业务代码。
+- **步骤 3（落盘）**：按 `f2s-task`「任务开始」3.a–3.f；`todo.json` **仅主 agent**；`task.md` / `context.md` / `user-todos.md` 初稿可子 agent，`user-todos.md` 执行中追加由主 agent 合并。
+- **步骤 4（实现）**：子 agent 只写业务代码；**禁止**子 agent 写 `todo.json`、改 `task.md` checkbox；打钩由主 agent 在合并后当步完成。
+- **步骤 5（归档）**：主 agent；**仅**满足 `f2s-task`「任务完成」归档门禁后执行。
+- worktree 卫生见 `f2s-flow2spec-unified-entry`；中断/结束见 `f2s-task`「中断与会话结束」。
 
-## Input (Choose One)
+## 输入（任选其一）
 
-- Technical design path (`.Knowledge/req-docs/*.md` or PDF)
-- Requirement / change description (free text)
+- 技术方案路径（`.Knowledge/req-docs/*.md` 或 PDF）
+- 需求 / 变更描述（自由文本）
 
-## Steps
+## 步骤
 
-### Step 0: Preflight (Mandatory, Before Any Step)
+### 步骤 0：前置（强制，任何步骤之前）
 
-1. **`Read("flow2spec.config.json")`** (project root; missing fields are treated as `false`).
-2. **`Read` the full `f2s-task` text for one of the three clients above** (do not skip; do not use only this SKILL summary as a substitute).
-3. Decide whether to split to sub agents and whether to cross-verify based on the read `subAgent` / `switchAgentVerification` values.
+1. **`Read("flow2spec.config.json")`**（项目根；缺失字段视为 `false`）。
+2. **`Read` 上表三端之一的 `f2s-task` 全文**（不得跳过；不得仅用本 SKILL 摘要代替）。
+3. 按读到的 `subAgent` / `switchAgentVerification` 决定下文是否拆子 agent、是否交叉校验。
 
-### Step 1: Continuation Triage + Parse Input
+### 步骤 1：续作分诊 + 解析输入
 
-#### 1a. Continuation Triage (`f2s-task` "Task Start" 1-2, Main Agent)
+#### 1a. 续作分诊（`f2s-task`「任务开始」1–2，主 agent）
 
-1. If **`.task/todo.json`** exists, `Read` it and match the **current user input** against each entry's **`keywords`**.
-2. **Exactly 1 match** -> `Read` the corresponding `task.md` and `context.md`; if present, `Read` **`user-todos.md`**. Show the remaining checklist and unchecked user todos, then ask whether to **continue** that task.
-   - User confirms continuation -> **load the full text of this SKILL** (`linkedSkill` should be `f2s-req-plan`), continue from the first `[ ]` in `task.md`, and **do not** create a duplicate `active/` directory. **Jump to Step 4** (if planning still needs additions, record them first under `## Notes`, then implement).
-   - User explicitly wants a **new task** -> proceed to 1b.
-3. **Multiple matches** -> list candidates and let the user choose which one to continue or choose a new task.
-4. **No match** -> check for **orphan `active/`** tasks (`f2s-task`): if any unarchived task has a `task.md` containing `[ ]`, ask whether to continue it or restore `todo.json`; otherwise proceed to 1b.
-5. **No `todo.json`** -> proceed to 1b.
+1. 若存在 **`.task/todo.json`**，`Read` 并将**用户本条输入**与各条目 **`keywords`** 匹配。
+2. **命中 1 个** → `Read` 对应 `task.md`、`context.md`；若存在则 `Read` **`user-todos.md`**；向用户展示剩余 checklist 与未勾用户代办；询问是否**续作**该任务。
+   - 用户确认续作 → **加载本 SKILL 全文**（`linkedSkill` 应为 `f2s-req-plan`），从 `task.md` 首个 `[ ]` 继续；**禁止**新建重复 `active/` 目录；**跳至步骤 4**（若仍需补充规划，先在「## 备注」记录后再实现）。
+   - 用户明确要**新任务** → 进入 1b。
+3. **命中多个** → 列出候选，让用户选择续作哪一个或新建。
+4. **无命中** → 检查**孤儿 `active/`**（`f2s-task`）：若有未归档且含 `[ ]` 的 `task.md`，提示是否续作或恢复 `todo.json`；否则进入 1b。
+5. **无 `todo.json`** → 进入 1b。
 
-#### 1b. Parse Input (New Task or Draft Needed)
+#### 1b. 解析输入（新任务或待草稿）
 
-When `subAgent=true`, read-only parsing may be split to sub agents:
+`subAgent=true` 时可拆子 agent 并行只读：
 
-- Read the full design/requirement and extract goals, scope, work items, and touched files.
-- Read `.Knowledge/stock-docs/` and other context for alignment.
-- Convert PDFs to MD first with `f2s-doc-pdf`.
+- 读取方案/需求全文，提取目标、范围、工作项、涉及文件
+- 读取 `.Knowledge/stock-docs/` 等对齐上下文
+- PDF 先 `f2s-doc-pdf` 转 MD
 
-Sub agents return only a "parsing summary"; when `subAgent=false`, the main agent does this work. -> **Step 2**.
+子 agent 只交「解析摘要」；`subAgent=false` 时主 agent 完成。→ **步骤 2**。
 
-### Step 2: Output Draft and Confirm (Main Agent Required)
+### 步骤 2：输出草稿并确认（必须主 agent）
 
-The main agent outputs:
+主 agent 输出：
 
-1. **Task name** (`snake_case`)
-2. **Implementation checklist draft** (each step may be a checkbox and will be written into `task.md` under `## Steps`)
-3. **Touched file list** (will be written into `context.md`)
-4. **Suggested `keywords`** (2-5 terms for continuation matching in `todo.json`)
-5. **Wait for user confirmation**
+1. **任务名称**（snake_case）
+2. **实现清单草稿**（每步可 checkbox，将写入 `task.md` 的「## 步骤」）
+3. **涉及文件列表**（将写入 `context.md`）
+4. **建议 `keywords`**（2–5 个，供 `todo.json` 续作匹配）
+5. **等待用户确认**
 
-> Before confirmation, it is forbidden to create `.task/`, write `todo.json`, or write business code.
+> **未确认前**禁止：创建 `.task/`、写 `todo.json`、写业务代码。
 
-### Step 3: Write Task Files (`f2s-task` "Task Start" 3.a-3.f)
+### 步骤 3：落盘任务清单（`f2s-task`「任务开始」3.a–3.f）
 
-After the user confirms, **strictly follow `f2s-task`** (the format is defined by that rule body; do not omit files):
+用户确认后，**严格按 `f2s-task` 执行**（格式以该规则正文为准，不得省略文件）：
 
-| Sub-step | Action | Write authority |
+| 子步 | 动作 | 写权 |
 | --- | --- | --- |
-| 3.a | Confirm `<task-name>` (`snake_case`) | Main |
-| 3.b | Create `.task/active/<task-name>/` | Main or sub (draft) |
-| 3.c | Write **`task.md`**: `# Task Name` + `## Steps` + `- [ ]` list + empty `## Notes` | Main or sub |
-| 3.d | Write **`context.md`**: touched files, `.Knowledge` links; user todos point to `user-todos.md` | Main or sub |
-| 3.e | Create **`user-todos.md`** (fixed filename; when there are no todos, write a placeholder note) | Main or sub |
-| 3.f | Add a **`todo.json` entry**: `name`, `folder`, `keywords` (including Step 2 suggestions), `linkedSkill: "f2s-req-plan"`, `createdAt` | **Main agent only** |
+| 3.a | 确认 `<task-name>`（snake_case） | 主 |
+| 3.b | 创建 `.task/active/<task-name>/` | 主或子（初稿） |
+| 3.c | 写入 **`task.md`**：`# 任务名` + `## 步骤` + `- [ ]` 列表 + 空 `## 备注` | 主或子 |
+| 3.d | 写入 **`context.md`**：涉及文件、`.Knowledge` 资料链接；用户代办指向 `user-todos.md` | 主或子 |
+| 3.e | 创建 **`user-todos.md`**（固定文件名；无代办时写占位说明） | 主或子 |
+| 3.f | **`todo.json` 新增条目**：`name`、`folder`、`keywords`（含步骤 2 建议词）、`linkedSkill: "f2s-req-plan"`、`createdAt` | **仅主 agent** |
 
-**Forbidden**: creating only `task.md` without writing `todo.json`; omitting `user-todos.md`; using the old archive name format `completed/<task-name>-<date>`.
+**禁止**：只建 `task.md` 不写 `todo.json`；省略 `user-todos.md`；使用 `completed/<task-name>-<date>` 旧式归档名。
 
-### Step 4: Implement Code
+### 步骤 4：实现代码
 
-Follow `f2s-task` "In Progress" and "Interruption and Session End":
+遵守 `f2s-task`「**执行中**」「**中断与会话结束**」：
 
-- Implement in `task.md` order. **Every time a step is truly completed**, the main agent must immediately `Edit` that step from `[ ]` to `[x]` (no batch checking, no oral-only completion).
-- For any required user action such as database changes, environment configuration, or approvals, append it to **`user-todos.md`** in the **same session** (group by date). Do not leave it only in the conversation or in `task.md` body.
-- When `subAgent=true`: sub agents modify only business source code; after they report back, the main agent checks off tasks and writes `user-todos.md`.
-- After merging sub-agent work, clean the **git worktree** (see unified entry).
+- 按 `task.md` 顺序实现；**每真实完成一步**，主 agent **立即** `Edit` 该步 `[ ]` → `[x]`（禁止批量勾选、禁止仅口头完成）。
+- 凡须用户改库/配环境/审批等，**同会话**追加 **`user-todos.md`**（按日期分节）；禁止只写在对话或 `task.md` 正文。
+- `subAgent=true`：子 agent 只改业务源码；回报后由主 agent 打钩与写 `user-todos.md`。
+- 合并子 agent 后清理 **git worktree**（见统一入口）。
 
-### Step 5: Archive the Task (`f2s-task` "Task Completion")
+### 步骤 5：归档任务（`f2s-task`「任务完成」）
 
-**Archive gates** (move the directory only after self-check passes):
+**归档门禁**（自检通过后才移动目录）：
 
-- All items related to the current delivery in `task.md` under `## Steps` are **`[x]`** (canceled items are explained under `## Notes`).
-- If any `[ ]` remains -> **do not** move to `completed/` and **do not** delete the `todo.json` entry.
+- `task.md`「## 步骤」中与本次交付相关项 **全部为 `[x]`**（取消项已在「## 备注」说明）。
+- 仍有 `[ ]` → **禁止**移入 `completed/`、**禁止**删 `todo.json` 条目。
 
-After passing:
+通过后：
 
-1. `.task/active/<task-name>/` -> `.task/completed/<YYYYMMDD>-<task-name>/` (**8-digit date first**)
-2. Remove the entry from `todo.json`; if the array becomes empty, delete the file
-3. Archive `user-todos.md` together with the directory
+1. `.task/active/<task-name>/` → `.task/completed/<YYYYMMDD>-<task-name>/`（**日期 8 位在前**）
+2. 从 `todo.json` 删除该条；空数组则删文件
+3. `user-todos.md` 随目录一并归档
 
-### Step 6: Output Summary
+### 步骤 6：输出摘要
 
 ```markdown
-## f2s-req-plan complete: <task-name>
+## f2s-req-plan 完成：<任务名>
 
-### Implementation
-- <file path>: <change summary>
+### 实现
+- <文件路径>：<改动说明>
 
-### Task List
-- Archived: `.task/completed/<YYYYMMDD>-<task-name>/` (or, if still active, show the path and remaining `[ ]`)
+### 任务清单
+- 已归档：`.task/completed/<YYYYMMDD>-<task-name>/`（或仍 active 时写明路径与剩余 `[ ]`）
 
-### Todo (Knowledge Base)
-- You may later call f2s-kb-sync / f2s-kb-feat
+### 待办（知识库）
+- 可后续调用 f2s-kb-sync / f2s-kb-feat
 
-### User Todos
-- See `user-todos.md` (after archiving, under the same completed path)
+### 用户代办
+- 见 `user-todos.md`（归档后在 completed 同路径）
 ```
 
-## Constraints
+## 约束
 
-- **Step 0**: must first `Read` `flow2spec.config.json` + the **full `f2s-task` text** (three-client paths above).
-- **`.task/`**: always obey `f2s-task`; this SKILL must not conflict with it.
-- Does not depend on `changeTracking`, but **always** creates and maintains a task list (unless continuing an existing active task).
-- Step 2 must be handled by the main agent; before confirmation, no disk writes.
-- `todo.json` is main-agent only; sub agents must not write it.
-- No batch checkbox updates; do not skip `user-todos.md`.
+- **步骤 0**：必须先 `Read` `flow2spec.config.json` + **`f2s-task` 全文**（三端路径见上表）
+- **`.task/`**：一律服从 `f2s-task`；本 SKILL 不得与之冲突
+- 不依赖 `changeTracking`，但**始终**创建并维护任务清单（除非续作已有 active 任务）
+- 步骤 2 必须主 agent；未确认禁止落盘
+- `todo.json` 仅主 agent；子 agent 禁止写入
+- 禁止批量勾选；禁止跳过 `user-todos.md`
 
-## Completion Self-Check
+## 完成后自检
 
-1. Has the **full `f2s-task` text** been read, and do written files match its format?
-2. Are all `task.md` steps checked as `[x]` on disk (not only orally)?
-3. When archive gates are satisfied, is the directory under `completed/<YYYYMMDD>-<task-name>/`, and has `todo.json` been updated?
-4. Does `user-todos.md` match user todos from the session (placeholder if none)?
-5. Is the worktree clean, or have cleanup commands been handed off (mark N/A if not applicable)?
+1. 是否已读 **`f2s-task` 全文** 且落盘格式与其一致。
+2. `task.md` 步骤是否均已磁盘 `[x]`（非口头）。
+3. 归档门禁满足时目录在 `completed/<YYYYMMDD>-<task-name>/`，`todo.json` 已更新。
+4. `user-todos.md` 与会话中用户代办一致（无则占位）。
+5. worktree 已清理或已交接删除命令（N/A 则注明）。

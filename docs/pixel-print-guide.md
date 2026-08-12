@@ -32,7 +32,7 @@
 
 一个 npm 包 + 一套 Claude Code SKILL 组合。跑一行 init,项目根多出:
 
-- `.claude/skills/` 下 3-4 个 SKILL(主流程 + 剥调试属性 + 局部修复)
+- `.claude/skills/` 与 `.codex/skills/` 下各 3-4 个 SKILL(主流程 + 剥调试属性 + 局部修复;两处镜像,Claude Code 与 Codex 都能用)
 - `pp-d2c.config.json`(单位换算、图片路径、adapter 等配置)
 - `.env`(存 Figma Token)
 - rn 项目还多一份 `src/utils/rpx.ts`
@@ -319,7 +319,7 @@ $ npx @double-coding/pixel-print init --framework rn --adapter-preset custom
 
 ## 7. 装完之后长什么样
 
-**SKILL**(`.claude/skills/`,按 framework 分):
+**SKILL**(同时装到 `.claude/skills/` 与 `.codex/skills/`,两处镜像;按 framework 分):
 
 | SKILL | 作用 | 何时落地 |
 |---|---|---|
@@ -327,6 +327,8 @@ $ npx @double-coding/pixel-print init --framework rn --adapter-preset custom
 | `pp-d2c-rn/` | RN 主 D2C 流程(6 大 RN 内核标签 + adapter) | framework=rn 时 |
 | `pp-strip-nodeid/` | 剥离 `data-node-id` 调试属性 + 生成 anchor 档案 | 总是装 |
 | `pp-fix-partial/` | 局部 UI 修复(v1.1.0+) | 总是装 |
+| `pp-image-compress/` | 无损压缩 PNG/JPEG(纯 Pillow,需 `pip install Pillow`) | 总是装 |
+| `pp-d2c-reskin/` | 多套换肤稿按基线切图清单批量切图,归到 `theme-<slug>/` 子目录 | 总是装 |
 | `pp-doctor/` `pp-style/` | 体检 / 样式速查 | ⚠️ 后期准备丢弃,默认不落地 |
 
 **配置与资产**:

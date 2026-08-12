@@ -1,116 +1,116 @@
 ---
-description: Flow2Spec unified knowledge-base entry, read progressively through .Knowledge
+description: Flow2Spec 统一知识库入口，按 .Knowledge 渐进式读取
 ---
 
-# Flow2Spec Unified Entry Rule
+# Flow2Spec 统一入口规则
 
-This project's knowledge base has been unified under `.Knowledge/`. Read in the following order and avoid unbounded searches.
+本项目知识库已统一到 `.Knowledge/`，请按以下顺序读取，避免无范围检索。
 
-## Project-Root CLI Switches (Read When Needed)
+## 项目根 CLI 开关（必须按需读取）
 
-The business repository's **project-root** `flow2spec.config.json` (`flow2spec init` fills it when missing) contains boolean fields **`subAgent`** and **`switchAgentVerification`** (**switch-agent verification**), defaulting to `false`. Before running any **`f2s-*` skill** or explaining Flow2Spec initialization, read this file. Whenever a skill or rule says a step applies "only when `subAgent` / `switchAgentVerification` is true", **the actual file value must decide whether the step runs**. Missing fields or a missing file are both treated as `false`.
+业务仓库**项目根** `flow2spec.config.json`（`flow2spec init` 在文件缺失时补齐）含布尔字段 **`subAgent`**、**`switchAgentVerification`**（**切换 agent 校验**），默认 `false`。执行任意 **`f2s-*` 技能**或与 Flow2Spec 初始化相关的说明前，须读取该文件；技能或规则中凡写「仅当 `subAgent` / `switchAgentVerification` 为 true」的步骤，**必须按文件实际值决定是否执行**；缺失字段或文件不存在时均视为 `false`。
 
-> **`init` and routing source**: **`flow2spec init`** writes the unified entry into the current repository. **Cursor / Claude** read the configuration-root **`rules/f2s-flow2spec-unified-entry.*`**; **Codex** reads **`.codex/topics/f2s-flow2spec-unified-entry.md`**. The two bodies share the same source; read the entry for the current tool. When a skill references the "unified entry", **Codex** uses **`.codex/topics/f2s-flow2spec-unified-entry.md`** as authoritative.
+> **`init` 与择路**：**`flow2spec init`** 会把统一入口写入当前仓库；**Cursor / Claude** 读取配置根 **`rules/f2s-flow2spec-unified-entry.*`**，**Codex** 读取 **`.codex/topics/f2s-flow2spec-unified-entry.md`**。两处正文同源，按当前工具读取对应入口即可；技能引「统一入口」时，在 **Codex** 以 **`.codex/topics/f2s-flow2spec-unified-entry.md`** 为准。
 
-### Semantics of the Two Fields (Template Convention)
+### 两字段语义（模板约定）
 
-- **`subAgent`**: if an `f2s-*` skill specifies that a step should "run in a sub agent", then **`true`** means use sub agents according to the skill, and **`false`** means complete it in the main agent. The user may request that "**only when** this field is **`true`**, the main agent should **dynamically decide** which subtasks are suitable for sub agents"; that request is valid **only when the configuration is `true`**. When configured as `false`, any instruction depending on sub-agent splitting **does not apply**, and all work is completed in the main agent. When `subAgent=true`, the main agent must explicitly decide near the start of the skill body whether to split this run; even when deciding not to split, it must output the no-split reason. **Which stage of each `f2s-*` must or should use a sub agent** is specified progressively in the skill body; if the skill does not specify a split, do not split by default.
-- **`switchAgentVerification` (switch-agent verification)**: **verification/review** after writes or changes (checklist comparison, diff, self-check) is **not** "always in the main agent". By default, the **agent that performed the write is the "current agent"** and verifies within that session (**sub-agent writes are verified in the sub agent; main-agent writes are verified in the main agent**). **Only when** (1) **`switchAgentVerification` is `true`** in config, and (2) the **current `f2s-*` skill body** explicitly says that a step behaves differently "when **`switchAgentVerification`** is **`true`**", enable **cross-verification**: **sub-agent writes -> verified by the main agent**; **main-agent writes -> verified by a sub agent** (a sub-agent session **must** exist, meaning **`subAgent` is `true`** and a subtask was actually split out). If **`subAgent` is `false`**, there is no sub side to take over, so **"main write -> sub verify" does not happen**, and all verification stays in the main agent. If config is `false`, the skill does not explicitly depend on this field, or the user only vaguely asks "let the other side verify", do **not** enable cross-verification; verification remains inside the writing-side agent.
+- **`subAgent`**：`f2s-*` 技能若规定某步骤「用子 agent 执行」，则 **`true`** 时按技能使用子 agent，**`false`** 时在主 agent 内完成。用户可在对话中要求「**仅当**本项为 **`true`** 时，由主 agent **动态判断**哪些子任务适合交给子 agent」——**仅当配置为 `true` 时该要求有效**；配置为 `false` 时凡依赖拆子 agent 的该段说明**不生效**，全部在主 agent 完成。`subAgent=true` 时，主 agent 必须在技能正文前段显式判断本次是否拆子；即使判断不拆，也必须输出不拆原因。**各 `f2s-*` 在工作哪一阶段必须或建议使用子 agent** 由技能正文逐步约定；技能未写明时不默认拆子。
+- **`switchAgentVerification`（切换 agent 校验）**：落盘或变更后的**验证/复核**（对照清单、diff、自检）**不是**「一律在主 agent」；默认以**落盘侧所在 agent 为「当前 agent」**，在该会话内完成校验（**子 agent 落盘的就在子 agent 内验，主 agent 落盘的就在主 agent 内验**）。**仅当**① 配置 **`switchAgentVerification` 为 `true`**，**且** ② **当前 `f2s-*` 技能正文**对该步骤**明确写出**「当 **`switchAgentVerification`** 为 **`true`**」时，才启用**交叉校验**：**子 agent 落盘的 → 由主 agent 校验**；**主 agent 落盘的 → 由子 agent 校验**（**须**已存在子 agent 会话，即 **`subAgent` 为 `true`** 且实际拆出子任务；若 **`subAgent` 为 `false`**，无子侧可承接，**「主落盘→子验」不发生**，校验**全部在主 agent 内**完成）。配置为 `false`、或技能未写依赖本项、或用户仅泛泛要求「给对方验」的：**不**启用交叉，仍在**落盘侧 agent**内完成验证。
 
-### Git Worktree and Subtask Working-Directory Hygiene (Required When `subAgent: true` or Parallel Subtasks Are Used)
+### Git worktree 与子任务工作目录卫生（`subAgent: true` 或并行子任务时必读）
 
-Some environments create an **independent `git worktree`** or equivalent isolated directory for sub agents / parallel attempts. Rules:
+部分环境会为子 agent / 并行尝试创建 **独立 `git worktree`** 或等价隔离目录。规则如下：
 
-1. **Creator cleans up**: if the sub side created it, the sub side should clean it before returning whenever possible. If the sub session has ended and cannot clean up, the **main agent must clean it after merging results**. Do **not** rely on "automatic cleanup later."
-2. **Closing action (mandatory)**: for a worktree added **only for this subtask**, after merging or discarding the subtask result, run `git worktree remove <path>` (if the worktree is clean but removal still fails, use `git worktree remove --force <path>` after **confirming** the path has no uncommitted changes by others). Then self-check with `git worktree list`; do **not** leave known orphaned paths.
-3. **Before interruption / user topic change**: if this session added a worktree, complete the removal above before ending, or write the leftover path and deletion command under `task.md` "## Notes"; when appropriate, also write it to **`user-todos.md`** for the user to run locally (see `f2s-task`).
-4. **Prohibited**: after a subtask has ended and the main branch has continued, do not keep a worktree directory that was only for an attempt (it easily causes confusing commits and disk buildup).
+1. **谁创建谁收尾**：子侧创建则子侧在返回前尽量清理；若子会话已结束无法清理，**主 agent 合并结果后**必须执行清理，**禁止**依赖「稍后自动回收」。
+2. **收尾动作（必须）**：对**仅为本次子任务**添加的 worktree，在合并或丢弃该子任务结果后执行 `git worktree remove <path>`（工作区干净仍失败时再用 `git worktree remove --force <path>`，**须确认**该路径无他人未提交修改）；随后 `git worktree list` 自检，**禁止**留下已知孤儿路径。
+3. **中断 / 用户换题前**：若本会话曾添加 worktree，在结束前**必须**完成上述移除或在 `task.md`「## 备注」写明残留路径与删除命令，并视情况写入 **`user-todos.md`** 请用户本地执行（见 `f2s-task`）。
+4. **禁止**：子任务已结束、主分支已继续开发，仍长期保留仅用于尝试的 worktree 目录（易造成混淆提交、磁盘堆积）。
 
-## Read Order (Mandatory)
+## 读取顺序（必须）
 
-1. First read `.Knowledge/manifest-routing.json`, prefer routing by `taskToTopicRules`; as needed, read the matcher shard from `matcherPath` to obtain `includeAny` keywords. If nothing matches, enter fallback recall.
-   - If the matched topic has dependencies in `topicDependencies`, read dependency topics first, then the main topic.
-   - Routing manifests are maintained only by `f2s-*` skill flows and do not depend on extra CLI subcommands.
-2. Read `.Knowledge/index.md` only as needed to confirm topic semantics and boundaries.
-3. Then read `.Knowledge/topics/<topic>.md` (**routing summary**: topic id, path conventions, next-step pointers). If the topic is **`implement-tech-design`** or **`f2s-doc-routing`**, **continue reading the full configuration-root rules** **`rules/f2s-implement-tech-design.*` / `rules/f2s-stock-docs-vs-req-docs.*`** as execution basis (`.Knowledge/topics` does not duplicate those long-form texts).
-4. If background is needed, read `.Knowledge/stock-docs/<doc>.md`.
-5. Drill into business source code only when the first four steps are insufficient.
-6. After a match, always run `match -> expand -> verify -> act`:
-   - `match`: take the primary candidate first;
-   - `expand`: expand `topicDependencies` and keep the next-highest candidate for supplementary verification;
-   - `verify`: check gaps before acting (missing key topics, boundaries, or context);
-   - `act`: act only when confidence is sufficient; clarify first when confidence is low.
-7. A full cross-matcher supplemental search (top-k) is allowed only when one of these conditions is true:
-   - `taskToTopicRules` has no match;
-   - the score gap between primary and secondary candidates is too small (low confidence);
-   - the gap check fails (missing key topic/dependency/context);
-   - the user explicitly asks for "full check / don't miss anything".
+1. 先读 `.Knowledge/manifest-routing.json`，优先按 `taskToTopicRules` 路由；按需根据 `matcherPath` 读取 matcher 分片获取 `includeAny` 关键词；无法命中时进入补召回阶段。
+   - 若命中主题在 `topicDependencies` 中存在依赖，先读依赖主题，再读主主题。
+   - 路由清单仅通过 `f2s-*` 技能流程维护，不依赖额外 CLI 子命令。
+2. `.Knowledge/index.md` 按需读取，仅用于确认主题语义与边界。
+3. 再读 `.Knowledge/topics/<topic>.md`（**路由摘要**：主题 id、路径约定、下一步指针）；若主题为 **`implement-tech-design`** 或 **`f2s-doc-routing`**，**必须继续读取**配置根 **`rules/f2s-implement-tech-design.*` / `rules/f2s-stock-docs-vs-req-docs.*` 全文**作为执行依据（`.Knowledge/topics` 内同名文件不重复长文）。
+4. 若需要背景，再读 `.Knowledge/stock-docs/<doc>.md`。
+5. 仅在前四步不足时下钻业务源码。
+6. 命中后必须执行 `match -> expand -> verify -> act`：
+   - `match`：先取主候选；
+   - `expand`：展开 `topicDependencies`，并保留次高候选做补充校验；
+   - `verify`：执行前做缺口检查（关键主题/边界/上下文是否缺失）；
+   - `act`：仅在置信度足够时执行；低置信度必须先澄清。
+7. 仅在以下条件之一成立时，允许执行跨 matcher 全量补检索（top-k）：
+   - `taskToTopicRules` 无命中；
+   - 主候选与次候选分差过小（低置信度）；
+   - 缺口检查失败（关键主题/依赖/上下文缺失）；
+   - 用户明确要求“全量检查/不要遗漏”。
 
-## Task Routing
+## 任务分流
 
-- Technical-design implementation: first read `.Knowledge/topics/f2s-implement-tech-design.md` (summary), then read the **full `rules/f2s-implement-tech-design.*`**; requirement documents live in `.Knowledge/req-docs/` by default.
-- Directory-boundary decisions: first read `.Knowledge/topics/f2s-stock-docs-vs-req-docs.md` (summary), then read the **full `rules/f2s-stock-docs-vs-req-docs.*`**.
+- 技术方案实现：先读 `.Knowledge/topics/f2s-implement-tech-design.md`（摘要），再读 **`rules/f2s-implement-tech-design.*` 全文**；需求文档默认位于 `.Knowledge/req-docs/`。
+- 目录边界判断：先读 `.Knowledge/topics/f2s-stock-docs-vs-req-docs.md`（摘要），再读 **`rules/f2s-stock-docs-vs-req-docs.*` 全文**。
 
-## Machine-Readable Source-of-Truth Semantics (Rule Layer)
+## 机读事实源口径（规则层）
 
-- `taskToTopicRules`: first-priority task routing.
-- `taskToTopicRules[].matcherPath`: direct path to the matcher-word shard; read a single matcher file as needed.
-- `taskToTopicRules[].matcherId`: stable matcher identifier; must match `id` inside the matcher shard.
-- `topicDependencies`: load dependency topics first after the main topic matches.
-- `topicMetadata`: topic-governance metadata. It only affects reading expectations, does not participate in matcher hits, does not decide whether a topic is read, and does not change execution mandatoryness. Execution mandatoryness always comes from explicit requirements in `AGENTS.md`, rules, skills, and topic bodies. When reading `topicMetadata[topicId].primary` / `tags`: `config` means focus on configuration items, switches, defaults, and initialization parameters; `policy` means prioritize mandatory/prohibited/gate/process constraints in the body; `feature` is background for implemented business/product capability; `module` is background for directories, packages, module boundaries, and engineering structure. `confidence` only allows `manual` / `inferred`; do not write metadata without clear classification evidence.
-- `matcherPath(includeAny)`: task keyword matcher word list.
-- `fallbackTopic`: must be read when neither task nor keyword matches, but is only a low-confidence fallback, not final execution basis.
-- `.Knowledge/manifest-routing.json + matcherPath shard files` are the machine-readable source of truth (keywords live only in `matchers/*.json`).
-- `.Knowledge/index.md` is not a machine-readable source of truth; it is only human-readable navigation and semantic-boundary validation.
-- After entering `fallbackTopic`, first perform supplemental recall or clarification, then decide whether to make changes.
+- `taskToTopicRules`：任务路由第一优先级。
+- `taskToTopicRules[].matcherPath`：匹配词分片直链路径，按需读取单个 matcher 文件。
+- `taskToTopicRules[].matcherId`：matcher 的稳定标识，需与 matcher 分片内 `id` 一致。
+- `topicDependencies`：主主题命中后先加载依赖主题。
+- `topicMetadata`：主题治理元数据，只影响阅读预期，不参与 matcher 命中，不决定是否读取 topic，不改变执行强制性；执行强制性始终以 `AGENTS.md`、rules、skills 与 topic 正文中的明确要求为准。读到 `topicMetadata[topicId].primary` / `tags` 时：`config` 关注配置项、开关、默认值、初始化参数；`policy` 优先检查正文中的必须/禁止/门禁/流程约束；`feature` 作为已落地业务/产品能力背景；`module` 作为目录、包、模块边界与工程结构背景。`confidence` 仅允许 `manual` / `inferred`；无明确分类证据时不写 metadata。
+- `matcherPath(includeAny)`：任务关键词匹配词表。
+- `fallbackTopic`：任务与关键词都未命中时必须读取，但仅作低置信度兜底，不是最终执行依据。
+- `.Knowledge/manifest-routing.json + matcherPath 分片文件` 是机读事实源（关键词仅在 `matchers/*.json`）。
+- `.Knowledge/index.md` 不是机读事实源，仅作人读导航与语义边界校验。
+- 进入 `fallbackTopic` 后，必须先补召回或澄清，再决定是否执行改动。
 
-## Knowledge Gaps and Responses (By Scenario)
+## 知识缺口与对策（分场景）
 
-| Scenario | Response |
+| 情况 | 对策 |
 | --- | --- |
-| **1a Documents exist in the KB but routing is missing** | Use `f2s-kb-build` / `f2s-kb-sync` / `f2s-kb-add` to add `taskToTopicRules`, `matcherPath` shards, and `topicPaths`; expand `includeAny` to cover common user phrasing. Agent side: use `fallbackTopic` triage and state that "routing needs to be added"; do **not** replace configuration with full-repo file scanning. |
-| **1b Matched, but context is insufficient** | First `expand` (`topicDependencies` + secondary candidate), then `verify` and name which `stock-docs`/`req-docs` file or topic section is missing. If still insufficient, **ask the user for a document or path** instead of running an unconditional full cross-matcher search. **If the Agent needs to drill into source code**: first give the user a **visible gap note** (KB read, what is missing, which 1-2 files you plan to read); see the "gap gate" in **`f2s-knowledge-preflight`**. **Do not** run consecutive `Grep` calls or disorderly source exploration without that note. |
-| **2 The KB has no corresponding document** | After reading routing + matched matcher + related topics once, **explicitly acknowledge in the reply that the KB has no coverage**, then choose: drill into business code / ask the user to provide `req-docs` or a PRD. **Do not** repeatedly read lists to pretend "one more search will find it." Before source drilling, also satisfy the visible gap-note requirement in **`f2s-knowledge-preflight`**. |
-| **2a Repeated list reading wastes tokens** | Within the **same task line**, treat `manifest-routing.json` as a stable snapshot: rereading it in full requires a reason (for example, the user says routing/knowledge was updated by `f2s-kb-build` / `f2s-kb-sync` / `f2s-kb-add`, or the manifest/matcher was **manually edited**). **Do not equate** running **`flow2spec init`** alone with "business KB was updated": `init` mainly writes the configuration root, fills missing directories, and aligns package-level routing structure. **stock-docs / req-docs, topic routing summaries, and matcher entries** are maintained by **`f2s-*` skill flows**. `init` writes rules into the configuration root **`rules/*`** (or equivalent extension) and writes Codex mirrors into **`.codex/topics/*.md`**. Read only the **single** `matcherPath` corresponding to the current rule; do not traverse the whole `matchers/` directory for enumeration. Open `index.md` only when topic semantics need checking; do not alternate between manifest and index to "refresh lists." |
+| **1a 库里有文档但未配路由** | 用 `f2s-kb-build` / `f2s-kb-sync` / `f2s-kb-add` 补 `taskToTopicRules`、`matcherPath` 分片、`topicPaths`；扩充 `includeAny` 覆盖用户常用说法。Agent 侧：走 `fallbackTopic` 分诊并提示「需补路由」，**不**靠全仓扫文件代替配置。 |
+| **1b 命中了但上下文不够** | 先 `expand`（`topicDependencies` + 次高候选），再 `verify` 点名缺哪份 `stock-docs`/`req-docs` 或哪段 topic；仍不足则 **向用户要文档或路径**，不要无门槛跨 matcher 全量补检索。**Agent 若需下钻源码**：须先对用户做**可见的缺口说明**（已读 KB、缺什么、拟读哪 1～2 个文件），见 **`f2s-knowledge-preflight`**「缺口闸门」；**禁止**无说明地连续 `Grep`/乱序探源。 |
+| **2 库里没有对应文档** | 一次读完 routing + 已命中 matcher + 相关 topic 后，在回复中 **明确承认知识库无覆盖**，再选：下钻业务代码 / 请用户补充 `req-docs` 或 PRD。**禁止**用反复读清单假装「再找一遍就会有」。**下钻源码前**同样须满足 **`f2s-knowledge-preflight`**「缺口闸门」的可见说明。 |
+| **2a 反复读清单耗 token** | **同一任务线内** `manifest-routing.json` 视为稳定快照：再次全文读取须说明理由（例如用户声明已通过 `f2s-kb-build` / `f2s-kb-sync` / `f2s-kb-add` 等更新路由或知识、或**手动编辑**了 manifest/matcher）。**勿将**仅执行 **`flow2spec init`** 等同于「业务知识库已更新」：`init` 以配置根落盘、目录补齐与包级路由结构对齐为主；**stock-docs / req-docs、topics 路由摘要、matchers 词条**由 **`f2s-*` 技能流程**维护；`init` 会把规则写入配置根 **`rules/*`**（或等价扩展名），并为 Codex 写入 **`.codex/topics/*.md`**。只读 **当前规则对应的单个** `matcherPath`；不要为枚举而遍历整个 `matchers/` 目录。`index.md` 仅在需核对主题语义时打开，禁止与 manifest 交替「刷清单」。 |
 
-### Execution Points for Knowledge Gaps (Avoid "Table Says It, Behavior Skips It")
+### 知识缺口的执行层要点（避免「表里有写、行为没做」）
 
-- **"Explain to the user" and "explicitly acknowledge no coverage" must be visible natural language to the user**; they must not be hidden only in internal analysis or tool traces. Details and stop conditions are in **`f2s-knowledge-preflight`** (gap gate, exploration limit).
-- **Prohibited**: after hitting **1b / 2**, entering chained "multiple files + dependency directories" source exploration without the visible note above. Running another `Grep` round for each new "entry symbol" is a typical anti-pattern.
-- Facts such as **HTTP status, error body, and whether redirects happen** must **not** be answered from training data or experience with other repositories; use only the implementation actually read in the current repository during this turn.
-- When ordinary Q&A drills into source code and answers from it, first complete the initial read and gap gate according to **`f2s-knowledge-preflight`**, then complete final KB follow-up closing according to **`f2s-kb-feedback-closing`**. Only suggest; do not write automatically.
+- **「向用户说明」「明确承认无覆盖」必须是用户可见的自然语言**，不得仅在内部分析或工具链中隐含带过；细则与停步条件见 **`f2s-knowledge-preflight`**（缺口闸门、探索次数上限）。
+- **禁止**在命中 **1b / 2** 后，未做上述可见说明便进入「多文件 + 依赖目录」的链式探源；每出现一个新的「入口符号」就再 `Grep` 一轮，属于典型反模式。
+- **HTTP 状态、错误正文、重定向与否**等事实，**不得以训练数据或他库经验代答**；须以当前仓库内**本次已读到的实现**为准。
+- 普通问答下钻源码并据此补答时，先按 **`f2s-knowledge-preflight`** 完成首读与缺口闸门，再按 **`f2s-kb-feedback-closing`** 完成最终知识库补充建议收口；只提示，不自动落盘。
 
-## Knowledge-Base Writing Style (Global; Applies When Writing stock-docs / topics / index)
+## 知识库落盘文风（全局，写 stock-docs / topics / index 时适用）
 
-**Prefer affirmative phrasing**: when stating correct information, directly say "what it is / where it is / how to do it". Do not communicate it through "not X / non-X / no longer X"; even if the old description is wrong, negating the old version anchors the wrong premise in the reader's mind.
+**肯定式优先**：表述正确信息时，直接说"是什么 / 在哪里 / 怎么做"，禁止用"不是 X / 非 X / 不再是 X"来传达——即使旧描述是错的，否定旧版也会让读者在脑中锚定错误前提。
 
-- Wrong: `imported with the package, not injected through window`
-- Right: `import with import { <symbol> } from '<package-name>'`
+- 错：`随包 import，非 window 注入`
+- 对：`通过 import { <符号> } from '<包名>' 引入`
 
-**Exception (explicit negation is appropriate)**: when both A and B are logically valid approaches but the project has made an **exclusive choice**, write "do not use B"; otherwise readers cannot tell whether B remains optional.
+**例外（应显式否定）**：A、B 两种做法在逻辑上均正确，但项目已做出**排他性选择**时，须写出「不用 B」——不说清楚，读者无法判断 B 是否仍可选。
 
-## Knowledge-Base Version Self-Check (Hook Auto-Triggered; First Time Each Day Only When updateCheck.enabled=true)
+## 知识库版本自检（hook 自动触发；每日首次，仅 updateCheck.enabled=true 时）
 
-All three clients register a SessionStart version-check script: Cursor writes **`.cursor/hooks.json`** through `flow2spec init cursor` and runs `node .cursor/hooks/f2s-update-check.js` at `sessionStart`; Codex writes **`.codex/hooks.json`** through `flow2spec init codex` and registers both the configuration-summary script `node .codex/hooks/f2s-config-session.js` and the version-check script `node .codex/hooks/f2s-update-check.js` on `SessionStart` `startup|resume`; Claude writes **`.claude/settings.json`** through `flow2spec init claude` and registers the configuration summary, version check, and `PreToolUse Skill` guard. After the version-check script compares versions and writes cache, when an upgrade is needed it injects an imperative upgrade notice through `additional_context` (agent-instruction text requires the agent to relay it to the user verbatim).
+三端均在 SessionStart 注册版本检查脚本：Cursor 由 `flow2spec init cursor` 写入 **`.cursor/hooks.json`** 在 `sessionStart` 执行 `node .cursor/hooks/f2s-update-check.js`；Codex 由 `flow2spec init codex` 写入 **`.codex/hooks.json`**，在 `SessionStart` 的 `startup|resume` 事件同时注册配置摘要脚本 `node .codex/hooks/f2s-config-session.js` 与版本检查脚本 `node .codex/hooks/f2s-update-check.js`；Claude 由 `flow2spec init claude` 写入 **`.claude/settings.json`**，注册配置摘要、版本检查与 `PreToolUse Skill` 守门。版本检查脚本完成版本比对与缓存写入后，需升级时通过 `additional_context` 注入命令式升级提示（agent-instruction 文案要求 agent 必须原文转告用户）。
 
-**Rule-layer fallback check** (backup for script cache):
+**规则层双保险**（与脚本缓存互为备份）：
 
-1. Read `flow2spec.config.json` -> if `updateCheck.enabled` is not `true`, skip and show no notice.
-2. Read `.Knowledge/update-check.json` -> if the file exists and `checkedAt` is the same local calendar day as today (`new Date(checkedAt).toDateString() === new Date().toDateString()`), do not check npm again. However, if `needsUpgrade=true` or `latestNpm > manifestVersion`, the first user reply in this session must still remind the user to run `f2s-kb-upgrade`; if the current `.Knowledge/manifest-routing.json.version` is already no lower than `latestNpm`, delete that cache and stop reminding.
-3. If neither of the two steps above skipped the check: run the update-check script under the current agent configuration root (Claude: `node .claude/hooks/f2s-update-check.js`; Cursor: `node .cursor/hooks/f2s-update-check.js`; Codex: `node .codex/hooks/f2s-update-check.js`) and parse JSON from stdout:
-   - If it contains `hookSpecificOutput.additionalContext`: **tell the user** that content (suggest running the `f2s-kb-upgrade` skill).
-   - If there is no output or parsing fails: stay silent.
-4. If any step errors, silently skip it and do not affect normal conversation.
+1. 读 `flow2spec.config.json` → 若 `updateCheck.enabled` 不为 `true`，跳过，不做任何提示。
+2. 读 `.Knowledge/update-check.json` → 若文件存在且 `checkedAt` 与今日为同一自然日（`new Date(checkedAt).toDateString() === new Date().toDateString()`），不重复查 npm；但若 `needsUpgrade=true` 或 `latestNpm > manifestVersion`，本会话首次回复用户时仍须提醒执行 `f2s-kb-upgrade`；若当前 `.Knowledge/manifest-routing.json.version` 已不低于 `latestNpm`，删除该缓存并不再提示。
+3. 上述两步均未跳过时：执行当前 agent 配置根下的更新检测脚本（Claude：`node .claude/hooks/f2s-update-check.js`；Cursor：`node .cursor/hooks/f2s-update-check.js`；Codex：`node .codex/hooks/f2s-update-check.js`），解析标准输出的 JSON：
+   - 若含 `hookSpecificOutput.additionalContext`：**告知用户**该内容（建议执行 `f2s-kb-upgrade` skill）。
+   - 无输出或解析失败：静默，不提示。
+4. 以上步骤出现任何错误，静默跳过，不影响正常对话。
 
-## Topic Authoring Pointer
+## 主题创作（Topic Authoring）指针
 
-When adding or modifying `.Knowledge/topics/<topic>.md`, adjusting `manifest-routing.topicDependencies`, or deleting / migrating topics, the **authoring-side** guideline uses **`rules/f2s-topic-authoring.*`** as the single source of truth (**Cursor/Claude**: `rules/f2s-topic-authoring.md`; **Codex**: `.codex/topics/f2s-topic-authoring.md`). This entry is the **consumption side** (how to route / read / fall back using existing topics), and both coexist; in hard conflicts, this unified entry wins. `f2s-kb-build` / `f2s-kb-add` / `f2s-kb-feat` / `f2s-kb-fix` / `f2s-kb-sync` / `f2s-kb-migrate` / `f2s-kb-rm` must Read that full rule before any topic write.
+新增或修改 `.Knowledge/topics/<topic>.md`、调整 `manifest-routing.topicDependencies`、删除 / 迁移 topic 时，**创作侧** 准则以 **`rules/f2s-topic-authoring.*`** 为单一事实源（**Cursor/Claude**：`rules/f2s-topic-authoring.md`；**Codex**：`.codex/topics/f2s-topic-authoring.md`）。本入口为**消费侧**（如何按已有 topic 路由 / 读取 / 兜底），与之并存；硬冲突时以本入口为准。`f2s-kb-build` / `f2s-kb-add` / `f2s-kb-feat` / `f2s-kb-fix` / `f2s-kb-sync` / `f2s-kb-migrate` / `f2s-kb-rm` 在涉及 topic 落盘前须 Read 该条全文。
 
-## Prohibited
+## 禁止项
 
-- **Neutrality for distributed content**: examples in skill/rule/knowledge bodies must be **neutral**. Do not write a specific business-domain name, a single organization's npm package name, or a `docs/` path that exists only in the Flow2Spec product repository. Use placeholders such as `<capability>` and `src/<module>/`.
-- After using `git worktree` or an isolated directory for subtasks, **do not** end the session without `git worktree remove` or without handing off the deletion command (see "Git worktree and subtask working-directory hygiene" above).
-- Before viewing `.Knowledge/manifest-routing.json`, do not run unbounded full-repository scans. Read `.Knowledge/index.md` only when topic semantics need confirmation; do not repeatedly alternate between index and manifest as a substitute for decision-making.
-- Do not use `stock-docs` as direct coding input documents; implementation from a design should use `req-docs`.
-- Do not treat `fallbackTopic` as a final match and directly implement changes from it.
-- Do not run a full cross-matcher supplemental search unless the trigger conditions are met.
+- **下发内容中性约束**：技能、规则、知识正文中的示例须**中性**——勿写特定业务域名称、单一组织 npm 包名、仅 Flow2Spec 产品仓存在的 `docs/` 路径；用 `<能力>`、`src/<模块>/` 等占位。
+- 使用 `git worktree` 或隔离目录跑子任务后，**禁止**在未 `git worktree remove` / 未交接删除命令的情况下结束会话（见上文「Git worktree 与子任务工作目录卫生」）。
+- 未查看 `.Knowledge/manifest-routing.json` 前，禁止进行全仓无范围扫描；`.Knowledge/index.md` 在需确认主题语义时再读，禁止与 manifest 交替重复读取以代替决策。
+- 禁止把 `stock-docs` 作为直接编码输入文档；按方案实现应使用 `req-docs`。
+- 禁止把 `fallbackTopic` 当作最终命中直接实施改动。
+- 禁止在不满足触发门槛时执行跨 matcher 全量补检索。

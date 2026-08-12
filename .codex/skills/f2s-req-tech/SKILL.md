@@ -1,82 +1,82 @@
 ---
 name: f2s-req-tech
-description: Generate a technical design document from clarified requirements using the project knowledge base, Skills, and Rules; triggers: 生成技术方案、技术方案、f2s-req-tech、generate technical design、technical design
+description: 根据澄清后的需求基于项目知识库/Skills/Rules 生成技术方案文档；触发：生成技术方案、技术方案、f2s-req-tech
 ---
-> Execution scope: business documents live under `/.Knowledge/`; this skill only produces `.Knowledge/req-docs` technical design documents and references knowledge under `.Knowledge`. It does not modify the config-root `rules/skills`.
+> 执行口径：业务文档统一在 `/.Knowledge/`，本技能只产出 `.Knowledge/req-docs` 方案文档并参考 `.Knowledge` 内知识，不修改配置根 `rules/skills`。
 
-## Orchestration (main / sub agent)
+## 编排（主 / 子 agent）
 
-- The semantics of `subAgent` / `switchAgentVerification` use the unified entry as the only source of truth: **Cursor/Claude** read the config-root `rules/f2s-flow2spec-unified-entry.*`; **Codex** reads `.codex/topics/f2s-flow2spec-unified-entry.md` (same source, mirrored by `flow2spec init`). This skill does not restate those semantics.
-- **Precondition for splitting (hard constraint)**: when `subAgent=true`, the main agent **must first** extract a "project convention summary" as mandatory context for the sub agent. It must cover: external contract conventions, error and return conventions, async/integration conventions, data and storage conventions, engineering structure, and module boundaries, with a total length **< 80 lines**. If this precondition is not met, **do not split**: the acceptance rework cost is greater than the benefit of splitting.
-- **Sub-agent responsibility**: perform multi-source read-only analysis (`.Knowledge/topics`, `stock-docs`, clarified `req-docs`, and template), then write a `.Knowledge/req-docs` technical design draft according to `.Knowledge/template/technical-spec-template.md`.
-- **Main-agent responsibility**: finalize the contract, verify against the template and clarification document, and handle consistency of delivery units and flows.
-- **Verification**: performed by the writing agent by default. This skill does not bind to cross-agent verification.
+- 两字段（`subAgent` / `switchAgentVerification`）语义以统一入口为唯一事实源：**Cursor/Claude** 读配置根 `rules/f2s-flow2spec-unified-entry.*`；**Codex** 读 `.codex/topics/f2s-flow2spec-unified-entry.md`（与上同源，`flow2spec init` 镜像）。本技能不复述。
+- **拆子前提（硬约束）**：当 `subAgent=true` 时，主 agent **必须先**抽取一份「项目约定摘要」作为子 agent 的强制上下文，覆盖：对外契约规范、错误与返回约定、异步/集成规范、数据与存储约定、工程结构、模块边界，合计 **< 80 行**。若未做该前置，**不拆子**——验收返工成本 > 拆子收益，强行拆子得不偿失。
+- **子职责**：多源只读（`.Knowledge/topics`、`stock-docs`、澄清后的 `req-docs`、模版）+ 按 `.Knowledge/template/技术方案模版.md` 写 `req-docs` 方案初稿。
+- **主职责**：契约定稿、对照模版与澄清文档验收、处理交付单元/流程一致性。
+- **校验**：默认落盘侧自验；本技能不绑定交叉校验。
 
-# Generate a Technical Design Document from Requirements
+# 根据需求生成技术方案文档
 
-The user provides a **clarified requirement** in the conversation (or a requirement summary / PRD path), and may optionally attach **requirement conditions** such as scope constraints, required or forbidden technologies, client-side limits, priority, and so on. You need to use the business knowledge documents (`.Knowledge/`) and currently loaded agent rules/skills to output a technical design document that can be used directly for implementation.
+用户在对话中提供**已澄清的需求**（或需求摘要、PRD 路径），并可选择附带**需求条件**（如范围限定、必须/禁止使用的技术、端侧限定、优先级等）。你需要基于业务知识文档（`.Knowledge/`）和当前 agent 已加载的 rules/skills，输出一份可直接用于实现的技术方案文档。
 
-**Purpose**: the technical design produced by this skill is **for later code implementation**. Developers implement the feature according to this document. It is not limited to backend work; it applies to backend, frontend, full-stack, mobile, scripts/tools, and any other scenario. It is not used to generate Rules/Skills.
+**用途**：本技能产出的技术方案**供后续代码实现使用**，开发按该文档实现功能。不限于后端，适用于后端、前端、全栈、移动端、脚本工具等任意场景。不用于生成 Rules/Skills。
 
-**Structural model**: assemble the technical design from the **optional blocks** in `.Knowledge/template/technical-spec-template.md` as needed. **Do not force a fixed section set**: write only the delivery units, data structures, configuration, dependencies, flows, or exception handling that this implementation truly needs. Within each delivery-unit section, describe both the contract/input-output and the necessary processing flow, instead of splitting repeated large chapters such as "API and flow description", "related call flow", or "flow description".
-
----
-
-## Input
-
-- **First argument (required)**: the clarified requirement description or a **requirement/PRD document path** (for example `.Knowledge/req-docs/xxx.md` or `.Knowledge/stock-docs/需求_final.md`).
-- **Subsequent arguments or user additions (optional)**: requirement conditions and constraints, such as:
-  - Scope (only a certain module or client)
-  - Required/forbidden technology stack or API style
-  - Boundaries with an existing module
-  - Performance, security, or compliance requirements
+**结构范本**：技术方案按 `.Knowledge/template/技术方案模版.md` 中的**可选积木**按需组装输出。**不要硬套固定章节**：只写本次实现真正需要的交付单元、数据结构、配置、依赖、流程或异常处理；每个交付单元小节内同时说明契约/输入输出与必要处理流程，避免再单独拆「接口及流程说明」「关联调用流程」「流程说明」等大章重复描述同一单元。
 
 ---
 
-## Output Structure
+## 输入
 
-When generating the document, **first read `.Knowledge/template/technical-spec-template.md`** as structural guidance and select its section blocks as needed. Entire sections unrelated to the requirement may be omitted, and new sections not listed in the template may be added according to the project.
-
----
-
-## Precondition for Sub-Agent Splitting (Optional, Only When `subAgent=true`)
-
-Before splitting, the main agent must produce a "project convention summary" as **mandatory input** for the sub agent; otherwise, **do not split**. The summary must be **< 80 lines** and include the following six categories (technology-agnostic; fill in concrete values based on the project):
-
-1. **External contract conventions**: naming, versioning, authentication, pagination, common return fields, and related conventions for APIs / events / messages / components / script entries.
-2. **Error and return conventions**: source of the error-code system, prefix/segment rules, required fields (such as code / message / data), and status layering.
-3. **Async / integration conventions**: naming, consumer grouping, retry, and idempotency conventions for message queues / event buses / scheduled tasks / external service calls.
-4. **Data and storage conventions**: naming for databases / tables / fields / cache / files / search, primary key / index / time-field conventions, and sharding strategy if any.
-5. **Engineering structure**: module layering (for example controller / service / dao / domain, or frontend pages / components / hooks / store, or equivalent names) and package-path / directory conventions.
-6. **Module boundaries**: call and data boundaries between existing modules involved in this design and other modules.
-
-Splitting before this precondition is complete violates the hard constraint. Only after the summary is complete may the main agent hand sub-tasks to a sub agent.
+- **第一参数（必填）**：澄清后的需求描述，或**需求/PRD 文档路径**（如 `.Knowledge/req-docs/xxx.md`、`.Knowledge/stock-docs/需求_终稿.md`）。
+- **后续参数或用户补充（可选）**：需求条件与约束，例如：
+  - 范围（只做某模块、某端）
+  - 必须/禁止使用的技术栈、接口风格
+  - 与现有某模块的边界
+  - 性能、安全、合规要求
 
 ---
 
-## Steps
+## 输出结构
 
-1. **Clarification-completeness gate (hard constraint)**: Before entering the write phase, decide whether the current requirement is **already clarified**:
-   - **Clarified** criteria (any one suffices): ① **This turn was auto-chained from `f2s-req-clarify`** with the just-written clarification document path passed in as input (this is the preferred path — the user can flow from `f2s-req-clarify` straight through to the design within one turn); ② the user explicitly provides a path such as `.Knowledge/req-docs/*_需求澄清.md` or an equivalent clarification document; ③ the user explicitly says "already clarified / requirement is settled / just draft the design"; ④ the input itself is a complete PRD (scope, key flows, boundaries, acceptance criteria) and **within this turn** contains no obvious undefined concepts or contradictions.
-   - **Not-clarified** signals (any one triggers): the requirement description contains hedges such as "I understand it as / I plan to / roughly / probably / to be determined / not decided yet"; interfaces / tables / state machines / interactions with existing modules only state "what to do" without "what counts as done"; the user's input already lists three or more key questions that are still unanswered; and **this turn is not chained from `f2s-req-clarify`**.
-   - **If not clarified, switch to clarify**: **do not** enter the write phase within the same turn. Instead switch into `f2s-req-clarify` to complete the clarification write, then let its auto-chain rule **come back to this skill within the same turn to continue** (this is the intended direct path; it does not interrupt the user). If switching to clarify is not possible (e.g., the user explicitly says "just do the design; skip clarification"), list 3–6 clarification questions that most affect how the design is written and wait for answers; **do not draft the design**.
-2. **Read the requirement**: get requirement content from the path or text provided by the user (or the clarification path handed in by `f2s-req-clarify`); include requirement conditions if any.
-3. **Load project context**: actively read and apply:
-   - Relevant topic rules/flows under `.Knowledge/topics/`;
-   - Background documents and historical technical designs under `.Knowledge/stock-docs/`;
-   - **Structural reference** `.Knowledge/template/technical-spec-template.md`.
-4. **Align with project conventions**: keep naming conventions, directory structure, configuration conventions, message queues, error codes, data models, and similar items consistent with the existing project.
-5. **Write the document**: select and write section blocks from `.Knowledge/template/technical-spec-template.md` as needed. When a delivery unit involves behavior logic, write the processing flow in the same section so the deliverable and flow are not disconnected. If splitting is enabled, the sub agent must use the "project convention summary" plus the clarification document as mandatory input and must not expand the reading scope on its own.
-6. **Output location**: default `.Knowledge/req-docs/<design-name>_技术方案.md`; if the user specifies a path, use that path.
-7. **Closing stop (hard constraint)**: After the design is written to disk, output only a single-line hint "Technical design ready: `<path>`; run `f2s-req-plan` to break down tasks, or `implement-tech-design` to implement when you're ready", then **stop**. **Prohibited**:
-   - Automatically chaining into `f2s-req-plan` / `implement-tech-design` / any other `f2s-*` skill within the same turn (`f2s-req-clarify` → `f2s-req-tech` is the allowed **single hop**; anything after the design requires a new user turn);
-   - Appending an `f2s-kb-distill` closing hint at the end of the design document or immediately after it (see the prohibited section of `rules/f2s-kb-feedback-closing.*` — process-orchestration skills do not trigger distill on write);
-   - Proactively listing an "A/B/C next-step menu" that funnels the user straight into the next skill.
+生成文档时，**先读取 `.Knowledge/template/技术方案模版.md`** 作为结构参考，按需选用其中的章节积木；与需求无关的整节可省略，也可根据项目实际增加未列出的章节。
 
 ---
 
-## Constraints
+## 拆子前置（可选，仅当 `subAgent=true`）
 
-- All paths are relative to the project root (same level as `.Knowledge`).
-- Do not invent conventions that do not match the project. If uncertain, mark `confirm with project conventions`.
-- **Principle**: each delivery-unit section should include the contract (input/output) and processing flow as needed. Do not split them into repeated chapters. Use `.Knowledge/template/technical-spec-template.md` as reference and select blocks as needed; do not force the whole template.
+主 agent 在拆子前，必须产出「项目约定摘要」作为子 agent 的**强制输入**，否则**不拆子**。摘要篇幅上限 **< 80 行**，必须包含以下 6 类条款（技术栈无关，按项目实际填具体值）：
+
+1. **对外契约规范**：接口 / 事件 / 消息 / 组件 / 脚本入口的命名、版本、鉴权、分页、通用返回字段等契约约定。
+2. **错误与返回约定**：错误码体系来源、前缀 / 分段规则、必选字段（如 code / message / data）、状态分层。
+3. **异步 / 集成规范**：消息队列 / 事件总线 / 定时任务 / 外部服务调用的命名、消费者组织、重试与幂等约定。
+4. **数据与存储约定**：库 / 表 / 字段 / 缓存 / 文件 / 搜索等命名规范、主键 / 索引 / 时间字段约定、分库分表策略（若有）。
+5. **工程结构**：模块分层（如 controller / service / dao / domain，或前端的 pages / components / hooks / store，或等价命名）与包路径 / 目录约定。
+6. **模块边界**：本方案涉及的既有模块与其他模块的调用 / 数据边界。
+
+未完成该前置即拆子，视为违反硬约束；摘要完成后方可将子任务交付子 agent。
+
+---
+
+## 步骤
+
+1. **澄清完备性前置门禁（硬约束）**：进入撰写前必须先判定当前需求是否**已澄清**：
+   - **已澄清**判据（满足其一即可）：① **本轮由 `f2s-req-clarify` 自动衔接进入**，且澄清文档已落盘并作为输入路径传入（这是首选路径——用户可直接从 `f2s-req-clarify` 一路走到方案，同轮完成）；② 用户显式提供 `.Knowledge/req-docs/*_需求澄清.md` 或等价澄清文档路径；③ 用户显式声明"已澄清 / 需求已明确 / 直接出方案"；④ 用户提供的输入本身即完整 PRD（含范围、关键流程、边界、验收标准），且**当轮**不含明显未定义概念或矛盾。
+   - **未澄清**信号（任一命中即视为未澄清）：需求描述含"我理解为 / 我打算 / 大概 / 应该 / 待定 / 还没确定"等模糊语；接口 / 表 / 状态机 / 与既有模块的联动只给了"要做什么"未给"怎么算完"；用户输入中已被 agent 或用户自己列出但未回答的 3 个及以上关键问题；且**本轮不是**从 `f2s-req-clarify` 衔接进入。
+   - **未澄清则改走 clarify**：**禁止**在同一轮内直接进入撰写；应先转入 `f2s-req-clarify` 完成澄清落盘，然后按其自动衔接规则**回到本技能同轮继续**（这是设计的直连路径，不打断用户）。如无法转入 clarify（例如用户明确说"先只做技术方案 / 别做澄清"），列 3～6 条最影响方案落笔的澄清问题清单等用户回答，**不生成方案**。
+2. **读取需求**：从用户提供的路径或正文（或 `f2s-req-clarify` 衔接传入的澄清文档路径）获取需求内容；若有需求条件，一并纳入。
+3. **加载项目上下文**：主动读取并运用：
+   - `.Knowledge/topics/` 下与本次需求相关的主题规则/流程；
+   - `.Knowledge/stock-docs/` 下的背景文档与历史技术方案；
+   - **结构对照 `.Knowledge/template/技术方案模版.md`**。
+4. **对齐项目约定**：命名规范、目录结构、配置约定、消息队列、错误码、数据模型等与现有项目一致。
+5. **撰写文档**：按 `.Knowledge/template/技术方案模版.md` 按需选用章节积木书写；交付单元涉及行为逻辑时，在同一小节写清处理流程，避免交付物与流程两张皮。若启用拆子，子 agent 以「项目约定摘要」+ 澄清文档为强制输入，禁止自行扩展读取范围。
+6. **输出位置**：默认 `.Knowledge/req-docs/<方案名>_技术方案.md`；若用户指定路径则用该路径。
+7. **收口停步（硬约束）**：技术方案落盘后**只输出一行提示**「技术方案已就绪：`<路径>`；如需继续，可用 `f2s-req-plan` 拆任务、`implement-tech-design` 落地」，然后**停止**。**禁止**：
+   - 在同一轮内自动衔接 `f2s-req-plan` / `implement-tech-design` / 任何后续 `f2s-*` 技能（`f2s-req-clarify` → `f2s-req-tech` 是允许的**单跳**衔接，方案之后须由用户在**新一轮**触发下一步）；
+   - 在方案文档尾部或紧随其后追加 `f2s-kb-distill` 收口提示（见 `rules/f2s-kb-feedback-closing.*` 禁止段——过程编排型技能落盘不触发 distill）；
+   - 主动列"下一步 A/B/C 选一个"式路径清单诱导用户立即进入下一技能。
+
+---
+
+## 约束
+
+- 所有路径相对于项目根目录（与 `.Knowledge` 同级）。
+- 不臆造与项目不符的约定；不确定时标注「待与项目约定确认」。
+- **原则**：交付单元小节按需包含契约（输入/输出）与处理流程，二者不拆章重复；结构以 `.Knowledge/template/技术方案模版.md` 为参考，按需取用，不硬套。

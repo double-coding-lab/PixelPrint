@@ -1,123 +1,123 @@
-# Flow2Spec Topic Authoring Guidelines
+# Flow2Spec 主题创作准则（Topic Authoring）
 
-This rule is the single source of truth for the **authoring side**. Whenever an `f2s-*` skill adds or modifies `.Knowledge/topics/<topic>.md`, adjusts `manifest-routing.topicMetadata` / `manifest-routing.topicDependencies`, or deletes / migrates a topic, it **must Read this full rule first**, then continue with the corresponding SKILL steps. It coexists with `f2s-flow2spec-unified-entry` (the consumption side); in hard conflicts, the unified entry wins.
+本条为 **创作侧** 单一事实源；凡 `f2s-*` 技能在新增或修改 `.Knowledge/topics/<topic>.md`、调整 `manifest-routing.topicMetadata` / `manifest-routing.topicDependencies`、删除 / 迁移 topic 时，**必须先 Read 本条全文**，再按对应 SKILL 的步骤继续。与 `f2s-flow2spec-unified-entry`（消费侧）**并存**；硬冲突时以统一入口为准。
 
-## Scope
+## 适用范围
 
-This rule is touched when any of the following is true:
+满足下列任一即「触达本条」：
 
-- Add or rewrite `.Knowledge/topics/<topic>.md`;
-- Modify an existing topic's title / applicable scenarios / key flow boundaries;
-- Add, delete, or adjust `manifest-routing.topicMetadata`;
-- Add, delete, or adjust dependency edges in `manifest-routing.topicDependencies`;
-- Add a reference to a topic id in `taskToTopicRules[].topics`;
-- Delete or migrate a topic (`f2s-kb-rm` / `f2s-kb-migrate` / `f2s-kb-upgrade`).
+- 新增或重写 `.Knowledge/topics/<topic>.md`；
+- 修改既有 topic 的标题 / 适用场景 / 关键流程边界；
+- 新增、删除或调整 `manifest-routing.topicMetadata`；
+- 在 `manifest-routing.topicDependencies` 中新增、删除或调整依赖边；
+- 在 `taskToTopicRules[].topics` 中新增引用某个 topic id；
+- 删除或迁移 topic（`f2s-kb-rm` / `f2s-kb-migrate` / `f2s-kb-upgrade`）。
 
-## 1. Topic Naming
+## 1. topic 命名
 
-- **id**: `kebab-case`, matching the key in `manifest-routing.topicPaths`.
-- **Filename**: `.Knowledge/topics/<topic-id>.md`. If the topic is strongly bound to an `f2s-*` skill / rule of the same name (for example `f2s-task` / `f2s-req-plan`), the filename may include the `f2s-` prefix to show shared origin.
-- **Avoid**: version suffixes (`-v2` / `-new`), personal nicknames, and synonyms that conflict with heading-level titles in `index.md`.
+- **id**：`kebab-case`，与 `manifest-routing.topicPaths` 的 key 一致。
+- **文件名**：`.Knowledge/topics/<topic-id>.md`；若该 topic 与同名 `f2s-*` 技能 / 规则强绑定（如 `f2s-task` / `f2s-req-plan`），文件名可加 `f2s-` 前缀以示同源。
+- **不要**：版本后缀（`-v2` / `-new`）、个人花名、与 `index.md` 行级标题冲突的同义词。
 
-## 2. Topic Positioning and Body Skeleton
+## 2. topic 定位与正文骨架
 
-**Topic positioning**: executable routing summary + key boundaries. A topic may contain necessary boundary notes, key flow steps, prohibited items, and configuration summaries. After reading it, the Agent should be able to execute or decide whether more drilling is needed. It **should not carry** complete implementation details, long-form background, or raw content that can be found in a stock-doc. Stock-docs carry full background and long-form details; topics point to them.
+**topic 的定位**：可执行路由摘要 + 关键边界。topic 可以包含必要的边界说明、关键流程步骤、禁止项、配置摘要——Agent 读完即可执行或判断是否需要继续下钻；**不应承载**完整实现细节、长文背景或可在 stock-doc 里查的原始内容。stock-doc 承载完整背景与长文细节，topic 指向它。
 
-**Directory boundary for long-form background references (hard rule)**: in a topic, reference slots that point at long-form sources — sections titled "Detailed background / Related materials / Long-form source / Reference documents" — **may only** point at `.Knowledge/stock-docs/*_终稿.md` or already-finalized `stock-docs/*`. **Do not** put `.Knowledge/req-docs/*` (clarifications / technical designs / SQL / PRDs) in these slots: `req-docs` are **temporary inputs** for a given delivery — they get archived or migrated once the delivery lands, so using them as a topic's long-form source of truth leaves a dangling reference. If the corresponding `.Knowledge/stock-docs/*_终稿.md` does not yet exist when syncing / creating a topic, **first trigger `f2s-doc-final`** to consolidate the stock-doc (or confirm with the user and hand-write it), and only then point the topic at that stock-doc; you may not skip stock-doc consolidation and mount the topic on `req-docs`. **Allowed**: the topic body may **briefly cite** a single sentence or a field name from a design document as evidence (e.g., "see `.Knowledge/req-docs/xxx_技术方案.md`" as an occasional inline pointer), but the **long-form background reference slot** (the whole "Detailed background / Related materials" section) still must point at a stock-doc.
+**长文背景引用的目录边界（硬约束）**：topic 中「详细背景 / 相关资料 / 长文来源 / 参考文档」等**指向长文源**的引用槽位，**只允许**指向 `.Knowledge/stock-docs/*_终稿.md` 或已被归档为长文事实的 `stock-docs/*`；**禁止**把这类槽位挂到 `.Knowledge/req-docs/*`（含澄清 / 技术方案 / SQL / PRD 等）——`req-docs` 是本次交付的**临时输入**，用完会随任务归档或迁移，作为 topic 的长文事实源是悬空引用。若同步 / 新建 topic 时相应 `stock-docs/*_终稿.md` 尚未生成，**必须先触发 `f2s-doc-final` 沉淀终稿**（或与用户确认由手写补齐），再让 topic 指向终稿；不得跳过终稿直接把 topic 挂在 `req-docs` 上。**允许**：topic 正文可**短引**方案里的一句结论或一个字段名作为佐证（如「见 `.Knowledge/req-docs/xxx_技术方案.md`」的偶发点引），但**长文背景槽位**（"详细背景 / 相关资料"整节）仍须指向 stock-doc。
 
-Every topic must include at least:
+每个 topic 至少包含：
 
-1. **Title and one-sentence intent** (one line stating "what this topic solves");
-2. **Applicable scenarios / trigger words** (semantically consistent with the corresponding `matchers/<id>.json` `includeAny`);
-3. **Core rules / flow** (executable knowledge; steps must be reproducible by an Agent);
-4. **Dependency declaration** (if dependencies exist in `topicDependencies`, the body must explicitly state "before executing, read dependency topic `<dep>` first"; use the first paragraph of `topics/f2s-req-plan.md` as a reference);
-5. **Boundaries and prohibited items** (avoid expanding into neighboring topics);
-6. **Long-form background / detailed materials reference** (when the topic needs to carry business background): list only clickable Markdown links to `.Knowledge/stock-docs/*_终稿.md` (1–3 links); **do not** list `.Knowledge/req-docs/*` here. If no stock-doc has been consolidated yet, **generate the stock-doc first** and then fill this section.
+1. **标题与一句话意图**（一行写清"该 topic 解决什么"）；
+2. **适用场景 / 触发词**（与对应 `matchers/<id>.json` `includeAny` 语义一致）；
+3. **核心规则 / 流程**（可执行知识；步骤须可由 Agent 复现）；
+4. **依赖声明**（若 `topicDependencies` 中存在依赖项，正文须显式写一句「执行前须先读依赖主题 `<dep>`」，参考 `topics/f2s-req-plan.md` 首段写法）；
+5. **边界与禁止项**（避免膨胀到隔壁 topic）；
+6. **长文背景 / 详细资料引用**（如需承载业务背景）：只列 `.Knowledge/stock-docs/*_终稿.md` 的可点击 Markdown 链接（1–3 条即可）；**禁止**直接列 `.Knowledge/req-docs/*` 作为长文背景来源；无对应终稿时**先生成终稿**再回填此小节。
 
-## 3. topicMetadata Decision Criteria
+## 3. topicMetadata 判定准则
 
-`topicMetadata` is governance metadata. It only affects inventory, audit, and reading expectations; it does not participate in matcher hits, does not decide whether a topic is read, and does not change execution mandatoryness. Execution mandatoryness comes from explicit requirements in `AGENTS.md`, rules, skills, and topic bodies.
+`topicMetadata` 是治理元数据，只影响盘点、审计和阅读预期；不参与 matcher 命中，不决定是否读取 topic，不改变执行强制性。执行强制性以 `AGENTS.md`、rules、skills 与 topic 正文明确要求为准。
 
-Fields:
+字段：
 
-- `primary`: main category, single value from `feature` / `module` / `config` / `policy`.
-- `tags`: optional array, values from the same set as `primary`, and must not repeat `primary`. Used to describe secondary properties when a topic also contains them; only for audit/reading expectations, not routing or execution.
-- `confidence`: `manual` / `inferred`.
+- `primary`：主分类，单值，取 `feature` / `module` / `config` / `policy`。
+- `tags`：可选，数组，取值范围同 `primary`，不得与 `primary` 重复。用于描述 topic 同时包含的次要性质，仅作审计/阅读预期，不参与路由或执行。
+- `confidence`：取 `manual` / `inferred`。
 
-Decision rules:
+判定：
 
-1. A `topicMetadata` key must exist in `topicPaths`; write metadata only for a topicId that already exists or is confirmed to be created in this turn.
-2. `primary` should capture the topic's most central nature: read the topic body, decide which type its main content belongs to, and write that into `primary`.
-3. `config`: configuration items, switches, defaults, initialization parameters. Use as `primary` only when these form the topic's main semantics.
-4. `policy`: processes, rules, constraints, gates, prohibited items, agent orchestration, skill steps. Use as `primary` only when these form the topic's main semantics.
-5. `feature`: implemented business / product capability.
-6. `module`: shared capability, shared package, module boundaries, and engineering structure.
-7. When a topic covers multiple properties, put the most important one in `primary`; put other clearly present properties in `tags` (optional array, values from the same set as `primary`, not repeating `primary`).
-8. Use `manual` only when the user or maintainer explicitly confirms the category value. If there is clear evidence but no human confirmation of the category value, write `inferred`. When evidence is insufficient, **do not write metadata**, but list the inferred direction and evidence in the summary (for example, "suggest policy; the body contains multiple mandatory constraints") so the user can confirm and manually write `manual`. **Do not infer classification only from the topicId name; Read the topic body before deciding.** **`inferred` does NOT require prior user consent before being written**: when evidence is sufficient, write it directly per this clause; escalate to `manual` only when the user/maintainer actively specifies a category or when evidence conflicts and requires a decision. Treating `inferred` as "awaiting user approval" is a common misreading — it turns "evidence-backed auto-classification" into "mandatory human confirmation", which conflicts with clause 7's allowance for direct `inferred` writes.
+1. `topicMetadata` key 必须存在于 `topicPaths`；仅给已存在或本次确认创建的 topicId 写入。
+2. `primary` 取 topic 最核心的性质：读 topic 正文，判断其主要内容属于哪个类型，写入 `primary`。
+3. `config`：配置项、开关、默认值、初始化参数；仅当这些内容构成 topic 的主要语义时才可作为 `primary`。
+4. `policy`：流程、规则、约束、门禁、禁止项、agent 编排、技能步骤；仅当这些内容构成 topic 的主要语义时才可作为 `primary`。。
+5. `feature`：已落地业务 / 产品能力。
+6. `module`：公共能力、公共包、模块边界与工程结构
+7. topic 同时覆盖多个性质时，最主要性质写 `primary`，其余明确成立的性质写 `tags`（可选数组，元素取值同 `primary`，不得与 `primary` 重复）。
+8. `manual` 仅用于用户或维护者明确确认分类值；有明确证据但未人工确认分类值时写 `inferred`。证据不足时**不写 metadata**，但须在摘要中列出推断方向与依据（如「建议 policy，正文含多处强制约束」），供用户确认后手动补写 `manual`。**禁止仅凭 topicId 名称推断分类，必须 Read topic 正文后再判断。** **`inferred` 不需要用户事先同意即可直接落盘**：证据足够时按本条直接写入；只有当用户/维护者主动指定分类、或证据矛盾需要决断时，才升级为 `manual`。把 `inferred` 当作"待用户同意"是常见误读，等同于把"有依据的自动归类"硬变成"必须人工确认"，与本条第 7 项允许 `inferred` 落盘的语义冲突。
 
-Prohibited: creating, renaming, or splitting topics solely for classification; duplicating classification blocks in topic markdown bodies or `index.md`.
+禁止：为了分类创建、重命名、拆分 topic；在 topic markdown 正文或 `index.md` 中重复写分类块。
 
-## 4. topicDependencies Decision Criteria
+## 4. topicDependencies 判定准则
 
-Let the current topic be A and the candidate dependency be B. **Declare `A -> B` if any of these four questions hit**:
+设当前主题为 A、候选依赖为 B。**四问命中任一即声明 `A → B`**：
 
-1. **Strong reference to a prerequisite rule**: A's execution steps **explicitly mention** B's terminology / artifacts / disk-write constraints (example: `f2s-req-plan` requires maintaining `.task/` according to `f2s-task`).
-2. **Without B, the result would be wrong**: can reading only A and not B produce the right result? If no, this is typical when A says "how to do it" and B says "where to do it / which input to use."
-3. **Shared disk-write target**: A and B write the same set of files and B defines the disk-write format (such as `.task/` or `.Knowledge/topics/`).
-4. **Fallback jumps to B**: A's own coverage is incomplete and the existing convention falls back to B.
+1. **前置规则强引用**：A 的执行步骤**显式提到** B 的术语 / 产物 / 落盘约束（例：`f2s-req-plan` 要求「按 `f2s-task` 维护 `.task/`」）。
+2. **缺 B 必出错**：仅读 A 不读 B 能否产出对的结果？答否——典型为 A 写"怎么做"、B 写"在哪做 / 用哪份输入"。
+3. **共享落盘目标**：A、B 写同一组文件且 B 定义写盘格式（如 `.task/`、`.Knowledge/topics/`）。
+4. **fallback 跳转 B**：A 自身覆盖不全，按现有约定回落 B 兜底。
 
-**Reverse exclusions** (avoid dependency bloat):
+**反向排除**（避免依赖膨胀）：
 
-- Only neighboring terminology (both discuss "knowledge base") -> do not write a dependency; rely on `index.md` semantic boundaries.
-- Cross-topic information lookup (A wants to "learn about" B) -> do not write a dependency; rely on `taskToTopicRules` secondary candidates + `expand` recall.
-- **Overview -> detail navigation**: a major feature's main topic and its submodule topics are an "association/navigation" relationship, not a strong prerequisite dependency. Submodule topics should be independently matched by their own matchers; do not write `A -> B`. In the main topic body, write clickable stock-doc links for submodules as navigation entries.
-- **Do not duplicate transitive dependencies**: if `A->B` and `B->C` already hold, do not also write `A->C` (reading B naturally brings C).
+- 仅术语相邻（都谈"知识库"）→ 不写依赖，靠 `index.md` 语义边界即可。
+- 跨主题信息互查（A 想"了解一下" B）→ 不写依赖，靠 `taskToTopicRules` 次高候选 + `expand` 补召回。
+- **概述 → 详情导航**：大功能主 topic 与其子模块 topic 之间是"关联/导航"关系，不是强前置依赖——子模块 topic 通过各自的 matcher 独立命中，不写 `A → B`；主 topic 正文里写子模块 stock-doc 的可点击链接作为导航入口。
+- **传递依赖不重复声明**：若 `A→B`、`B→C` 已成立，禁止再写 `A→C`（读 B 时会自然带上 C）。
 
-**DAG and minimization**: `topicDependencies` must be a DAG; cycles are prohibited. Keep the edge set minimal.
+**DAG 与最小化**：`topicDependencies` 必须是 DAG，禁止环；保持最小边集。
 
-**Decision timing**: after final drafts and new/modified topics are written, scan the body for other topic ids and rule filenames referenced in **backticks**, apply the four questions one by one, and write `manifest-routing.topicDependencies` on hit. Also write an explicit dependency declaration in the new topic body (see skeleton item 4).
+**判定时机**：终稿与新 / 改 topic 落盘后，扫正文中**反引号引用的其他 topic id 与规则文件名**，逐个套四问；命中即写入 `manifest-routing.topicDependencies`，**并在新 topic 正文显式写依赖声明**（见骨架第 4 条）。
 
-## 5. Large-Feature Splitting Strategy
+## 5. 大功能拆分策略
 
-When a business feature is large, prefer a "main topic + subtopics" structure instead of one oversized topic.
+当一个业务功能体量较大时，推荐「主 topic + 子 topic」结构，而非单个大 topic。
 
-**When to split (soft constraints; evaluate splitting when any condition is met)**:
+**何时拆分（软约束，满足任一评估是否需拆）**：
 
-- The corresponding stock-doc exceeds **300-500 lines**: evaluate splitting, but do not hard-block;
-- matcher `includeAny` exceeds **12 entries**: signal that the topic is too broad;
-- the topic body contains second-level headings for more than **3 unrelated responsibility domains**;
-- during a `f2s-kb-upgrade` audit, the same topic is repeatedly matched by several unrelated task types.
+- 对应 stock-doc 超过 **300–500 行**：建议评估拆分，不强制阻断；
+- matcher `includeAny` 超过 **12 个**：主题过宽信号；
+- topic 正文包含超过 **3 个不相干职责域**的二级标题；
+- `f2s-kb-upgrade` 审计时发现同一 topic 被多种不相干任务类型反复命中。
 
-**How to split**:
+**拆分方式**：
 
-- **Main topic** (`primary: feature`): describe the business loop, entry boundaries, and submodule index; use clickable stock-doc links in the body to point to detail documents; do not write submodule implementation details.
-- **Submodule topics**: write each one as `feature` / `module` / `config` / `policy` according to its real semantics; do not preset the type. Each has its own matcher and is independently matched through more specific trigger words.
-- **stock-doc**: long-form content is allowed. When above threshold, prefer splitting into multiple focused stock-docs, such as `<feature-name>-business-rules_final.md` and `<feature-name>-data-model_final.md`, each corresponding to one subtopic.
+- **主 topic**（`primary: feature`）：写业务闭环、入口边界、子模块索引，正文里用可点击 stock-doc 链接指向各细节文档；不写子模块的实现细节。
+- **子模块 topic**：按实际语义各自写 `feature` / `module` / `config` / `policy`，不预设类型；各自拥有独立 matcher，通过细分触发词独立命中。
+- **stock-doc**：允许长文；超过阈值时建议拆成多份 focused stock-doc（如 `<功能名>-业务规则_终稿.md`、`<功能名>-数据模型_终稿.md`），每份对应一个子 topic。
 
-**Do not**:
+**不要做的事**：
 
-- Do not use `topicDependencies` to express "overview -> detail" navigation relationships (see reverse exclusions in section 4).
-- Do not force-create subtopics solely for splitting. If a submodule will not be independently routed, a topic is unnecessary.
+- 不用 `topicDependencies` 表达"概述 → 详情"导航关系（见第 4 节反向排除）；
+- 不为拆分而强行制造子 topic，若子模块本身不会被独立路由命中，不必建 topic。
 
-## 6. Whether a Rule Needs a Corresponding Topic
+## 6. rule 是否需新建对应 topic
 
-Criterion: **will this rule be matched as user-task routing?**
+判据：**该 rule 是否会作为用户任务路由命中**。
 
-- **Yes** (user questions / inputs can trigger this rule's execution) -> create a corresponding routing summary in `.Knowledge/topics/` and configure an entry in `taskToTopicRules`. Examples: `f2s-task` (matched by change-tracking user scenarios), `f2s-implement-tech-design` ("implement from design" user scenario).
-- **No** (only referenced internally by other rules / SKILLs, and users will not initiate it directly) -> **do not create** a topic. Examples: `f2s-knowledge-preflight`, `f2s-karpathy-guidelines`, `f2s-config-check`, this rule `f2s-topic-authoring`.
+- **会**（用户问 / 输入会触发该规则的执行）→ 须在 `.Knowledge/topics/` 建对应路由摘要，并在 `taskToTopicRules` 配置入口。例：`f2s-task`（变更追踪用户场景命中）、`f2s-implement-tech-design`（"按方案实现"用户场景命中）。
+- **不会**（仅被其他规则 / SKILL 内部引用，用户不会直接发起）→ **不建** topic。例：`f2s-knowledge-preflight`、`f2s-karpathy-guidelines`、`f2s-config-check`、本条 `f2s-topic-authoring`。
 
-Misconception: "Important rules should have topics." Importance is not the same as "matched by user routing"; let the consuming SKILL directly `Read rules/<id>.*` in its body instead of going through manifest routing.
+误区：「重要的规则就该有 topic」——重要不等于"用户路由命中"；让消费方 SKILL 在正文里直接 `Read rules/<id>.*` 全文即可，无需走 manifest 路由。
 
-## 7. Disk-Write Ownership (Pointer)
+## 7. 写盘权属（指针）
 
-Write-ownership constraints for `manifest-routing.json` / `.Knowledge/index.md` / `.Knowledge/topics/*.md` **are governed by `f2s-flow2spec-unified-entry` and the "hard write-ownership constraints" inside each SKILL**. This rule does not repeat them; in conflicts, follow the unified entry and the corresponding SKILL.
+`manifest-routing.json` / `.Knowledge/index.md` / `.Knowledge/topics/*.md` 的写权约束**以 `f2s-flow2spec-unified-entry` 与各 SKILL 内「写权硬约束」为准**，本条不复述；遇分歧以统一入口与对应 SKILL 为准。
 
-## Prohibited
+## 禁止项
 
-- Adding / modifying a topic or `topicDependencies` before reading this rule.
-- Creating, renaming, or splitting topics only to fill classification.
-- Writing duplicated metadata sections such as `## Concept Classification` in a topic body or `index.md`.
-- Forcing "important rules" into `taskToTopicRules` (see section 6).
-- Using `topicDependencies` to express "information is related" (use `index.md` semantic boundaries + matcher keyword recall instead of dependency edges).
-- Writing transitive redundant edges or cycles in `topicDependencies`.
-- **Listing `.Knowledge/req-docs/*` files (clarifications / technical designs / SQL / PRDs) in a topic's "Long-form background / Detailed materials / Related materials / Long-form source / Reference documents" reference slot.** These slots may only point at `.Knowledge/stock-docs/*_终稿.md`; when no stock-doc exists yet, consolidate it first and then fill the slot. Short-sentence / inline evidence pointers are not covered by this prohibition.
+- 在未读本条的情况下新增 / 修改 topic 或 `topicDependencies`。
+- 为补分类单独创建、重命名或拆分 topic。
+- 在 topic 正文或 `index.md` 中写 `## 概念分类` 等 metadata 副本。
+- 把"重要的规则"硬塞进 `taskToTopicRules`（参见第 4 条）。
+- 用 `topicDependencies` 表达"信息相关"（应通过 `index.md` 语义边界 + matcher 关键词补召回，而非依赖边）。
+- 在 `topicDependencies` 中写传递冗余边或形成环。
+- **在 topic 的「长文背景 / 详细资料 / 相关资料 / 长文来源 / 参考文档」等指向长文源的整节引用槽位里，列出 `.Knowledge/req-docs/*`**（含澄清 / 技术方案 / SQL / PRD）。此类槽位只允许指向 `.Knowledge/stock-docs/*_终稿.md`；无终稿时须先生成再回填。短句/佐证式的偶发点引不受此约束。

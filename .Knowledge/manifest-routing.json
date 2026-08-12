@@ -1,5 +1,5 @@
 {
-  "version": "3.2.11",
+  "version": "3.2.12",
   "knowledgeRoot": ".Knowledge",
   "matcherKey": "matcherId",
   "sourceOfTruth": ".Knowledge/manifest-routing.json",
@@ -25,7 +25,10 @@
     "pp-doctor": ".Knowledge/topics/pp-doctor.md",
     "pp-d2c": ".Knowledge/topics/pp-d2c.md",
     "pp-d2c-rn": ".Knowledge/topics/pp-d2c-rn.md",
-    "pp-fix-partial": ".Knowledge/topics/pp-fix-partial.md"
+    "pp-fix-partial": ".Knowledge/topics/pp-fix-partial.md",
+    "pp-install-dispatch": ".Knowledge/topics/pp-install-dispatch.md",
+    "pp-d2c-reskin": ".Knowledge/topics/pp-d2c-reskin.md",
+    "pp-image-compress": ".Knowledge/topics/pp-image-compress.md"
   },
   "taskToTopicRules": [
     {
@@ -100,10 +103,34 @@
       "topics": [
         "pp-fix-partial"
       ]
+    },
+    {
+      "task": "pp-install-dispatch",
+      "matcherId": "m-pp-install-dispatch",
+      "matcherPath": ".Knowledge/matchers/m-pp-install-dispatch.json",
+      "topics": [
+        "pp-install-dispatch"
+      ]
+    },
+    {
+      "task": "pp-d2c-reskin",
+      "matcherId": "m-pp-d2c-reskin",
+      "matcherPath": ".Knowledge/matchers/m-pp-d2c-reskin.json",
+      "topics": [
+        "pp-d2c-reskin"
+      ]
+    },
+    {
+      "task": "pp-image-compress",
+      "matcherId": "m-pp-image-compress",
+      "matcherPath": ".Knowledge/matchers/m-pp-image-compress.json",
+      "topics": [
+        "pp-image-compress"
+      ]
     }
   ],
-  "pkgRev": 2,
   "projectRev": 2,
+  "pkgRev": 2,
   "topicMetadata": {
     "implement-tech-design": {
       "primary": "policy",
@@ -159,6 +186,28 @@
     "pp-fix-partial": {
       "primary": "feature",
       "confidence": "manual",
+      "tags": [
+        "module"
+      ]
+    },
+    "pp-install-dispatch": {
+      "primary": "policy",
+      "confidence": "inferred",
+      "tags": [
+        "module"
+      ]
+    },
+    "pp-d2c-reskin": {
+      "primary": "feature",
+      "confidence": "inferred",
+      "tags": [
+        "module",
+        "policy"
+      ]
+    },
+    "pp-image-compress": {
+      "primary": "feature",
+      "confidence": "inferred",
       "tags": [
         "module"
       ]
