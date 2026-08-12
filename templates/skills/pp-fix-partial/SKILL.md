@@ -1,3 +1,8 @@
+---
+name: pp-fix-partial
+description: D2C 出码后的局部 UI 修复，仅重跑指定区块不重刷整页，复用 .d2c-cache 元数据与资产；触发：pp-fix-partial、修复这块、这一小块不对、重新生成某区域
+---
+
 # pp-fix-partial Skill
 
 > 局部 UI 修复:整页已经 D2C 出码但某一小块视觉/交互不对时,只重跑那一块,不重刷整页。利用 `.d2c-cache/` 复用 figma 元数据 + 图片资产,通过 hash 对比防污染。

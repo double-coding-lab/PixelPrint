@@ -154,6 +154,19 @@
     "含 TEXT 容器裁决",
     "压平 vs 拆",
     "bgc- 非切图",
-    "bg 直接挂父 vs 独立层"
+    "bg 直接挂父 vs 独立层",
+    "无头浏览器",
+    "headless",
+    "puppeteer",
+    "playwright",
+    "视觉验收",
+    "视觉对比",
+    "产物截图",
+    "截图对比",
+    "figma screenshot",
+    "dev-server 截图",
+    "像素对比",
+    "screenshot 命令",
+    "d2c-tmp screenshots"
   ]
 }

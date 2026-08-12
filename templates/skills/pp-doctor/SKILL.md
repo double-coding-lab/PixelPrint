@@ -1,3 +1,8 @@
+---
+name: pp-doctor
+description: D2C 设计稿健康检测，在生成代码前对 Figma 稿做命名/布局/结构/资产层面体检；触发：pp-doctor、体检一下、健康检测、检查设计稿、看看这个稿能不能还原
+---
+
 # pp-doctor Skill
 
 > **v0.3.11（2026-08-08）**：新增 BGP033（error）—— `bg-*` 前缀节点在产物中无对应切图 + 无 `<img>` / `<Image>` / `<ImageBackground>` / `background-image` 引用，属 sub-agent 因祖先 `bg-*` 切图物理覆盖而"合并省略"后代 `bg-*` 独立切图的忠实度事故；配套 pp-d2c / pp-d2c-rn §4.3「bg- 独立切图契约」+ §6.0.2 / §6.0.3 忠实度证明块 8 组。修复历史事故：`bg-<B>` 完全丢失、产物对应容器空 View。

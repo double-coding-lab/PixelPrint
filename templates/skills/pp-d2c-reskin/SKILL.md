@@ -1,3 +1,8 @@
+---
+name: pp-d2c-reskin
+description: 按 img/bg 前缀扫描 Figma 图层树批量切图并归入 theme 子目录，用于多套换肤稿对齐同一套代码；触发：pp-d2c-reskin、换肤、reskin、批量切图
+---
+
 # pp-d2c-reskin Skill
 
 > 用户给一批 figma 稿子,本 skill 按 `img` / `bg` 前缀规则扫图层树,把命中节点单独切图,归到 `<assetsDir>/theme-<slug>/` 子目录。**两种工作模式**:
