@@ -1,0 +1,48 @@
+templates/skills/pp-d2c/bin/rules/R09-btn-bgc.mjs
+  s_8f566140fc4cb6::t_af4f22244d736d 1-87
+templates/skills/pp-d2c/bin/rules/R03-implicit-image.mjs
+  s_8f566140fc4cb6::t_e647a54485c308 1-104
+templates/skills/pp-d2c-fast/bin/rules/R03-implicit-image.mjs
+  s_8f566140fc4cb6::t_24677279821d43 1-104
+templates/skills/pp-d2c/bin/rules/R04-text-gradient.mjs
+  s_8f566140fc4cb6::t_1ea7ea11b526f3 1-80
+templates/skills/pp-d2c-fast/bin/rules/R12-flat-mode-naming.mjs
+  s_8f566140fc4cb6::t_24677279821d43 1-47
+templates/skills/pp-d2c-fast/bin/rules/R09-btn-bgc.mjs
+  s_8f566140fc4cb6::t_24677279821d43 1-87
+templates/skills/pp-d2c/bin/check-rules.mjs
+  s_8f566140fc4cb6::t_9f3c9996e8c858 2-7
+  s_8f566140fc4cb6::t_195626ba01ac24 37-39
+  s_8f566140fc4cb6::t_bfd069c41cc95b 67
+  s_8f566140fc4cb6::t_5f4b42ead8265d 47
+  s_8f566140fc4cb6::t_772dbebb2dde01 74
+  s_8f566140fc4cb6::t_3437b04d4b4877 32
+  s_8f566140fc4cb6::t_1ce6403507c3ea 33
+templates/skills/pp-d2c/bin/rules/R12-flat-mode-naming.mjs
+  s_8f566140fc4cb6::t_2123b52f408467 1-17,19-47
+  s_8f566140fc4cb6::t_d5e53c65ee42be 18
+templates/skills/pp-d2c/bin/rules/R14-fixed-z-index.mjs
+  s_8f566140fc4cb6::t_7c540d90e910e9 1-50
+templates/skills/pp-d2c-fast/bin/check-rules.mjs
+  s_8f566140fc4cb6::t_24677279821d43 2-7,32-33,37-39,47,67,74
+templates/skills/pp-d2c-fast/bin/rules/R04-text-gradient.mjs
+  s_8f566140fc4cb6::t_24677279821d43 1-80
+templates/skills/pp-d2c-fast/bin/rules/R14-fixed-z-index.mjs
+  s_8f566140fc4cb6::t_24677279821d43 1-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "f36ad9b8ae1d29696ad641717f110365ddb0deb2",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
