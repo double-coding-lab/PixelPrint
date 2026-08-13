@@ -1,6 +1,10 @@
 #!/usr/bin/env node
-// check-rules.mjs — pp-d2c 硬防线脚本 (v1.2.1)
-// 覆盖 R01/R02/R05/R06/R08/R16/R17/R18/R19/R20/R21
+// check-rules.mjs — pp-d2c 硬防线脚本 (v1.2.3)
+// 覆盖 R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16/R17/R18/R19/R20/R21
+// v1.2.3 软→硬迁移：原 Rule-Scan 软防线中机械可判的 5 条下沉硬防线,逐节点对账不依赖 sub- 触发——
+//   R03 implicit-image(≥3 真矢量路径无切图) / R04 text-gradient(末位 GRADIENT/IMAGE 须 background-clip:text) /
+//   R09 btn-bgc(bgc 渐变须落 gradient) / R12 flat-mode-naming(flat 同名类冲突) / R14 fixed-z-index(多 fixed z 层级)。
+//   R07/R10/R11/R13/R15 需 LLM 语义判定,仍留软防线。所有新规则一律保守(宁漏报不误判,边界 skip)。
 // v1.2.0 对账升级：loadCache 标注 _inBakedSubtree / _hidden / _templateDup；
 //   R02/R06 跳过 baked·隐藏·模板副本 + SCSS &__ 嵌套匹配（lib/cssMatch.mjs）消除假阳性；
 //   R17 禁 baked 子孙出 DOM（双重渲染）；R18 flex-direction 忠实度；R19 padding 忠实度；R20 绝对定位坐标忠实度。
@@ -25,9 +29,14 @@ import { makeReport, printReport } from './lib/report.mjs';
 
 import * as R01 from './rules/R01-fixed-position.mjs';
 import * as R02 from './rules/R02-fills-image.mjs';
+import * as R03 from './rules/R03-implicit-image.mjs';
+import * as R04 from './rules/R04-text-gradient.mjs';
 import * as R05 from './rules/R05-space-between.mjs';
 import * as R06 from './rules/R06-text-solid-last.mjs';
 import * as R08 from './rules/R08-bg-landing-form.mjs';
+import * as R09 from './rules/R09-btn-bgc.mjs';
+import * as R12 from './rules/R12-flat-mode-naming.mjs';
+import * as R14 from './rules/R14-fixed-z-index.mjs';
 import * as R16 from './rules/R16-no-flatten-text.mjs';
 import * as R17 from './rules/R17-no-baked-dom.mjs';
 import * as R18 from './rules/R18-flex-direction.mjs';
@@ -35,7 +44,7 @@ import * as R19 from './rules/R19-padding.mjs';
 import * as R20 from './rules/R20-absolute-position.mjs';
 import * as R21 from './rules/R21-node-id-coverage.mjs';
 
-const ALL_RULES = [R01, R02, R05, R06, R08, R16, R17, R18, R19, R20, R21];
+const ALL_RULES = [R01, R02, R03, R04, R05, R06, R08, R09, R12, R14, R16, R17, R18, R19, R20, R21];
 
 function parseArgv(argv) {
   const args = { mode: null, dir: null, cacheKey: null, forceSkip: [] };
@@ -55,14 +64,14 @@ function parseArgv(argv) {
 }
 
 function printHelp() {
-  process.stdout.write(`check-rules.mjs (pp-d2c v1.2.1)
+  process.stdout.write(`check-rules.mjs (pp-d2c v1.2.3)
 
 Usage:
   node check-rules.mjs --block <blockDir> --cache-key <fileKey>
   node check-rules.mjs --merge <pageDir>  --cache-key <fileKey>
   node check-rules.mjs --block <blockDir> --cache-key <fileKey> --force-skip R05,R06
 
-Rules covered: R01 R02 R05 R06 R08 R16 R17 R18 R19 R20 R21
+Rules covered: R01 R02 R03 R04 R05 R06 R08 R09 R12 R14 R16 R17 R18 R19 R20 R21
 Exit: 0=ok, 1=violations, 2=env-error
 `);
 }
