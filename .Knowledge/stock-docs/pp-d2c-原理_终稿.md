@@ -87,21 +87,28 @@
 
 ### 双防线规则清单（R01–R21）
 
-**硬防线**（check-rules.mjs，纯代码判定，exit 1 回滚；`--block` sub 交付前 + `--merge` 合并后两个时机）：
+**硬防线 16 条**（check-rules.mjs，纯代码判定，exit 1 回滚；`--block` sub 交付前 + `--merge` 合并后两个时机）：
 
 | 规则 | 拦什么 |
 |------|--------|
 | R01 fixed-position | `fixed-` 节点缺 `position: fixed` |
 | R02 fills-image | fills 含 IMAGE 却凭空搓 gradient 代替切图 |
+| R03 implicit-image | 无前缀子树含 ≥3 真矢量路径却没整体切图（极保守，排除可 CSS 化形状） |
+| R04 text-gradient | TEXT 末位 GRADIENT/IMAGE 却用 solid 冒充（须 `background-clip:text`，与 R06 同机制） |
 | R05 space-between | `SPACE_BETWEEN` 被 margin-auto/flex-end 模拟 |
 | R06 text-solid-last | TEXT 多层 fills 取错层（应取末位可见 SOLID） |
 | R08 bg-landing-form | `bg-` 用 `<img>`/inline/伪元素/空 div 挂载 |
+| R09 btn-bgc-取值 | btn- 子树 bgc- 末位 GRADIENT 却用 solid 背景冒充 |
+| R12 flat-mode-naming | flat 模式同名 class 顶层定义 ≥2 次（合并覆盖） |
+| R14 fixed-z-index | ≥2 个 fixed- 却全缺 z-index 或全相同 |
 | R16 no-flatten-text | 含 TEXT 容器被整体切图（文字烤进 PNG） |
 | R17 no-baked-dom | baked 子树的子孙又出 DOM（双重渲染） |
 | R18/R19/R20 | flex 方向 / padding / 绝对定位坐标 与 Figma×scale 不符 |
 | R21 node-id-coverage | 应渲染节点漏挂 `data-node-id`（逃出全部对账） |
 
-**软防线**（Rule-Scan sub-agent，LLM 语义识别，R03/R04/R07/R09-R15）：隐式图、渐变字、多层 fills、btn 内 bgc 取值、幻觉色、mask 切图、flat 命名、单位换算、fixed z-index、同构 map。
+> **v1.2.3 起** R03/R04/R09/R12/R14 由软防线下沉硬防线，一律**保守判定**：触发不确定 / 无 className / baked·hidden·模板副本一律 skip，只在铁证违规时 exit 1（硬防线误判会阻断正确产物，比软防线漏报更伤）。
+
+**软防线 5 条**（Rule-Scan sub-agent，LLM 语义识别，R07/R10/R11/R13/R15）：多层 fills、幻觉色、mask CSS 可表达性、单位换算、同构 map——判定需 LLM 语义或边界模糊（如"同构度""色是否幻觉"），故留软。
 
 ### 含 TEXT 容器的「压平 vs 拆」唯一裁决树（v1.2.0）
 
@@ -144,7 +151,7 @@ violations > 0 一律禁止交付；`[整体切图兜底]` 标签废除；`[脚�
 - **为什么不做 AST Codegen**：传统 codegen 要覆盖「所有 Figma 节点形态 × 目标框架 × 样式方案」组合爆炸；LLM 天生擅长「规则 + 例子 → 代码」。代价是 LLM 不可靠——架构重心不在生成而在**约束**（规则写成禁止项、校验交给确定性脚本、豁免要证据）。演化成本低：改规则 = 改 md。
 - **为什么前缀不可配置**：v1.0 前 `layers` 段可配，导致规则文档 / 校验脚本 / doctor / Rule-Scan 四处要同步读配置，任何不一致都是漏洞。硬编码后全链路一个常量表，设计师-开发者-脚本三方共享同一份协议。
 - **为什么数字量禁止人工核对兜底**：`[需人工核对]` 只留给设计稿语义歧义（如「这文案是装饰还是要动态替换」）；坐标 / 尺寸 / 方向 / 间距都能从 Figma 字段机械推导，允许兜底 = 允许 agent 把算错的数交给用户擦屁股。
-- **为什么校验层持续变厚**（v1.0 五条硬规则 → v1.2.1 十一条 + 对账基座）：每条新硬规则对应一起真实事故（test10-13 系列）。标准演化回路：事故 → 归因 → 先清假阳性来源（loadCache 标注）→ 再上硬规则（报数即真值）→ 封话术豁免口。防线厚度是用事故换来的，不是预设计出来的。
+- **为什么校验层持续变厚**（v1.0 五条硬规则 → v1.2.1 十一条 → v1.2.3 十六条 + 对账基座）：每条新硬规则对应一起真实事故（test10-13 系列）。标准演化回路：事故 → 归因 → 先清假阳性来源（loadCache 标注）→ 再上硬规则（报数即真值）→ 封话术豁免口。防线厚度是用事故换来的，不是预设计出来的。
 
 ---
 

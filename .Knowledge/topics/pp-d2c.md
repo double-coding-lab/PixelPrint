@@ -66,7 +66,7 @@ pp-d2c 有**两套独立版本号**，不一致是正常的：
 
 - **四层架构**：数据层(`figma.mjs`) / 规则层(`SKILL.md`+`rules/`) / 执行层(LLM) / 校验层(`check-rules.mjs`)——两个确定性脚本层夹住一个概率性 LLM 层，机械动作(HTTP/缓存/下载/校验)从 LLM 手里拿走，LLM 只做"理解结构+产出代码"。
 - **前缀即协议**：图层名前缀是硬编码内置常量(config 无 `layers` 段)，设计师用前缀显式写意图，skill 不猜。组合优先级 `x- > img- > bg- > bgc- > btn- > 滚动 > 无前缀`，`fixed-`/`end-` 是修饰前缀最后叠加；裸词白名单 `bg/bgc/btn/img/input`。
-- **双防线**：软防线 Rule-Scan(生成前识别语义类 R03/R04/R07/R09–R15) + 硬防线 check-rules(交付前逐节点对账 R01/R02/R05/R06/R08/R16–R21)。软管提效(先扫作业指引再动笔)、硬管保质(exit 1 回滚)。
+- **双防线**：软防线 Rule-Scan(生成前识别语义类 R07/R10/R11/R13/R15) + 硬防线 check-rules(交付前逐节点对账,16 条 R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16–R21)。软管提效(先扫作业指引再动笔)、硬管保质(exit 1 回滚)。**v1.2.3 起 软规则硬化**：Rule-Scan 软防线里机械可判的 R03/R04/R09/R12/R14 下沉硬防线(逐节点对账不依赖 sub- 触发、exit 1 阻断,一律保守判定宁漏报不误判),软防线瘦身至需 LLM 语义的 R07/R10/R11/R13/R15。**v1.2.2 起 Rule-Scan 触发与 sub- 解耦**：页面无 sub- 图层时,主 agent 出码前把「页面根」当虚拟 block 对整页跑一次 Rule-Scan,`rule-hits.json` 落页面根目录(与页面 `assets.txt` 同级)——软防线覆盖不依赖设计师是否标了 sub-(pp-d2c 与 pp-d2c-fast 同口径)。
 - **sub-agent 分块是质量保证非性能优化**：单 agent 同时处理全局协调+局部细节时细节退化，故 `sub-` 强制分发、最深 3 层、`<__SUBSLOT__>`+`subslots.json` 上报-派发。
 - **data-node-id 贯穿全流程**：对账绑定 / 守恒律差集 / review 反查 / 局部修复锚点，四用途；R21 把"全覆盖"变硬规则。
 - **封逃逸口 + 自证代替信任**：已知逃逸路径(整体切图代拆结构/凭空搓渐变/幻觉 padding)显式禁止 + 机械拦截；豁免须三段证据且单次 ≤3；生成流程禁 `--force-skip`。
@@ -84,6 +84,7 @@ pp-d2c 有**两套独立版本号**，不一致是正常的：
   - `_hidden`：自身或祖先 `visible === false` → 不渲染。
   - `_templateDup`：`.map()` 列表里**同构兄弟的非首个**（数据副本）→ 只校验代表项（variant a），副本跳过。
   - `_parentId`：供 R20 查父节点 bbox。
+  - 标注是**内存态**：`walk()` 直接修改缓存 JSON 解析出的对象引用，**不回写** `.d2c-cache` 磁盘文件。同构判定用 `structureSig()`（type + 深度 3 子结构签名，不看具体文案）；**叶子节点不参与列表判定**（并排 TEXT「20」「元」不会误标为副本）；副本标记向整棵子树传播（副本项的子孙全部跳过对账）。
 - **`cssMatch.mjs` 共享 SCSS 嵌套匹配**：产物按 `config.styleFormat` 可能是平铺 `.page__foo` 或 SCSS `&__foo`/`&-foo` 嵌套；R01/R02/R06/R18/R19 统一走它，修掉「产物用嵌套写法、规则用平铺正则 → 整体匹配不到」的全线假阳性盲区。
 
 ### 五条新硬规则（R17–R21，全部 exit 1 拦截）
@@ -107,6 +108,20 @@ pp-d2c 有**两套独立版本号**，不一致是正常的：
 > **允许兜底的路径就是错误来源；校验以 cache 为唯一真值逐节点对账，而非抽查已知坏味道。**
 
 完整规则定义见 `templates/skills/pp-d2c/rules/R17~R21.md` 与 `rules/README.md`；对账基座实现见 `bin/lib/loadCache.mjs` / `bin/lib/cssMatch.mjs`。
+
+## 软防线闭环与 rule-hits 档案
+
+软规则（v1.2.3 后剩 R07/R10/R11/R13/R15）**没有机械比对**，靠三段清单对账闭环：
+
+1. **Rule-Scan 记账**：每个 sub- block 出码前派独立 Rule-Scan（只识别不写 UI），落盘 `rule-hits.json`，每条 hit 带 nodeId/trigger/expected；只按规则文档触发条件**字面判定**，禁止按设计意图猜测。
+2. **UI sub-agent 销账**：按每条 hit 的 expected 落地，`assets.txt` 写「rule-hits 消费证明」（输入 N 条 vs 处理 M 条逐条对号）；发现漏扫允许自补但必须记 `[遗漏补捕]`。
+3. **主 agent 查账**：§6.0.2 合并前聚合读所有 rule-hits 与消费证明，输出 N/M diff（fast 版不手写消费证明，消费到位由 check-rules exit 0 保证）。
+
+软规则出错由三层兜底：**硬规则接力**（v1.2.3 后 R03/R04/R09/R12/R14 本身已是硬防线；剩余软规则如 R07 多层 fills 由 R02 切图对账部分兜、R13 漏乘 scale 会被 R19/R20 数值对账暴露）、**视觉验收**、**降级链**（Rule-Scan 挂→重派一次→二次挂写 `v0.3.21-fallback` 占位 + UI 侧自读全量规则库；硬防线不受影响）。
+
+- **落盘位置**：`<output.dir>/<页面>/blocks/<sub>/rule-hits.json`（与该 block 的 index.tsx / assets.txt 同级；嵌套 sub- 在父 block 的 `blocks/` 子目录）；v1.2.2 起无 sub- 页面落**页面根目录**。本仓库是 skill 模板源，仓内不存在该文件——它是业务项目运行产物。
+- **生命周期**：flat 合并后 `blocks/` **保留所有层级不删除**（QA 审计档案，与消费证明 / 遗漏补捕互为对照）；**不放** `.d2c-tmp`（该目录语义为「跨会话不保留」，步骤 7 清理）。
+- **排障口径**：稿子有 sub- 却无 `blocks/` 目录 = 执行偏离；稿子无 sub- 时无 `blocks/` 属正常（产物仅 index.jsx / index.scss / assets.txt，v1.2.2 起页面根应有 rule-hits.json）。
 
 ## 关键执行约束（按重要度排序）
 
@@ -253,6 +268,8 @@ sub-agent 在生成 scroll 容器代码前**必须输出自检 4 行**：
 ```
 
 **与 `fixed-` 的区别**：`fixed-` 相对**视口**贴边，`end-` 相对**父容器**贴末端。两者同现（`fixed-end-x-btn`）时 fixed- 优先，end- 忽略（doctor LAY020 warn）。
+
+**与 Figma 原生 `SPACE_BETWEEN` 的区别**：设计师把 Auto Layout 间距设为 Auto 时，REST API 返回 `primaryAxisAlignItems: "SPACE_BETWEEN"`，R05 将其翻译为 `justify-content: space-between`——但它把**全部子项**均分拉开；`end-` 通过虚拟 wrapper 让前组保持设计稿固定 gap、**只推末项**。父容器恰好 2 个子项且已设 Auto 间距时两者效果等价，不必加 `end-`；子项 ≥3 只想推最后一个、或需要「贴真实屏底」（运行时视口语义，Figma 静态几何表达不了）时必须用 `end-`。
 
 **触发前提**（doctor 校验四类不合规）：
 - `end-` 必须是父的**最后一个可见子**（LAY017 error，不在末位）
