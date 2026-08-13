@@ -1,0 +1,21 @@
+.Knowledge/.last-sync.json
+  s_8f566140fc4cb6::t_a3c0f97354c613 2
+.Knowledge/stock-docs/pp-d2c-原理_终稿.md
+  s_8f566140fc4cb6::t_42e7b4442e68ac 111-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "0f10028cf39607cf2f09c81f0434afb9a5b317aa",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
