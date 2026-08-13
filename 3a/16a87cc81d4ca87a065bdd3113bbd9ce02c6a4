@@ -1,0 +1,101 @@
+templates/skills/pp-d2c-fast/rules/R12-flat-mode-naming.md
+  s_8f566140fc4cb6::t_109902b0eddbd8 5
+  s_8f566140fc4cb6::t_d68b34476548e8 6
+templates/skills/pp-d2c/rules/R09-btn-bgc-取值.md
+  s_8f566140fc4cb6::t_acdc451782daa6 5
+  s_8f566140fc4cb6::t_b1a8d0da053cc8 6
+templates/skills/pp-d2c/rules/R12-flat-mode-naming.md
+  s_8f566140fc4cb6::t_c4856780392cff 5
+  s_8f566140fc4cb6::t_dc975fa6363a6d 6
+templates/skills/pp-d2c-fast/rules/R09-btn-bgc-取值.md
+  s_8f566140fc4cb6::t_9d45017be73791 5
+  s_8f566140fc4cb6::t_57c568a0fe2f5a 6
+templates/skills/pp-d2c/rules/R14-fixed-z-index.md
+  s_8f566140fc4cb6::t_996c04d22f3a53 6
+  s_8f566140fc4cb6::t_a54aae111d3002 5
+templates/skills/pp-d2c-fast/SKILL.md
+  s_8f566140fc4cb6::t_4dcc2633601968 714
+  s_8f566140fc4cb6::t_9c114c2bfe0924 1069
+  s_8449a76820d5a9::t_23b5d327ca92e4 1948
+  s_8f566140fc4cb6::t_cce7831a614dc6 8
+  s_8f566140fc4cb6::t_03ee4b34815f8f 1058-1059
+  s_8449a76820d5a9::t_928a9110fc9d61 13-14
+  s_8f566140fc4cb6::t_790771611aa5fd 725
+  s_8449a76820d5a9::t_462be31b6cd4c9 718-724,726,729
+  s_8f566140fc4cb6::t_699c6fb8059174 10-12
+templates/skills/pp-d2c-fast/rules/R14-fixed-z-index.md
+  s_8f566140fc4cb6::t_bc2f713973f221 5
+  s_8f566140fc4cb6::t_75175026691de7 6
+templates/skills/pp-d2c/rules/README.md
+  s_8f566140fc4cb6::t_bd0f6a5a0b6b90 43
+  s_8f566140fc4cb6::t_57b5fe9bc0ffb6 56
+  s_8449a76820d5a9::t_9cd6aeadf6ee43 64-65
+  s_8f566140fc4cb6::t_4423cb8f165678 72
+  s_8f566140fc4cb6::t_566d04fd4fb5ff 54
+  s_8f566140fc4cb6::t_123d7b33ed1bf5 33
+  s_8f566140fc4cb6::t_69ff1efe574ff8 122
+  s_8f566140fc4cb6::t_30c16ff1a796a9 78-79
+  s_8f566140fc4cb6::t_352f6c2d3ef52d 32
+  s_8f566140fc4cb6::t_e1bd234a764671 157
+  s_8449a76820d5a9::t_9ee3b6caa8f412 158
+  s_8f566140fc4cb6::t_37cb178e247aa5 41
+  s_8f566140fc4cb6::t_e06c57d212f415 38
+templates/skills/pp-d2c/SKILL.md
+  s_8f566140fc4cb6::t_85d7dcee251582 8-10
+  s_8449a76820d5a9::t_fe61400d61659d 11-12
+  s_8f566140fc4cb6::t_e42960aeb8d0f8 712
+  s_8f566140fc4cb6::t_78fc6e3240774a 724
+  s_8f566140fc4cb6::t_7625ab88368b68 1069-1070
+  s_8f566140fc4cb6::t_f94285903d40da 1080
+  s_8449a76820d5a9::t_c5eedd344ce037 2006
+  s_8449a76820d5a9::t_4feea504c3a6bf 716-723,725,728
+templates/skills/pp-d2c-fast/rules/R03-implicit-image.md
+  s_8f566140fc4cb6::t_ed7fe0ed25bf0c 5
+  s_8f566140fc4cb6::t_2bb963af615b33 6
+templates/skills/pp-d2c-fast/rules/README.md
+  s_8f566140fc4cb6::t_023e20d8e1ccc0 33
+  s_8f566140fc4cb6::t_72b7c5487b5dda 157
+  s_8449a76820d5a9::t_797736e6ee79f0 64-65,158
+  s_8f566140fc4cb6::t_cae4f47bdb3731 72
+  s_8f566140fc4cb6::t_6c0fbddf52c607 54
+  s_8f566140fc4cb6::t_af0bf465c06803 56
+  s_8f566140fc4cb6::t_ada8e0d968fa0b 32
+  s_8f566140fc4cb6::t_183e062f262b63 122
+  s_8f566140fc4cb6::t_709244583ac52d 78-79
+  s_8f566140fc4cb6::t_bf6063dc326325 38
+  s_8f566140fc4cb6::t_3c133006066d41 43
+  s_8f566140fc4cb6::t_0db86a14fb890b 41
+templates/skills/pp-d2c/rules/R03-implicit-image.md
+  s_8f566140fc4cb6::t_118b683d0e4a68 5
+  s_8f566140fc4cb6::t_8f9bee140e2a1b 6
+templates/skills/pp-d2c/rules/R04-text-gradient.md
+  s_8f566140fc4cb6::t_8b402fb36b8d12 5
+  s_8f566140fc4cb6::t_8ace69e687482c 6
+templates/skills/pp-d2c-fast/rules/R04-text-gradient.md
+  s_8f566140fc4cb6::t_9dde1515ade5e3 5
+  s_8f566140fc4cb6::t_44e027209c43cd 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "3a16a87cc81d4ca87a065bdd3113bbd9ce02c6a4",
+  "prompts": {},
+  "sessions": {
+    "s_8449a76820d5a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a9422b6-ce20-42b5-8067-a6d8bf49264a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    },
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
