@@ -1,0 +1,31 @@
+test/rules/README.md
+  s_8f566140fc4cb6::t_74e9e25e34ddf0 1-29
+test/rules/test-r20.mjs
+  s_8f566140fc4cb6::t_201757548781b4 1-78
+package.json
+  s_8f566140fc4cb6::t_9a403a034e4276 9-10
+test/rules/test-r03-r09-r12-r14.mjs
+  s_8f566140fc4cb6::t_201757548781b4 1-92
+test/rules/test-r04.mjs
+  s_8f566140fc4cb6::t_201757548781b4 1-67
+test/rules/run-all.mjs
+  s_8f566140fc4cb6::t_af4a3dabe80e62 1-23
+test/rules/test-scope.mjs
+  s_8f566140fc4cb6::t_201757548781b4 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "c47db85dd074d02ae552606163c5576823636302",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
