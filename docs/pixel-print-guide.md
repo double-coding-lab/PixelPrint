@@ -452,7 +452,9 @@ RN 分支的核心机制:**内核用 6 大 RN 原生标签描述一切**(`View /
   },
   "layers": { /* 12 类前缀映射,生产建议保持默认 */ },
   "output": { "dir": "pages/" },      // rn 默认 "src/pages/"
-  "health": { "enabled": true, "blockOnError": true, /* ... */ }
+  "health": { "enabled": true, "blockOnError": true, /* ... */ },
+  "slice": { "confirmBeforeContinue": true }  // skill v1.2.4: 步骤 2.6 切图完成后暂停等用户确认;
+                                              // false 仅跳过无警告场景,sizeWarning 非空仍强制停
 }
 ```
 
@@ -615,6 +617,7 @@ SKILL.md 里所有类似 `doctor.run({...})` / `partial.replace(file, str)` 的�
 
 | 版本 | 里程碑 |
 |---|---|
+| skill v1.2.3–v1.2.4 | pp-d2c/fast 软规则硬化(硬防线 11→16 条,R03/R04/R09/R12/R14 下沉 check-rules) + 生成过程缺陷修复批(GATE-rule-hits 门禁 / IMG-reconcile 三方对账 / --block 局部化 / reskin-slice hard stop + 切图确认暂停 / R22 warning / figma.mjs 深度截断修复) |
 | **v1.3.0** | **init/install 支持 Codex:skill 双写 `.claude/skills/` 与 `.codex/skills/`;SKILL 模板补 YAML frontmatter(name/description,Codex 识别触发的前提);新增 [`pp-d2c-principles.md`](./pp-d2c-principles.md) 原理文档** |
 | v1.2.x | pp-d2c 校验范式升级为「以 cache 为真值逐节点对账」:`rules/R01-R22` 规则库 + `check-rules.mjs` 硬防线 + Rule-Scan 软防线;loadCache 三标注(`_inBakedSubtree`/`_hidden`/`_templateDup`)清假阳性;新增 `pp-d2c-reskin`(换肤批量切图)/`pp-image-compress` skill;图层前缀由配置项降级为内置常量 |
 | v1.1.1 | 新增 14 个 CLI 快捷参数(`--framework / --adapter-preset / --merge-mode / ...`,CLI > config > 交互);merge.mode 默认改成 flat;custom adapter 生成 6 键空 tagMap 骨架;移除 code-connect 复制;输出精简(阶段数从 5 收成 4) |
