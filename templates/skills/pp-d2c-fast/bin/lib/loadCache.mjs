@@ -118,6 +118,28 @@ export function pruneToSubtree(cacheNodes, rootId) {
   return keep;
 }
 
+// ── cache 完整性检测（v1.2.5）────────────────────────────────────
+// GROUP/BOOLEAN_OPERATION 在 Figma 中必有子节点;合并全部分片后仍为空 = REST depth 截断实锤
+// （深分片 walk 时会覆盖浅分片的同 id 节点对象,覆盖后仍空说明没有任何分片拉到其内容）。
+// 典型 test29: cache 仅 _depth=1/2 分片、25 节点,逐节点对账因"无节点可对"真空通过。
+// 跳过: baked(bg-/img-/x- 自身及子树,像素已烤进 PNG,子树内容与对账无关)/hidden/templateDup。
+// INSTANCE/COMPONENT 为空极罕见但理论可构造 → 归 soft(调用方作 warning)。
+const NEVER_EMPTY_HARD = new Set(['GROUP', 'BOOLEAN_OPERATION']);
+const NEVER_EMPTY_SOFT = new Set(['INSTANCE', 'COMPONENT']);
+
+export function findCacheTruncation(cacheNodes) {
+  const hard = [];
+  const soft = [];
+  for (const [nodeId, node] of Object.entries(cacheNodes)) {
+    if (node._inBakedSubtree || node._hidden || node._templateDup) continue;
+    if (isNonRecursivePrefix(node.name)) continue; // 整体切图/忽略目标,子树内容不参与对账
+    if (Array.isArray(node.children) && node.children.length > 0) continue;
+    if (NEVER_EMPTY_HARD.has(node.type)) hard.push({ nodeId, name: node.name || '(no name)', type: node.type });
+    else if (NEVER_EMPTY_SOFT.has(node.type)) soft.push({ nodeId, name: node.name || '(no name)', type: node.type });
+  }
+  return { hard, soft };
+}
+
 function walk(node, acc, parentRealId, inBaked, bakedBy, hidden, templateDup) {
   if (!node || typeof node !== 'object') return;
 

@@ -337,6 +337,30 @@ async function cmdExportImage(positional, flags) {
   }
 }
 
+// ─── 命令: confirm-slices <fileKey> <slug> ──────────────────────
+// v1.2.5 切图确认留痕: 步骤 2.6 用户确认切图结果后执行,把 slice-manifest 对应 theme 的
+// confirmed 置 true(check-rules --merge 的 GATE-slice-confirm 依赖该字段)。
+// 仅在用户明确确认后调用;agent 不得未经确认自行执行(留痕即取证,伪造可事后对会话审计)。
+
+function cmdConfirmSlices(positional) {
+  const [fileKey, slug] = positional
+  if (!fileKey || !slug) return fail('用法: figma confirm-slices <fileKey> <slug>')
+  const { projectRoot } = loadConfig()
+  const manifestFile = path.join(projectRoot, '.d2c-cache', fileKey, `slice-manifest-${slug}.json`)
+  if (!fs.existsSync(manifestFile)) return fail(`清单不存在: ${manifestFile}`)
+  let manifest
+  try { manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8')) } catch (e) {
+    return fail(`清单解析失败: ${e.message}`)
+  }
+  const themes = (manifest.themes || []).filter(t => t.slug === slug)
+  const targets = themes.length ? themes : (manifest.themes || [])
+  if (targets.length === 0) return fail(`清单中无 theme 可确认: ${manifestFile}`)
+  const confirmedAt = new Date().toISOString()
+  for (const t of targets) { t.confirmed = true; t.confirmedAt = confirmedAt }
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2))
+  output({ ok: true, data: { manifest: manifestFile, confirmed: targets.map(t => t.slug), confirmedAt } })
+}
+
 // ─── 命令: screenshot <fileKey> <nodeId> [--tag=leaf|whole|block] ─
 
 async function cmdScreenshot(positional, flags) {
@@ -389,6 +413,7 @@ const commands = {
   'cache-check': () => cmdCacheCheck(positional),
   'fetch-node': () => cmdFetchNode(positional, flags),
   'export-image': () => cmdExportImage(positional, flags),
+  'confirm-slices': () => cmdConfirmSlices(positional),
   'screenshot': () => cmdScreenshot(positional, flags),
   'cleanup-tmp': () => cmdCleanupTmp(),
 }
@@ -402,6 +427,7 @@ figma.mjs — Figma REST API helper
   node figma.mjs cache-check <fileKey>
   node figma.mjs fetch-node <fileKey> <nodeId> [--depth=N]
   node figma.mjs export-image <fileKey> <nodeId> --filename=<name> [--format=png|svg] [--scale=1|2] [--preserve-effect]
+  node figma.mjs confirm-slices <fileKey> <slug>   (步骤 2.6 用户确认切图后执行,manifest confirmed → true)
   node figma.mjs screenshot <fileKey> <nodeId> [--tag=leaf|whole|block] [--scale=2]
   node figma.mjs cleanup-tmp
 
