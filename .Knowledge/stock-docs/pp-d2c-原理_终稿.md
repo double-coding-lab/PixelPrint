@@ -108,7 +108,9 @@
 
 > **v1.2.3 起** R03/R04/R09/R12/R14 由软防线下沉硬防线，一律**保守判定**：触发不确定 / 无 className / baked·hidden·模板副本一律 skip，只在铁证违规时 exit 1（硬防线误判会阻断正确产物，比软防线漏报更伤）。
 
-**软防线 5 条**（Rule-Scan sub-agent，LLM 语义识别，R07/R10/R11/R13/R15）：多层 fills、幻觉色、mask CSS 可表达性、单位换算、同构 map——判定需 LLM 语义或边界模糊（如"同构度""色是否幻觉"），故留软。
+> **v1.2.4 加固**（exit-1 规则维持 16 条）：新增 **R22 empty-visual-btn**（warning 级不阻断——btn- 子树无文字/背景/图的透明热区嫌疑，常见根因 cache 深度截断或该切图没切）与两道流程门禁：**GATE-rule-hits**（rule-hits.json 缺失即 exit 1，assets.txt 写了消费证明但文件不存在时标"疑似捏造"）、**IMG-reconcile**（--merge 时产物图片引用必须来自 slice-manifest，动态拼接碎片按后缀匹配保守放行）。`--block` 对账**局部化**：`--root <nodeId>` 或产物 data-node-id LCA 推断，cache 裁剪到本 block 子树，block 外节点不再误报。R20 同时强制 `position: absolute` 声明（数值可省，position 不可省）。流程侧：步骤 2.6 reskin-slice 失败 hard stop + 切图确认暂停（`slice.confirmBeforeContinue` 默认 true）；micro-sub 快路径（≤8 节点主 agent 内联）与同构 sub- 合并；figma.mjs 全量请求只复用全量 cache 并输出 `truncatedSuspects` 截断嫌疑。
+
+**软防线 5 条**（Rule-Scan sub-agent，LLM 语义识别，R07/R10/R11/R13/R15）：多层 fills、幻觉色、mask CSS 可表达性、单位换算、同构 map——判定需 LLM 语义或边界模糊（如"同构度""色是否幻觉"），故留软。**Rule-Scan 扫描范围为全部规则**（v1.2.4）：软 5 条以 rule-hits 为唯一判定点，硬防线命中只作生成前逐节点指引，判决权在 check-rules。
 
 ### 含 TEXT 容器的「压平 vs 拆」唯一裁决树（v1.2.0）
 
