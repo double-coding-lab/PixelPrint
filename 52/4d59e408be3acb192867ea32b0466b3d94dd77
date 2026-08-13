@@ -1,0 +1,23 @@
+.Knowledge/topics/pp-d2c.md
+  s_8f566140fc4cb6::t_7990292899f40f 74
+.Knowledge/stock-docs/pp-d2c-原理_终稿.md
+  s_8f566140fc4cb6::t_ededb17fa3229b 1-171
+.Knowledge/index.md
+  s_8f566140fc4cb6::t_f43f52cc68a0ec 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "524d59e408be3acb192867ea32b0466b3d94dd77",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
