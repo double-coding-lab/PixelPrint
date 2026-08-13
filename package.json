@@ -6,7 +6,8 @@
     "pp-d2c": "bin/install.js"
   },
   "scripts": {
-    "init": "node bin/install.js init"
+    "init": "node bin/install.js init",
+    "test": "node test/rules/run-all.mjs"
   },
   "files": [
     "bin/",
