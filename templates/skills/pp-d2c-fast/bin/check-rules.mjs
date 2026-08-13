@@ -1,6 +1,11 @@
 #!/usr/bin/env node
-// check-rules.mjs — pp-d2c 硬防线脚本 (v1.2.3)
-// 覆盖 R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16/R17/R18/R19/R20/R21
+// check-rules.mjs — pp-d2c 硬防线脚本 (v1.2.4)
+// 覆盖 R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16/R17/R18/R19/R20/R21/R22(warning)
+// v1.2.4：(1) --block 局部化——--root <nodeId> 或从产物 data-node-id 推断(LCA),cache 裁剪到
+//   block 子树,消除 R21/R03 对 block 外节点的全量误报;(2) GATE-rule-hits 门禁——rule-hits.json
+//   缺失即 exit 1(含 assets.txt 消费证明捏造检测);(3) IMG-reconcile 三方对账(--merge)——产物
+//   图片引用必须来自 slice-manifest;(4) R20 增强 position:absolute 声明强制;(5) 新增 R22
+//   empty-visual-btn(warning 级);规则可返回 severity:'warning' 进 warnings 不阻断。
 // v1.2.3 软→硬迁移：原 Rule-Scan 软防线中机械可判的 5 条下沉硬防线,逐节点对账不依赖 sub- 触发——
 //   R03 implicit-image(≥3 真矢量路径无切图) / R04 text-gradient(末位 GRADIENT/IMAGE 须 background-clip:text) /
 //   R09 btn-bgc(bgc 渐变须落 gradient) / R12 flat-mode-naming(flat 同名类冲突) / R14 fixed-z-index(多 fixed z 层级)。
@@ -22,7 +27,8 @@
 //   2 — 环境错误 (cache/产物/config 缺失)
 
 import path from 'node:path';
-import { findProjectRoot, loadConfig, loadCache } from './lib/loadCache.mjs';
+import fs from 'node:fs';
+import { findProjectRoot, loadConfig, loadCache, inferBlockRoot, pruneToSubtree } from './lib/loadCache.mjs';
 import { loadProduct } from './lib/loadProduct.mjs';
 import { buildNodeIdToClassName } from './lib/nodeIdToClassName.mjs';
 import { makeReport, printReport } from './lib/report.mjs';
@@ -43,16 +49,139 @@ import * as R18 from './rules/R18-flex-direction.mjs';
 import * as R19 from './rules/R19-padding.mjs';
 import * as R20 from './rules/R20-absolute-position.mjs';
 import * as R21 from './rules/R21-node-id-coverage.mjs';
+import * as R22 from './rules/R22-empty-visual-btn.mjs';
 
-const ALL_RULES = [R01, R02, R03, R04, R05, R06, R08, R09, R12, R14, R16, R17, R18, R19, R20, R21];
+const ALL_RULES = [R01, R02, R03, R04, R05, R06, R08, R09, R12, R14, R16, R17, R18, R19, R20, R21, R22];
+
+// ── rule-hits 存在性门禁(v1.2.4,问题5) ─────────────────────────
+// Rule-Scan 是步骤 3.5 硬性动作;v1.2.2 起无 sub- 页面也必须对页面根跑一次(虚拟 block)。
+// test24-27 实测: agent 跳过 Rule-Scan 并在 assets.txt 捏造"§3.5 允许合并到 UI 侧"许可
+// → 文本约束拦不住,此处机械兜底。缺失 = violation(exit 1);降级占位(v0.3.21-fallback)算存在。
+function checkRuleHitsGate(mode, productDir) {
+  const violations = [];
+  const need = [];
+  if (mode === 'block') {
+    need.push({ dir: productDir, label: `block ${path.basename(productDir)}` });
+  } else {
+    const blocksDir = path.join(productDir, 'blocks');
+    let blockDirs = [];
+    if (fs.existsSync(blocksDir)) {
+      blockDirs = fs.readdirSync(blocksDir)
+        .map((d) => path.join(blocksDir, d))
+        .filter((p) => {
+          try {
+            return fs.statSync(p).isDirectory() && fs.readdirSync(p).some((f) => /\.(jsx|tsx)$/.test(f));
+          } catch { return false; }
+        });
+    }
+    if (blockDirs.length > 0) for (const d of blockDirs) need.push({ dir: d, label: `block ${path.basename(d)}` });
+    else need.push({ dir: productDir, label: '页面根(无 sub-,v1.2.2 虚拟 block)' });
+  }
+  for (const { dir, label } of need) {
+    const f = path.join(dir, 'rule-hits.json');
+    if (fs.existsSync(f)) {
+      try { JSON.parse(fs.readFileSync(f, 'utf8')); } catch {
+        violations.push(gateViolation(label, f, 'rule-hits.json 存在但不是合法 JSON'));
+      }
+      continue;
+    }
+    // 防捏造: 文件缺失但 assets.txt 已写消费证明
+    let fabricated = '';
+    const at = path.join(dir, 'assets.txt');
+    try {
+      if (fs.existsSync(at) && fs.readFileSync(at, 'utf8').includes('rule-hits 消费证明')) {
+        fabricated = ';且 assets.txt 已写"rule-hits 消费证明"(疑似捏造,文件并不存在)';
+      }
+    } catch { /* assets 不可读不影响门禁本身 */ }
+    violations.push(gateViolation(label, f, `缺失 ${f}${fabricated}`));
+  }
+  return violations;
+}
+
+function gateViolation(label, file, actual) {
+  return {
+    rule: 'GATE-rule-hits',
+    nodeId: '-',
+    name: label,
+    type: 'GATE',
+    expected: `${label} 必须存在 rule-hits.json(步骤 3.5 Rule-Scan 落盘;二次降级也须写 v0.3.21-fallback 占位)`,
+    actual,
+    file,
+    line: 0,
+    snippet: '',
+  };
+}
+
+// ── 切图三方对账(v1.2.4,问题3;--merge 时执行) ───────────────────
+// 产物图片引用必须来自 slice-manifest(步骤 2.6 只消费清单契约):
+//   产物引用 ∉ manifest → violation(疑似绕清单手工切图);
+//   manifest 条目未被引用 → warning(可能隐藏层/被裁,不阻断)。
+// manifest 缺失 → warning 跳过(旧项目/无图页面不硬卡)。assets.txt 侧对账留给主 agent §6 文本层。
+function checkImageReconciliation(projectRoot, cacheKey, product) {
+  const violations = [];
+  const warnings = [];
+  const cacheDir = path.join(projectRoot, '.d2c-cache', cacheKey);
+  let manifestFiles = [];
+  try {
+    manifestFiles = fs.readdirSync(cacheDir).filter((f) => /^slice-manifest-.*\.json$/.test(f));
+  } catch { /* cache 目录不可读走缺失分支 */ }
+  if (manifestFiles.length === 0) {
+    warnings.push({ rule: 'IMG-reconcile', reason: '未找到 slice-manifest-*.json,跳过三方对账' });
+    return { violations, warnings };
+  }
+  const entries = new Set();
+  for (const mf of manifestFiles) {
+    try {
+      const m = JSON.parse(fs.readFileSync(path.join(cacheDir, mf), 'utf8'));
+      for (const t of m.themes || []) for (const e of t.entries || []) entries.add(e.filename);
+    } catch { warnings.push({ rule: 'IMG-reconcile', reason: `${mf} 解析失败,已跳过` }); }
+  }
+  const refRe = /([\w./-]+\.(?:png|jpe?g|webp|svg|gif))/gi;
+  const refs = new Set();
+  for (const f of [...product.jsx, ...product.style]) {
+    for (const m of f.content.matchAll(refRe)) refs.add(path.posix.basename(m[1]));
+  }
+  // 保守匹配: JSX 动态拼接(如 \`\${x}__bg.png\`)会让正则只捕到文件名尾部碎片;
+  // manifest 任一条目以该碎片结尾即视为已消费,宁漏报不误判。
+  const matchedEntries = new Set();
+  const refConsumed = (r) => {
+    if (entries.has(r)) { matchedEntries.add(r); return true; }
+    let hit = false;
+    for (const e of entries) {
+      if (e.endsWith(r)) { matchedEntries.add(e); hit = true; }
+    }
+    return hit;
+  };
+  for (const r of refs) {
+    if (!refConsumed(r)) {
+      violations.push({
+        rule: 'IMG-reconcile',
+        nodeId: '-',
+        name: r,
+        type: 'IMG',
+        expected: '产物引用的切图必须来自 slice-manifest(步骤 2.6 只消费清单契约)',
+        actual: `产物引用 ${r} 不在任何 slice-manifest 中(疑似绕清单手工切图)`,
+        file: '(product)',
+        line: 0,
+        snippet: '',
+      });
+    }
+  }
+  const unused = [...entries].filter((k) => !matchedEntries.has(k));
+  if (unused.length) {
+    warnings.push({ rule: 'IMG-reconcile', reason: `manifest 中 ${unused.length} 张切图未被产物引用: ${unused.slice(0, 10).join(', ')}${unused.length > 10 ? ' …' : ''}` });
+  }
+  return { violations, warnings };
+}
 
 function parseArgv(argv) {
-  const args = { mode: null, dir: null, cacheKey: null, forceSkip: [] };
+  const args = { mode: null, dir: null, cacheKey: null, root: null, forceSkip: [] };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--block') { args.mode = 'block'; args.dir = argv[++i]; }
     else if (a === '--merge') { args.mode = 'merge'; args.dir = argv[++i]; }
     else if (a === '--cache-key') { args.cacheKey = argv[++i]; }
+    else if (a === '--root') { args.root = argv[++i]; }
     else if (a === '--force-skip') {
       args.forceSkip = (argv[++i] || '').split(',').map((s) => s.trim()).filter(Boolean);
     } else if (a === '-h' || a === '--help') {
@@ -64,14 +193,17 @@ function parseArgv(argv) {
 }
 
 function printHelp() {
-  process.stdout.write(`check-rules.mjs (pp-d2c v1.2.3)
+  process.stdout.write(`check-rules.mjs (pp-d2c v1.2.4)
 
 Usage:
-  node check-rules.mjs --block <blockDir> --cache-key <fileKey>
+  node check-rules.mjs --block <blockDir> --cache-key <fileKey> [--root <nodeId>]
   node check-rules.mjs --merge <pageDir>  --cache-key <fileKey>
   node check-rules.mjs --block <blockDir> --cache-key <fileKey> --force-skip R05,R06
 
-Rules covered: R01 R02 R03 R04 R05 R06 R08 R09 R12 R14 R16 R17 R18 R19 R20 R21
+--root: block 子树根 nodeId(局部化对账范围);缺省时 --block 模式自动从产物 data-node-id 推断(LCA)
+
+Rules covered: R01 R02 R03 R04 R05 R06 R08 R09 R12 R14 R16 R17 R18 R19 R20 R21 R22(warn)
+Gates: GATE-rule-hits(rule-hits.json 存在性) IMG-reconcile(--merge 切图三方对账)
 Exit: 0=ok, 1=violations, 2=env-error
 `);
 }
@@ -108,6 +240,35 @@ function main() {
   const violations = [];
   const warnings = [];
 
+  // --block 局部化(v1.2.4): cache 装载的是 fileKey 全量,block 产物只覆盖本子树,
+  // 必须裁剪到 block 根,否则 R21/R03 等把 block 外节点全部误报。
+  // 根来源: --root 显式指定 > 从产物 data-node-id 推断(LCA); merge 模式默认全量。
+  if (args.root && !cache.nodes[args.root]) {
+    fatal(`--root ${args.root} not found in cache`);
+  }
+  let scopeRoot = args.root;
+  if (!scopeRoot && args.mode === 'block') {
+    scopeRoot = inferBlockRoot(cache.nodes, classMap);
+    if (!scopeRoot) {
+      warnings.push({ rule: 'scope', reason: '--block 无法从产物 data-node-id 推断子树根,退回全量 cache 对账(可能出现 block 外误报,建议显式 --root)' });
+    }
+  }
+  if (scopeRoot) {
+    const before = Object.keys(cache.nodes).length;
+    cache.nodes = pruneToSubtree(cache.nodes, scopeRoot);
+    warnings.push({ rule: 'scope', reason: `对账范围=子树 ${scopeRoot}(${args.root ? '--root' : '产物推断'}), cache ${before}→${Object.keys(cache.nodes).length} 节点` });
+  }
+
+  // rule-hits 存在性门禁(v1.2.4): Rule-Scan 未跑 → 直接违规,不看规则结果
+  for (const v of checkRuleHitsGate(args.mode, productDir)) violations.push(v);
+
+  // 切图三方对账(v1.2.4): 合并阶段核对产物图片引用 ↔ slice-manifest
+  if (args.mode === 'merge') {
+    const rec = checkImageReconciliation(projectRoot, args.cacheKey, product);
+    for (const v of rec.violations) violations.push(v);
+    for (const w of rec.warnings) warnings.push(w);
+  }
+
   for (const rule of ALL_RULES) {
     checked.push(rule.id);
     if (args.forceSkip.includes(rule.id)) {
@@ -117,7 +278,11 @@ function main() {
     }
     try {
       const hits = rule.check({ cache, product, config, classMap });
-      for (const h of hits) violations.push(h);
+      // severity=warning 的命中(如 R22)进 warnings 不阻断;其余进 violations
+      for (const h of hits) {
+        if (h.severity === 'warning') warnings.push({ rule: h.rule, reason: `${h.name}(${h.nodeId}): ${h.actual}`, detail: h });
+        else violations.push(h);
+      }
     } catch (e) {
       warnings.push({ rule: rule.id, reason: `rule crashed: ${e.message}` });
     }

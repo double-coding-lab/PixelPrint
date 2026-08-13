@@ -80,6 +80,44 @@ export function loadCache(projectRoot, cacheKey) {
   return { nodes };
 }
 
+// ── --block 局部化（v1.2.4）────────────────────────────────────
+// loadCache 装载的是 fileKey 全量节点;--block 模式产物只覆盖本 block 子树,
+// 不裁剪会让 R21/R03 等把 block 外所有应渲染节点误报(sub-agent 被迫解释"外部违规")。
+
+// 从产物 data-node-id 集合推断 block 子树根:全部产物节点的最深公共祖先(LCA)。
+export function inferBlockRoot(cacheNodes, classMap) {
+  const ids = Object.keys(classMap).filter((id) => cacheNodes[id]);
+  if (ids.length === 0) return null;
+  const chain = (id) => {
+    const arr = [];
+    let cur = id;
+    while (cur) { arr.push(cur); cur = cacheNodes[cur] ? cacheNodes[cur]._parentId : null; }
+    return arr; // 自身在前,根在后
+  };
+  let common = chain(ids[0]);
+  for (let i = 1; i < ids.length; i++) {
+    const set = new Set(chain(ids[i]));
+    common = common.filter((x) => set.has(x));
+    if (common.length === 0) return null;
+  }
+  return common[0] || null; // 最深公共祖先
+}
+
+// 把 cache.nodes 裁剪到 rootId 子树(含 rootId 自身)。rootId 的父不在集合内:
+// R20 对 rootId 自身会因父 bbox 缺失保守跳过,块内子孙照常对账。
+export function pruneToSubtree(cacheNodes, rootId) {
+  if (!rootId || !cacheNodes[rootId]) return cacheNodes;
+  const keep = {};
+  for (const [id, n] of Object.entries(cacheNodes)) {
+    let cur = id;
+    while (cur) {
+      if (cur === rootId) { keep[id] = n; break; }
+      cur = cacheNodes[cur] ? cacheNodes[cur]._parentId : null;
+    }
+  }
+  return keep;
+}
+
 function walk(node, acc, parentRealId, inBaked, bakedBy, hidden, templateDup) {
   if (!node || typeof node !== 'object') return;
 

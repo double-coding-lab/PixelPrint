@@ -220,6 +220,26 @@ async function cmdCacheCheck(positional) {
 
 // ─── 命令: fetch-node <fileKey> <nodeId> [--depth=N] ────────────
 
+// 深度截断嫌疑检测: GROUP/BOOLEAN_OPERATION/INSTANCE/COMPONENT 在 Figma 中必有子节点,
+// 位于 depth 边界却 children 为空 → 子树被 REST depth 参数截断,视觉内容不在 cache 里
+// (典型 test24 btn-qiang 136:45810: depth=8 边界空 GROUP,按钮真实内容丢失 → 产物透明热区)。
+// FRAME 可合法为空(占位盒),不纳入,避免误报。
+const NEVER_EMPTY_TYPES = new Set(['GROUP', 'BOOLEAN_OPERATION', 'INSTANCE', 'COMPONENT'])
+function findTruncatedSuspects(root, depth) {
+  if (!depth) return []
+  const suspects = []
+  const walk = (n, d) => {
+    if (!n || typeof n !== 'object') return
+    const empty = !Array.isArray(n.children) || n.children.length === 0
+    if (d >= depth && empty && NEVER_EMPTY_TYPES.has(n.type)) {
+      suspects.push({ id: n.id, name: n.name, type: n.type })
+    }
+    for (const c of n.children || []) walk(c, d + 1)
+  }
+  walk(root, 0)
+  return suspects
+}
+
 async function cmdFetchNode(positional, flags) {
   const [fileKey, nodeId] = positional
   if (!fileKey || !nodeId) return fail('用法: figma fetch-node <fileKey> <nodeId> [--depth=N]')
@@ -236,8 +256,13 @@ async function cmdFetchNode(positional, flags) {
   if (fs.existsSync(cacheFile)) {
     try {
       const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'))
-      if (!depth || (cached._depth && cached._depth >= depth)) {
-        return output({ ok: true, data: { cached: true, node: cached.node } })
+      // 复用条件: 全量请求(无 --depth)只能复用全量 cache(_depth=null);
+      // 带 depth 请求可复用全量 cache 或深度不小于本次的 cache。
+      // 旧逻辑 !depth 即复用,会把深度截断的旧 cache 当全量用 → 子树静默丢失。
+      const cachedIsFull = cached._depth == null
+      if (cachedIsFull || (depth && cached._depth >= depth)) {
+        const truncatedSuspects = cachedIsFull ? [] : findTruncatedSuspects(cached.node, cached._depth)
+        return output({ ok: true, data: { cached: true, _depth: cached._depth, truncatedSuspects, node: cached.node } })
       }
     } catch { /* 缓存损坏,重拉 */ }
   }
@@ -250,7 +275,8 @@ async function cmdFetchNode(positional, flags) {
     if (!doc) return fail(`节点 ${nodeId} 在文件 ${fileKey} 中未找到`)
 
     fs.writeFileSync(cacheFile, JSON.stringify({ _depth: depth || null, node: doc }, null, 2))
-    output({ ok: true, data: { cached: false, node: doc } })
+    const truncatedSuspects = depth ? findTruncatedSuspects(doc, depth) : []
+    output({ ok: true, data: { cached: false, _depth: depth || null, truncatedSuspects, node: doc } })
   } catch (e) {
     fail(e.message)
   }
