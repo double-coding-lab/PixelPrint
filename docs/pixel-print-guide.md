@@ -544,7 +544,7 @@ SKILL 通过 Figma REST API 拉稿子 + 导图,只需要一枚 Personal Access T
 
 Claude Code(读 pp-d2c/SKILL.md):
   步骤 -1: node figma.mjs verify-token        → 200 OK
-  步骤 0.3: node figma.mjs cache-check AAA    → { fresh: true, lastModified: ... }
+  步骤 0.7: node figma.mjs cache-check AAA    → { fresh: true, lastModified: ... }
   步骤 2.5: node figma.mjs fetch-node AAA 138:1797 --depth=full
     ↓ (拿到整棵子树 JSON)
   按前缀切分 sub-block:sub-header / sub-banner / sub-cards ...

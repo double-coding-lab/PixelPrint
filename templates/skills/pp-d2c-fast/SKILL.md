@@ -254,7 +254,7 @@ config.images.assetsDir = <images.assetsDir 原值>
 
 ---
 
-### 步骤 0.3：初始化缓存
+### 步骤 0.7：初始化缓存
 
 **目的**：把 Figma REST API 拿到的节点属性 / 图片文件缓存到本地，避免同一稿子每次跑 SKILL 都重拉。
 
@@ -2039,7 +2039,7 @@ QA 全部通过后,主 agent **必须**把本轮出码的元数据写到 `.d2c-c
 ```json
 {
   "figmaUrl": "<步骤 -1 用户传入的 figma URL 原文>",
-  "fileKey": "<步骤 0.3 解析出的 fileKey>",
+  "fileKey": "<步骤 0.7 解析出的 fileKey>",
   "rootNodeId": "<步骤 -1 用户传入的 nodeId,注意冒号形式 138:1797>",
   "outputDir": "<步骤 5 实际写入的组件目录,如 pages/Italo>",
   "outputEntryFile": "<主入口文件,如 pages/Italo/index.jsx>",
@@ -2106,7 +2106,7 @@ EOF
 - 禁止调用 Figma `/v1/images` 时省略 `use_absolute_bounds=true`(仅当 config `images.preserveEffectIds` 明示时才省略)
 - 禁止 `FIGMA_TOKEN` 无效时直接跳过图片下载或用 Figma S3 临时链接占位
 - 禁止调用任何 `mcp__plugin_figma_figma__*` 工具
-- 禁止跳过步骤 0.3 缓存初始化；禁止绕过 `.d2c-cache/{fileKey}/meta.json` 的 `lastModified` 校验直接读旧缓存
+- 禁止跳过步骤 0.7 缓存初始化；禁止绕过 `.d2c-cache/{fileKey}/meta.json` 的 `lastModified` 校验直接读旧缓存
 - 禁止 SKILL 结束时不清理 `.d2c-tmp/screenshots/`
 - 禁止把 `bg-` 节点的**父容器**当成切图源传给 `/v1/images` API：切图源 nodeId 必须是 `bg-` 节点自己
 - 禁止跳过 §4.4 curl 前的**强制前置自检 3 行**(切图源 nodeId / 切图源 name / 交叉验证前缀)

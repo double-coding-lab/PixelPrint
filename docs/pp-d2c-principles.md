@@ -55,7 +55,7 @@ pp-d2c 的所有机制都收敛到一句话：
 -1  verify-token        Token 探针（/v1/me），失败即终止
  0  读 pp-d2c.config.json  缓存 projectRoot / styleFormat / unit.scale / 输出目录等
  0.5 询问输出路径        锁定 <output.dir>/<slug> 与 <assetsDir>/<slug>，写入 .d2c-tasks.md
- 0.3 cache-check        比对远端 lastModified，决定复用或重建 .d2c-cache/<fileKey>/
+ 0.7 cache-check        比对远端 lastModified，决定复用或重建 .d2c-cache/<fileKey>/
  1  解析 URL            提取 fileKey + nodeId
  2  扫图层树            fetch-node --depth=2；识别第一层 sub-；生成 .d2c-tasks.md 执行清单
  2.5 页面级背景          顶层 frame 背景写 body（按 styleFormat×多/单页 五档策略 P-A/P-B/M-A/M-B/J）
