@@ -206,6 +206,25 @@
     "软防线瘦身",
     "硬防线 16 条",
     "check-rules 16 条",
-    "v1.2.3"
+    "v1.2.3",
+    "rule-hits 门禁",
+    "GATE-rule-hits",
+    "三方对账",
+    "IMG-reconcile",
+    "切图对账",
+    "空视觉按钮",
+    "R22",
+    "empty-visual-btn",
+    "micro-sub",
+    "同构 sub 合并",
+    "切图确认暂停",
+    "confirmBeforeContinue",
+    "深度截断",
+    "truncatedSuspects",
+    "透明热区",
+    "--root 局部化",
+    "block 局部化",
+    "LCA 推断",
+    "v1.2.4"
   ]
 }

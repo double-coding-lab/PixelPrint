@@ -616,7 +616,7 @@ SKILL.md 里所有类似 `doctor.run({...})` / `partial.replace(file, str)` 的�
 | 版本 | 里程碑 |
 |---|---|
 | **v1.3.0** | **init/install 支持 Codex:skill 双写 `.claude/skills/` 与 `.codex/skills/`;SKILL 模板补 YAML frontmatter(name/description,Codex 识别触发的前提);新增 [`pp-d2c-principles.md`](./pp-d2c-principles.md) 原理文档** |
-| v1.2.x | pp-d2c 校验范式升级为「以 cache 为真值逐节点对账」:`rules/R01-R21` 规则库 + `check-rules.mjs` 硬防线 + Rule-Scan 软防线;loadCache 三标注(`_inBakedSubtree`/`_hidden`/`_templateDup`)清假阳性;新增 `pp-d2c-reskin`(换肤批量切图)/`pp-image-compress` skill;图层前缀由配置项降级为内置常量 |
+| v1.2.x | pp-d2c 校验范式升级为「以 cache 为真值逐节点对账」:`rules/R01-R22` 规则库 + `check-rules.mjs` 硬防线 + Rule-Scan 软防线;loadCache 三标注(`_inBakedSubtree`/`_hidden`/`_templateDup`)清假阳性;新增 `pp-d2c-reskin`(换肤批量切图)/`pp-image-compress` skill;图层前缀由配置项降级为内置常量 |
 | v1.1.1 | 新增 14 个 CLI 快捷参数(`--framework / --adapter-preset / --merge-mode / ...`,CLI > config > 交互);merge.mode 默认改成 flat;custom adapter 生成 6 键空 tagMap 骨架;移除 code-connect 复制;输出精简(阶段数从 5 收成 4) |
 | v1.1.0 | 新增 `pp-fix-partial` 局部修复 skill + `.d2c-cache/last-page.json` + `pp-strip-nodeid` 存 anchor 档案 + `clean-cache` 命令 + init [1/N] 平铺一层 |
 | v1.0.3 | RN 页面根强制 ScrollView 骨架 + fixed 分层贴屏 + bg- 铺满用 Figma 事实尺寸 |

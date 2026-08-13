@@ -85,7 +85,7 @@
 2. **封死逃逸口**：把每条已知逃逸路径（整体切图代替拆结构、凭空搓渐变代替切图、幻觉 padding）显式列为禁止项并用脚本拦截；豁免须留三段证据且单次 ≤3 条。
 3. **自证代替信任**：每个环节交付前输出可复核证明（grep 自证、md5 溯源、守恒律差集），「我做了」不算数，「这是证据」才算。
 
-### 双防线规则清单（R01–R21）
+### 双防线规则清单（R01–R22）
 
 **硬防线 16 条**（check-rules.mjs，纯代码判定，exit 1 回滚；`--block` sub 交付前 + `--merge` 合并后两个时机）：
 
@@ -160,8 +160,8 @@ violations > 0 一律禁止交付；`[整体切图兜底]` 标签废除；`[脚�
 | 文件 | 内容 |
 |------|------|
 | `templates/skills/pp-d2c/SKILL.md` | 主流程操作手册（规则事实源） |
-| `templates/skills/pp-d2c/rules/README.md` | 21 条规则索引 + 前缀常量表 + 排斥关系图 |
-| `templates/skills/pp-d2c/rules/R01-R21.md` | 每条规则的触发条件 / 期望产物 / 反例 |
+| `templates/skills/pp-d2c/rules/README.md` | 22 条规则索引 + 前缀常量表 + 排斥关系图 |
+| `templates/skills/pp-d2c/rules/R01-R22.md` | 每条规则的触发条件 / 期望产物 / 反例 |
 | `templates/skills/pp-d2c/bin/figma.mjs` | 数据层：verify-token / cache-check / fetch-node / export-image / screenshot / cleanup-tmp |
 | `templates/skills/pp-d2c/bin/check-rules.mjs` | 硬防线：`--block` / `--merge` 两种模式，exit 0/1/2 |
 | `templates/skills/pp-d2c/bin/lib/loadCache.mjs` | 对账基座：`_inBakedSubtree` / `_hidden` / `_templateDup` 标注 |

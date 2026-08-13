@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-08-13 · skill v1.2.4（生成过程缺陷修复批）
+
+**起因**：test24-27 下游生成取证暴露一批"规则写了、执行绕过"与工具链缺陷——Rule-Scan 被跳过且 assets.txt 捏造"§3.5 允许合并到 UI 侧"许可；`btn-qiang` 退化成透明热区，根因是 figma.mjs 全量请求复用了 depth=8 深度截断的 cache 丢内容（全页 41 个截断嫌疑节点）；R20 只对坐标数值、`position: relative` 也能混过；reskin-slice 切图失败被手工绕过续跑；微型 sub- block 独立派发背着约 4 分钟固定成本；`check-rules --block` 拿整页 cache 遍历，报出大量 block 外全量误报。
+
+**动作**（九项，h5 独享不同步 pp-d2c-rn）：
+
+1. **`check-rules --block` 局部化**：`--root <nodeId>` 显式指定或从产物 data-node-id 推断 LCA，cache 裁剪到 block 子树再对账，消除 block 外误报
+2. **GATE-rule-hits 门禁**：rule-hits.json 缺失即 exit 1（二次降级也须落 `v0.3.21-fallback` 占位），含 assets.txt "消费证明捏造"检测
+3. **IMG-reconcile 三方对账**（`--merge`）：产物图片引用必须来自 slice-manifest；动态拼接碎片按后缀匹配保守放行；manifest 条目未被引用报 warning
+4. **R20 增强**：ABSOLUTE 节点在坐标数值之外强制 `position: absolute` 声明
+5. **新增 R22 empty-visual-btn**（warning 级）：btn- 空视觉按钮嫌疑；exit-1 规则数维持 16 条，R22 不计入
+6. **figma.mjs 修复**："全量请求复用深度截断 cache"bug 修复 + `truncatedSuspects` 截断检测
+7. **步骤 2.6 硬门禁**：reskin-slice 失败 hard stop + 切图确认暂停（config 新键 `slice.confirmBeforeContinue` 默认 `true`；`sizeWarning` 非空不受开关豁免）
+8. **micro-sub 快路径与同构 sub- 合并**：≤8 节点等 4 条件的微型 block 主 agent 内联出码；同构 sub- 合并为代表项模板 `.map()`
+9. **Rule-Scan 恢复全量扫描出指引**：对全部规则扫描写 rule-hits 作生成前作业指引，软 5 条仍是唯一判定点，判决权在 check-rules
+
+**关键决策**：两道门禁直接 error 级 exit 1，跳过 warning 过渡期——捏造消费证明已实证发生，warning 拦不住；R22 反向保守用 warning——空视觉在少数设计里合法（纯热区叠 bg-），误 error 会阻断正确产物；Rule-Scan 指引与判决分离——扫描面放开到全量帮出码 agent 提前避坑，但硬防线命中只作指引不改判定点，避免软硬两层判决打架。
+
 ## 2026-08-13 · skill v1.2.3（软规则硬化）+ v1.2.2（软防线触发解耦）
 
 - **v1.2.3 软规则硬化**：把 Rule-Scan 软防线中机械可判的 5 条（R03 implicit-image / R04 text-gradient / R09 btn-bgc / R12 flat-mode-naming / R14 fixed-z-index）下沉 `check-rules.mjs` 硬防线，各写 `.mjs` 逐节点对账、exit 1 阻断，不再依赖 sub- 触发。check-rules 覆盖 11 → **16 条**；软防线从 10 条瘦至 **5 条**（R07/R10/R11/R13/R15，需 LLM 语义判定故留软）。新硬规则一律**保守**（宁漏报不误判，触发不确定 / 无 className / baked·隐藏·模板副本一律 skip）。pp-d2c 与 pp-d2c-fast 的 `bin/`、`rules/` 同步、逐字节一致。
