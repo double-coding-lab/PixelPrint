@@ -1,0 +1,31 @@
+templates/skills/pp-d2c/SKILL.md
+  s_8f566140fc4cb6::t_f64d436a02b0d1 255,2114,2181
+docs/pixel-print-guide.md
+  s_8f566140fc4cb6::t_64386d14fc1cf0 547
+templates/skills/pp-d2c-rn/SKILL.md
+  s_8f566140fc4cb6::t_0d1bc5a3d246a3 261,2909,3036
+.Knowledge/req-docs/d2c-rn-adapter_技术方案.md
+  s_8f566140fc4cb6::t_445618c6409dd7 556
+.Knowledge/topics/pp-d2c-rn.md
+  s_8f566140fc4cb6::t_8669ab4dafb0cc 203
+docs/pp-d2c-principles.md
+  s_8f566140fc4cb6::t_a52bebdefd43d8 58
+templates/skills/pp-d2c-fast/SKILL.md
+  s_8f566140fc4cb6::t_b4eb312c8d236b 257,2042,2109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "ad800a2204cd4d22e01b7ace53e04ebe203e0b1d",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
