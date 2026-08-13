@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-08-13 · skill v1.2.3（软规则硬化）+ v1.2.2（软防线触发解耦）
+
+- **v1.2.3 软规则硬化**：把 Rule-Scan 软防线中机械可判的 5 条（R03 implicit-image / R04 text-gradient / R09 btn-bgc / R12 flat-mode-naming / R14 fixed-z-index）下沉 `check-rules.mjs` 硬防线，各写 `.mjs` 逐节点对账、exit 1 阻断，不再依赖 sub- 触发。check-rules 覆盖 11 → **16 条**；软防线从 10 条瘦至 **5 条**（R07/R10/R11/R13/R15，需 LLM 语义判定故留软）。新硬规则一律**保守**（宁漏报不误判，触发不确定 / 无 className / baked·隐藏·模板副本一律 skip）。pp-d2c 与 pp-d2c-fast 的 `bin/`、`rules/` 同步、逐字节一致。
+- **v1.2.2 软防线触发解耦**：Rule-Scan 触发不再依赖 sub- 存在——页面无 sub- 图层时，主 agent 出码前把「页面根」当虚拟 block 对整页跑一次 Rule-Scan，修复"无 sub- 页面软规则完全不触发"的覆盖空档。（v1.2.3 硬化后，5 条硬规则彻底免疫此问题；留软的 5 条靠本机制兜底。）
+
 ## 2026-08-12 · pp-d2c-fast 快速模式 skill（开发中）
 
 - `pp-d2c-fast`：拷 pp-d2c 砍冗余自证（A 梯队）的精简版，保留全部决策引导与硬防线，原 pp-d2c 不动、二者并存（未合入 main）
