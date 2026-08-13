@@ -1,0 +1,43 @@
+docs/pp-d2c-principles.md
+  s_8f566140fc4cb6::t_706335a0a8882f 74-75
+  s_8f566140fc4cb6::t_d93588a2e3c4c5 124
+  s_8f566140fc4cb6::t_4df8a54913639e 153-159
+  s_8f566140fc4cb6::t_a330089227616c 242
+  s_8f566140fc4cb6::t_196a1c53767b31 41
+  s_8f566140fc4cb6::t_35c4962a380bc7 148
+  s_8f566140fc4cb6::t_4220e4978381f7 251-252
+  s_8f566140fc4cb6::t_32d9123ba67c79 122
+.Knowledge/index.md
+  s_8f566140fc4cb6::t_9a12677b7b89a2 32
+docs/pixel-print-guide.md
+  s_8f566140fc4cb6::t_7233f414d075cf 619
+.Knowledge/matchers/m-pp-d2c.json
+  s_8f566140fc4cb6::t_63fe2799ca8769 209-228
+.Knowledge/topics/pp-d2c.md
+  s_8f566140fc4cb6::t_561ab26f7d42ce 127-132
+  s_8f566140fc4cb6::t_9c68c015b0e474 70
+  s_8f566140fc4cb6::t_edf83fff75d450 19
+  s_8f566140fc4cb6::t_bb2c9edc6dbdf9 62
+docs/pp-d2c-history.md
+  s_8f566140fc4cb6::t_b3de8b14ba3268 9-26
+.Knowledge/stock-docs/pp-d2c-原理_终稿.md
+  s_8f566140fc4cb6::t_7233f414d075cf 88,163-164
+.Knowledge/topics/pp-d2c-fast.md
+  s_8f566140fc4cb6::t_7233f414d075cf 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "7865378ace5606c32494fe8ad6a1c0a2575f425e",
+  "prompts": {},
+  "sessions": {
+    "s_8f566140fc4cb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "36895acf-3599-4fd0-badc-8002faae77b2",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
