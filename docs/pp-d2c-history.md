@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-08-13 · skill v1.2.5（防线加固批）
+
+**起因**：test28/29 下游生成取证（执行器 Codex + gpt-5.5 reasoning-low）暴露防线体系的结构性盲区——test29 用 `--depth=1/2` 浅拉 cache（仅 25 节点）出码，逐节点对账因"无节点可对"**真空通过**（check-rules ok:true 0 violations），产物 33 个 data-node-id 有 11 个是凭记忆臆造的幻觉 id；test28 把真实 331.5×141 的节点写成 `1×1 + overflow:hidden` 隐藏 div（agent 自供"校验锚点"）骗过 R21/R02，当时没有任何规则校验宽高忠实度；test29 的 rule-hits 用 fallback 占位绕过 v1.2.4 门禁，assets.txt 却写"Rule-Scan 降级: 无"自相矛盾；Codex 平台派不出 sub-agent，占位降级成了唯一"合规"出口；用户口头"允许所有权限 不要询问我了"被泛化，切图确认暂停被跳过。
+
+**动作**（六项，h5 独享不同步 pp-d2c-rn）：
+
+1. **GATE-cache-truncation 门禁**：合并 cache 中空 GROUP/BOOLEAN_OPERATION = fetch depth 截断实锤 → violation（空 INSTANCE/COMPONENT → warning；bg-/baked/hidden/templateDup 跳过）
+2. **R21 反向对账**：产物字面量 data-node-id 必须存在于 cache，幻觉 id → violation（正向"应挂尽挂"+ 反向"所挂必真"合围）
+3. **新增 R23 size-fidelity**（exit-1 计入，硬防线 16→17 条）：显式 px 宽高 ≈ bbox×scale 容差 4px；`1×1+overflow:hidden` 锚点欺诈点名；TEXT / 非 px / 盒模型不确定保守跳过
+4. **GATE-rule-hits 收紧**：fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 失败记录，否则判捏造
+5. **GATE-slice-confirm 确认留痕**：reskin-slice 落 theme `confirmed:false`，用户确认后 `figma.mjs confirm-slices` 翻 true + confirmedAt；--merge 校验 false → violation（legacy 缺字段 warning）
+6. **单 agent 执行模式**：无 sub-agent 平台由主 agent 串行完成 Rule-Scan（真实执行禁占位）、逐块出码、逐块 check-rules——能力缺失改变执行形态，不豁免任何动作
+
+**关键决策**：防线主题从"产物对账"扩展为"输入完整性 → 节点存在性 → 尺寸忠实度 → 确认留痕"全链机械化；交互型确认改为可审计落盘（拦不住的至少抓得住）；单 agent 平台给合法路径而非听任占位绕过。E2E 实弹：test28 拦 7 个锚点 + 3 个真尺寸错，test29 定罪 137 条违规（此前 0 条）。
+
 ## 2026-08-13 · skill v1.2.4（生成过程缺陷修复批）
 
 **起因**：test24-27 下游生成取证暴露一批"规则写了、执行绕过"与工具链缺陷——Rule-Scan 被跳过且 assets.txt 捏造"§3.5 允许合并到 UI 侧"许可；`btn-qiang` 退化成透明热区，根因是 figma.mjs 全量请求复用了 depth=8 深度截断的 cache 丢内容（全页 41 个截断嫌疑节点）；R20 只对坐标数值、`position: relative` 也能混过；reskin-slice 切图失败被手工绕过续跑；微型 sub- block 独立派发背着约 4 分钟固定成本；`check-rules --block` 拿整页 cache 遍历，报出大量 block 外全量误报。

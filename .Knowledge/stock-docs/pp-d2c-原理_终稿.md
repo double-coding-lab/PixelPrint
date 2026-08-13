@@ -85,9 +85,9 @@
 2. **封死逃逸口**：把每条已知逃逸路径（整体切图代替拆结构、凭空搓渐变代替切图、幻觉 padding）显式列为禁止项并用脚本拦截；豁免须留三段证据且单次 ≤3 条。
 3. **自证代替信任**：每个环节交付前输出可复核证明（grep 自证、md5 溯源、守恒律差集），「我做了」不算数，「这是证据」才算。
 
-### 双防线规则清单（R01–R22）
+### 双防线规则清单（R01–R23）
 
-**硬防线 16 条**（check-rules.mjs，纯代码判定，exit 1 回滚；`--block` sub 交付前 + `--merge` 合并后两个时机）：
+**硬防线 17 条**（check-rules.mjs，纯代码判定，exit 1 回滚；`--block` sub 交付前 + `--merge` 合并后两个时机）：
 
 | 规则 | 拦什么 |
 |------|--------|
@@ -104,11 +104,14 @@
 | R16 no-flatten-text | 含 TEXT 容器被整体切图（文字烤进 PNG） |
 | R17 no-baked-dom | baked 子树的子孙又出 DOM（双重渲染） |
 | R18/R19/R20 | flex 方向 / padding / 绝对定位坐标 与 Figma×scale 不符 |
-| R21 node-id-coverage | 应渲染节点漏挂 `data-node-id`（逃出全部对账） |
+| R21 node-id-coverage | 应渲染节点漏挂 `data-node-id`（逃出全部对账）；v1.2.5 起含反向对账——产物 data-node-id ∉ cache 即幻觉 id |
+| R23 size-fidelity | 显式 px 宽高与 bbox×scale 相差 >4px；点名 `1×1 + overflow:hidden` 锚点欺诈 |
 
 > **v1.2.3 起** R03/R04/R09/R12/R14 由软防线下沉硬防线，一律**保守判定**：触发不确定 / 无 className / baked·hidden·模板副本一律 skip，只在铁证违规时 exit 1（硬防线误判会阻断正确产物，比软防线漏报更伤）。
 
 > **v1.2.4 加固**（exit-1 规则维持 16 条）：新增 **R22 empty-visual-btn**（warning 级不阻断——btn- 子树无文字/背景/图的透明热区嫌疑，常见根因 cache 深度截断或该切图没切）与两道流程门禁：**GATE-rule-hits**（rule-hits.json 缺失即 exit 1，assets.txt 写了消费证明但文件不存在时标"疑似捏造"）、**IMG-reconcile**（--merge 时产物图片引用必须来自 slice-manifest，动态拼接碎片按后缀匹配保守放行）。`--block` 对账**局部化**：`--root <nodeId>` 或产物 data-node-id LCA 推断，cache 裁剪到本 block 子树，block 外节点不再误报。R20 同时强制 `position: absolute` 声明（数值可省，position 不可省）。流程侧：步骤 2.6 reskin-slice 失败 hard stop + 切图确认暂停（`slice.confirmBeforeContinue` 默认 true）；micro-sub 快路径（≤8 节点主 agent 内联）与同构 sub- 合并；figma.mjs 全量请求只复用全量 cache 并输出 `truncatedSuspects` 截断嫌疑。
+
+> **v1.2.5 加固**（防线加固批，exit-1 规则 16→**17 条**，R23 计入；warning 级 R22 与四道门禁不计入）：主线是"输入完整性 → 节点存在性 → 尺寸忠实度 → 确认留痕"全链机械化。新增 **GATE-cache-truncation** 门禁——合并 cache 中空 GROUP/BOOLEAN_OPERATION = fetch depth 截断实锤，截断 cache 会令逐节点对账真空通过（test29 取证：cache 仅 25 节点令全防线真空通过，产物 33 个 data-node-id 有 11 个幻觉 id）。**R21 增加反向对账**——产物 data-node-id 必须存在于 cache，幻觉 id 直接 violation。新增 **R23 size-fidelity**——显式 px 宽高须 ≈ bbox×scale（容差 4px），点名 `1×1 + overflow:hidden` 锚点欺诈（test28 取证：agent 自供"校验锚点"，把真实 331.5×141 写成 1×1 隐藏 div）。**GATE-rule-hits 收紧**——fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 失败记录。**GATE-slice-confirm 确认留痕**——reskin-slice 落 `confirmed:false`，用户确认后 `figma.mjs confirm-slices` 翻为 true，口头"别问了"不豁免，跳过唯一通道是 config `slice.confirmBeforeContinue: false`（legacy 缺字段仅 warning）。流程侧新增**单 agent 执行模式**——无 sub-agent 平台（如 Codex）由主 agent 串行完成同等动作，禁止以平台缺失为由用占位绕过步骤。
 
 **软防线 5 条**（Rule-Scan sub-agent，LLM 语义识别，R07/R10/R11/R13/R15）：多层 fills、幻觉色、mask CSS 可表达性、单位换算、同构 map——判定需 LLM 语义或边界模糊（如"同构度""色是否幻觉"），故留软。**Rule-Scan 扫描范围为全部规则**（v1.2.4）：软 5 条以 rule-hits 为唯一判定点，硬防线命中只作生成前逐节点指引，判决权在 check-rules。
 
@@ -153,7 +156,7 @@ violations > 0 一律禁止交付；`[整体切图兜底]` 标签废除；`[脚�
 - **为什么不做 AST Codegen**：传统 codegen 要覆盖「所有 Figma 节点形态 × 目标框架 × 样式方案」组合爆炸；LLM 天生擅长「规则 + 例子 → 代码」。代价是 LLM 不可靠——架构重心不在生成而在**约束**（规则写成禁止项、校验交给确定性脚本、豁免要证据）。演化成本低：改规则 = 改 md。
 - **为什么前缀不可配置**：v1.0 前 `layers` 段可配，导致规则文档 / 校验脚本 / doctor / Rule-Scan 四处要同步读配置，任何不一致都是漏洞。硬编码后全链路一个常量表，设计师-开发者-脚本三方共享同一份协议。
 - **为什么数字量禁止人工核对兜底**：`[需人工核对]` 只留给设计稿语义歧义（如「这文案是装饰还是要动态替换」）；坐标 / 尺寸 / 方向 / 间距都能从 Figma 字段机械推导，允许兜底 = 允许 agent 把算错的数交给用户擦屁股。
-- **为什么校验层持续变厚**（v1.0 五条硬规则 → v1.2.1 十一条 → v1.2.3 十六条 + 对账基座）：每条新硬规则对应一起真实事故（test10-13 系列）。标准演化回路：事故 → 归因 → 先清假阳性来源（loadCache 标注）→ 再上硬规则（报数即真值）→ 封话术豁免口。防线厚度是用事故换来的，不是预设计出来的。
+- **为什么校验层持续变厚**（v1.0 五条硬规则 → v1.2.1 十一条 → v1.2.3 十六条 + 对账基座 → v1.2.5 十七条 + 四道门禁）：每条新硬规则对应一起真实事故（test10-13 系列）。标准演化回路：事故 → 归因 → 先清假阳性来源（loadCache 标注）→ 再上硬规则（报数即真值）→ 封话术豁免口。防线厚度是用事故换来的，不是预设计出来的。
 
 ---
 
@@ -162,8 +165,8 @@ violations > 0 一律禁止交付；`[整体切图兜底]` 标签废除；`[脚�
 | 文件 | 内容 |
 |------|------|
 | `templates/skills/pp-d2c/SKILL.md` | 主流程操作手册（规则事实源） |
-| `templates/skills/pp-d2c/rules/README.md` | 22 条规则索引 + 前缀常量表 + 排斥关系图 |
-| `templates/skills/pp-d2c/rules/R01-R22.md` | 每条规则的触发条件 / 期望产物 / 反例 |
+| `templates/skills/pp-d2c/rules/README.md` | 23 条规则索引 + 前缀常量表 + 排斥关系图 |
+| `templates/skills/pp-d2c/rules/R01-R23.md` | 每条规则的触发条件 / 期望产物 / 反例 |
 | `templates/skills/pp-d2c/bin/figma.mjs` | 数据层：verify-token / cache-check / fetch-node / export-image / screenshot / cleanup-tmp |
 | `templates/skills/pp-d2c/bin/check-rules.mjs` | 硬防线：`--block` / `--merge` 两种模式，exit 0/1/2 |
 | `templates/skills/pp-d2c/bin/lib/loadCache.mjs` | 对账基座：`_inBakedSubtree` / `_hidden` / `_templateDup` 标注 |

@@ -119,15 +119,15 @@ D2C 最难的不是翻译样式，是**猜意图**：哪块该切图、哪块该
 
 ## 6. 双防线：Rule-Scan 软防线 + check-rules 硬防线
 
-22 条规则（R01-R22）按"可否机械判定"分成两道防线。**v1.2.3 起**：软防线里机械可判的 5 条（R03/R04/R09/R12/R14）下沉硬防线，软防线只剩需 LLM 语义判定的 R07/R10/R11/R13/R15。**v1.2.4 起**：新增 R22（warning 级）与 GATE-rule-hits / IMG-reconcile 两道门禁，exit-1 规则数维持 16 条。
+23 条规则（R01-R23）按"可否机械判定"分成两道防线。**v1.2.3 起**：软防线里机械可判的 5 条（R03/R04/R09/R12/R14）下沉硬防线，软防线只剩需 LLM 语义判定的 R07/R10/R11/R13/R15。**v1.2.4 起**：新增 R22（warning 级）与 GATE-rule-hits / IMG-reconcile 两道门禁，exit-1 规则数维持 16 条。**v1.2.5 起**：新增 R23 size-fidelity（exit-1 计入，规则数 16→17）与 GATE-cache-truncation / GATE-slice-confirm 两道门禁（合计四道门禁，门禁与 R22 均不计入 17）。
 
 **软防线 = Rule-Scan sub-agent**（步骤 3.5，覆盖 R07/R10/R11/R13/R15 语义类规则）。每个 block 出码前，先派一个只做规则识别、不写 UI 的 agent：读软防线 `rules/*.md` + block 的 cache JSON，输出 `rule-hits.json`（每条 hit 带 nodeId/trigger/expected）。UI sub-agent 按 hits 的 `expected` 落地，发现漏扫允许自补但必须记 `[遗漏补捕]`。挂了先重派一次，二次挂降级为 UI sub-agent 自己读规则库（硬防线不受影响）。**页面无 sub- 时同样触发**（v1.2.2）：主 agent 出码前把「页面根」当虚拟 block 对整页跑一次 Rule-Scan，`rule-hits.json` 落页面根目录——软防线覆盖不依赖设计师是否标了 sub-。**v1.2.4 恢复全量扫描出指引**：Rule-Scan 对全部规则（含已硬化条目）扫描并写入 rule-hits 作生成前作业指引——软 5 条仍是唯一判定点，硬防线规则的命中只帮出码 agent 提前避坑，判决权在 check-rules（指引与判决分离，扫多不越权）。
 
 > 为什么软规则要独立 agent：识别"复合 mask CSS 表达不了该切图"（R11）、"同层 ≥3 同构该 `.map()`"（R15）这类判断需要 LLM 语义能力，但**让出码 agent 边写边判会漏**——先扫出作业指引再动笔，识别与实现解耦。R03/R15 这类"是不是同构""算不算隐式图"曾是软防线的模糊地带，v1.2.3 把其中触发条件可机械收窄的（R03 用 ≥3 真矢量路径阈值等）下沉硬防线，真正判不了的（R11 表达可能性、R15 同构度）留软。
 
-**硬防线 = check-rules.mjs**（16 条）。纯代码判定，两个时机强制执行：sub-agent 交付前 `--block blocks/{sub}/`，主 agent 合并后 `--merge pages/{page}/`。exit 1 = 回滚重做，禁止带违规进入交付。
+**硬防线 = check-rules.mjs**（17 条）。纯代码判定，两个时机强制执行：sub-agent 交付前 `--block blocks/{sub}/`，主 agent 合并后 `--merge pages/{page}/`。exit 1 = 回滚重做，禁止带违规进入交付。
 
-**硬防线 16 条**（`check-rules.mjs` 机械判定，违规 exit 1 回滚；详情 `rules/README.md`）：
+**硬防线 17 条**（`check-rules.mjs` 机械判定，违规 exit 1 回滚；详情 `rules/README.md`）：
 
 | 规则 | 触发条件（cache 侧） | 做什么 / 拦什么 |
 |---|---|---|
@@ -146,7 +146,8 @@ D2C 最难的不是翻译样式，是**猜意图**：哪块该切图、哪块该
 | R18 flex-direction | autolayout 容器（`layoutMode` 存在） | VERTICAL → `flex-direction: column`，HORIZONTAL → 不得写 column；拦方向写反 |
 | R19 padding | autolayout 容器声明了 padding，或产物写了 padding | CSS 四值 ≈ Figma paddingT/R/B/L × scale（容差 2px）；拦凭空捏造 / 漏写 / 数值错 |
 | R20 absolute-position | `layoutPositioning === 'ABSOLUTE'`（非 fixed-） | top/left ≈ (子 bbox − 父 bbox) × scale（容差 4px）；拦坐标靠猜。v1.2.4 增强：同时强制该节点 CSS 声明 `position: absolute`（此前只对数值，`position: relative` 也能混过） |
-| R21 node-id-coverage | 应渲染节点（TEXT / autolayout 容器 / ABSOLUTE / img-·btn-·input-） | 产物 JSX 必须挂 data-node-id，否则 R06/R18/R19/R20 全绑定不上、bug 静默逃逸；优先级最高的兜底规则 |
+| R21 node-id-coverage | 应渲染节点（TEXT / autolayout 容器 / ABSOLUTE / img-·btn-·input-） | 产物 JSX 必须挂 data-node-id，否则 R06/R18/R19/R20 全绑定不上、bug 静默逃逸；优先级最高的兜底规则。v1.2.5 增加**反向对账**：产物 data-node-id 必须存在于 cache，幻觉 id 直接 violation |
+| R23 size-fidelity | 产物 CSS 写了显式 px 宽高的应渲染节点 | 宽高 ≈ bbox×scale（容差 4px）；点名 `1px×1px + overflow:hidden` 锚点欺诈（真实尺寸缩成隐藏 div 应付机械检查） |
 
 > v1.2.3 新硬化的 5 条一律**保守判定**（宁漏报不误判）：触发不确定、不可追溯（无 className）、baked/hidden/模板副本一律 skip，只在铁证违规时 exit 1——因为硬防线误判会阻断正确产物，比软防线漏报更伤。
 
@@ -156,6 +157,15 @@ D2C 最难的不是翻译样式，是**猜意图**：哪块该切图、哪块该
 - **GATE-rule-hits 门禁（error）**：`rule-hits.json` 缺失即 exit 1（二次降级也须落 `v0.3.21-fallback` 占位）；并检测捏造——文件缺失但 assets.txt 已写"rule-hits 消费证明"时在违规详情点名"疑似捏造"。背景：test24-27 实测 agent 跳过 Rule-Scan 并在 assets.txt 捏造"§3.5 允许合并到 UI 侧"许可，文本约束拦不住，此处机械兜底。
 - **IMG-reconcile 三方对账（--merge 时执行）**：产物图片引用必须来自 slice-manifest（步骤 2.6 只消费清单契约）——产物引用 ∉ manifest 即 violation（疑似绕清单手工切图）；manifest 条目未被引用报 warning（可能隐藏层/被裁，不阻断）；动态拼接的文件名碎片按后缀匹配保守放行；manifest 缺失时 warning 跳过（旧项目/无图页面不硬卡）。
 - **`--block` 局部化**：`--root <nodeId>` 显式指定或从产物 data-node-id 推断 LCA，把 cache 裁剪到 block 子树再对账——R21/R03 等全树规则只看 block 内节点，消除对 block 外节点的全量误报（此前 --block 校验单个 block 却拿整页 cache 遍历，报出的多是别的 block 的"违规"）。
+
+**v1.2.5 加固**（防线加固批，exit-1 规则数 16→17，R23 计入；四道门禁与 R22 不计入）：
+
+- **GATE-cache-truncation 门禁**：合并 cache 中出现空 GROUP/BOOLEAN_OPERATION 即判 fetch depth 截断实锤——截断 cache 出码必丢内容，且会让逐节点对账**真空通过**（test29 取证：cache 仅 25 节点令全防线真空通过，产物 33 个 data-node-id 有 11 个是幻觉 id）。
+- **R21 反向对账**：产物 data-node-id 必须存在于 cache，幻觉 id 直接 violation——正向"应挂尽挂"与反向"所挂必真"合围。
+- **R23 size-fidelity**：显式 px 宽高须 ≈ bbox×scale（容差 4px），点名 `1×1 + overflow:hidden` 锚点欺诈（test28 取证：agent 自供"校验锚点"，把真实 331.5×141 写成 1×1 隐藏 div 应付 R21 检查）。
+- **GATE-rule-hits 收紧**：fallback 占位（`v0.3.21-fallback`）必须伴随 assets.txt 的 `[Rule-Scan 降级]` 失败记录——只有占位没有降级记录即判捏造。
+- **GATE-slice-confirm 确认留痕**：reskin-slice 落 `confirmed:false`，用户确认切图结果后由 `figma.mjs confirm-slices` 翻为 true（--merge 时校验；legacy 缺字段仅 warning）。口头"别问了"不构成豁免，跳过确认的唯一通道是 config `slice.confirmBeforeContinue: false`。
+- **单 agent 执行模式**：无 sub-agent 能力的平台（如 Codex）由主 agent 串行完成 Rule-Scan、出码、check-rules 等同等动作——给单 agent 平台合法路径，禁止以平台缺失为由用占位绕过步骤。
 
 **软防线 5 条**（Rule-Scan sub-agent 语义识别，输出 `rule-hits.json` 作 UI sub-agent 的作业指引，不 exit 1）：
 

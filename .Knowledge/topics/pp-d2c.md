@@ -59,7 +59,7 @@ pp-d2c 有**两套独立版本号**，不一致是正常的：
 - **SKILL 版本**：`SKILL.md` banner 里的 `v1.2.x`——追踪 skill **规则 / 防线的演化**（如 v1.2.0 对账范式、v1.2.1 R21）。
 - **npm 包版本**：`package.json` 的 `version`（如 `1.3.1`）——追踪 npm 包 `@double-coding/pixel-print` 的**整体发布**，覆盖所有 skill + `install.js` + docs。
 
-二者独立递增：改一条 skill 规则会 bump SKILL 版本但未必 bump npm；发一次 npm 可能只动 `install.js` 而 SKILL 版本不变。**看到 SKILL `v1.2.4` 与 npm `1.3.1` 不一致属预期，不是 bug**。（pp-d2c-rn `v0.4`、pp-d2c-fast 等各 skill 的 SKILL 版本同样与 npm 独立。）
+二者独立递增：改一条 skill 规则会 bump SKILL 版本但未必 bump npm；发一次 npm 可能只动 `install.js` 而 SKILL 版本不变。**看到 SKILL `v1.2.5` 与 npm `1.3.1` 不一致属预期，不是 bug**。（pp-d2c-rn `v0.4`、pp-d2c-fast 等各 skill 的 SKILL 版本同样与 npm 独立。）
 
 ## 设计原理概述
 
@@ -67,7 +67,7 @@ pp-d2c 有**两套独立版本号**，不一致是正常的：
 
 - **四层架构**：数据层(`figma.mjs`) / 规则层(`SKILL.md`+`rules/`) / 执行层(LLM) / 校验层(`check-rules.mjs`)——两个确定性脚本层夹住一个概率性 LLM 层，机械动作(HTTP/缓存/下载/校验)从 LLM 手里拿走，LLM 只做"理解结构+产出代码"。
 - **前缀即协议**：图层名前缀是硬编码内置常量(config 无 `layers` 段)，设计师用前缀显式写意图，skill 不猜。组合优先级 `x- > img- > bg- > bgc- > btn- > 滚动 > 无前缀`，`fixed-`/`end-` 是修饰前缀最后叠加；裸词白名单 `bg/bgc/btn/img/input`。
-- **双防线**：软防线 Rule-Scan(生成前识别语义类 R07/R10/R11/R13/R15) + 硬防线 check-rules(交付前逐节点对账,16 条 R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16–R21)。软管提效(先扫作业指引再动笔)、硬管保质(exit 1 回滚)。**v1.2.3 起 软规则硬化**：Rule-Scan 软防线里机械可判的 R03/R04/R09/R12/R14 下沉硬防线(逐节点对账不依赖 sub- 触发、exit 1 阻断,一律保守判定宁漏报不误判),软防线瘦身至需 LLM 语义的 R07/R10/R11/R13/R15。**v1.2.2 起 Rule-Scan 触发与 sub- 解耦**：页面无 sub- 图层时,主 agent 出码前把「页面根」当虚拟 block 对整页跑一次 Rule-Scan,`rule-hits.json` 落页面根目录(与页面 `assets.txt` 同级)——软防线覆盖不依赖设计师是否标了 sub-(pp-d2c 与 pp-d2c-fast 同口径)。**v1.2.4 起 生成过程缺陷修复批**（exit-1 规则数维持 16 条）：`check-rules --block` 局部化（`--root <nodeId>` 或产物 data-node-id LCA 推断,cache 裁剪到 block 子树,消除 block 外全量误报）；新增 **GATE-rule-hits 门禁**（rule-hits.json 缺失即 exit 1,含 assets.txt 消费证明捏造检测）与 **IMG-reconcile 三方对账**（`--merge` 时产物图片引用必须来自 slice-manifest,动态拼接碎片按后缀匹配保守放行）；R20 增强（ABSOLUTE 节点强制 `position: absolute` 声明）；新增 R22 empty-visual-btn（warning 级,btn- 空视觉按钮嫌疑,不计入 16 条）；Rule-Scan 恢复全量扫描出指引（软 5 条仍是唯一判定点,硬防线命中只作生成前指引,判决权在 check-rules）。
+- **双防线**：软防线 Rule-Scan(生成前识别语义类 R07/R10/R11/R13/R15) + 硬防线 check-rules(交付前逐节点对账,17 条 R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16–R21/R23)。软管提效(先扫作业指引再动笔)、硬管保质(exit 1 回滚)。**v1.2.3 起 软规则硬化**：Rule-Scan 软防线里机械可判的 R03/R04/R09/R12/R14 下沉硬防线(逐节点对账不依赖 sub- 触发、exit 1 阻断,一律保守判定宁漏报不误判),软防线瘦身至需 LLM 语义的 R07/R10/R11/R13/R15。**v1.2.2 起 Rule-Scan 触发与 sub- 解耦**：页面无 sub- 图层时,主 agent 出码前把「页面根」当虚拟 block 对整页跑一次 Rule-Scan,`rule-hits.json` 落页面根目录(与页面 `assets.txt` 同级)——软防线覆盖不依赖设计师是否标了 sub-(pp-d2c 与 pp-d2c-fast 同口径)。**v1.2.4 起 生成过程缺陷修复批**（exit-1 规则数维持 16 条）：`check-rules --block` 局部化（`--root <nodeId>` 或产物 data-node-id LCA 推断,cache 裁剪到 block 子树,消除 block 外全量误报）；新增 **GATE-rule-hits 门禁**（rule-hits.json 缺失即 exit 1,含 assets.txt 消费证明捏造检测）与 **IMG-reconcile 三方对账**（`--merge` 时产物图片引用必须来自 slice-manifest,动态拼接碎片按后缀匹配保守放行）；R20 增强（ABSOLUTE 节点强制 `position: absolute` 声明）；新增 R22 empty-visual-btn（warning 级,btn- 空视觉按钮嫌疑,不计入 16 条）；Rule-Scan 恢复全量扫描出指引（软 5 条仍是唯一判定点,硬防线命中只作生成前指引,判决权在 check-rules）。**v1.2.5 起 防线加固批**（exit-1 硬规则 16→**17 条**,新增 R23 计入;warning 级 R22 与四道门禁 GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm 不计入 17）：新增 **GATE-cache-truncation**（合并 cache 中空 GROUP/BOOLEAN_OPERATION = fetch depth 截断实锤,截断 cache 会令逐节点对账真空通过——test29 取证:cache 仅 25 节点令全防线真空通过,产物 33 个 data-node-id 有 11 个幻觉 id）；**R21 增加反向对账**（产物 data-node-id 必须存在于 cache,幻觉 id 直接 violation）；新增 **R23 size-fidelity**（显式 px 宽高须 ≈ bbox×scale 容差 4px,点名 `1px×1px + overflow:hidden` 锚点欺诈——test28 取证:agent 自供"校验锚点",把真实 331.5×141 写成 1×1 隐藏 div）；**GATE-rule-hits 收紧**（fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 失败记录）；**GATE-slice-confirm 确认留痕**（slice-manifest `confirmed` 须为 true,由 `figma.mjs confirm-slices` 用户确认后翻转,legacy 缺字段仅 warning）。
 - **sub-agent 分块是质量保证非性能优化**：单 agent 同时处理全局协调+局部细节时细节退化，故 `sub-` 强制分发、最深 3 层、`<__SUBSLOT__>`+`subslots.json` 上报-派发。
 - **data-node-id 贯穿全流程**：对账绑定 / 守恒律差集 / review 反查 / 局部修复锚点，四用途；R21 把"全覆盖"变硬规则。
 - **封逃逸口 + 自证代替信任**：已知逃逸路径(整体切图代拆结构/凭空搓渐变/幻觉 padding)显式禁止 + 机械拦截；豁免须三段证据且单次 ≤3；生成流程禁 `--force-skip`。
@@ -129,6 +129,11 @@ pp-d2c 有**两套独立版本号**，不一致是正常的：
 - **步骤 2.6 硬门禁**：reskin-slice 切图失败即 hard stop（禁手工绕过续跑）；切图完成后**确认暂停**——config 新键 `slice.confirmBeforeContinue` 默认 `true`，切完停下等用户确认再出码；`sizeWarning` 非空时不受该开关豁免，一律必停。
 - **micro-sub 快路径与同构 sub- 合并**：满足 ≤8 节点等 4 条件的微型 sub- block 由主 agent 内联出码（免独立派发的固定成本）；同构 sub- 合并为代表项模板 `.map()` 渲染，只出一份代码。
 - **figma.mjs 截断修复**：修复"全量请求复用深度截断 cache"bug，并新增 `truncatedSuspects` 截断检测——背景是 test24 `btn-qiang` 因 depth=8 截断丢内容退化成透明热区，全页 41 个截断嫌疑节点。
+
+## v1.2.5 生成过程要点（确认留痕与单 agent 模式）
+
+- **切图确认留痕**：reskin-slice 完成后在 slice-manifest 落 `confirmed:false`，用户确认切图结果后由 `figma.mjs confirm-slices` 翻为 `true`；GATE-slice-confirm 据此机械校验，用户口头"别问了"不构成豁免，跳过确认的唯一通道是 config `slice.confirmBeforeContinue: false`（此时 reskin-slice 直接落 `confirmed:true`）。
+- **单 agent 执行模式**：无 sub-agent 能力的平台（如 Codex）由主 agent 串行完成 Rule-Scan、出码、check-rules 等同等动作——单 agent 模式是合法路径，禁止以"平台没有 sub-agent"为由用占位绕过任何步骤。
 
 ## 关键执行约束（按重要度排序）
 
