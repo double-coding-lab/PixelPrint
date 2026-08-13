@@ -5,9 +5,11 @@ description: pp-d2c 快速模式，根据 Figma 设计稿 URL 生成 React H5 �
 
 # pp-d2c-fast Skill（pp-d2c 快速模式）
 
-> **pp-d2c-fast**：基于 pp-d2c 精简——砍除已被 `check-rules.mjs` 逐节点对账覆盖的自证块（A 梯队：字色溯源 / padding-top / data-node-id 守恒 grep / 四条硬规则 grep 5 条 / rule-hits 消费证明），保留全部决策引导（§4.3 裁决树 / 坐标公式 / §5.1.1 data-node-id 铁律）。硬防线 check-rules 16 条（R04 自 v1.2.3 起在内）、`bin/`、`rules/` 与 pp-d2c **完全一致**；**原 pp-d2c 保留完整防线，二者并存**。
+> **pp-d2c-fast**：基于 pp-d2c 精简——砍除已被 `check-rules.mjs` 逐节点对账覆盖的自证块（A 梯队：字色溯源 / padding-top / data-node-id 守恒 grep / 四条硬规则 grep 5 条 / rule-hits 消费证明），保留全部决策引导（§4.3 裁决树 / 坐标公式 / §5.1.1 data-node-id 铁律）。硬防线 check-rules 17 条（R04 自 v1.2.3 起、R23 自 v1.2.5 起在内）、`bin/`、`rules/` 与 pp-d2c **完全一致**；**原 pp-d2c 保留完整防线，二者并存**。
 >
-> **当前版本**：v1.2.4(h5 独享,不同步 pp-d2c-rn) —— **生成过程缺陷修复批**(test24-27 取证):(1) `check-rules --block` 局部化(--root/LCA 推断);(2) GATE-rule-hits 门禁(缺失即 exit 1,含消费证明捏造检测);(3) IMG-reconcile 三方对账;(4) R20 强制 `position: absolute`;(5) 新增 R22 empty-visual-btn(warning);(6) figma.mjs 深度截断 cache 复用 bug 修复 + truncatedSuspects;(7) reskin-slice 失败 hard stop + 切图确认暂停(`slice.confirmBeforeContinue`);(8) micro-sub 快路径与同构 sub- 合并;(9) Rule-Scan 恢复全量扫描出指引。fast 版 `bin/`、`rules/` 与 pp-d2c 逐字节一致。
+> **当前版本**：v1.2.5(h5 独享,不同步 pp-d2c-rn) —— **防线加固批**(test28/29 取证):(1) GATE-cache-truncation(空 GROUP/BOOL_OP = depth 截断实锤);(2) R21 反向对账(幻觉 id);(3) 新增 R23 size-fidelity(px 宽高 ↔ bbox×scale,1×1 锚点欺诈点名);(4) GATE-rule-hits 收紧(fallback 占位须有降级记录);(5) GATE-slice-confirm 确认留痕(confirm-slices 命令);(6) 单 agent 执行模式(无 sub-agent 平台合法路径)。fast 版 `bin/`、`rules/` 与 pp-d2c 逐字节一致。
+>
+> **v1.2.4 历史** —— **生成过程缺陷修复批**(test24-27 取证):(1) `check-rules --block` 局部化(--root/LCA 推断);(2) GATE-rule-hits 门禁(缺失即 exit 1,含消费证明捏造检测);(3) IMG-reconcile 三方对账;(4) R20 强制 `position: absolute`;(5) 新增 R22 empty-visual-btn(warning);(6) figma.mjs 深度截断 cache 复用 bug 修复 + truncatedSuspects;(7) reskin-slice 失败 hard stop + 切图确认暂停(`slice.confirmBeforeContinue`);(8) micro-sub 快路径与同构 sub- 合并;(9) Rule-Scan 恢复全量扫描出指引。fast 版 `bin/`、`rules/` 与 pp-d2c 逐字节一致。
 >
 > **v1.2.3 历史** —— **软规则硬化**:把原 Rule-Scan 软防线中机械可判的 5 条(R03/R04/R09/R12/R14)下沉 `check-rules.mjs` 硬防线,逐节点对账、exit 1 阻断,不依赖 sub- 触发;软防线瘦身至 R07/R10/R11/R13/R15。新硬规则一律保守(宁漏报不误判)。
 >
@@ -99,7 +101,7 @@ agent 在跑 pp-d2c 全流程时 **只允许问用户业务问题,禁止问 skil
 
 | 是 | 否 |
 |---|---|
-| "临时"可覆盖 `output.dir` 子目录 (放到 `pages/test-tmp/`) | "临时"**不**可豁免任何硬防线规则 (check-rules 全部 16 条) |
+| "临时"可覆盖 `output.dir` 子目录 (放到 `pages/test-tmp/`) | "临时"**不**可豁免任何硬防线规则 (check-rules 全部 17 条) |
 | "临时"可覆盖 `images.assetsDir` 子目录 (放到 `static/test-tmp/`) | "临时"**不**可豁免"整体切图禁用" (R16) |
 | "临时"可覆盖 config.styleFormat 之外的其它临时命名 | "临时"**不**可豁免 §6.0.2 兜底门禁 N=0 |
 | | "临时"**不**可作为 assets.txt `[脚本误判]` / `[整体切图兜底]` 的豁免理由 |
@@ -710,6 +712,7 @@ reskin-slice 成功后,主 agent **无条件暂停**,向用户输出切图结果
 ```
 
 - `pp-d2c.config.json` 配 `slice.confirmBeforeContinue: false` 可跳过本暂停(全自动流水场景);**sizeWarning 非空时仍必须停**(v1.1.0 既有规则,不受开关影响)。
+- **确认留痕（v1.2.5）**: 用户确认后,主 agent 执行 `node .claude/skills/pp-d2c-fast/bin/figma.mjs confirm-slices <fileKey> <slug>` 把 manifest `confirmed` 置 true——步骤 6 `check-rules --merge` 的 **GATE-slice-confirm** 以该字段为准,`confirmed=false` 直接 violation。**禁止**未经用户确认自行执行 confirm-slices(留痕即取证,伪造可事后对会话审计)。用户口头"别问了/不要询问"指的是**权限弹窗**,**不豁免本流程确认**——跳过本暂停的唯一通道是改 config `slice.confirmBeforeContinue: false`(该配置下 reskin-slice 直接落 `confirmed: true`)。
 
 **禁止项**:
 
@@ -747,7 +750,7 @@ reskin-slice 成功后,主 agent **无条件暂停**,向用户输出切图结果
 
 ### 步骤 3.5：Rule-Scan sub-agent 派发 
 
-**目的**:让每个 UI sub-agent 干活前, 先由独立 **Rule-Scan sub-agent** 扫出本 block 命中的规则, 输出 `rule-hits.json` 作为作业指引。扫描范围是**全部规则（R01-R22,v1.2.4 起恢复全量）**:其中 R07/R10/R11/R13/R15 为**软防线**（需 LLM 语义判定,Rule-Scan 是其唯一判定点）;其余硬防线规则由 `bin/check-rules.mjs` 在步骤 4 尾机械判决,Rule-Scan 对它们只出**生成前逐节点指引**（提高一次通过率,判决权仍在 check-rules,指引漏扫不算违规）。
+**目的**:让每个 UI sub-agent 干活前, 先由独立 **Rule-Scan sub-agent** 扫出本 block 命中的规则, 输出 `rule-hits.json` 作为作业指引。扫描范围是**全部规则（R01-R23,v1.2.4 起恢复全量）**:其中 R07/R10/R11/R13/R15 为**软防线**（需 LLM 语义判定,Rule-Scan 是其唯一判定点）;其余硬防线规则由 `bin/check-rules.mjs` 在步骤 4 尾机械判决,Rule-Scan 对它们只出**生成前逐节点指引**（提高一次通过率,判决权仍在 check-rules,指引漏扫不算违规）。
 
 **执行时序**: 步骤 3 分块清单生成后、步骤 4 UI sub-agent 开工前。
 
@@ -759,6 +762,14 @@ reskin-slice 成功后,主 agent **无条件暂停**,向用户输出切图结果
 - 降级路径与 sub- 场景一致(重派一次,二次挂写 fallback 占位 + 主 agent 自读全量规则库)
 
 > 理由: 软防线抓的错误(R11 复合 mask 该切图、R15 同构 map、R07 多层 fills 等)与页面是否分块无因果关系;无 sub- 的小页面恰恰是前缀标注最不认真的稿子。禁止以「页面简单/无 sub-」为由跳过本次扫描。
+
+**单 agent 执行模式（v1.2.5,平台无 sub-agent 能力时）**: 执行环境无法派发 sub-agent(如 Codex 等仅有 shell 工具的平台)时,**不允许以平台缺失为由跳过任何步骤**,改由主 agent 串行完成同等动作:
+
+1. Rule-Scan 由主 agent 作为**独立前置步骤真实执行**——Read 全部 rules/*.md + 本 block cache,写**真实的** `rule-hits.json`;`v0.3.21-fallback` 占位**仅限**「真实执行两次均失败」,且必须同时在 assets.txt 记 `[Rule-Scan 降级] 原因={失败原因}`(v1.2.5 起 GATE-rule-hits 机械校验:占位而无降级记录 = violation);
+2. sub- block **串行逐块**生成,每块完成后照跑 `check-rules --block`,消费证明照写;
+3. 步骤 2.6 切图确认暂停照常执行(与能否派 sub-agent 无关)。
+
+> 取证背景(test28/29,Codex+低推理执行器): 平台派不出 sub-agent 时,占位降级曾是唯一"合规"出口,Rule-Scan/分块隔离/逐块校验全部塌缩,产物大面积漏渲染。本模式给单 agent 平台一条合法路径:能力缺失改变的是**执行形态**(并行→串行),不豁免**任何动作**。
 
 **流程**:
 
@@ -1090,8 +1101,10 @@ def rgb_to_hex(c):
 | R19 | padding | autolayout 容器有/无 padding | padding 凭空捏造 或 漏写 或数值错 | `rules/R19-padding.md` |
 | R20 | absolute-position | `layoutPositioning === 'ABSOLUTE'` 子节点 | top/left 靠猜(应 =(子bbox−父bbox)×scale) | `rules/R20-absolute-position.md` |
 | R21 | node-id-coverage | 应渲染节点(TEXT/autolayout 容器/ABSOLUTE/img-·btn-·input-) | 未挂 data-node-id → 逃出全部对账 | `rules/R21-node-id-coverage.md` |
+| R22 | empty-visual-btn | btn- 子树无文字/背景/图 | 透明热区嫌疑(warning 不阻断) | `rules/R22-empty-visual-btn.md` |
+| R23 | size-fidelity | 显式 px 宽高 ↔ bbox×scale | 尺寸靠猜 / 1×1 锚点欺诈 | `rules/R23-size-fidelity.md` |
 
-**硬防线** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R03 / R04 / R05 / R06 / R08 / R09 / R12 / R14 / R16 / R17 / R18 / R19 / R20 / R21**
+**硬防线 17 条** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R03 / R04 / R05 / R06 / R08 / R09 / R12 / R14 / R16 / R17 / R18 / R19 / R20 / R21(v1.2.5 起含反向对账:产物 id ∉ cache = 幻觉 id) / R23(v1.2.5)**;另有 R22(warning 级)与四道流程门禁(GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm)
 **软防线** (Rule-Scan sub-agent 识别 `rule-hits.json`): **R07 / R10 / R11 / R13 / R15**（v1.2.3 起 R03/R04/R09/R12/R14 迁入硬防线,逐节点对账不依赖 sub- 触发;剩余 5 条需 LLM 语义判定仍留软）
 
 > **v1.2.0 对账基座**:R02/R06/R17/R18/R19/R20/R21 依赖 `loadCache.mjs` 标注的 `_inBakedSubtree`/`_hidden`/`_templateDup` 与 `cssMatch.mjs` 的 SCSS 嵌套匹配。这些是"以 cache 为真值逐节点对账"的落点;它们报数即真值,不接受"语义盲点/装饰性内容"批量豁免(§6.0.2)。
@@ -1441,7 +1454,7 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 | 同层 ≥3 同构节点渲染 | `rules/R15-同构 map 渲染.md` |
 | SOLID 色源核对 (无幻觉色) | `rules/R10-no-fake-solid-color.md` |
 
-**rules/ 是设计文档**;执行链条:Rule-Scan sub-agent Read 全部 `rules/*.md` → 输出 `rule-hits.json` → UI sub-agent Read 命中的 R0X.md 按"期望产物"落地。`check-rules.mjs` 硬编码硬防线 16 条(+R22 warning 级)逻辑,不依赖 rules/*.md 运行。
+**rules/ 是设计文档**;执行链条:Rule-Scan sub-agent Read 全部 `rules/*.md` → 输出 `rule-hits.json` → UI sub-agent Read 命中的 R0X.md 按"期望产物"落地。`check-rules.mjs` 硬编码硬防线 17 条(+R22 warning 级与四道流程门禁)逻辑,不依赖 rules/*.md 运行。
 
 #### 4.4 图片处理
 

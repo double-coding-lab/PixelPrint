@@ -49,14 +49,15 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 | R20 | absolute-position | 硬防线 | `layoutPositioning === 'ABSOLUTE'`(非 fixed-),top/left ≠ (子bbox−父bbox)×scale;或产物未声明 `position: absolute`(v1.2.4) |
 | R21 | node-id-coverage | 硬防线 | 应渲染节点(TEXT/autolayout 容器/ABSOLUTE/img-·btn-·input-)在产物 JSX 里找不到 data-node-id |
 | R22 | empty-visual-btn | warning(v1.2.4) | btn- 子树无文字/背景/图,产物只剩透明热区(常见根因: cache 深度截断 / 该切图没切) |
+| R23 | size-fidelity | 硬防线(v1.2.5) | 显式 px 宽高与 bbox×scale 相差 >4px;1×1+overflow:hidden 锚点欺诈点名 |
 
 ## 判定归属说明
 
-**硬防线** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R03 / R04 / R05 / R06 / R08 / R09 / R12 / R14 / R16 / R17 / R18 / R19 / R20 / R21。
+**硬防线 17 条** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R03 / R04 / R05 / R06 / R08 / R09 / R12 / R14 / R16 / R17 / R18 / R19 / R20 / R21(v1.2.5 起含反向对账:产物 data-node-id ∉ cache = 幻觉 id) / R23(v1.2.5)。
 
 **软防线** (Rule-Scan sub-agent 识别): 需 LLM 语义判断,输出 `rule-hits.json` 给 UI sub-agent 参考 → R07 / R10 / R11 / R13 / R15。（v1.2.3 起 R03/R04/R09/R12/R14 迁入硬防线）
 
-**warning 级** (`check-rules.mjs` 提示不阻断): R22 empty-visual-btn。另有两道流程门禁(v1.2.4): **GATE-rule-hits**——rule-hits.json 缺失即 exit 1(含 assets.txt 消费证明捏造检测);**IMG-reconcile**(--merge)——产物图片引用必须来自 slice-manifest 三方对账。
+**warning 级** (`check-rules.mjs` 提示不阻断): R22 empty-visual-btn。另有四道流程门禁: **GATE-cache-truncation**(v1.2.5)——合并 cache 中空 GROUP/BOOLEAN_OPERATION = depth 截断实锤,截断 cache 出码必丢内容;**GATE-rule-hits**(v1.2.4,v1.2.5 收紧)——rule-hits.json 缺失即 exit 1,fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 记录;**IMG-reconcile**(v1.2.4,--merge)——产物图片引用必须来自 slice-manifest 三方对账;**GATE-slice-confirm**(v1.2.5,--merge)——manifest `confirmed` 须为 true(`figma.mjs confirm-slices` 用户确认留痕,legacy 缺字段仅 warning)。
 
 **Rule-Scan 扫描范围** (v1.2.4 恢复全量): Rule-Scan 扫**全部规则**出 `rule-hits.json`——软防线 5 条以此为唯一判定点;硬防线命中作为生成前逐节点指引(判决权在 check-rules,指引漏扫不算违规)。
 
@@ -159,6 +160,7 @@ R21 (node-id-coverage) ── 最高优先级; 节点无 data-node-id 则 R06/R1
 
 ## 版本
 
+- **v1.2.5** 防线加固批(test28/29 取证):GATE-cache-truncation(cache 完整性);R21 反向对账(幻觉 id);R23 size-fidelity(尺寸忠实度+锚点欺诈);GATE-rule-hits 收紧(fallback 占位须有降级记录);GATE-slice-confirm(切图确认留痕);单 agent 执行模式(无 sub-agent 平台合法路径)
 - **v1.2.4** 生成过程缺陷修复批(test24-27 取证):check-rules --block 局部化(--root/LCA 推断);GATE-rule-hits 门禁(缺失即 exit 1,含消费证明捏造检测);IMG-reconcile 三方对账;R20 强制 `position: absolute` 声明;新增 R22 empty-visual-btn(warning 级);Rule-Scan 恢复全量扫描出指引(判决权仍在 check-rules)
 - **v1.2.3** 软→硬迁移:R03/R04/R09/R12/R14 从软防线下沉 check-rules 硬防线(机械可判、逐节点对账,不依赖 sub- 触发,exit 1 阻断);软防线剩 R07/R10/R11/R13/R15(需 LLM 语义);新硬规则一律保守(宁漏报不误判,边界 skip)
 - **v1.2.2** Rule-Scan 触发与 sub- 解耦:执行清单 sub- block 数为 0 时,主 agent 出码前对整页跑一次 Rule-Scan(页面根为虚拟 block,`rule-hits.json` 落页面根目录);修复无 sub- 页面软规则 R03/R04/R07/R09-R15 完全不触发的覆盖空档
