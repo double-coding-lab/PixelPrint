@@ -220,6 +220,26 @@ async function cmdCacheCheck(positional) {
 
 // ─── 命令: fetch-node <fileKey> <nodeId> [--depth=N] ────────────
 
+// 深度截断嫌疑检测: GROUP/BOOLEAN_OPERATION/INSTANCE/COMPONENT 在 Figma 中必有子节点,
+// 位于 depth 边界却 children 为空 → 子树被 REST depth 参数截断,视觉内容不在 cache 里
+// (典型 test24 btn-qiang 136:45810: depth=8 边界空 GROUP,按钮真实内容丢失 → 产物透明热区)。
+// FRAME 可合法为空(占位盒),不纳入,避免误报。
+const NEVER_EMPTY_TYPES = new Set(['GROUP', 'BOOLEAN_OPERATION', 'INSTANCE', 'COMPONENT'])
+function findTruncatedSuspects(root, depth) {
+  if (!depth) return []
+  const suspects = []
+  const walk = (n, d) => {
+    if (!n || typeof n !== 'object') return
+    const empty = !Array.isArray(n.children) || n.children.length === 0
+    if (d >= depth && empty && NEVER_EMPTY_TYPES.has(n.type)) {
+      suspects.push({ id: n.id, name: n.name, type: n.type })
+    }
+    for (const c of n.children || []) walk(c, d + 1)
+  }
+  walk(root, 0)
+  return suspects
+}
+
 async function cmdFetchNode(positional, flags) {
   const [fileKey, nodeId] = positional
   if (!fileKey || !nodeId) return fail('用法: figma fetch-node <fileKey> <nodeId> [--depth=N]')
@@ -236,8 +256,13 @@ async function cmdFetchNode(positional, flags) {
   if (fs.existsSync(cacheFile)) {
     try {
       const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'))
-      if (!depth || (cached._depth && cached._depth >= depth)) {
-        return output({ ok: true, data: { cached: true, node: cached.node } })
+      // 复用条件: 全量请求(无 --depth)只能复用全量 cache(_depth=null);
+      // 带 depth 请求可复用全量 cache 或深度不小于本次的 cache。
+      // 旧逻辑 !depth 即复用,会把深度截断的旧 cache 当全量用 → 子树静默丢失。
+      const cachedIsFull = cached._depth == null
+      if (cachedIsFull || (depth && cached._depth >= depth)) {
+        const truncatedSuspects = cachedIsFull ? [] : findTruncatedSuspects(cached.node, cached._depth)
+        return output({ ok: true, data: { cached: true, _depth: cached._depth, truncatedSuspects, node: cached.node } })
       }
     } catch { /* 缓存损坏,重拉 */ }
   }
@@ -250,7 +275,8 @@ async function cmdFetchNode(positional, flags) {
     if (!doc) return fail(`节点 ${nodeId} 在文件 ${fileKey} 中未找到`)
 
     fs.writeFileSync(cacheFile, JSON.stringify({ _depth: depth || null, node: doc }, null, 2))
-    output({ ok: true, data: { cached: false, node: doc } })
+    const truncatedSuspects = depth ? findTruncatedSuspects(doc, depth) : []
+    output({ ok: true, data: { cached: false, _depth: depth || null, truncatedSuspects, node: doc } })
   } catch (e) {
     fail(e.message)
   }
@@ -311,6 +337,30 @@ async function cmdExportImage(positional, flags) {
   }
 }
 
+// ─── 命令: confirm-slices <fileKey> <slug> ──────────────────────
+// v1.2.5 切图确认留痕: 步骤 2.6 用户确认切图结果后执行,把 slice-manifest 对应 theme 的
+// confirmed 置 true(check-rules --merge 的 GATE-slice-confirm 依赖该字段)。
+// 仅在用户明确确认后调用;agent 不得未经确认自行执行(留痕即取证,伪造可事后对会话审计)。
+
+function cmdConfirmSlices(positional) {
+  const [fileKey, slug] = positional
+  if (!fileKey || !slug) return fail('用法: figma confirm-slices <fileKey> <slug>')
+  const { projectRoot } = loadConfig()
+  const manifestFile = path.join(projectRoot, '.d2c-cache', fileKey, `slice-manifest-${slug}.json`)
+  if (!fs.existsSync(manifestFile)) return fail(`清单不存在: ${manifestFile}`)
+  let manifest
+  try { manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8')) } catch (e) {
+    return fail(`清单解析失败: ${e.message}`)
+  }
+  const themes = (manifest.themes || []).filter(t => t.slug === slug)
+  const targets = themes.length ? themes : (manifest.themes || [])
+  if (targets.length === 0) return fail(`清单中无 theme 可确认: ${manifestFile}`)
+  const confirmedAt = new Date().toISOString()
+  for (const t of targets) { t.confirmed = true; t.confirmedAt = confirmedAt }
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2))
+  output({ ok: true, data: { manifest: manifestFile, confirmed: targets.map(t => t.slug), confirmedAt } })
+}
+
 // ─── 命令: screenshot <fileKey> <nodeId> [--tag=leaf|whole|block] ─
 
 async function cmdScreenshot(positional, flags) {
@@ -363,6 +413,7 @@ const commands = {
   'cache-check': () => cmdCacheCheck(positional),
   'fetch-node': () => cmdFetchNode(positional, flags),
   'export-image': () => cmdExportImage(positional, flags),
+  'confirm-slices': () => cmdConfirmSlices(positional),
   'screenshot': () => cmdScreenshot(positional, flags),
   'cleanup-tmp': () => cmdCleanupTmp(),
 }
@@ -376,6 +427,7 @@ figma.mjs — Figma REST API helper
   node figma.mjs cache-check <fileKey>
   node figma.mjs fetch-node <fileKey> <nodeId> [--depth=N]
   node figma.mjs export-image <fileKey> <nodeId> --filename=<name> [--format=png|svg] [--scale=1|2] [--preserve-effect]
+  node figma.mjs confirm-slices <fileKey> <slug>   (步骤 2.6 用户确认切图后执行,manifest confirmed → true)
   node figma.mjs screenshot <fileKey> <nodeId> [--tag=leaf|whole|block] [--scale=2]
   node figma.mjs cleanup-tmp
 

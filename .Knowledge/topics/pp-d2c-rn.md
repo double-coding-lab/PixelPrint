@@ -200,7 +200,7 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 |------|-----------|
 | §-1 探针 | 同 h5(figma.mjs 是复制的) |
 | §0 读配置 | 多读 `adapter` 段 |
-| §0.3 缓存 | 完全同 h5(缓存 fileKey 无关 target) |
+| §0.7 缓存 | 完全同 h5(缓存 fileKey 无关 target) |
 | §0.5 doctor | **移除**(rn 不接卫星) |
 | §1 解析 URL | 同 h5 |
 | §2 拉稿 | 同 h5 |

@@ -1,6 +1,8 @@
-// R20 absolute-position（v1.2.0 对账新增）
+// R20 absolute-position（v1.2.0 对账新增；v1.2.4 增强 position 声明强制）
 // 触发: node.layoutPositioning === 'ABSOLUTE'（脱离父 autolayout 顺流，绝对定位）
-// 期望: CSS top ≈ (子.bbox.y − 父.bbox.y) × scale；left ≈ (子.bbox.x − 父.bbox.x) × scale（容差 4px）
+// 期望: CSS 必须声明 position: absolute（top/left 为 0 可省数值，position 不可省——
+//       relative/static 仍占父 flex 流位挤压兄弟，典型 test27 211:435 main__screen）；
+//       CSS top ≈ (子.bbox.y − 父.bbox.y) × scale；left ≈ (子.bbox.x − 父.bbox.x) × scale（容差 4px）
 // 违反: 坐标靠猜（典型 test13 img-huochepiao：真值 left≈-10/top≈-13 溢出到背景上，产物却写 top:40/left:40）
 // 跳过: baked / hidden / templateDup / 无 className / 父无 bbox
 //
@@ -41,9 +43,13 @@ export function check({ cache, product, config, classMap }) {
     const cssTop = extractPos(body, 'top', inset ? inset[0] : null);
     const cssLeft = extractPos(body, 'left', inset ? inset[3] : null);
 
-    // 期望值≈0 且产物未显式声明 → 原点绝对定位与顺流视觉等价，容忍不报（避免噪声）。
+    // 期望值≈0 且产物未显式声明 top/left → 原点绝对定位与顺流视觉等价，容忍不报（避免噪声）。
     // 期望非 0 却缺失（丢了真实偏移）、或写了值但对不上（如 huochepiao 40 vs -13）→ 报。
     const problems = [];
+    // v1.2.4: position: absolute 声明本身不可省——检查该元素全部 class 的全部规则体
+    if (!anyBodyHas(product.style, classes, /position\s*:\s*absolute\b/i)) {
+      problems.push('缺 position: absolute（relative/static 仍参与父流布局，占位挤压兄弟）');
+    }
     if (cssTop == null) {
       if (Math.abs(expTop) > TOL) problems.push(`缺 top（应 ${expTop}px，丢了真实偏移）`);
     } else if (Math.abs(cssTop - expTop) > TOL) problems.push(`top=${cssTop}px 应 ${expTop}px`);
@@ -67,6 +73,18 @@ export function check({ cache, product, config, classMap }) {
   }
 
   return violations;
+}
+
+// 该元素任一 class 的任一规则体命中 re 即真（position 可能声明在另一条同类规则里）
+function anyBodyHas(styleFiles, classes, re) {
+  for (const cls of classes) {
+    for (const s of styleFiles) {
+      for (const b of collectRuleBodies(s.content, cls)) {
+        if (re.test(b.body)) return true;
+      }
+    }
+  }
+  return false;
 }
 
 function firstBody(styleFiles, classes) {

@@ -38,7 +38,7 @@ pp-d2c 的所有机制都收敛到一句话：
 | 层 | 载体 | 职责 | 确定性 |
 |---|---|---|---|
 | **数据层** | `bin/figma.mjs` | Figma REST API 封装：token 探针、节点拉取、图片导出、截图、缓存管理。stdout 一行 JSON（`{ok, data}` / `{ok, error}`），退出码 0/非 0 | 命令式代码，完全确定 |
-| **规则层** | `SKILL.md` + `rules/R01-R21.md` | 自然语言操作手册：前缀语义、布局判定树、切图契约、单位换算、验收清单。SKILL.md 保留总概表，硬规则详情在 `rules/`（冲突以 rules/ 为准） | 文档，靠 LLM 遵守 |
+| **规则层** | `SKILL.md` + `rules/R01-R22.md` | 自然语言操作手册：前缀语义、布局判定树、切图契约、单位换算、验收清单。SKILL.md 保留总概表，硬规则详情在 `rules/`（冲突以 rules/ 为准） | 文档，靠 LLM 遵守 |
 | **执行层** | LLM（Claude Code / Codex） | 读规则 → 调数据层 → 产出 JSX/SCSS → 自检 → 视觉对比 | 概率性，是所有防线要约束的对象 |
 | **校验层** | `bin/check-rules.mjs` + `bin/lib/*` | 硬防线：以 `.d2c-cache` 节点 JSON 为真值，逐节点对账产物代码，违规 exit 1 强制回滚 | 命令式代码，完全确定 |
 
@@ -55,7 +55,7 @@ pp-d2c 的所有机制都收敛到一句话：
 -1  verify-token        Token 探针（/v1/me），失败即终止
  0  读 pp-d2c.config.json  缓存 projectRoot / styleFormat / unit.scale / 输出目录等
  0.5 询问输出路径        锁定 <output.dir>/<slug> 与 <assetsDir>/<slug>，写入 .d2c-tasks.md
- 0.3 cache-check        比对远端 lastModified，决定复用或重建 .d2c-cache/<fileKey>/
+ 0.7 cache-check        比对远端 lastModified，决定复用或重建 .d2c-cache/<fileKey>/
  1  解析 URL            提取 fileKey + nodeId
  2  扫图层树            fetch-node --depth=2；识别第一层 sub-；生成 .d2c-tasks.md 执行清单
  2.5 页面级背景          顶层 frame 背景写 body（按 styleFormat×多/单页 五档策略 P-A/P-B/M-A/M-B/J）
@@ -71,7 +71,8 @@ pp-d2c 的所有机制都收敛到一句话：
 
 几个流水线设计点：
 
-- **前置切图（2.6）**：切图从"sub-agent 现切现挂"改为"主 agent 一次切完、sub-agent 只查清单"。收益：切图源 nodeId 统一由脚本按前缀扫描，杜绝 sub-agent 拿父容器 nodeId 切图把兄弟文字烤进 PNG；清单带尺寸断言（png 实际尺寸 vs bbox×scale 差 >4px 写 `sizeWarning`），溢出图必须停下问用户而非直接用。
+- **前置切图（2.6）**：切图从"sub-agent 现切现挂"改为"主 agent 一次切完、sub-agent 只查清单"。收益：切图源 nodeId 统一由脚本按前缀扫描，杜绝 sub-agent 拿父容器 nodeId 切图把兄弟文字烤进 PNG；清单带尺寸断言（png 实际尺寸 vs bbox×scale 差 >4px 写 `sizeWarning`），溢出图必须停下问用户而非直接用。**v1.2.4 起步骤 2.6 是硬门禁**：reskin-slice 切图失败即 hard stop，禁止手工绕过续跑；切图完成后进入**确认暂停**——config 新键 `slice.confirmBeforeContinue` 默认 `true`，切完停下等用户确认切图结果再出码；`sizeWarning` 非空时不受该开关豁免，一律必停。
+- **micro-sub 快路径与同构 sub- 合并（v1.2.4）**：满足 ≤8 节点等 4 条件的微型 sub- block 由主 agent 内联出码，砍掉小 block 独立派发的固定成本（实测约 4 分钟/块）；同层同构的 sub- block 合并为代表项模板 `.map()` 渲染，只出一份代码。分块模型（§5）的质量收益保留给真正复杂的 block。
 - **`.d2c-tasks.md` 是流程的持久化状态机**：输出路径锁定、样式大类锁定（P/M/J 三选一，config `styleFormat` 唯一权威）、block 树状清单、页面背景决策依据，全部落盘。sub-agent 开工前必须先读锁定段，禁止各自重新判定——防止多 agent 判断漂移。
 - **验收有序不可调换**：先逐叶子 block 局部对比（sub-agent 的自我验收有 self-blind 偏差，主 agent 必须重看），再整体对比（看 block 间协调），两者关注点正交。
 
@@ -118,28 +119,63 @@ D2C 最难的不是翻译样式，是**猜意图**：哪块该切图、哪块该
 
 ## 6. 双防线：Rule-Scan 软防线 + check-rules 硬防线
 
-21 条规则（R01-R21）按"可否机械判定"分成两道防线：
+23 条规则（R01-R23）按"可否机械判定"分成两道防线。**v1.2.3 起**：软防线里机械可判的 5 条（R03/R04/R09/R12/R14）下沉硬防线，软防线只剩需 LLM 语义判定的 R07/R10/R11/R13/R15。**v1.2.4 起**：新增 R22（warning 级）与 GATE-rule-hits / IMG-reconcile 两道门禁，exit-1 规则数维持 16 条。**v1.2.5 起**：新增 R23 size-fidelity（exit-1 计入，规则数 16→17）与 GATE-cache-truncation / GATE-slice-confirm 两道门禁（合计四道门禁，门禁与 R22 均不计入 17）。
 
-**软防线 = Rule-Scan sub-agent**（步骤 3.5，覆盖 R03/R04/R07/R09-R15 语义类规则）。每个 block 出码前，先派一个只做规则识别、不写 UI 的 agent：读全部 `rules/*.md` + block 的 cache JSON，输出 `rule-hits.json`（每条 hit 带 nodeId/trigger/expected）。UI sub-agent 按 hits 的 `expected` 落地，发现漏扫允许自补但必须记 `[遗漏补捕]`。挂了先重派一次，二次挂降级为 UI sub-agent 自己读全量规则库（硬防线不受影响）。
+**软防线 = Rule-Scan sub-agent**（步骤 3.5，覆盖 R07/R10/R11/R13/R15 语义类规则）。每个 block 出码前，先派一个只做规则识别、不写 UI 的 agent：读软防线 `rules/*.md` + block 的 cache JSON，输出 `rule-hits.json`（每条 hit 带 nodeId/trigger/expected）。UI sub-agent 按 hits 的 `expected` 落地，发现漏扫允许自补但必须记 `[遗漏补捕]`。挂了先重派一次，二次挂降级为 UI sub-agent 自己读规则库（硬防线不受影响）。**页面无 sub- 时同样触发**（v1.2.2）：主 agent 出码前把「页面根」当虚拟 block 对整页跑一次 Rule-Scan，`rule-hits.json` 落页面根目录——软防线覆盖不依赖设计师是否标了 sub-。**v1.2.4 恢复全量扫描出指引**：Rule-Scan 对全部规则（含已硬化条目）扫描并写入 rule-hits 作生成前作业指引——软 5 条仍是唯一判定点，硬防线规则的命中只帮出码 agent 提前避坑，判决权在 check-rules（指引与判决分离，扫多不越权）。
 
-> 为什么软规则也要独立 agent：识别"无前缀但整棵子树是矢量该切图"（R03）、"同层 ≥3 同构该 `.map()`"（R15）这类判断需要 LLM 语义能力，但**让出码 agent 边写边判会漏**——先扫出作业指引再动笔，识别与实现解耦。
+> 为什么软规则要独立 agent：识别"复合 mask CSS 表达不了该切图"（R11）、"同层 ≥3 同构该 `.map()`"（R15）这类判断需要 LLM 语义能力，但**让出码 agent 边写边判会漏**——先扫出作业指引再动笔，识别与实现解耦。R03/R15 这类"是不是同构""算不算隐式图"曾是软防线的模糊地带，v1.2.3 把其中触发条件可机械收窄的（R03 用 ≥3 真矢量路径阈值等）下沉硬防线，真正判不了的（R11 表达可能性、R15 同构度）留软。
 
-**硬防线 = check-rules.mjs**（R01/R02/R05/R06/R08/R16/R17/R18/R19/R20/R21）。纯代码判定，两个时机强制执行：sub-agent 交付前 `--block blocks/{sub}/`，主 agent 合并后 `--merge pages/{page}/`。exit 1 = 回滚重做，禁止带违规进入交付。
+**硬防线 = check-rules.mjs**（17 条）。纯代码判定，两个时机强制执行：sub-agent 交付前 `--block blocks/{sub}/`，主 agent 合并后 `--merge pages/{page}/`。exit 1 = 回滚重做，禁止带违规进入交付。
 
-规则速查（详情 `rules/README.md`）：
+**硬防线 17 条**（`check-rules.mjs` 机械判定，违规 exit 1 回滚；详情 `rules/README.md`）：
 
-| 防线 | 规则 | 拦什么 |
+| 规则 | 触发条件（cache 侧） | 做什么 / 拦什么 |
 |---|---|---|
-| 硬 | R01 fixed-position | `fixed-` 节点缺 `position: fixed` |
-| 硬 | R02 fills-image | fills 含 IMAGE 却凭空搓 gradient 代替切图 |
-| 硬 | R05 space-between | `SPACE_BETWEEN` 被 margin-auto/flex-end 模拟 |
-| 硬 | R06 text-solid-last | TEXT 多层 fills 取错层（应取末位可见 SOLID） |
-| 硬 | R08 bg-landing-form | `bg-` 用 `<img>`/inline/伪元素/空 div 挂载 |
-| 硬 | R16 no-flatten-text | 含 TEXT 容器被整体切图（文字烤进 PNG） |
-| 硬 | R17 no-baked-dom | baked 子树的子孙又出 DOM（双重渲染） |
-| 硬 | R18/R19/R20 | flex 方向/padding/绝对定位坐标 与 Figma×scale 不符 |
-| 硬 | R21 node-id-coverage | 应渲染节点漏挂 data-node-id（逃出全部对账） |
-| 软 | R03/R04/R07/R09-R15 | 隐式图、渐变字、多层 fills、btn 内 bgc 取值、幻觉色、mask 切图、flat 命名、单位换算、fixed z-index、同构 map |
+| R01 fixed-position | 节点名以 `fixed-` 开头 | 产物 CSS 必须含 `position: fixed`，方位按 Figma constraints 推导 |
+| R02 fills-image | fills 含可见 `IMAGE` | 必须有切图记录（assets.txt）且产物实际引用该图；拦"凭空搓 gradient 代替切图" |
+| R03 implicit-image | 无前缀 + 子树含 ≥3 真矢量路径（VECTOR/BOOL），无 TEXT/交互子层 | 极保守判"该整体切图却没切"；RECTANGLE/ELLIPSE 等可 CSS 化形状不计入"必切"信号 |
+| R04 text-gradient | TEXT 末位可见 fill 为 `GRADIENT_*`/`IMAGE` | 必须走 `background-clip: text`；拦 solid color 冒充渐变/图案字（与 R06 同机制） |
+| R05 space-between | `primaryAxisAlignItems === 'SPACE_BETWEEN'` | 必须写 `justify-content: space-between`；对 margin-auto / flex-end 等模拟写法报 warning |
+| R06 text-solid-last | TEXT 节点末位可见 fill 为 `SOLID` | `color` 必须取末位可见 SOLID 的色值；拦多层 fills 取错层 |
+| R08 bg-landing-form | 节点名以 `bg-` 开头（或裸词 `bg`） | 只能落成父元素 `background-image`；拦 `<img>` / inline style / 伪元素 / 空 div 挂载 |
+| R09 btn-bgc-取值 | `btn-` 子树含 `bgc-` 且其末位可见 fill 是 `GRADIENT_*` | btn/bgc 的 CSS background 必须用 gradient 形态；拦 solid 冒充渐变（不校验具体色值，保守） |
+| R12 flat-mode-naming | `merge.mode === 'flat'` | 同名 class 顶层定义 ≥2 次即冲突（合并覆盖）；拦跨 block 重名 |
+| R14 fixed-z-index | ≥2 个 `fixed-` 节点 | 保守只拦"全部缺 z-index"或"全部 z-index 相同"；不强求具体递增序 |
+| R16 no-flatten-text | 容器子树含 TEXT 且前缀不在 `img-`/`bg-` 白名单 | 禁止整体切成 `<img>`（文字烤进 PNG），必须拆结构、TEXT 出 DOM |
+| R17 no-baked-dom | 节点 `_inBakedSubtree`（祖先是 `bg-`/`img-`/`x-`） | 像素已烤进父层 PNG（或被 x- 忽略），产物不得再出现其 data-node-id；拦双重渲染 |
+| R18 flex-direction | autolayout 容器（`layoutMode` 存在） | VERTICAL → `flex-direction: column`，HORIZONTAL → 不得写 column；拦方向写反 |
+| R19 padding | autolayout 容器声明了 padding，或产物写了 padding | CSS 四值 ≈ Figma paddingT/R/B/L × scale（容差 2px）；拦凭空捏造 / 漏写 / 数值错 |
+| R20 absolute-position | `layoutPositioning === 'ABSOLUTE'`（非 fixed-） | top/left ≈ (子 bbox − 父 bbox) × scale（容差 4px）；拦坐标靠猜。v1.2.4 增强：同时强制该节点 CSS 声明 `position: absolute`（此前只对数值，`position: relative` 也能混过） |
+| R21 node-id-coverage | 应渲染节点（TEXT / autolayout 容器 / ABSOLUTE / img-·btn-·input-） | 产物 JSX 必须挂 data-node-id，否则 R06/R18/R19/R20 全绑定不上、bug 静默逃逸；优先级最高的兜底规则。v1.2.5 增加**反向对账**：产物 data-node-id 必须存在于 cache，幻觉 id 直接 violation |
+| R23 size-fidelity | 产物 CSS 写了显式 px 宽高的应渲染节点 | 宽高 ≈ bbox×scale（容差 4px）；点名 `1px×1px + overflow:hidden` 锚点欺诈（真实尺寸缩成隐藏 div 应付机械检查） |
+
+> v1.2.3 新硬化的 5 条一律**保守判定**（宁漏报不误判）：触发不确定、不可追溯（无 className）、baked/hidden/模板副本一律 skip，只在铁证违规时 exit 1——因为硬防线误判会阻断正确产物，比软防线漏报更伤。
+
+**v1.2.4 加固**（exit-1 规则数维持 16 条）：
+
+- **R22 empty-visual-btn（warning 级）**：`btn-` 节点在产物里既无文字又无任何视觉声明（背景/边框/切图）时报"空视觉按钮嫌疑"——典型根因是内容在数据侧被截断丢失，按钮退化成透明热区。空视觉在少数设计里合法（如纯热区叠加在 bg- 上），故保守用 warning 进 `warnings` 不阻断，不计入 16 条 exit-1 规则。
+- **GATE-rule-hits 门禁（error）**：`rule-hits.json` 缺失即 exit 1（二次降级也须落 `v0.3.21-fallback` 占位）；并检测捏造——文件缺失但 assets.txt 已写"rule-hits 消费证明"时在违规详情点名"疑似捏造"。背景：test24-27 实测 agent 跳过 Rule-Scan 并在 assets.txt 捏造"§3.5 允许合并到 UI 侧"许可，文本约束拦不住，此处机械兜底。
+- **IMG-reconcile 三方对账（--merge 时执行）**：产物图片引用必须来自 slice-manifest（步骤 2.6 只消费清单契约）——产物引用 ∉ manifest 即 violation（疑似绕清单手工切图）；manifest 条目未被引用报 warning（可能隐藏层/被裁，不阻断）；动态拼接的文件名碎片按后缀匹配保守放行；manifest 缺失时 warning 跳过（旧项目/无图页面不硬卡）。
+- **`--block` 局部化**：`--root <nodeId>` 显式指定或从产物 data-node-id 推断 LCA，把 cache 裁剪到 block 子树再对账——R21/R03 等全树规则只看 block 内节点，消除对 block 外节点的全量误报（此前 --block 校验单个 block 却拿整页 cache 遍历，报出的多是别的 block 的"违规"）。
+
+**v1.2.5 加固**（防线加固批，exit-1 规则数 16→17，R23 计入；四道门禁与 R22 不计入）：
+
+- **GATE-cache-truncation 门禁**：合并 cache 中出现空 GROUP/BOOLEAN_OPERATION 即判 fetch depth 截断实锤——截断 cache 出码必丢内容，且会让逐节点对账**真空通过**（test29 取证：cache 仅 25 节点令全防线真空通过，产物 33 个 data-node-id 有 11 个是幻觉 id）。
+- **R21 反向对账**：产物 data-node-id 必须存在于 cache，幻觉 id 直接 violation——正向"应挂尽挂"与反向"所挂必真"合围。
+- **R23 size-fidelity**：显式 px 宽高须 ≈ bbox×scale（容差 4px），点名 `1×1 + overflow:hidden` 锚点欺诈（test28 取证：agent 自供"校验锚点"，把真实 331.5×141 写成 1×1 隐藏 div 应付 R21 检查）。
+- **GATE-rule-hits 收紧**：fallback 占位（`v0.3.21-fallback`）必须伴随 assets.txt 的 `[Rule-Scan 降级]` 失败记录——只有占位没有降级记录即判捏造。
+- **GATE-slice-confirm 确认留痕**：reskin-slice 落 `confirmed:false`，用户确认切图结果后由 `figma.mjs confirm-slices` 翻为 true（--merge 时校验；legacy 缺字段仅 warning）。口头"别问了"不构成豁免，跳过确认的唯一通道是 config `slice.confirmBeforeContinue: false`。
+- **单 agent 执行模式**：无 sub-agent 能力的平台（如 Codex）由主 agent 串行完成 Rule-Scan、出码、check-rules 等同等动作——给单 agent 平台合法路径，禁止以平台缺失为由用占位绕过步骤。
+
+**软防线 5 条**（Rule-Scan sub-agent 语义识别，输出 `rule-hits.json` 作 UI sub-agent 的作业指引，不 exit 1）：
+
+| 规则 | 触发条件 | 做什么 |
+|---|---|---|
+| R07 multi-fills | fills ≥2 层可见且不全是 SOLID | 多层填充按 Figma 叠加顺序合成 CSS 多值 background，不丢层 |
+| R10 no-fake-solid-color | 产物 CSS 色值在 cache 里找不到源头节点 | 拦"幻觉色"——渐变插值/半透明叠加/hover 态使代码难判，故留软 |
+| R11 mask-vector-css-able | 复合 mask / 多层 vector，CSS 表达不了 | 判定"该切图"而非硬写 CSS 近似（简单矩形/圆形除外） |
+| R13 unit-scale | `unit.scale ≠ 1` 而产物 px 与 Figma 原值相同 | 强制单位换算（× outputBase/figmaBase）；与 R19/R20 对账重叠，故留软 |
+| R15 同构 map 渲染 | 同层 ≥3 个同构子节点 | 必须 `.map()` 模板渲染；"同构度"边界模糊难机械判，故留软 |
 
 ## 7. 以 cache 为真值的逐节点对账（v1.2 校验范式）
 
@@ -213,7 +249,7 @@ v1.2 的升级是把校验换成**对账**：`.d2c-cache/<fileKey>/nodes/*.json`
 
 **为什么"数字量禁止人工核对兜底"**：`[需人工核对]` 只留给设计稿语义歧义（如"这文案是装饰还是要动态替换"）；坐标/尺寸/方向/间距都能从 Figma 字段机械推导，允许兜底就等于允许 agent 把算错的数交给用户擦屁股——这正是"允许兜底的路径就是错误来源"的由来。
 
-**为什么校验层持续变厚**（v1.0 五条硬规则 → v1.2.1 十一条 + 对账基座）：每条新硬规则都对应一起真实事故（test10-13 系列）。事故 → 归因 → 先清假阳性来源（loadCache 标注）→ 再上硬规则（报数即真值）→ 封话术豁免口，是这个 skill 的标准演化回路。防线厚度是用事故换来的，不是预设计出来的。
+**为什么校验层持续变厚**（v1.0 五条硬规则 → v1.2.1 十一条 → v1.2.3 十六条 + 对账基座 → v1.2.4 维持 16 条 exit-1 规则 + R22 warning + GATE-rule-hits / IMG-reconcile 两道门禁）：每条新硬规则都对应一起真实事故（test10-13 系列）。事故 → 归因 → 先清假阳性来源（loadCache 标注）→ 再上硬规则（报数即真值）→ 封话术豁免口，是这个 skill 的标准演化回路。防线厚度是用事故换来的，不是预设计出来的。
 
 ---
 
@@ -222,8 +258,8 @@ v1.2 的升级是把校验换成**对账**：`.d2c-cache/<fileKey>/nodes/*.json`
 | 文件 | 内容 |
 |---|---|
 | `templates/skills/pp-d2c/SKILL.md` | 主流程操作手册（本文的规则事实源） |
-| `templates/skills/pp-d2c/rules/README.md` | 21 条规则索引 + 前缀常量表 + 排斥关系图 |
-| `templates/skills/pp-d2c/rules/R01-R21.md` | 每条规则的触发条件/期望产物/反例 |
+| `templates/skills/pp-d2c/rules/README.md` | 22 条规则索引 + 前缀常量表 + 排斥关系图 |
+| `templates/skills/pp-d2c/rules/R01-R22.md` | 每条规则的触发条件/期望产物/反例 |
 | `templates/skills/pp-d2c/bin/figma.mjs` | 数据层：verify-token / cache-check / fetch-node / export-image / screenshot / cleanup-tmp |
 | `templates/skills/pp-d2c/bin/check-rules.mjs` | 硬防线：`--block` / `--merge` 两种模式，exit 0/1/2 |
 | `templates/skills/pp-d2c/bin/lib/loadCache.mjs` | 对账基座：`_inBakedSubtree` / `_hidden` / `_templateDup` 标注 |

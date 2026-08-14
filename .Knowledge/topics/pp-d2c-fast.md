@@ -31,7 +31,7 @@ fast 版删除以下**已被 check-rules 覆盖**的手写自证（质量下限�
 
 ## 完全保留（与 pp-d2c 一致）
 
-- 硬防线 check-rules **R01–R21**（`bin/` `rules/` 与 pp-d2c 字节相同）
+- 硬防线 check-rules **17 条 + R22 warning 级 + 四道门禁（GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm）**（`bin/` `rules/` 与 pp-d2c 字节相同）
 - §4.3 含 TEXT 容器裁决树、前缀语义、R20 坐标公式
 - §5.1.1 data-node-id **铁律规则说明**（挂 id 是 R21 前提）
 - §6.0.2 **精简证明块**保留三项：assets 消费契约、GRADIENT/IMAGE 字色（R04）、min-height 尺寸源

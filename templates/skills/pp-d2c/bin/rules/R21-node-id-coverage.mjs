@@ -17,6 +17,10 @@
 //
 // .map() 模板项：产物用代表项（variant a）nodeId 挂 data-node-id；R21 对代表项校验，
 // 副本已被 _templateDup 跳过。
+//
+// v1.2.5 反向对账：产物 JSX 里每个字面量 data-node-id 必须存在于 cache——
+// 不存在 = 幻觉 id（凭记忆/臆造挂 id 应付正向检查）。典型 test29：产物 33 个 id
+// 有 11 个不在 cache（浅 cache + 低推理执行器编造）。表达式形式（data-node-id={x}）不判。
 
 export const id = 'R21';
 export const name = 'node-id-coverage';
@@ -42,6 +46,28 @@ export function check({ cache, product }) {
         expected: `应生成 DOM 的节点必须挂 data-node-id="${nodeId}"（§5.1.1 铁律；.map() 模板挂代表项 id），否则 R06/R18/R19/R20 无法绑定校验`,
         actual: '产物 JSX 中找不到该 nodeId 的 data-node-id（不可追溯，可能漏画或漏挂 id）',
         file: '(missing in jsx)',
+        line: 0,
+        snippet: '',
+      });
+    }
+  }
+
+  // 反向对账（v1.2.5）：产物字面量 data-node-id 必须来自 cache
+  const idRe = /data-node-id=["']([^"']+)["']/g;
+  const productIds = new Set();
+  for (const f of product.jsx) {
+    for (const m of f.content.matchAll(idRe)) productIds.add(m[1]);
+  }
+  for (const pid of productIds) {
+    if (!cache.nodes[pid]) {
+      violations.push({
+        rule: id,
+        nodeId: pid,
+        name: '(cache 中不存在)',
+        type: '?',
+        expected: '产物 data-node-id 必须来自 cache 真实节点（§5.1.1 铁律的反向：id 不能臆造）',
+        actual: 'cache 中不存在该 nodeId——幻觉 id，或该子树从未 fetch（凭记忆出码）',
+        file: '(jsx)',
         line: 0,
         snippet: '',
       });

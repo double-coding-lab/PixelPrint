@@ -2,8 +2,8 @@
 
 ## 判定归属
 
-- **硬防线** (check-rules.mjs 自动拦截): ❌
-- **软防线** (Rule-Scan sub-agent 识别): ✅ (**唯一识别方**)
+- **硬防线** (check-rules.mjs 自动拦截): ✅ (v1.2.3 软→硬迁移,逐节点对账;保守判定,宁漏报不误判)
+- **软防线** (Rule-Scan sub-agent 识别): 生成前指引(判定已由硬防线兜底)
 - **排斥条件**:
   - 末位可见 fill 是 SOLID → 归 R06
   - 末位可见 fill 是 IMAGE 且节点不是 TEXT → 归 R02

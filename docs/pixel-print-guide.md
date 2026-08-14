@@ -452,7 +452,11 @@ RN 分支的核心机制:**内核用 6 大 RN 原生标签描述一切**(`View /
   },
   "layers": { /* 12 类前缀映射,生产建议保持默认 */ },
   "output": { "dir": "pages/" },      // rn 默认 "src/pages/"
-  "health": { "enabled": true, "blockOnError": true, /* ... */ }
+  "health": { "enabled": true, "blockOnError": true, /* ... */ },
+  "slice": { "confirmBeforeContinue": true }  // skill v1.2.4: 步骤 2.6 切图完成后暂停等用户确认;
+                                              // false 仅跳过无警告场景,sizeWarning 非空仍强制停;
+                                              // v1.2.5: false 时 reskin-slice 直接落 manifest confirmed:true,
+                                              // 否则须用户确认后跑 figma.mjs confirm-slices(GATE-slice-confirm 校验)
 }
 ```
 
@@ -544,7 +548,7 @@ SKILL 通过 Figma REST API 拉稿子 + 导图,只需要一枚 Personal Access T
 
 Claude Code(读 pp-d2c/SKILL.md):
   步骤 -1: node figma.mjs verify-token        → 200 OK
-  步骤 0.3: node figma.mjs cache-check AAA    → { fresh: true, lastModified: ... }
+  步骤 0.7: node figma.mjs cache-check AAA    → { fresh: true, lastModified: ... }
   步骤 2.5: node figma.mjs fetch-node AAA 138:1797 --depth=full
     ↓ (拿到整棵子树 JSON)
   按前缀切分 sub-block:sub-header / sub-banner / sub-cards ...
@@ -615,8 +619,9 @@ SKILL.md 里所有类似 `doctor.run({...})` / `partial.replace(file, str)` 的�
 
 | 版本 | 里程碑 |
 |---|---|
+| skill v1.2.3–v1.2.5 | pp-d2c/fast 软规则硬化(硬防线 11→16→17 条) + 生成过程缺陷修复批(GATE-rule-hits / IMG-reconcile / --block 局部化 / reskin-slice hard stop + 切图确认暂停 / R22 warning) + 防线加固批(GATE-cache-truncation 截断门禁 / R21 反向对账拦幻觉 id / R23 尺寸忠实度与 1×1 锚点欺诈 / confirm-slices 确认留痕 / 单 agent 执行模式) |
 | **v1.3.0** | **init/install 支持 Codex:skill 双写 `.claude/skills/` 与 `.codex/skills/`;SKILL 模板补 YAML frontmatter(name/description,Codex 识别触发的前提);新增 [`pp-d2c-principles.md`](./pp-d2c-principles.md) 原理文档** |
-| v1.2.x | pp-d2c 校验范式升级为「以 cache 为真值逐节点对账」:`rules/R01-R21` 规则库 + `check-rules.mjs` 硬防线 + Rule-Scan 软防线;loadCache 三标注(`_inBakedSubtree`/`_hidden`/`_templateDup`)清假阳性;新增 `pp-d2c-reskin`(换肤批量切图)/`pp-image-compress` skill;图层前缀由配置项降级为内置常量 |
+| v1.2.x | pp-d2c 校验范式升级为「以 cache 为真值逐节点对账」:`rules/R01-R22` 规则库 + `check-rules.mjs` 硬防线 + Rule-Scan 软防线;loadCache 三标注(`_inBakedSubtree`/`_hidden`/`_templateDup`)清假阳性;新增 `pp-d2c-reskin`(换肤批量切图)/`pp-image-compress` skill;图层前缀由配置项降级为内置常量 |
 | v1.1.1 | 新增 14 个 CLI 快捷参数(`--framework / --adapter-preset / --merge-mode / ...`,CLI > config > 交互);merge.mode 默认改成 flat;custom adapter 生成 6 键空 tagMap 骨架;移除 code-connect 复制;输出精简(阶段数从 5 收成 4) |
 | v1.1.0 | 新增 `pp-fix-partial` 局部修复 skill + `.d2c-cache/last-page.json` + `pp-strip-nodeid` 存 anchor 档案 + `clean-cache` 命令 + init [1/N] 平铺一层 |
 | v1.0.3 | RN 页面根强制 ScrollView 骨架 + fixed 分层贴屏 + bg- 铺满用 Figma 事实尺寸 |

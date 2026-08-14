@@ -58,7 +58,7 @@ templates/skills/
 
 - 步骤 -1 探针
 - 步骤 0 读配置(除多加几个 rn 字段)
-- 步骤 0.3 缓存初始化(`.d2c-cache/` 完全复用 h5 侧)
+- 步骤 0.7 缓存初始化(`.d2c-cache/` 完全复用 h5 侧)
 - 步骤 1 解析 URL
 - 步骤 2 拉稿
 - 步骤 4.0 前缀识别决策(sub/img/bg/bgc/btn/input/fixed/end 全体保留)
@@ -553,7 +553,7 @@ const newConfig = {
 
 1. 用户 `npx pp-d2c init`,选 framework=rn → CLI 复制 `pp-d2c-rn` SKILL 到 `.claude/skills/`,写 config(含 adapter 段)
 2. 用户在 Claude Code 里说"帮我把这个 Figma 稿还原成 xtaro 代码" → agent 匹配到 `pp-d2c-rn` topic,读 rn SKILL
-3. rn SKILL 步骤 -1 验 Token → 步骤 0.3 缓存 → 步骤 1-4 前缀识别 + 布局判定 + 图片处理(与 h5 逻辑等价) → 步骤 5 生成原生 RN JSX + StyleSheet
+3. rn SKILL 步骤 -1 验 Token → 步骤 0.7 缓存 → 步骤 1-4 前缀识别 + 布局判定 + 图片处理(与 h5 逻辑等价) → 步骤 5 生成原生 RN JSX + StyleSheet
 4. 步骤 5.5 读 config.adapter,若 `enabled=true` 则应用 tagMap + importMap 重写 JSX 与 import
 5. 步骤 6 QA 段落输出退化告警(fixed 已 absolute / vh 已 Dimensions / 渐变已退化 / ...)
 6. 用户拿到可运行的 xtaro 页面代码,`npm run android` 或 `run ios` 直接跑

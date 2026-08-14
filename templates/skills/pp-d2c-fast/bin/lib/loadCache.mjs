@@ -80,6 +80,66 @@ export function loadCache(projectRoot, cacheKey) {
   return { nodes };
 }
 
+// ── --block 局部化（v1.2.4）────────────────────────────────────
+// loadCache 装载的是 fileKey 全量节点;--block 模式产物只覆盖本 block 子树,
+// 不裁剪会让 R21/R03 等把 block 外所有应渲染节点误报(sub-agent 被迫解释"外部违规")。
+
+// 从产物 data-node-id 集合推断 block 子树根:全部产物节点的最深公共祖先(LCA)。
+export function inferBlockRoot(cacheNodes, classMap) {
+  const ids = Object.keys(classMap).filter((id) => cacheNodes[id]);
+  if (ids.length === 0) return null;
+  const chain = (id) => {
+    const arr = [];
+    let cur = id;
+    while (cur) { arr.push(cur); cur = cacheNodes[cur] ? cacheNodes[cur]._parentId : null; }
+    return arr; // 自身在前,根在后
+  };
+  let common = chain(ids[0]);
+  for (let i = 1; i < ids.length; i++) {
+    const set = new Set(chain(ids[i]));
+    common = common.filter((x) => set.has(x));
+    if (common.length === 0) return null;
+  }
+  return common[0] || null; // 最深公共祖先
+}
+
+// 把 cache.nodes 裁剪到 rootId 子树(含 rootId 自身)。rootId 的父不在集合内:
+// R20 对 rootId 自身会因父 bbox 缺失保守跳过,块内子孙照常对账。
+export function pruneToSubtree(cacheNodes, rootId) {
+  if (!rootId || !cacheNodes[rootId]) return cacheNodes;
+  const keep = {};
+  for (const [id, n] of Object.entries(cacheNodes)) {
+    let cur = id;
+    while (cur) {
+      if (cur === rootId) { keep[id] = n; break; }
+      cur = cacheNodes[cur] ? cacheNodes[cur]._parentId : null;
+    }
+  }
+  return keep;
+}
+
+// ── cache 完整性检测（v1.2.5）────────────────────────────────────
+// GROUP/BOOLEAN_OPERATION 在 Figma 中必有子节点;合并全部分片后仍为空 = REST depth 截断实锤
+// （深分片 walk 时会覆盖浅分片的同 id 节点对象,覆盖后仍空说明没有任何分片拉到其内容）。
+// 典型 test29: cache 仅 _depth=1/2 分片、25 节点,逐节点对账因"无节点可对"真空通过。
+// 跳过: baked(bg-/img-/x- 自身及子树,像素已烤进 PNG,子树内容与对账无关)/hidden/templateDup。
+// INSTANCE/COMPONENT 为空极罕见但理论可构造 → 归 soft(调用方作 warning)。
+const NEVER_EMPTY_HARD = new Set(['GROUP', 'BOOLEAN_OPERATION']);
+const NEVER_EMPTY_SOFT = new Set(['INSTANCE', 'COMPONENT']);
+
+export function findCacheTruncation(cacheNodes) {
+  const hard = [];
+  const soft = [];
+  for (const [nodeId, node] of Object.entries(cacheNodes)) {
+    if (node._inBakedSubtree || node._hidden || node._templateDup) continue;
+    if (isNonRecursivePrefix(node.name)) continue; // 整体切图/忽略目标,子树内容不参与对账
+    if (Array.isArray(node.children) && node.children.length > 0) continue;
+    if (NEVER_EMPTY_HARD.has(node.type)) hard.push({ nodeId, name: node.name || '(no name)', type: node.type });
+    else if (NEVER_EMPTY_SOFT.has(node.type)) soft.push({ nodeId, name: node.name || '(no name)', type: node.type });
+  }
+  return { hard, soft };
+}
+
 function walk(node, acc, parentRealId, inBaked, bakedBy, hidden, templateDup) {
   if (!node || typeof node !== 'object') return;
 

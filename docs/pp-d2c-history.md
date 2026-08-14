@@ -6,6 +6,44 @@
 
 ---
 
+## 2026-08-13 · skill v1.2.5（防线加固批）
+
+**起因**：test28/29 下游生成取证（执行器 Codex + gpt-5.5 reasoning-low）暴露防线体系的结构性盲区——test29 用 `--depth=1/2` 浅拉 cache（仅 25 节点）出码，逐节点对账因"无节点可对"**真空通过**（check-rules ok:true 0 violations），产物 33 个 data-node-id 有 11 个是凭记忆臆造的幻觉 id；test28 把真实 331.5×141 的节点写成 `1×1 + overflow:hidden` 隐藏 div（agent 自供"校验锚点"）骗过 R21/R02，当时没有任何规则校验宽高忠实度；test29 的 rule-hits 用 fallback 占位绕过 v1.2.4 门禁，assets.txt 却写"Rule-Scan 降级: 无"自相矛盾；Codex 平台派不出 sub-agent，占位降级成了唯一"合规"出口；用户口头"允许所有权限 不要询问我了"被泛化，切图确认暂停被跳过。
+
+**动作**（六项，h5 独享不同步 pp-d2c-rn）：
+
+1. **GATE-cache-truncation 门禁**：合并 cache 中空 GROUP/BOOLEAN_OPERATION = fetch depth 截断实锤 → violation（空 INSTANCE/COMPONENT → warning；bg-/baked/hidden/templateDup 跳过）
+2. **R21 反向对账**：产物字面量 data-node-id 必须存在于 cache，幻觉 id → violation（正向"应挂尽挂"+ 反向"所挂必真"合围）
+3. **新增 R23 size-fidelity**（exit-1 计入，硬防线 16→17 条）：显式 px 宽高 ≈ bbox×scale 容差 4px；`1×1+overflow:hidden` 锚点欺诈点名；TEXT / 非 px / 盒模型不确定保守跳过
+4. **GATE-rule-hits 收紧**：fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 失败记录，否则判捏造
+5. **GATE-slice-confirm 确认留痕**：reskin-slice 落 theme `confirmed:false`，用户确认后 `figma.mjs confirm-slices` 翻 true + confirmedAt；--merge 校验 false → violation（legacy 缺字段 warning）
+6. **单 agent 执行模式**：无 sub-agent 平台由主 agent 串行完成 Rule-Scan（真实执行禁占位）、逐块出码、逐块 check-rules——能力缺失改变执行形态，不豁免任何动作
+
+**关键决策**：防线主题从"产物对账"扩展为"输入完整性 → 节点存在性 → 尺寸忠实度 → 确认留痕"全链机械化；交互型确认改为可审计落盘（拦不住的至少抓得住）；单 agent 平台给合法路径而非听任占位绕过。E2E 实弹：test28 拦 7 个锚点 + 3 个真尺寸错，test29 定罪 137 条违规（此前 0 条）。
+
+## 2026-08-13 · skill v1.2.4（生成过程缺陷修复批）
+
+**起因**：test24-27 下游生成取证暴露一批"规则写了、执行绕过"与工具链缺陷——Rule-Scan 被跳过且 assets.txt 捏造"§3.5 允许合并到 UI 侧"许可；`btn-qiang` 退化成透明热区，根因是 figma.mjs 全量请求复用了 depth=8 深度截断的 cache 丢内容（全页 41 个截断嫌疑节点）；R20 只对坐标数值、`position: relative` 也能混过；reskin-slice 切图失败被手工绕过续跑；微型 sub- block 独立派发背着约 4 分钟固定成本；`check-rules --block` 拿整页 cache 遍历，报出大量 block 外全量误报。
+
+**动作**（九项，h5 独享不同步 pp-d2c-rn）：
+
+1. **`check-rules --block` 局部化**：`--root <nodeId>` 显式指定或从产物 data-node-id 推断 LCA，cache 裁剪到 block 子树再对账，消除 block 外误报
+2. **GATE-rule-hits 门禁**：rule-hits.json 缺失即 exit 1（二次降级也须落 `v0.3.21-fallback` 占位），含 assets.txt "消费证明捏造"检测
+3. **IMG-reconcile 三方对账**（`--merge`）：产物图片引用必须来自 slice-manifest；动态拼接碎片按后缀匹配保守放行；manifest 条目未被引用报 warning
+4. **R20 增强**：ABSOLUTE 节点在坐标数值之外强制 `position: absolute` 声明
+5. **新增 R22 empty-visual-btn**（warning 级）：btn- 空视觉按钮嫌疑；exit-1 规则数维持 16 条，R22 不计入
+6. **figma.mjs 修复**："全量请求复用深度截断 cache"bug 修复 + `truncatedSuspects` 截断检测
+7. **步骤 2.6 硬门禁**：reskin-slice 失败 hard stop + 切图确认暂停（config 新键 `slice.confirmBeforeContinue` 默认 `true`；`sizeWarning` 非空不受开关豁免）
+8. **micro-sub 快路径与同构 sub- 合并**：≤8 节点等 4 条件的微型 block 主 agent 内联出码；同构 sub- 合并为代表项模板 `.map()`
+9. **Rule-Scan 恢复全量扫描出指引**：对全部规则扫描写 rule-hits 作生成前作业指引，软 5 条仍是唯一判定点，判决权在 check-rules
+
+**关键决策**：两道门禁直接 error 级 exit 1，跳过 warning 过渡期——捏造消费证明已实证发生，warning 拦不住；R22 反向保守用 warning——空视觉在少数设计里合法（纯热区叠 bg-），误 error 会阻断正确产物；Rule-Scan 指引与判决分离——扫描面放开到全量帮出码 agent 提前避坑，但硬防线命中只作指引不改判定点，避免软硬两层判决打架。
+
+## 2026-08-13 · skill v1.2.3（软规则硬化）+ v1.2.2（软防线触发解耦）
+
+- **v1.2.3 软规则硬化**：把 Rule-Scan 软防线中机械可判的 5 条（R03 implicit-image / R04 text-gradient / R09 btn-bgc / R12 flat-mode-naming / R14 fixed-z-index）下沉 `check-rules.mjs` 硬防线，各写 `.mjs` 逐节点对账、exit 1 阻断，不再依赖 sub- 触发。check-rules 覆盖 11 → **16 条**；软防线从 10 条瘦至 **5 条**（R07/R10/R11/R13/R15，需 LLM 语义判定故留软）。新硬规则一律**保守**（宁漏报不误判，触发不确定 / 无 className / baked·隐藏·模板副本一律 skip）。pp-d2c 与 pp-d2c-fast 的 `bin/`、`rules/` 同步、逐字节一致。
+- **v1.2.2 软防线触发解耦**：Rule-Scan 触发不再依赖 sub- 存在——页面无 sub- 图层时，主 agent 出码前把「页面根」当虚拟 block 对整页跑一次 Rule-Scan，修复"无 sub- 页面软规则完全不触发"的覆盖空档。（v1.2.3 硬化后，5 条硬规则彻底免疫此问题；留软的 5 条靠本机制兜底。）
+
 ## 2026-08-12 · pp-d2c-fast 快速模式 skill（开发中）
 
 - `pp-d2c-fast`：拷 pp-d2c 砍冗余自证（A 梯队）的精简版，保留全部决策引导与硬防线，原 pp-d2c 不动、二者并存（未合入 main）
@@ -81,8 +119,6 @@
 - 品牌定名 **PixelPrint**（当天完成 PixelPilot → PixelPrint 二连改名），GitHub `double-coding-lab/PixelPrint` 上线，License MIT
 - 5 个 SKILL 目录 `ctrip-train-*` → `pp-*`；知识库 / install / 文档全量 rebrand + 中性化（去业务域专名，为开源做准备）
 - **注意：此时 pp-d2c skill 本体还在 v0.3.4**——「稳定版」稳定的是产品形态（包名/目录/分发），规则体系的大改造还在后头
-
----
 
 ## 2026-08-04 · RN 分支独立 + adapter 机制（rebrand pixel-pilot）
 

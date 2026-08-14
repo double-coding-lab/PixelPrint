@@ -2,8 +2,8 @@
 
 ## 判定归属
 
-- **硬防线** (check-rules.mjs 自动拦截): ❌ (语义判断,脚本难)
-- **软防线** (Rule-Scan sub-agent 识别): ✅ (**唯一识别方**)
+- **硬防线** (check-rules.mjs 自动拦截): ✅ (v1.2.3 软→硬迁移,逐节点对账;保守判定,宁漏报不误判)
+- **软防线** (Rule-Scan sub-agent 识别): 生成前指引(判定已由硬防线兜底)
 - **排斥条件**:
   - 节点有 `img-` / `bg-` / `bgc-` / `x-` / `input-` / `sub-` / `block-` / `btn-` / `fixed-` / `end-` / `scrollx-` / `scrolly-` 前缀 → 不适用
   - 子树中有 TEXT / INSTANCE / COMPONENT 节点 → 不适用 (需交互或文字,不该切)

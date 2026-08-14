@@ -5,9 +5,17 @@ description: pp-d2c 快速模式，根据 Figma 设计稿 URL 生成 React H5 �
 
 # pp-d2c-fast Skill（pp-d2c 快速模式）
 
-> **pp-d2c-fast**：基于 pp-d2c v1.2.1 精简——砍除已被 `check-rules.mjs` 逐节点对账覆盖的自证块（A 梯队：字色溯源 / padding-top / data-node-id 守恒 grep / 四条硬规则 grep 5 条 / rule-hits 消费证明），保留全部决策引导（§4.3 裁决树 / 坐标公式 / §5.1.1 data-node-id 铁律）与 R04 GRADIENT 自证（R04 不在 check-rules）。硬防线 check-rules R01–R21、`bin/`、`rules/` 与 pp-d2c **完全一致**；**原 pp-d2c 保留完整防线，二者并存**。
+> **pp-d2c-fast**：基于 pp-d2c 精简——砍除已被 `check-rules.mjs` 逐节点对账覆盖的自证块（A 梯队：字色溯源 / padding-top / data-node-id 守恒 grep / 四条硬规则 grep 5 条 / rule-hits 消费证明），保留全部决策引导（§4.3 裁决树 / 坐标公式 / §5.1.1 data-node-id 铁律）。硬防线 check-rules 17 条（R04 自 v1.2.3 起、R23 自 v1.2.5 起在内）、`bin/`、`rules/` 与 pp-d2c **完全一致**；**原 pp-d2c 保留完整防线，二者并存**。
 >
-> **当前版本**：v1.2.1(h5 独享,不同步 pp-d2c-rn) —— 校验范式从「黑名单抽查」升级为「以 cache 为真值的逐节点对账」,并借机简化防线。**v1.2.1 补丁**:(a) `_inBakedSubtree` 移除 bgc-(bgc- 盒级 CSS 写父、非切图,子孙误放 TEXT 应被 R06/R21 暴露而非静默吞);(b) 新增 **R21 node-id-coverage** 把 §5.1.1 data-node-id 铁律机械强制(应渲染节点漏挂 id 即 exit 1,堵 R18/R19/R20 遇空 classMap 静默 continue);(c) §6.0.2 禁生成流程用 `--force-skip`。v1.2.0 核心变更:(1) `bin/lib/loadCache.mjs` 为每节点标注 **`_inBakedSubtree`**(祖先含 bg-/bgc-/img-/x- 整体切图)/**`_hidden`**(自身或祖先 visible=false)/**`_templateDup`**(`.map()` 列表同构兄弟的非首个数据副本);R02/R06 跳过这三类,**假阳性从根源清除**(test13 实测 89→14);(2) 抽 **`bin/lib/cssMatch.mjs`** 共享 SCSS `&__foo`/`&-foo` 嵌套匹配,R01/R02/R06/R18/R19 统一走,修掉"产物用嵌套写法、正则找平铺类"的全线盲区;(3) 新增 4 条对账规则——**R17 no-baked-dom**(baked 子孙禁止再出 DOM,拦双重渲染)/**R18 flex-direction**(layoutMode↔flex-direction 忠实度)/**R19 padding**(padding↔Figma×scale 忠实度)/**R20 absolute-position**(ABSOLUTE 子节点 top/left=(子bbox−父bbox)×scale 忠实度);(4) §6.0.2 **封逃逸口**:禁"语义盲点/装饰性内容/父层整体切图承载"批量豁免话术,"需人工核对"不再适用于可机械计算的坐标/尺寸/方向/间距;(5) §5.1.1 **data-node-id 全覆盖铁律**:凡承载 Figma 语义的 DOM 必挂 node-id,`.map()` 模板挂代表项(variant a)id;(6) §4.3 新增**「含 TEXT 容器 压平 vs 拆」唯一裁决树** + **bg- 背景直接挂父 vs 独立层**判定。硬规则详情迁到 `rules/*.md`,SKILL.md 保留总概表。核心哲学: **允许兜底的路径就是错误来源;校验以 cache 为唯一真值逐节点对账,而非抽查已知坏味道。**
+> **当前版本**：v1.2.5(h5 独享,不同步 pp-d2c-rn) —— **防线加固批**(test28/29 取证):(1) GATE-cache-truncation(空 GROUP/BOOL_OP = depth 截断实锤);(2) R21 反向对账(幻觉 id);(3) 新增 R23 size-fidelity(px 宽高 ↔ bbox×scale,1×1 锚点欺诈点名);(4) GATE-rule-hits 收紧(fallback 占位须有降级记录);(5) GATE-slice-confirm 确认留痕(confirm-slices 命令);(6) 单 agent 执行模式(无 sub-agent 平台合法路径)。fast 版 `bin/`、`rules/` 与 pp-d2c 逐字节一致。
+>
+> **v1.2.4 历史** —— **生成过程缺陷修复批**(test24-27 取证):(1) `check-rules --block` 局部化(--root/LCA 推断);(2) GATE-rule-hits 门禁(缺失即 exit 1,含消费证明捏造检测);(3) IMG-reconcile 三方对账;(4) R20 强制 `position: absolute`;(5) 新增 R22 empty-visual-btn(warning);(6) figma.mjs 深度截断 cache 复用 bug 修复 + truncatedSuspects;(7) reskin-slice 失败 hard stop + 切图确认暂停(`slice.confirmBeforeContinue`);(8) micro-sub 快路径与同构 sub- 合并;(9) Rule-Scan 恢复全量扫描出指引。fast 版 `bin/`、`rules/` 与 pp-d2c 逐字节一致。
+>
+> **v1.2.3 历史** —— **软规则硬化**:把原 Rule-Scan 软防线中机械可判的 5 条(R03/R04/R09/R12/R14)下沉 `check-rules.mjs` 硬防线,逐节点对账、exit 1 阻断,不依赖 sub- 触发;软防线瘦身至 R07/R10/R11/R13/R15。新硬规则一律保守(宁漏报不误判)。
+>
+> **v1.2.2 历史** —— **软防线覆盖补全**:Rule-Scan 触发不再依赖 sub- 存在。执行清单 sub- block 数为 0 时,主 agent 出码前对**整页**跑一次 Rule-Scan(页面根视为虚拟 block,`rule-hits.json` 落页面根目录,详见步骤 3.5)。修复:无 sub- 页面软规则完全不触发的覆盖空档——软防线不应取决于设计师是否标了 sub-。
+>
+> **v1.2.1 历史** —— 校验范式从「黑名单抽查」升级为「以 cache 为真值的逐节点对账」,并借机简化防线。**v1.2.1 补丁**:(a) `_inBakedSubtree` 移除 bgc-(bgc- 盒级 CSS 写父、非切图,子孙误放 TEXT 应被 R06/R21 暴露而非静默吞);(b) 新增 **R21 node-id-coverage** 把 §5.1.1 data-node-id 铁律机械强制(应渲染节点漏挂 id 即 exit 1,堵 R18/R19/R20 遇空 classMap 静默 continue);(c) §6.0.2 禁生成流程用 `--force-skip`。v1.2.0 核心变更:(1) `bin/lib/loadCache.mjs` 为每节点标注 **`_inBakedSubtree`**(祖先含 bg-/bgc-/img-/x- 整体切图)/**`_hidden`**(自身或祖先 visible=false)/**`_templateDup`**(`.map()` 列表同构兄弟的非首个数据副本);R02/R06 跳过这三类,**假阳性从根源清除**(test13 实测 89→14);(2) 抽 **`bin/lib/cssMatch.mjs`** 共享 SCSS `&__foo`/`&-foo` 嵌套匹配,R01/R02/R06/R18/R19 统一走,修掉"产物用嵌套写法、正则找平铺类"的全线盲区;(3) 新增 4 条对账规则——**R17 no-baked-dom**(baked 子孙禁止再出 DOM,拦双重渲染)/**R18 flex-direction**(layoutMode↔flex-direction 忠实度)/**R19 padding**(padding↔Figma×scale 忠实度)/**R20 absolute-position**(ABSOLUTE 子节点 top/left=(子bbox−父bbox)×scale 忠实度);(4) §6.0.2 **封逃逸口**:禁"语义盲点/装饰性内容/父层整体切图承载"批量豁免话术,"需人工核对"不再适用于可机械计算的坐标/尺寸/方向/间距;(5) §5.1.1 **data-node-id 全覆盖铁律**:凡承载 Figma 语义的 DOM 必挂 node-id,`.map()` 模板挂代表项(variant a)id;(6) §4.3 新增**「含 TEXT 容器 压平 vs 拆」唯一裁决树** + **bg- 背景直接挂父 vs 独立层**判定。硬规则详情迁到 `rules/*.md`,SKILL.md 保留总概表。核心哲学: **允许兜底的路径就是错误来源;校验以 cache 为唯一真值逐节点对账,而非抽查已知坏味道。**
 >
 > **v1.1.0 历史**:R16 no-flatten-text 硬防线 + §6.0.2 兜底门禁 N=0 + Step 0.5 询问输出路径 + Step 2.6 前置切图 + bg 溢出检测 + §2.5.2 config.styleFormat 唯一权威 + R01 SCSS 嵌套匹配。详见 `git log`。
 >
@@ -93,7 +101,7 @@ agent 在跑 pp-d2c 全流程时 **只允许问用户业务问题,禁止问 skil
 
 | 是 | 否 |
 |---|---|
-| "临时"可覆盖 `output.dir` 子目录 (放到 `pages/test-tmp/`) | "临时"**不**可豁免 R01/R02/R05/R06/R08/R16 任一硬规则 |
+| "临时"可覆盖 `output.dir` 子目录 (放到 `pages/test-tmp/`) | "临时"**不**可豁免任何硬防线规则 (check-rules 全部 17 条) |
 | "临时"可覆盖 `images.assetsDir` 子目录 (放到 `static/test-tmp/`) | "临时"**不**可豁免"整体切图禁用" (R16) |
 | "临时"可覆盖 config.styleFormat 之外的其它临时命名 | "临时"**不**可豁免 §6.0.2 兜底门禁 N=0 |
 | | "临时"**不**可作为 assets.txt `[脚本误判]` / `[整体切图兜底]` 的豁免理由 |
@@ -155,6 +163,7 @@ Read("pp-d2c.config.json")
 | `unit.outputUnit` | 输出单位，`px` / `vw` / `rem`，默认 `px` |
 | `unit.outputBase` | 输出基准宽度（px 模式有效），默认 `750` |
 | `unit.scale` | 换算倍数（outputBase / figmaBase），默认 `2` |
+| `slice.confirmBeforeContinue` | 步骤 2.6 切图完成后是否暂停等用户确认（默认 `true`；`false` 仅跳过无警告场景，sizeWarning 非空仍强制停） |
 | `output.dir` | 代码输出根目录 |
 
 > **图层前缀是内置常量,不可配置**:`sub-` / `block-` / `img-` / `bg-` / `bgc-` / `btn-` / `scrollx-` / `scrolly-` / `fixed-` / `end-` / `input-` / `x-` 由 skill 硬编码,pp-d2c.config.json 里**不再**有 `layers` 段。详见 `rules/README.md` 内置前缀常量表。
@@ -250,7 +259,7 @@ config.images.assetsDir = <images.assetsDir 原值>
 
 ---
 
-### 步骤 0.3：初始化缓存
+### 步骤 0.7：初始化缓存
 
 **目的**：把 Figma REST API 拿到的节点属性 / 图片文件缓存到本地，避免同一稿子每次跑 SKILL 都重拉。
 
@@ -683,9 +692,32 @@ sub-agent 全部返回后, 主 agent 汇总所有 `blocks/*/assets.txt` 里的 `
 2. 数量 > 0 → **主 agent 重跑一次** `reskin-slice.mjs` 只针对这些 nodeId 补切, 追加到同一清单文件, 然后让相关 sub-agent 用更新后的清单重生 jsx/scss
 3. 重跑仍无法补上（Figma 返回 404 / renderBounds 空等硬错误）→ 停下问用户排查, 禁止走整体切图兜底
 
+**执行结果硬门禁（v1.2.4）**:
+
+- `reskin-slice.mjs` **退出码非 0 → hard stop**:立即停止 D2C 流程,向用户报告失败原因(token / 网络 / Figma 4xx),**禁止**继续步骤 3、**禁止**改用 `figma.mjs export-image` 手工逐张切图代替清单(test25 实测:绕过后 manifest 失效 → 图片覆盖检查全线失灵 → 大块区域被整张切图)。修复后从步骤 2.6 重跑。
+- `figma.mjs export-image` 仅允许出现在「补切单节点修复模式」(上文补切回路 3 之后、经用户确认的定点修复),且切完**必须**把该图回写进 slice-manifest 与 `images.json`——否则步骤 6 `check-rules --merge` 的 **IMG-reconcile 三方对账**会按"绕清单切图"报 violation。
+
+**切图确认暂停（v1.2.4,`slice.confirmBeforeContinue` 默认 true）**:
+
+reskin-slice 成功后,主 agent **无条件暂停**,向用户输出切图结果摘要并等待确认,确认后才进入步骤 3:
+
+```
+## 切图确认 (步骤 2.6)
+- 清单: .d2c-cache/<fileKey>/slice-manifest-<slug>.json
+- hit=N miss=M
+- entries: {nodeId} {name} → {filename} ({renderWidth}x{renderHeight})   ← 逐行列出
+- sizeWarning: 无 / [列出非 null 项]
+- 图片目录: {assetsDir}/<slug>/ (可肉眼查图)
+请确认切图正确后回复继续;发现切错/漏切在此修正,比 sub-agent 分发后返工便宜得多。
+```
+
+- `pp-d2c.config.json` 配 `slice.confirmBeforeContinue: false` 可跳过本暂停(全自动流水场景);**sizeWarning 非空时仍必须停**(v1.1.0 既有规则,不受开关影响)。
+- **确认留痕（v1.2.5）**: 用户确认后,主 agent 执行 `node .claude/skills/pp-d2c-fast/bin/figma.mjs confirm-slices <fileKey> <slug>` 把 manifest `confirmed` 置 true——步骤 6 `check-rules --merge` 的 **GATE-slice-confirm** 以该字段为准,`confirmed=false` 直接 violation。**禁止**未经用户确认自行执行 confirm-slices(留痕即取证,伪造可事后对会话审计)。用户口头"别问了/不要询问"指的是**权限弹窗**,**不豁免本流程确认**——跳过本暂停的唯一通道是改 config `slice.confirmBeforeContinue: false`(该配置下 reskin-slice 直接落 `confirmed: true`)。
+
 **禁止项**:
 
 - 禁止跳过步骤 2.6 直接进入步骤 3（无清单 = UI sub-agent 只能猜切图, 大概率违规）
+- 禁止 reskin-slice 失败后继续生成或手工切图兜底（v1.2.4 硬门禁,见上）
 - 禁止 sub-agent 绕开清单直接调 `figma.mjs export-image` 或 `figma REST /v1/images`
 - 禁止把清单里的 `filename` 或 `renderWidth/Height` 改写后再消费（改写 = 幻觉 = 事故源）
 - 禁止 sub-agent 对含 TEXT 的 GROUP/FRAME 生成 `<img>` 兜底（R16 硬防线会拦，见 rules/R16-no-flatten-text.md）
@@ -695,6 +727,17 @@ sub-agent 全部返回后, 主 agent 汇总所有 `blocks/*/assets.txt` 里的 `
 ### 步骤 3：并行分发 sub-agent
 
 向每个 block 分发一个 sub-agent，**全部并行执行**。
+
+**micro-sub 快路径（v1.2.4）**: 满足**全部**条件的 sub- block 不派 UI sub-agent,由主 agent 内联生成（产物仍落 `blocks/{sub}/` 目录、仍跑该 block 的 Rule-Scan 与 `check-rules --block`,只省 sub-agent 派发本身）:
+
+- 子树节点数 ≤ 8;
+- 无 fills IMAGE / 复合 mask / 多层 fills 节点;
+- 无嵌套 sub- / scrollx- / scrolly-;
+- 内容仅 TEXT / 简单 Frame / 数字徽标类。
+
+> 理由: 完整 sub-agent 流程的固定成本（读 SKILL/rules + 建目录 + 写 6 文件）对 2-3 个小节点是纯浪费（test24 sub-front 实测 234s）。命中快路径时在 assets.txt 记 `[micro-sub 内联] block={sub} 节点数=N`。
+
+**同构 sub- 合并（v1.2.4）**: 执行清单中存在**结构同构**的多个 sub- block（同 type、同层级子结构,仅文案/数值不同,如两个折扣数字块）时,只派**一个**模板任务:生成一份 JSX 模板 + 数据数组（`.map()` 驱动,模板挂代表 block（首个）的 nodeId,同 §5.1.1 代表项规则）;`check-rules --block` 只对代表 block 跑一次;assets.txt 写明 `[同构合并] 代表={nodeId} 副本={nodeId 列表}`。
 
 每个 sub-agent 收到以下上下文：
 - 目标 block 的 `fileKey` 和 `nodeId`
@@ -707,13 +750,30 @@ sub-agent 全部返回后, 主 agent 汇总所有 `blocks/*/assets.txt` 里的 `
 
 ### 步骤 3.5：Rule-Scan sub-agent 派发 
 
-**目的**:让每个 UI sub-agent 干活前, 先由独立 **Rule-Scan sub-agent** 扫出本 block 命中的规则, 输出 `rule-hits.json` 作为作业指引。这是**软防线**——覆盖 R03/R04/R07/R09-R15 语义类规则(硬防线 R01/R02/R05/R06/R08 由 `bin/check-rules.mjs` 在步骤 4 尾兜底拦截)。
+**目的**:让每个 UI sub-agent 干活前, 先由独立 **Rule-Scan sub-agent** 扫出本 block 命中的规则, 输出 `rule-hits.json` 作为作业指引。扫描范围是**全部规则（R01-R23,v1.2.4 起恢复全量）**:其中 R07/R10/R11/R13/R15 为**软防线**（需 LLM 语义判定,Rule-Scan 是其唯一判定点）;其余硬防线规则由 `bin/check-rules.mjs` 在步骤 4 尾机械判决,Rule-Scan 对它们只出**生成前逐节点指引**（提高一次通过率,判决权仍在 check-rules,指引漏扫不算违规）。
 
 **执行时序**: 步骤 3 分块清单生成后、步骤 4 UI sub-agent 开工前。
 
+**无 sub- 页面同样触发(v1.2.2)**: 执行清单的 sub- block 数为 **0**(主 agent 直接生成整页)时,Rule-Scan **仍必须执行一次**——把「页面根」当作一个虚拟 block:
+
+- 输入: 入口 nodeId 的整页 cache 分片,其余输入与下文 sub- 场景一致
+- 落盘: `{output.dir}/{页面}/rule-hits.json`(与页面 `assets.txt` 同级;此时没有 `blocks/` 目录)
+- 消费: 主 agent 出码前 Read 该文件,按 §4.0.pre 同款动作逐条落地;fast 版不手写消费证明,消费到位由页面级 `check-rules.mjs --merge` exit 0 保证;`[遗漏补捕]` / `[Rule-Scan 降级]` 备注仍写入页面根 `assets.txt`
+- 降级路径与 sub- 场景一致(重派一次,二次挂写 fallback 占位 + 主 agent 自读全量规则库)
+
+> 理由: 软防线抓的错误(R11 复合 mask 该切图、R15 同构 map、R07 多层 fills 等)与页面是否分块无因果关系;无 sub- 的小页面恰恰是前缀标注最不认真的稿子。禁止以「页面简单/无 sub-」为由跳过本次扫描。
+
+**单 agent 执行模式（v1.2.5,平台无 sub-agent 能力时）**: 执行环境无法派发 sub-agent(如 Codex 等仅有 shell 工具的平台)时,**不允许以平台缺失为由跳过任何步骤**,改由主 agent 串行完成同等动作:
+
+1. Rule-Scan 由主 agent 作为**独立前置步骤真实执行**——Read 全部 rules/*.md + 本 block cache,写**真实的** `rule-hits.json`;`v0.3.21-fallback` 占位**仅限**「真实执行两次均失败」,且必须同时在 assets.txt 记 `[Rule-Scan 降级] 原因={失败原因}`(v1.2.5 起 GATE-rule-hits 机械校验:占位而无降级记录 = violation);
+2. sub- block **串行逐块**生成,每块完成后照跑 `check-rules --block`,消费证明照写;
+3. 步骤 2.6 切图确认暂停照常执行(与能否派 sub-agent 无关)。
+
+> 取证背景(test28/29,Codex+低推理执行器): 平台派不出 sub-agent 时,占位降级曾是唯一"合规"出口,Rule-Scan/分块隔离/逐块校验全部塌缩,产物大面积漏渲染。本模式给单 agent 平台一条合法路径:能力缺失改变的是**执行形态**(并行→串行),不豁免**任何动作**。
+
 **流程**:
 
-1. **for each block in 执行清单(步骤 3 生成的分块列表)**:
+1. **for each block in 执行清单(步骤 3 生成的分块列表;无 sub- 时 = 页面根这一个虚拟 block)**:
    派发 **Rule-Scan sub-agent**, 输入:
    - block 的 nodeIds 分片(主 agent 步骤 2 生成)
    - `.d2c-cache/<fileKey>/nodes/<nodeId>.json` (相关分片)
@@ -1041,9 +1101,11 @@ def rgb_to_hex(c):
 | R19 | padding | autolayout 容器有/无 padding | padding 凭空捏造 或 漏写 或数值错 | `rules/R19-padding.md` |
 | R20 | absolute-position | `layoutPositioning === 'ABSOLUTE'` 子节点 | top/left 靠猜(应 =(子bbox−父bbox)×scale) | `rules/R20-absolute-position.md` |
 | R21 | node-id-coverage | 应渲染节点(TEXT/autolayout 容器/ABSOLUTE/img-·btn-·input-) | 未挂 data-node-id → 逃出全部对账 | `rules/R21-node-id-coverage.md` |
+| R22 | empty-visual-btn | btn- 子树无文字/背景/图 | 透明热区嫌疑(warning 不阻断) | `rules/R22-empty-visual-btn.md` |
+| R23 | size-fidelity | 显式 px 宽高 ↔ bbox×scale | 尺寸靠猜 / 1×1 锚点欺诈 | `rules/R23-size-fidelity.md` |
 
-**硬防线** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R05 / R06 / R08 / R16 / R17 / R18 / R19 / R20 / R21**
-**软防线** (Rule-Scan sub-agent 识别 `rule-hits.json`): **R03 / R04 / R07 / R09 / R10 / R11 / R12 / R13 / R14 / R15**
+**硬防线 17 条** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R03 / R04 / R05 / R06 / R08 / R09 / R12 / R14 / R16 / R17 / R18 / R19 / R20 / R21(v1.2.5 起含反向对账:产物 id ∉ cache = 幻觉 id) / R23(v1.2.5)**;另有 R22(warning 级)与四道流程门禁(GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm)
+**软防线** (Rule-Scan sub-agent 识别 `rule-hits.json`): **R07 / R10 / R11 / R13 / R15**（v1.2.3 起 R03/R04/R09/R12/R14 迁入硬防线,逐节点对账不依赖 sub- 触发;剩余 5 条需 LLM 语义判定仍留软）
 
 > **v1.2.0 对账基座**:R02/R06/R17/R18/R19/R20/R21 依赖 `loadCache.mjs` 标注的 `_inBakedSubtree`/`_hidden`/`_templateDup` 与 `cssMatch.mjs` 的 SCSS 嵌套匹配。这些是"以 cache 为真值逐节点对账"的落点;它们报数即真值,不接受"语义盲点/装饰性内容"批量豁免(§6.0.2)。
 > **v1.2.1**:`_inBakedSubtree` 只含 bg-/img-(baked)+ x-(ignored),**移除 bgc-**(bgc- 是盒级 CSS 写父、非切图,其子孙误放的 TEXT 应被 R06/R21 暴露而非静默吞掉);新增 **R21 node-id-coverage** 把 §5.1.1「data-node-id 铁律」机械强制——应渲染节点漏挂 id 即 exit 1,堵住 R18/R19/R20 遇空 classMap 静默 continue 的逃逸。
@@ -1053,7 +1115,7 @@ def rgb_to_hex(c):
 **详见 `rules/R0X-*.md`**——切图判定 / TEXT 处理 / SPACE_BETWEEN / bg 落地形态 / fills 翻译等所有硬性规则的**触发条件 + 期望产物 + 反例 + 落地模板**全部在 `rules/` 独立文件里。
 
 **执行约束**:
-- Rule-Scan sub-agent(步骤 3.5) **必须** Read **全部 15 条** `rules/R0X-*.md`,输出 `rule-hits.json`
+- Rule-Scan sub-agent(步骤 3.5) **必须** Read 全部 `rules/R0X-*.md`,输出 `rule-hits.json`——软防线 5 条(R07/R10/R11/R13/R15)以此为唯一判定点;硬防线命中作为生成前逐节点指引(v1.2.4 恢复全量,判决权仍在 check-rules)
 - UI sub-agent(步骤 4) **必须** Read `rule-hits.json` 里被命中的每条 `rules/R0X-*.md`,按其"期望产物"逐字落地
 - 冲突时**以 rules/ 为准**;SKILL.md 只保留总概表,不再复述规则细节
 
@@ -1099,7 +1161,7 @@ R16(不压平文字)与 bg-/img-(整体切图)在**含 TEXT 的容器**上会打
 | `sub-` | 分块边界 | 仅用于步骤 2 分块，不影响渲染 |
 | `block-` | 独立布局块 | HTML 上作为独立根元素，CSS 类名以块名做命名空间，不与其他块共享样式 |
 | `x-` | 忽略 | 跳过整个图层，不生成任何代码，**优先级最高** |
-| `btn-` | 可点击区域 | 在内容外包一层可点击容器，不限定组件类型;**永远走 CSS 化(切图四条硬规则第 3 条)** |
+| `btn-` | 可点击区域 | 在内容外包一层可点击容器，不限定组件类型;**永远走 CSS 化(切图四条硬规则第 3 条)**;子树无文字/背景/图时 R22 出「空视觉按钮」warning——须复核是否 cache 深度截断或该切图没切,图片按钮建议命名 `btn-img-*` |
 | `img-` | 图片内容 | 生成 `<img>` 引用，**不再向内递归**，命中即停止(切图四条硬规则第 1 条) |
 | `bg-` | 背景图 | 将图片设置为**父元素**的 `background-image`，自身不生成独立 HTML 元素，**不再向内递归**(切图四条硬规则第 1 条) |
 | `bgc-` | 背景纯色 | 将颜色/描边/圆角/阴影**全套盒级 CSS 属性**写到**父元素**，自身不生成独立 HTML 元素 |
@@ -1392,13 +1454,15 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 | 同层 ≥3 同构节点渲染 | `rules/R15-同构 map 渲染.md` |
 | SOLID 色源核对 (无幻觉色) | `rules/R10-no-fake-solid-color.md` |
 
-**rules/ 是设计文档**;执行链条:Rule-Scan sub-agent Read 全部 `rules/*.md` → 输出 `rule-hits.json` → UI sub-agent Read 命中的 R0X.md 按"期望产物"落地。`check-rules.mjs` 硬编码 R01/R02/R05/R06/R08 逻辑,不依赖 rules/*.md 运行。
+**rules/ 是设计文档**;执行链条:Rule-Scan sub-agent Read 全部 `rules/*.md` → 输出 `rule-hits.json` → UI sub-agent Read 命中的 R0X.md 按"期望产物"落地。`check-rules.mjs` 硬编码硬防线 17 条(+R22 warning 级与四道流程门禁)逻辑,不依赖 rules/*.md 运行。
 
 #### 4.4 图片处理
 
 ##### 4.4.0 切图强制忠实执行
 
-**核心原则**：命中切图四条硬规则（bg 前缀 / img 前缀 / fills 含 IMAGE）时，必须调 `figma.mjs export-image`（走 REST API）产出图片；**不允许**"看到 assetsDir 里有同名文件就跳过"或"从其他来源复用"。
+**适用范围（v1.2.4 收口）**：本节的 `figma.mjs export-image` 直切路径**仅用于「补切单节点修复模式」**——步骤 2.6 补切回路仍失败后、经用户确认的定点修复。**普通生成流程中 UI sub-agent 一律只消费 `slice-manifest`（步骤 2.6 契约），不走本节直切**；直切完成后必须把该图回写 slice-manifest 与 `images.json`，否则 §6 IMG-reconcile 三方对账按"绕清单切图"报 violation。
+
+**核心原则**：命中切图四条硬规则（bg 前缀 / img 前缀 / fills 含 IMAGE）且进入补切修复模式时，必须调 `figma.mjs export-image`（走 REST API）产出图片；**不允许**"看到 assetsDir 里有同名文件就跳过"或"从其他来源复用"。
 
 **流程（每张切图必走）**：
 
@@ -1932,7 +1996,7 @@ fi
 
 ##### 合并前 block 校验汇总（fast 精简）
 
-主 agent 合并 sub-agent 产物前，确认每个 `blocks/*/` 的 `check-rules.mjs` 都 exit 0（fast 版不再手写 rule-hits 消费 N==M 统计——消费到位由 check-rules exit 0 保证）：
+主 agent 合并 sub-agent 产物前，确认每个 `blocks/*/` 的 `check-rules.mjs` 都 exit 0（fast 版不再手写 rule-hits 消费 N==M 统计——消费到位由 check-rules exit 0 保证）。**无 sub- 页面(v1.2.2)**：本步退化为核对页面根 `rule-hits.json` 已生成且下文「整 page 复跑」exit 0：
 - **check-rules.mjs 未通过的 block** → 主 agent 必须回滚该 block 产物，让 sub-agent 修复
 - 遗漏补捕（若有）→ 核对 `assets.txt` 是否有 `[遗漏补捕]` 备注；Rule-Scan 降级 → 最终交付 QA 段警示，下轮排查 Rule-Scan 挂的原因
 
@@ -2026,7 +2090,7 @@ QA 全部通过后,主 agent **必须**把本轮出码的元数据写到 `.d2c-c
 ```json
 {
   "figmaUrl": "<步骤 -1 用户传入的 figma URL 原文>",
-  "fileKey": "<步骤 0.3 解析出的 fileKey>",
+  "fileKey": "<步骤 0.7 解析出的 fileKey>",
   "rootNodeId": "<步骤 -1 用户传入的 nodeId,注意冒号形式 138:1797>",
   "outputDir": "<步骤 5 实际写入的组件目录,如 pages/Italo>",
   "outputEntryFile": "<主入口文件,如 pages/Italo/index.jsx>",
@@ -2093,7 +2157,7 @@ EOF
 - 禁止调用 Figma `/v1/images` 时省略 `use_absolute_bounds=true`(仅当 config `images.preserveEffectIds` 明示时才省略)
 - 禁止 `FIGMA_TOKEN` 无效时直接跳过图片下载或用 Figma S3 临时链接占位
 - 禁止调用任何 `mcp__plugin_figma_figma__*` 工具
-- 禁止跳过步骤 0.3 缓存初始化；禁止绕过 `.d2c-cache/{fileKey}/meta.json` 的 `lastModified` 校验直接读旧缓存
+- 禁止跳过步骤 0.7 缓存初始化；禁止绕过 `.d2c-cache/{fileKey}/meta.json` 的 `lastModified` 校验直接读旧缓存
 - 禁止 SKILL 结束时不清理 `.d2c-tmp/screenshots/`
 - 禁止把 `bg-` 节点的**父容器**当成切图源传给 `/v1/images` API：切图源 nodeId 必须是 `bg-` 节点自己
 - 禁止跳过 §4.4 curl 前的**强制前置自检 3 行**(切图源 nodeId / 切图源 name / 交叉验证前缀)

@@ -29,31 +29,37 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 |---|---|---|---|
 | R01 | fixed-position | 硬防线 | `name.startsWith('fixed-')` |
 | R02 | fills-image | 硬防线 | `fills[].some(f => f.type === 'IMAGE' && f.visible !== false)` |
-| R03 | implicit-image | 软防线 | 无前缀 + 整棵子树 VECTOR/BOOL/几何 + 无 TEXT/INSTANCE + 无 btn-/input-/sub-/block- 子层 |
-| R04 | text-gradient | 软防线 | `TEXT` 节点,fills 末位可见 = `GRADIENT_*` 或 `IMAGE` |
+| R03 | implicit-image | 硬防线(v1.2.3) | 无前缀 + 整棵子树 VECTOR/BOOL/几何 + 无 TEXT/INSTANCE + 无 btn-/input-/sub-/block- 子层 |
+| R04 | text-gradient | 硬防线(v1.2.3) | `TEXT` 节点,fills 末位可见 = `GRADIENT_*` 或 `IMAGE` |
 | R05 | space-between | 硬防线 | `primaryAxisAlignItems === 'SPACE_BETWEEN'` |
 | R06 | text-solid-last | 硬防线 | `TEXT` 节点,fills 末位可见 = `SOLID` |
 | R07 | multi-fills | 软防线 | fills 数组多层可见(≥2),且不全是 SOLID |
 | R08 | bg-landing-form | 硬防线 | `name.startsWith('bg-')` 或 `name === 'bg'`,产物落地形态错 |
-| R09 | btn-bgc-取值 | 软防线 | `btn-` 前缀内含 `bgc-` 子层,bgc 的真 fills 是 GRADIENT/IMAGE |
+| R09 | btn-bgc-取值 | 硬防线(v1.2.3) | `btn-` 前缀内含 `bgc-` 子层,bgc 的真 fills 是 GRADIENT/IMAGE |
 | R10 | no-fake-solid-color | 软防线 | 产物 CSS 出现 `color: #XXX`,但 cache 里对应节点找不到源头 |
 | R11 | mask-vector-css-able | 软防线 | 复合 mask / 多层 vector,CSS 表达不了 → 应切图 |
-| R12 | flat-mode-naming | 软防线 | `merge.mode === 'flat'` 下类名跨 block 冲突 |
+| R12 | flat-mode-naming | 硬防线(v1.2.3) | `merge.mode === 'flat'` 下类名跨 block 冲突 |
 | R13 | unit-scale | 软防线 | Figma px → 产物 px 未换算(应 `outputBase / figmaBase`) |
-| R14 | fixed-z-index | 软防线 | 多个 `fixed-` 节点,z-index 未递增 |
+| R14 | fixed-z-index | 硬防线(v1.2.3) | 多个 `fixed-` 节点,z-index 未递增 |
 | R15 | 同构 map 渲染 | 软防线 | 同层 ≥3 同构子节点,展开成重复代码而非 `.map()` |
 | R16 | no-flatten-text | 硬防线 | GROUP/FRAME/COMPONENT/INSTANCE 子树含 TEXT 且前缀非 `img-`/`bg-`,产物 jsx 出现 `<img data-node-id="该节点">` |
 | R17 | no-baked-dom | 硬防线 | 节点 `_inBakedSubtree`(处于 bg-/bgc-/img-/x- 整体切图子树内),产物却有其 `data-node-id`(双重渲染) |
 | R18 | flex-direction | 硬防线 | autolayout 容器 `layoutMode` 与产物 `flex-direction` 不符(VERTICAL 却非 column / HORIZONTAL 却 column) |
 | R19 | padding | 硬防线 | autolayout 容器 padding 与 `Figma paddingT/R/B/L × scale` 不符(凭空加 / 漏写 / 数值错) |
-| R20 | absolute-position | 硬防线 | `layoutPositioning === 'ABSOLUTE'`(非 fixed-),top/left ≠ (子bbox−父bbox)×scale |
+| R20 | absolute-position | 硬防线 | `layoutPositioning === 'ABSOLUTE'`(非 fixed-),top/left ≠ (子bbox−父bbox)×scale;或产物未声明 `position: absolute`(v1.2.4) |
 | R21 | node-id-coverage | 硬防线 | 应渲染节点(TEXT/autolayout 容器/ABSOLUTE/img-·btn-·input-)在产物 JSX 里找不到 data-node-id |
+| R22 | empty-visual-btn | warning(v1.2.4) | btn- 子树无文字/背景/图,产物只剩透明热区(常见根因: cache 深度截断 / 该切图没切) |
+| R23 | size-fidelity | 硬防线(v1.2.5) | 显式 px 宽高与 bbox×scale 相差 >4px;1×1+overflow:hidden 锚点欺诈点名 |
 
 ## 判定归属说明
 
-**硬防线** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R05 / R06 / R08 / R16 / R17 / R18 / R19 / R20 / R21。
+**硬防线 17 条** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R03 / R04 / R05 / R06 / R08 / R09 / R12 / R14 / R16 / R17 / R18 / R19 / R20 / R21(v1.2.5 起含反向对账:产物 data-node-id ∉ cache = 幻觉 id) / R23(v1.2.5)。
 
-**软防线** (Rule-Scan sub-agent 识别): 需 LLM 语义判断,输出 `rule-hits.json` 给 UI sub-agent 参考 → R03 / R04 / R07 / R09 / R10 / R11 / R12 / R13 / R14 / R15。
+**软防线** (Rule-Scan sub-agent 识别): 需 LLM 语义判断,输出 `rule-hits.json` 给 UI sub-agent 参考 → R07 / R10 / R11 / R13 / R15。（v1.2.3 起 R03/R04/R09/R12/R14 迁入硬防线）
+
+**warning 级** (`check-rules.mjs` 提示不阻断): R22 empty-visual-btn。另有四道流程门禁: **GATE-cache-truncation**(v1.2.5)——合并 cache 中空 GROUP/BOOLEAN_OPERATION = depth 截断实锤,截断 cache 出码必丢内容;**GATE-rule-hits**(v1.2.4,v1.2.5 收紧)——rule-hits.json 缺失即 exit 1,fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 记录;**IMG-reconcile**(v1.2.4,--merge)——产物图片引用必须来自 slice-manifest 三方对账;**GATE-slice-confirm**(v1.2.5,--merge)——manifest `confirmed` 须为 true(`figma.mjs confirm-slices` 用户确认留痕,legacy 缺字段仅 warning)。
+
+**Rule-Scan 扫描范围** (v1.2.4 恢复全量): Rule-Scan 扫**全部规则**出 `rule-hits.json`——软防线 5 条以此为唯一判定点;硬防线命中作为生成前逐节点指引(判决权在 check-rules,指引漏扫不算违规)。
 
 **v1.2.0 对账基座**: R02 / R06 / R17 / R18 / R19 / R20 依赖 `bin/lib/loadCache.mjs` 标注的 `_inBakedSubtree`(整体切图子树)/`_hidden`(隐藏)/`_templateDup`(`.map()` 数据副本),以及 `bin/lib/cssMatch.mjs` 的 SCSS `&__foo` 嵌套匹配。这些标注把"整体切图子树 / 隐藏 / 列表副本 / 嵌套写法"四类假阳性从根源清除,使硬防线报数即真值,校验从"黑名单抽查"升级为"以 cache 为真值逐节点对账"。
 
@@ -61,20 +67,22 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 
 ### Rule-Scan sub-agent
 
+**派发时机**: 每个 `sub-` block 出码前各派一次;**页面无 sub- 时(v1.2.2)对整页派一次**——页面根视为虚拟 block,`rule-hits.json` 落页面根目录(与页面 `assets.txt` 同级)。软防线覆盖不依赖设计师是否标了 sub-。
+
 派发时的完整 prompt:
 
 ```
 你是 Rule-Scan sub-agent, 只做规则识别, 不写 UI 代码.
 
 任务:
-1. Read templates/skills/pp-d2c/rules/*.md (全部 19 条)
+1. Read templates/skills/pp-d2c/rules/*.md 全部规则(v1.2.4 恢复全量扫描)
 2. Read .d2c-cache/<cache-key>/nodes/ 下与本 block nodeIds 相关的 JSON
 3. 对本 block 的每个节点, 判断命中了哪些规则
 4. 输出 rule-hits.json (schema 见附)
 
 规则命中判定原则:
-- 硬防线规则 (R01/R02/R05/R06/R08/R16/R17/R18/R19/R20/R21): 你也扫,即使 check-rules.mjs 会兜底
-- 软防线规则 (R03/R04/R07/R09-R15): 你是唯一识别方
+- 硬防线规则 (R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16/R17/R18/R19/R20/R21) 与 warning 级 R22: 必须扫出命中作为生成前逐节点指引(判决权在 check-rules.mjs,指引漏扫不算违规,但禁止整类跳过)
+- 软防线规则 (R07/R10/R11/R13/R15): 你是唯一识别方
 - 排斥条件: 若节点命中高优先级规则, 低优先级规则不再重复列
 - 优先级 (由高到低): R21 > R16 > R17 > R02 > R01 > R05 > R11 > R03 > R04 > R07 > R06 > R09 > R08 > R20 > R18 > R19 > R14 > R15 > R13 > R12 > R10（R21 最高:节点不可追溯则其余绑定类规则无从谈起）
 
@@ -117,7 +125,7 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 
 ### check-rules.mjs
 
-- **硬编码 R01/R02/R05/R06/R08/R16/R17/R18/R19/R20 逻辑**,rules/*.md 是设计文档,不是执行文档
+- **硬编码 R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16/R17/R18/R19/R20/R21 逻辑**,rules/*.md 是设计文档,不是执行文档
 - 假阳性时用 `--force-skip R0X,R0Y` 跳过,但 UI sub-agent 必须在 `assets.txt` 备注 `[脚本误判] R0X {nodeId} 理由: ...`
 - 详细 CLI 见 `templates/skills/pp-d2c/bin/check-rules.mjs --help`
 
@@ -152,6 +160,10 @@ R21 (node-id-coverage) ── 最高优先级; 节点无 data-node-id 则 R06/R1
 
 ## 版本
 
+- **v1.2.5** 防线加固批(test28/29 取证):GATE-cache-truncation(cache 完整性);R21 反向对账(幻觉 id);R23 size-fidelity(尺寸忠实度+锚点欺诈);GATE-rule-hits 收紧(fallback 占位须有降级记录);GATE-slice-confirm(切图确认留痕);单 agent 执行模式(无 sub-agent 平台合法路径)
+- **v1.2.4** 生成过程缺陷修复批(test24-27 取证):check-rules --block 局部化(--root/LCA 推断);GATE-rule-hits 门禁(缺失即 exit 1,含消费证明捏造检测);IMG-reconcile 三方对账;R20 强制 `position: absolute` 声明;新增 R22 empty-visual-btn(warning 级);Rule-Scan 恢复全量扫描出指引(判决权仍在 check-rules)
+- **v1.2.3** 软→硬迁移:R03/R04/R09/R12/R14 从软防线下沉 check-rules 硬防线(机械可判、逐节点对账,不依赖 sub- 触发,exit 1 阻断);软防线剩 R07/R10/R11/R13/R15(需 LLM 语义);新硬规则一律保守(宁漏报不误判,边界 skip)
+- **v1.2.2** Rule-Scan 触发与 sub- 解耦:执行清单 sub- block 数为 0 时,主 agent 出码前对整页跑一次 Rule-Scan(页面根为虚拟 block,`rule-hits.json` 落页面根目录);修复无 sub- 页面软规则 R03/R04/R07/R09-R15 完全不触发的覆盖空档
 - **v1.2.1** `_inBakedSubtree` 移除 bgc-(bgc- 盒级 CSS 写父、非切图,子孙误放 TEXT 应被 R06/R21 暴露而非静默吞); 新增 **R21 node-id-coverage**(应渲染节点漏挂 data-node-id 即 exit 1,机械强制 §5.1.1 铁律,堵 R18/R19/R20 遇空 classMap 静默 continue 的逃逸); §6.0.2 禁生成流程用 `--force-skip`
 - **v1.2.0** 校验范式从"黑名单抽查"→"以 cache 为真值逐节点对账": loadCache 标注 `_inBakedSubtree`/`_hidden`/`_templateDup` + cssMatch 共享 SCSS 嵌套匹配(R02/R06 假阳性根源清除); 新增 R17 no-baked-dom / R18 flex-direction / R19 padding / R20 absolute-position 四条对账规则
 - v1.1.0 新增 R16 no-flatten-text 硬防线

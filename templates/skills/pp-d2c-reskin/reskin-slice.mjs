@@ -607,6 +607,13 @@ async function main() {
 
   // v1.1.0: 写清单供 pp-d2c Step 1.5 消费
   if (args.outManifest) {
+    // v1.2.5 确认留痕: 默认 confirmed:false,用户在步骤 2.6 确认后由 figma.mjs confirm-slices 翻 true;
+    // pp-d2c.config.json 配 slice.confirmBeforeContinue === false(全自动流水)时直接落 true。
+    let autoConfirm = false
+    try {
+      const cfg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'pp-d2c.config.json'), 'utf8'))
+      autoConfirm = cfg && cfg.slice && cfg.slice.confirmBeforeContinue === false
+    } catch { /* 无 config 按需确认 */ }
     const manifest = {
       generatedAt: stamp,
       mode: hasBase ? 'aligned-to-base' : 'standalone',
@@ -617,6 +624,7 @@ async function main() {
           outDir: r.outDir,
           hit: r.hit,
           miss: r.miss,
+          confirmed: autoConfirm,
           entries: r.manifestEntries || [],
         })),
     }

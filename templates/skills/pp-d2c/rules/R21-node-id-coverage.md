@@ -23,6 +23,8 @@
 
 命中 → 违规（不可追溯）。
 
+**反向对账（v1.2.5）**：产物 JSX 中每个**字面量** `data-node-id` 必须存在于 cache——cache 中不存在 = **幻觉 id**（凭记忆/臆造挂 id 应付正向检查），命中 → 违规。表达式形式（`data-node-id={x}`）不判。典型 test29：产物 33 个 id 有 11 个不在 cache（浅 cache + 低推理执行器编造）。
+
 ## 期望产物
 
 - 凡承载 Figma 语义、会渲染成 DOM 的节点，产物元素必须带 `data-node-id="<nodeId>"`
