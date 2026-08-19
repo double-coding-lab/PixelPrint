@@ -1,0 +1,49 @@
+.codex/hooks/f2s-update-check.js
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 19
+.cursor/hooks/f2s-update-check.js
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 19
+.codex/skills/f2s-kb-upgrade/SKILL.md
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 65-66,76
+.codex/topics/f2s-flow2spec-unified-entry.md
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 90
+.cursor/skills/f2s-kb-upgrade/SKILL.md
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 65-66,76
+.codex/skills/f2s-req-plan/SKILL.md
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 21,43,137
+.claude/skills/f2s-kb-upgrade/SKILL.md
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 65-66,76
+.cursor/rules/f2s-flow2spec-unified-entry.mdc
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 95
+.Knowledge/manifest-routing.json
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 2,28,80-87,242-247
+.Knowledge/matchers/m-flow2spec-dsh-adapter.json
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 1-6
+.claude/rules/f2s-flow2spec-unified-entry.md
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 94
+.Knowledge/template/index.template.md
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 31
+.cursor/skills/f2s-req-plan/SKILL.md
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 21,43,137
+.Knowledge/topics/flow2spec-dsh-adapter.md
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 1-16
+.claude/skills/f2s-req-plan/SKILL.md
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 21,43,137
+.claude/hooks/f2s-update-check.js
+  s_0d5db51b2ddd77::t_97e9cffc5a4928 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.40-trip",
+  "base_commit_sha": "c93fde379463f11c4106c2022c67ef1bd3118823",
+  "prompts": {},
+  "sessions": {
+    "s_0d5db51b2ddd77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "48dc7b46-695f-4274-be5e-6eaa343191e2",
+        "model": "arn:aws:bedrock:us-west-2:466494951737:application-inference-profile/rf6www9ej5dq"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
