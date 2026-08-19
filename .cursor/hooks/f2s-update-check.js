@@ -16,7 +16,7 @@ const MANIFEST_PATH = path.join(process.cwd(), '.Knowledge', 'manifest-routing.j
 const CACHE_DIR    = path.join(process.cwd(), '.Knowledge');
 const CACHE_FILE   = path.join(CACHE_DIR, 'update-check.json');
 const PACKAGE_NAME_PLACEHOLDER = '__FLOW2SPEC_' + 'PACKAGE_NAME__';
-const PACKAGE_NAME = '@double-coding/flow2spec';
+const PACKAGE_NAME = '@double-coding/flow2spec-core';
 
 // ── 缓存 ────────────────────────────────────────────────────────────────────
 
