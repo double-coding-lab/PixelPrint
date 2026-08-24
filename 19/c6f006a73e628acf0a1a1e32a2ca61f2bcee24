@@ -1,0 +1,29 @@
+test/rules-rn/test-engine.mjs
+  s_7605727328ed6a::t_5f43c9a88a89cb 1-53
+test/rules-rn/test-cli-gates.mjs
+  s_7605727328ed6a::t_5883a903eaf13e 1-169
+test/rules-rn/run-all.mjs
+  s_7605727328ed6a::t_f272cdd6eba484 1-23
+test/rules-rn/test-rules-core.mjs
+  s_7605727328ed6a::t_187d6451553057 1-93
+test/rules-rn/test-rules-rn-specific.mjs
+  s_7605727328ed6a::t_3e74290c35e845 1-108
+package.json
+  s_7605727328ed6a::t_698d9db00b03d5 10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "19c6f006a73e628acf0a1a1e32a2ca61f2bcee24",
+  "prompts": {},
+  "sessions": {
+    "s_7605727328ed6a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7fd4cc66-8601-4498-88d8-4cc2233bb803",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
