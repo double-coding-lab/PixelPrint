@@ -1,0 +1,26 @@
+.Knowledge/topics/pp-d2c-fast.md
+  s_7605727328ed6a::t_23dc263cdfac62 3,34
+.Knowledge/topics/pp-d2c.md
+  s_7605727328ed6a::t_23dc263cdfac62 3,69-70
+.Knowledge/index.md
+  s_7605727328ed6a::t_23dc263cdfac62 32,34
+.Knowledge/topics/pp-d2c-rn.md
+  s_7605727328ed6a::t_23dc263cdfac62 3,38
+  s_7605727328ed6a::t_df140475dcd179 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "0d7d9a13371c18fc7048d81d25766b39f8428499",
+  "prompts": {},
+  "sessions": {
+    "s_7605727328ed6a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7fd4cc66-8601-4498-88d8-4cc2233bb803",
+        "model": "arn:aws:bedrock:us-west-2:296122126678:application-inference-profile/uxc50ltr1528"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
