@@ -1,0 +1,74 @@
+templates/skills/pp-d2c-rn/rules/R01-fixed-position.md
+  s_7605727328ed6a::t_1bc4b2a6ff9636 1-73
+templates/skills/pp-d2c-rn/rules/R04-text-gradient.md
+  s_7605727328ed6a::t_9db18a49f060bc 1-59
+templates/skills/pp-d2c-rn/rules/R12-flat-mode-naming.md
+  s_7605727328ed6a::t_3eafa745c008ec 1-43
+templates/skills/pp-d2c-rn/rules/RN04-styles-file-separation.md
+  s_7605727328ed6a::t_27b461e5721896 1-53
+"templates/skills/pp-d2c-rn/rules/R15-同构 map 渲染.md"
+  s_7605727328ed6a::t_1259ed6fe89bc4 1-59
+templates/skills/pp-d2c-rn/rules/R06-text-solid-last.md
+  s_7605727328ed6a::t_2fb88ed0f8969c 1-46
+templates/skills/pp-d2c-rn/rules/README.md
+  s_7605727328ed6a::t_5b695be4cae5b1 1-152
+templates/skills/pp-d2c-rn/rules/R16-no-flatten-text.md
+  s_7605727328ed6a::t_d8582342adac12 1-42
+templates/skills/pp-d2c-rn/rules/R14-fixed-z-index.md
+  s_7605727328ed6a::t_75ec10efc801a9 1-43
+templates/skills/pp-d2c-rn/rules/R02-fills-image.md
+  s_7605727328ed6a::t_27ab46aecde6c2 1-51
+templates/skills/pp-d2c-rn/rules/R08-bg-landing-form.md
+  s_7605727328ed6a::t_cb6b8e65dfe37e 1-66
+templates/skills/pp-d2c-rn/rules/R05-space-between.md
+  s_7605727328ed6a::t_660a56b6c91bd3 1-45
+templates/skills/pp-d2c-rn/rules/RN02-flow-child-position.md
+  s_7605727328ed6a::t_eff4760d91e1e7 7
+  s_7605727328ed6a::t_2289dc33ee445b 1-6,8-53
+templates/skills/pp-d2c-rn/rules/R19-padding.md
+  s_7605727328ed6a::t_fe3fd8d526859d 1-51
+templates/skills/pp-d2c-rn/rules/R17-no-baked-dom.md
+  s_7605727328ed6a::t_1d16eec0c51d4a 1-35
+templates/skills/pp-d2c-rn/rules/R13-unit-scale.md
+  s_7605727328ed6a::t_9b9fbc684d92b5 1-60
+templates/skills/pp-d2c-rn/rules/R20-absolute-position.md
+  s_7605727328ed6a::t_2b39f44b3ab5ae 1-47
+templates/skills/pp-d2c-rn/rules/R07-multi-fills.md
+  s_7605727328ed6a::t_ff1655711081d4 1-51
+templates/skills/pp-d2c-rn/rules/R03-implicit-image.md
+  s_7605727328ed6a::t_849065aa435cb8 1-41
+templates/skills/pp-d2c-rn/rules/R11-mask-vector-css-able.md
+  s_7605727328ed6a::t_6dc5f769a79ed6 1-59
+templates/skills/pp-d2c-rn/rules/R23-size-fidelity.md
+  s_7605727328ed6a::t_aab9dad562017a 1-43
+templates/skills/pp-d2c-rn/rules/R10-no-fake-solid-color.md
+  s_7605727328ed6a::t_9f0343b4fe150e 1-50
+templates/skills/pp-d2c-rn/rules/RN01-scroll-skeleton.md
+  s_7605727328ed6a::t_01cb89be1b4e68 1-60
+templates/skills/pp-d2c-rn/rules/R18-flex-direction.md
+  s_7605727328ed6a::t_d92190b2d29796 1-56
+templates/skills/pp-d2c-rn/rules/R21-node-id-coverage.md
+  s_7605727328ed6a::t_5c8a78e7573ea5 1-42
+templates/skills/pp-d2c-rn/rules/R22-empty-visual-btn.md
+  s_7605727328ed6a::t_fae8327647da52 1-35
+templates/skills/pp-d2c-rn/rules/RN03-no-percent-fill.md
+  s_7605727328ed6a::t_68c6d626cf101a 1-52
+templates/skills/pp-d2c-rn/rules/R09-btn-bgc-取值.md
+  s_7605727328ed6a::t_3cf9b4f0849cf7 1-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "3b1ede39fbe66fcd67ed96fb432f790b31f39e52",
+  "prompts": {},
+  "sessions": {
+    "s_7605727328ed6a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7fd4cc66-8601-4498-88d8-4cc2233bb803",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
