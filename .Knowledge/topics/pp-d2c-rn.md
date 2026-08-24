@@ -1,6 +1,6 @@
 ---
 id: pp-d2c-rn
-revision: 2
+revision: 3
 summary: pp-d2c-rn
 primary: feature
 confidence: manual
@@ -8,7 +8,7 @@ tags: [module, config]
 ---
 # pp-d2c-rn
 
-> D2C RN SKILL(`templates/skills/pp-d2c-rn/`)的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md(v1.0.0,约 3100 行)+ `rules/*.md`(冲突时以 rules/ 为准),本 topic 是路由摘要 + 关键边界。**与 [[pp-d2c]](h5)完全独立并列**,共享前缀识别 / 布局判定 / 图片处理决策逻辑,但输出层完全不同。v1.0.0 起防线代与 h5 v1.2.5 对齐(机械防线见下文专节),此后 rn 与 h5 版本号各自独立演进。
+> D2C RN SKILL(`templates/skills/pp-d2c-rn/`)的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md(v1.1.0,约 3200 行)+ `rules/*.md`(冲突时以 rules/ 为准),本 topic 是路由摘要 + 关键边界。**与 [[pp-d2c]](h5)完全独立并列**,共享前缀识别 / 布局判定 / 图片处理决策逻辑,但输出层完全不同。v1.0.0 起防线代与 h5 v1.2.5 对齐(机械防线见下文专节),此后 rn 与 h5 版本号各自独立演进。
 
 ## 适用场景 / 触发词
 
@@ -35,7 +35,7 @@ tags: [module, config]
 
 `bin/check-rules.mjs` 以 `.d2c-cache/<fileKey>/nodes/*.json` 为真值逐节点对账产物,violations > 0 禁止交付:
 
-- **规则口径**:21 条 exit-1(R01-R06/R08/R09/R12/R14/R16-R21/R23 按 RN 语义适配 + RN 特有 RN01-RN04)+ R22(warning 级)+ 四道门禁(GATE-cache-truncation / GATE-rule-hits 全模式;IMG-reconcile / GATE-slice-confirm 仅 --merge)。规则明细见 `templates/skills/pp-d2c-rn/rules/README.md`。
+- **规则口径**:22 条 exit-1(R01-R06/R08/R09/R12/R14/R16-R21/R23/R24 按 RN 语义适配 + RN 特有 RN01-RN04;v1.1.1 起含 R24 baseline-align——`bl-` 容器须 `alignItems: 'baseline'`,其直接子层 R20/RN02 坐标豁免;`list-` 显式同构列表同 h5 v1.2.6 语义,切图 imageRef 去重)+ R22(warning 级)+ 四道门禁(GATE-cache-truncation / GATE-rule-hits 全模式;IMG-reconcile / GATE-slice-confirm 仅 --merge)。规则明细见 `templates/skills/pp-d2c-rn/rules/README.md`。
 - **强制时机**:sub-agent 交付前 `check-rules --block blocks/<label>/ --cache-key <fileKey> [--root <nodeId>]`;主 agent 合并后 `check-rules --merge <输出目录>/ --cache-key <fileKey>`。exit 1 = 回滚重做;exit 2 = 环境错误。
 - **styleMatch 引擎**:解析独立 `styles.ts` 的 `StyleSheet.create`,`rpx(x)` 剥壳后与 Figma 原值 × `config.unit.scale` 同域对账(rn 模板 scale=1,rpx 参数即 Figma 原值);`Platform.select` / 三元等动态值标 unparseable 保守跳过。
 - **RN 特有硬规则一览**:
