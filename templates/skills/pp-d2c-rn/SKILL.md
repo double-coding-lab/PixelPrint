@@ -5,6 +5,10 @@ description: 根据 Figma 设计稿 URL 生成 React Native 页面代码与资�
 
 # pp-d2c-rn Skill
 
+> **当前版本:v1.1.0(2026-08-24)——前置切图移植,GATE-slice-confirm / IMG-reconcile 实际生效**。新增步骤 2.6:主 agent 调 `pp-d2c-reskin` 的 `reskin-slice.mjs` 一次性切完全部 `img-`/`bg-` 节点(含裸词)→ 落 `slice-manifest-<slug>.json`;退出码非 0 → hard stop,禁止改用 export-image 手工逐张绕过;切完按 `slice.confirmBeforeContinue`(缺失=默认 `true`)暂停等用户确认,`sizeWarning` 非空不受开关豁免一律必停,确认后 `figma.mjs confirm-slices` 翻 `confirmed:true` 留痕。§4.4 契约反转:sub-agent 只查清单消费(RN 5 种引用形式),清单缺条目写 `[清单缺失]` 上报主 agent 补切,**禁止**自调 `export-image`。两道门禁自此实际生效:GATE-slice-confirm 校验 `confirmed` 字段,IMG-reconcile 三方对账"产物引用 ∉ manifest = violation"。
+>
+> **v1.0.0 历史(2026-08-24)——防线代与 h5 pp-d2c v1.2.5 对齐**。本版把 h5 v1.2.x 演进出的机械防线体系全量移植到 RN 侧,此后 rn 与 h5 版本号各自独立演进。核心变更:(1) **硬防线 `bin/check-rules.mjs`**——21 条 exit-1 规则(R01-R06/R08/R09/R12/R14/R16-R21/R23 按 RN 语义适配 + RN 特有 RN01-RN04)+ R22(warning 级)+ 四道门禁(GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm),以 `.d2c-cache` 节点 JSON 为真值逐节点对账,violations > 0 禁止交付;(2) **规则文档库 `rules/`**——R01-R23 + RN01-RN04 + README(索引与 Rule-Scan 派发 prompt),冲突时以 rules/ 为准;(3) **styleMatch 引擎**——解析 `styles.ts` 的 `StyleSheet.create`,`rpx(x)` 剥壳后与 Figma 原值 × `unit.scale` 同域对账(rn 模板 scale=1);(4) **步骤 3.5 Rule-Scan 软防线**(R07/R10/R11/R13/R15 语义类规则,先扫出作业指引再出码);(5) **交付双门禁**——sub-agent 交付前 `check-rules --block`、主 agent 合并后 `check-rules --merge`,exit 1 一律回滚;(6) **单 agent 执行模式**与**报数即真值**豁免封口(§6.0.4);(7) v0.3.12 styles.ts 强制独立文件、v0.3.13 顺流子位置来源硬约束升格为机械规则 RN04 / RN02;(8) 数据层 `bin/figma.mjs` 与 h5 同步刷新(含 `confirm-slices` 子命令与 `truncatedSuspects` 截断检测)。关键差异警示:**R18 在 RN 侧与 h5 判定镜像**(RN flex 默认 column,HORIZONTAL 必须显式 `flexDirection: 'row'`);**config 缺 `unit` 段时 check-rules 直接 exit 2**(rpx 口径下兜底默认 scale 会全量误判,禁止兜底)。回归测试:`test/rules-rn/`(npm test 与 h5 套件串跑)。
+
 > **v0.3.13(2026-08-08,RN 独享)**:修复 RN 侧 autoLayout 顺流子被 agent 用 `absoluteBoundingBox` 逆推成 `marginTop` / `position:absolute` 的事故——父 Frame 为 VERTICAL/primary=CENTER/itemSpacing=N,产物中顺流子分别写 `marginTop:<y1>` / `marginTop:<y2>` / `position:absolute; top:<y3>`,绕过父 flex 语义视觉整体下移;同批命中:父 VERTICAL Frame 的顺流子被逆推成 `position:absolute; top:<y>` / `bottom:<y'>`,且子 style `paddingLeft:<n>` 凭空捏造、`flex:1` 违反 FIXED sizing。改动：§4.3 新增「顺流子位置来源硬约束」章节——父 `layoutMode!=NONE` 且子 `layoutPositioning!=ABSOLUTE` 时，子 style 禁止出现 `position:absolute` / `top` / `left` / `right` / `bottom` / `marginTop` / `marginBottom` / `marginLeft` / `marginRight` / 凭空 `padding*` / 违反 FIXED sizing 的 `flex:1`；位置由父 flex 5 字段（flexDirection / justifyContent / alignItems / gap / padding）负责；配 grep 自证脚本。**本次改动只在 pp-d2c-rn 生效**，不同步到 pp-d2c（h5），doctor 暂不加规则。
 
 > **v0.3.12（2026-08-08，RN 独享）**：修复 RN 侧 `bg-*` / `img-*` 前缀节点在**中间层遍历**时的越过事故——`sub-<X> > bg-<Y> > <中间容器> > <TEXT 叶子>` 场景下，agent 因 §4.0 红线只在 sub-agent 根节点入口生效，遍历到中间层 `bg-<Y>` 时未再判前缀，把内部 TEXT 叶子提取到了 DOM。改动：(1) §4.0 表格追加「红线扩展到中间层遍历」强制段 + grep 自证；(2) §5 合并结构里的 `styles.ts` 从"可选，也可写在 index.tsx 底部"**收紧为强制独立文件**——`StyleSheet.create` / `const styles =` / 静态 inline style 一律禁止出现在 `index.tsx` 里，避免响应式改写 / adapter 改写触碰 JSX。**本次改动只在 pp-d2c-rn 生效**，不同步到 pp-d2c（h5）。
@@ -52,6 +56,8 @@ description: 根据 Figma 设计稿 URL 生成 React Native 页面代码与资�
 > **本 SKILL 是从 h5 SKILL 复制起步的独立 SKILL**。**不接 doctor 卫星 SKILL**(rn config 默认 `health.enabled=false`);**不做 styleFormat 探测**(rn 侧统一 StyleSheet + inline style,`project.styleFormat: 'stylesheet'` 即固定行为)。原 h5 SKILL 中步骤 0.5 doctor 调用、步骤 2.5 样式方案探测已在本 SKILL 中移除。
 
 > 误把伪代码当真函数会卡死流程(等待一个永远不会到来的"返回值")。
+
+> **单 agent 执行模式(v1.0.0,与 h5 v1.2.5 对齐)**:无 sub-agent 能力的平台(如 Codex)由主 agent **串行完成同等动作**——Rule-Scan(步骤 3.5)、逐 block 出码、每个 block 交付前 `check-rules --block`、合并后 `check-rules --merge`,一步不少。**禁止**以"平台没有 sub-agent"为由用占位文件、空 rule-hits、口头声明代替任何步骤——所有落盘契约(rule-hits.json / assets.txt / 证明块)在单 agent 模式下同样是硬性要求。
 
 ## 问题边界（v0.3.8 新增，硬约束）
 
@@ -154,6 +160,7 @@ Read("pp-d2c.config.json")
 | `unit.responsive.enabled` | 是否启用 rpx() 响应式包装(按屏宽线性缩放尺寸),默认 `true` |
 | `unit.responsive.helperImport` | rpx helper 的 import 路径,默认 `@/utils/rpx`;SKILL 生成产物时按此写 `import { rpx } from '<helperImport>'` |
 | `unit.responsive.helperName` | rpx helper 的导出函数名,默认 `rpx`;SKILL 用它包装白名单属性(如 `paddingLeft: rpx(16)`) |
+| `slice.confirmBeforeContinue` | 步骤 2.6 切图完成后是否暂停等用户确认(缺失=默认 `true`;`false` 仅跳过无警告场景且 reskin-slice 直接落 `confirmed:true`,`sizeWarning` 非空仍强制停) |
 | `layers.sub` | 分块触发前缀，默认 `sub-` |
 | `layers.block` | 独立布局块前缀，默认 `block-` |
 | `layers.img` | 图片前缀，默认 `img-` |
@@ -539,6 +546,57 @@ Figma 顶层 frame 的属性 → 根骨架各处:
 
 ---
 
+### 步骤 2.6:前置切图(v1.1.0,正式进入 D2C 前必做)
+
+**执行时序**:步骤 2 扫描 + 步骤 2.5 根骨架 + 步骤 0.5 输出路径锁定完成后,步骤 3 分发 sub-agent 前。
+
+**依赖**:本步骤调用 **`pp-d2c-reskin` 卫星 skill** 的 `reskin-slice.mjs`(Figma 数据侧脚本,与输出端无关)。脚本缺失(卫星未安装)→ **hard stop** 提示用户安装 pp-d2c-reskin 后重跑,**禁止**以"脚本不存在"为由占位绕过或改用手工切图。
+
+**目的**:一次性把稿子里所有 `img-` / `bg-` 前缀节点(含裸词)切完落盘,生成 nodeId → filename 清单;sub-agent 生 jsx/styles 时**只消费清单**,不再自己调 Figma API 现切现挂。
+
+**动作**:
+
+```bash
+node .claude/skills/pp-d2c-reskin/reskin-slice.mjs \
+  --theme <slug>=<figma-url> \
+  --out-manifest <projectRoot>/.d2c-cache/<fileKey>/slice-manifest-<slug>.json
+```
+
+- `<slug>` = 步骤 0.5 锁定的 `<asset-slug>`;`<figma-url>` = 步骤 1 解析出来的原 URL(带 nodeId)
+- reskin standalone 模式自扫 `img` / `bg` 前缀节点(含裸词),落图到 `<images.assetsDir>/<asset-slug>/`
+- 清单 schema 与 h5 一致(`entries[]` 每条含 nodeId / name / filename / renderWidth·Height / bboxWidth·Height / sizeWarning)
+
+**bg 溢出告警检视**:reskin 每切一张图自动做尺寸断言(`png 实际尺寸 vs bbox × scale` 相差 > 4px → 写 `entries[i].sizeWarning`)。主 agent 收到清单后**必须扫一遍全部 `entries[].sizeWarning`**:有非 null 告警 → **必须停下问用户**是否拆解或让美术在 Figma 加 mask 收紧 renderBounds,禁止直接用溢出 png(典型征兆:`bg-*` png 远大于自身 bbox = 兄弟节点被烤进图)。
+
+**产物消费契约(sub-agent 侧)**:
+
+- UI sub-agent 收到 `blocks/{sub}/rule-hits.json` 时,同时收 `<projectRoot>/.d2c-cache/<fileKey>/slice-manifest-<slug>.json`
+- 生成 jsx 时,引用 `img-` / `bg-` 节点必须从清单 `entries` 查 `filename`,以 RN 引用形式落地(`require('...png')` / `source={{uri}}` / `<ImageBackground>` / `<FastImage>` / `` `${ASSET_PREFIX}xxx.png` ``——与 IMG-reconcile 对账口径一致)
+- 清单里没有的 nodeId → **禁止 sub-agent 自补切图**,必须在 `assets.txt` 写 `[清单缺失] nodeId=XXX name=XXX 需主 agent 补切`
+
+**主 agent 补切回路**:sub-agent 全部返回后,主 agent 汇总所有 `blocks/*/assets.txt` 的 `[清单缺失]` 条目:数量 0 → 进入步骤 5 合并;> 0 → 主 agent 重跑 `reskin-slice.mjs` 定点补切并追加进同一清单,让相关 sub-agent 用更新后的清单重生;重跑仍硬错(Figma 404 / renderBounds 空)→ 停下问用户,禁止走整体切图兜底。
+
+**执行结果硬门禁**:
+
+- `reskin-slice.mjs` **退出码非 0 → hard stop**:立即停止 D2C 流程,向用户报告失败原因(token / 网络 / Figma 4xx),**禁止**继续步骤 3、**禁止**改用 `figma.mjs export-image` 手工逐张切图代替清单(h5 test25 取证:绕过后 manifest 失效 → 图片覆盖检查全线失灵)。修复后从步骤 2.6 重跑。
+- `figma.mjs export-image` 仅允许出现在「补切单节点修复模式」(上文补切回路硬错后、经用户确认的定点修复),且切完**必须**把该图回写进 slice-manifest 与 `images.json`——否则步骤 3.6 `check-rules --merge` 的 **IMG-reconcile 三方对账**按"绕清单切图"报 violation。
+
+**切图确认暂停(`slice.confirmBeforeContinue` 缺失=默认 true)**:
+
+reskin-slice 成功后,主 agent **无条件暂停**,向用户输出切图结果摘要(清单路径 / hit·miss / entries 逐行 / sizeWarning / 图片目录)并等待确认,确认后才进入步骤 3。
+
+- config 配 `slice.confirmBeforeContinue: false` 可跳过本暂停(全自动流水场景;该配置下 reskin-slice 直接落 `confirmed: true`);**sizeWarning 非空时仍必须停**,不受开关影响。
+- **确认留痕**:用户确认后,主 agent 执行 `node .claude/skills/pp-d2c-rn/bin/figma.mjs confirm-slices <fileKey> <slug>` 把 manifest `confirmed` 置 true——步骤 3.6 `check-rules --merge` 的 **GATE-slice-confirm** 以该字段为准,`confirmed=false` 直接 violation。**禁止**未经用户确认自行执行 confirm-slices(留痕即取证,伪造可事后对会话审计)。用户口头"别问了/不要询问"指的是**权限弹窗**,**不豁免本流程确认**——跳过本暂停的唯一通道是改 config。
+
+**禁止项**:
+
+- 禁止跳过步骤 2.6 直接进入步骤 3(无清单 = UI sub-agent 只能猜切图,且 IMG-reconcile / GATE-slice-confirm 失去对账基准)
+- 禁止 reskin-slice 失败后继续生成或手工切图兜底(硬门禁,见上)
+- 禁止 sub-agent 绕开清单直接调 `figma.mjs export-image` 或 Figma REST `/v1/images`
+- 禁止把清单里的 `filename` 或 `renderWidth/Height` 改写后再消费(改写 = 幻觉 = 事故源)
+
+---
+
 ### 步骤 3：并行分发 sub-agent
 
 向每个 block 分发一个 sub-agent，**全部并行执行**。
@@ -548,6 +606,34 @@ Figma 顶层 frame 的属性 → 根骨架各处:
 - 图层解析规则（完整规则见步骤 4）
 - `agentIndex`
 - config 快照：`framework`、`styleFormat`、`images`、`layers`、`output.dir`
+- 对应 `blocks/{sub}/rule-hits.json` 路径(由步骤 3.5 生成)
+- `slice-manifest-<slug>.json` 路径(由步骤 2.6 生成,`img-`/`bg-` 引用唯一来源)
+
+---
+
+### 步骤 3.5:Rule-Scan 派发(v1.0.0 新增,软防线)
+
+每个 block 的 UI sub-agent 动笔**之前**,先派一个只做规则识别、不写 UI 的 Rule-Scan agent:
+
+1. **输入**:软防线规则文档(`rules/R07-multi-fills.md` / `R10-no-fake-solid-color.md` / `R11-mask-vector-css-able.md` / `R13-unit-scale.md` / `R15-同构 map 渲染.md`)+ 该 block 的 cache 节点 JSON。Rule-Scan 对**全部规则**(含已硬化条目)扫描出指引——软 5 条是它的唯一判定点,硬防线规则的命中只帮出码 agent 提前避坑,**判决权在 check-rules**(指引与判决分离,扫多不越权)。
+2. **输出**:`rule-hits.json` 落盘 block 目录(每条 hit 带 nodeId / trigger / expected)。UI sub-agent 按 hits 的 `expected` 落地;发现漏扫允许自补,但必须在 assets.txt 记 `[遗漏补捕]`。
+3. **无 sub- 页面同样触发**:执行清单 sub- block 数为 0 时,主 agent 出码前把「页面根」当虚拟 block 对整页跑一次 Rule-Scan,`rule-hits.json` 落页面根目录——软防线覆盖不依赖设计师是否标了 sub-。
+4. **降级协议**:Rule-Scan 挂了先重派一次;二次仍挂,降级为 UI sub-agent 自己读规则库,且**必须**落 `{"generated_by":"v0.3.21-fallback","hits":[]}` 占位文件 + 在 assets.txt 写 `[Rule-Scan 降级]` 失败记录——**只有占位没有降级记录,GATE-rule-hits 按捏造拦截**(exit 1)。
+5. **禁止**:跳过 Rule-Scan 直接出码;在 assets.txt 捏造"rule-hits 消费证明"而文件不存在(GATE-rule-hits 会点名"疑似捏造")。
+
+### 步骤 3.6:交付双门禁(v1.0.0 新增,硬防线强制时机)
+
+`bin/check-rules.mjs` 在两个时机**强制执行**,exit 1 = 回滚重做,禁止带违规进入下一步:
+
+```bash
+# 时机一:每个 sub-agent 交付前(block 级,--root 显式指定或从产物 data-node-id 推断 LCA)
+node .claude/skills/pp-d2c-rn/bin/check-rules.mjs --block blocks/<label>/ --cache-key <fileKey> [--root <nodeId>]
+
+# 时机二:主 agent 合并后(页面级,含 IMG-reconcile / GATE-slice-confirm)
+node .claude/skills/pp-d2c-rn/bin/check-rules.mjs --merge <输出目录>/ --cache-key <fileKey>
+```
+
+覆盖 21 条 exit-1 规则 + R22(warning)+ 四道门禁;规则明细以 `rules/README.md` 索引与各 `rules/*.md` 为准,**冲突时以 rules/ 为准**。`--force-skip` 仅供维护者本地调试,**生成流程禁用**。config 缺 `unit` 段时脚本 exit 2——rn 侧禁止兜底默认 scale,必须显式声明。
 
 ---
 
@@ -697,7 +783,7 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 >
 > **`layoutPositioning` vs `layoutMode`**:一个节点可以自己是 autoLayout 容器(`layoutMode = 'VERTICAL'`),同时又在父的 autoLayout 里绝对定位(`layoutPositioning = 'ABSOLUTE'`)。
 
-> **⚠️ 顺流子位置来源硬约束（v0.3.13 强制，RN 独享）**：当父 Frame 的 `layoutMode ∈ {HORIZONTAL, VERTICAL}` 且子节点 `layoutPositioning !== 'ABSOLUTE'`（即"参与父 flex 顺流的 AUTO 子节点"），**子节点的 StyleSheet 里禁止出现任何位移 / 定位属性**：
+> **⚠️ 顺流子位置来源硬约束（v0.3.13 强制，RN 独享;v1.0.0 起本约束已由 check-rules **RN02** 机械强制,violation 即 exit 1）**：当父 Frame 的 `layoutMode ∈ {HORIZONTAL, VERTICAL}` 且子节点 `layoutPositioning !== 'ABSOLUTE'`（即"参与父 flex 顺流的 AUTO 子节点"），**子节点的 StyleSheet 里禁止出现任何位移 / 定位属性**：
 >
 > - ❌ `position: 'absolute'`（顺流子恒为 relative / static，`position` 键根本不用写）
 > - ❌ `top` / `left` / `right` / `bottom`
@@ -1850,11 +1936,11 @@ fi
 
 **为什么加这一小节**：某历史事故中，某张 `<container>-<item>-<state>.png` 出现"顶部有大片空白"，追查 md5 发现磁盘产物和 API 实测导出根本对不上——skill 那一轮实际上没调 REST，而是从上一轮的另一张同类图直接改名复用了。
 
-##### 4.4 图片处理（原节，v0.3.6 起以 §4.4.0 为前提）
+##### 4.4 图片处理（原节，v0.3.6 起以 §4.4.0 为前提;v1.1.0 起以步骤 2.6 清单为唯一图源）
 
-所有图片（`img-` / `bg-` / 无前缀兜底）通过 `figma.mjs export-image` 导出。脚本内置：两步式下载 / `use_absolute_bounds=true` 默认开 / 存在即跳过 / 3 次指数退避 / 回写 `images.json` / 绝对路径写入 `{projectRoot}/{assetsDir}/{filename}.{ext}`。
+**v1.1.0 消费契约**:`img-` / `bg-` 前缀节点(含裸词)由**步骤 2.6 前置切图**统一导出,sub-agent 只查 `slice-manifest-<slug>.json` 消费 `filename`;清单缺条目写 `[清单缺失]` 上报主 agent 补切,**sub-agent 禁止自调 `export-image`**。本节的 `figma.mjs export-image` 调用仅存在于两个场景:① **主 agent 补切回路**(步骤 2.6 定义,切完回写 manifest 与 `images.json`);② 无前缀兜底 fills IMAGE / `input-` 图标等 2.6 扫描范围外的零星导出——同样由主 agent 执行并回写 manifest,否则 IMG-reconcile 按"绕清单切图"报 violation。脚本内置:两步式下载 / `use_absolute_bounds=true` 默认开 / 存在即跳过 / 3 次指数退避 / 回写 `images.json` / 绝对路径写入 `{projectRoot}/{assetsDir}/{filename}.{ext}`。
 
-**⚠️ 调脚本前的强制前置自检（sub-agent 每张图都必须做，且必须把 7 行输出到对话，不允许省略）**：
+**⚠️ 调脚本前的强制前置自检(切图执行方每张图都必须做——步骤 2.6 主批量由 reskin-slice 内置等效校验,本 7 行适用于补切回路与零星导出,且必须把 7 行输出到对话,不允许省略)**：
 
 ```
 · 图层前缀类型：{img- / bg- / 无前缀}（裸词 img / bg 视同对应前缀）
@@ -2281,7 +2367,7 @@ figmaBase: 375   outputBase: 375   scale: 1   outputUnit: 无(RN 数值单位是
 {output.dir}/
 ├── ComponentName/
 │   ├── index.tsx                ← 主文件,只放 JSX + import styles from './styles'
-│   └── styles.ts                ← 主文件 StyleSheet.create({...}) 定义（**强制独立文件**,不允许写在 index.tsx 里）
+│   └── styles.ts                ← 主文件 StyleSheet.create({...}) 定义（**强制独立文件**,不允许写在 index.tsx 里;v1.0.0 起由 check-rules RN04 机械强制）
 └── blocks/
     ├── content/                 ← Block 1: sub-content (depth=1)
     │   ├── index.tsx
@@ -2666,7 +2752,7 @@ fi
 
 ### 步骤 6：主 agent 合并验收
 
-合并完成后，主 agent **必须**做两轮视觉验收（顺序不可调换）：
+合并完成后,**先跑硬防线再做视觉验收**:主 agent 对整页执行 `check-rules --merge <输出目录>/ --cache-key <fileKey>`(见步骤 3.6 时机二),exit 1 即回滚修复,**禁止带违规进入视觉验收与交付**。硬防线通过后,主 agent **必须**做两轮视觉验收（顺序不可调换）：
 
 #### 6.0 逐叶子 sub-block 单独视觉对比
 
@@ -2866,13 +2952,36 @@ fi
 
 ## bg- 独立切图契约（v0.3.11 新增，§4.3）
 - 子树内所有 `bg-*` / 裸词 `bg` 前缀节点集合大小：{count(bg-nodes)}
-- assets.txt 声明的 `bg-*` 切图集合大小：{count(bg-declared)}
-- 差集 bg-nodes - bg-declared（应切图但没切）：{"空" 或 "missing: bg-<X1>, bg-<X2>, ..."}（非空 = sub-agent 因祖先覆盖脑补省略事故，触发 BGP033）
+- slice-manifest 中 `bg-*` 条目集合大小(v1.1.0 起以清单为声明源)：{count(bg-declared)}
+- 差集 bg-nodes - bg-declared（应切图但清单缺条目）：{"空" 或 "missing: bg-<X1>, bg-<X2>, ..."}（非空 = 步骤 2.6 漏切或补切回路未闭环，触发 BGP033）
 - 产物引用覆盖（RN 5 种 Image 形式：require / uri / ImageBackground / FastImage / ASSET_PREFIX）零匹配项数：{count(unused-imports)}
 - 结果：{✅ 通过 / ❌ 失败}
+
+## 硬防线聚合(v1.0.0 新增,§步骤 3.6)
+- check-rules --block:{N} 个 block 全部 exit 0(逐个列出:{label}: ✅/❌)
+- check-rules --merge:exit {0/1},violations = {count},warnings = {count}
+- 四道门禁:GATE-cache-truncation {✅} / GATE-rule-hits {✅} / IMG-reconcile {✅} / GATE-slice-confirm {✅}(v1.1.0 起步骤 2.6 必产 manifest,无 N/A 通道)
+- 结果:{✅ 通过 / ❌ 失败}
 ```
 
 任意一条 ❌ 失败 → 合并阶段不算完成，主 agent 必须回滚，重新按 sub-agent 产物逐字展开。
+
+#### 6.0.4 报数即真值与豁免门禁(v1.0.0 新增)
+
+check-rules 的对账基座(`bin/lib/loadCache.mjs`)在加载 cache 时已给每个节点打三个标注,**从根源清除假阳性**:
+
+| 标注 | 含义 | 效果 |
+|---|---|---|
+| `_inBakedSubtree` | 祖先是 `bg-`/`img-`/`x-`(整体切图/忽略) | 像素已进 PNG,R02/R06 不再逐个溯源;R17 反向保证这些节点**不出 DOM** |
+| `_hidden` | 自身或祖先 `visible=false` | 不参与对账 |
+| `_templateDup` | `.map()` 列表同构兄弟的非首个数据副本 | 只校验代表项,副本忠实度由"同一模板"保证 |
+
+既然假阳性来源已清除,**报数即真值**:R02 报的就是真遗漏、R17 报的就是真双渲染、RN02 报的就是真逆推。以下豁免话术一律无效:
+
+- ❌ "语义盲点 / 装饰性内容 / 父层整体切图承载"批量豁免——`_inBakedSubtree` 已把合法承载滤掉,剩下的就是违规
+- ❌ "需人工核对"兜底坐标 / 尺寸 / 方向 / 间距——能从 Figma 字段机械推导的量必须算对(RN 侧即 `rpx()` 内的数值)
+- ❌ 口头"脚本误判"——`[脚本误判]` 豁免**单次 ≤3 条**,且每条必须附三段证据:**文件:行号 + grep 命令 + 命中内容**;缺任一段视为无效豁免
+- ❌ 用 `--force-skip` 绕过——生成流程禁用,仅供维护者本地调试
 
 #### 6.1 整体视觉验收
 
@@ -3053,7 +3162,7 @@ EOF
 - 禁止 TEXT 节点有多层可见 SOLID fills 时直接取 `fills[0]`：必须按 §4.1.1「TEXT 多层 fills 处理」按 Figma 渲染顺序取末位可见 SOLID
 - 禁止父容器命中「父容器盒级装饰兜底」（§4.3）时仍要求设计师额外建 `bg-*` 子层：默认打开，两种命名都合法；命中渐变时必须引 `LinearGradient` 而不是退化纯色（RN 侧 v0.3.6 修订）
 - 禁止 `btn-` 节点必须切图（fills 含 IMAGE / 子树含形状）时，内部 TEXT 仍生成 `<Text>` 并写入相同文字：造成"图片里有字 + `<Text>` 也有字"双写事故（doctor NAM024 error）
-- 禁止 `img-` / `bg-` / 裸词 `img` / 裸词 `bg` 命中但跳过 REST API 调用：必须按 §4.4.0 走，即使 assetsDir 有同名文件也要按 images.json md5 校验决定复用还是重切。doctor IMG026 未记录 nodeId → error
+- 禁止 `img-` / `bg-` / 裸词 `img` / 裸词 `bg` 命中但未落切图：v1.1.0 起由步骤 2.6 前置切图统一导出进 slice-manifest,复用仍按 §4.4.0 的 images.json md5 校验决定(即使 assetsDir 有同名文件);清单缺条目走补切回路,禁止以"文件已存在"跳过校验。doctor IMG026 未记录 nodeId → error
 - 禁止在 assets.txt 中省略 §4.4.0 定义的 3 行溯源（API 参数 / 返回 URL / 落盘尺寸+md5）
 - 禁止 flat 模式合并时用父容器整体切图（如 `sub-{name}.png` / `sub-ui-frame734.png`）替代 sub-agent 的拆分产物：必须逐字读 `blocks/{sub}/index.tsx` 展开到父文件（v0.3.7 §5.0.pre）
 - 禁止对 `sub-*` / `block-*` 前缀节点调用 `figma.mjs export-image` 整体切图（v0.3.7 §4.4.pre 适格性表）
@@ -3065,4 +3174,11 @@ EOF
 - 禁止 TEXT 节点交付时省略字色 fills 溯源（v0.3.10 §4.1.1）：sub-agent 每个 `<Text>` 必须在 `blocks/{sub}/assets.txt` QA 段写一行 `· TEXT {nodeId} "..." fills层数=N 可见SOLID列表=[...] 末位可见色=#hexN 最终写入=#final`，`#final` 必须严格等于 `#hexN`；产物 StyleSheet 中 `color:` 字段（含 3 种写法）集合必须覆盖 declared 集合每一项 —— doctor CLR030 error
 - 禁止 sub-/block- 容器 `minHeight` 写入值 = 兄弟 bg 层高度而非自身高度（v0.3.10 §4.3）：sub-agent 每个 sub-/block- 容器必须在 assets.txt QA 段写一行 `· SUB容器 {nodeId} name=... 自身h=H1 bg兄弟层h=H2 minHeight写入=H1`，且写入值必须严格等于 `H1` —— doctor DIM031 error
 - 禁止页面根 `paddingTop` 写入值 ≠ `figmaNode.paddingTop`（v0.3.10 §4.3.1）：主 agent 必须在主页面 assets.txt 或对话输出一行 `· PAGE根 {pageNodeId} name=... figmaPaddingTop=P fixed状态栏h=S paddingTop写入=P`，禁止用 fixed 状态栏高度替代 `paddingTop` 字段 —— doctor DIM032 error
-- 禁止用祖先 `bg-*` 切图的物理覆盖范围"合并省略"后代 `bg-*` 独立切图（v0.3.11 §4.3 bg- 独立切图契约）：每个 `bg-*` 前缀节点必须独立走一次 `figma.mjs export-image`，前缀维度优先于物理覆盖维度。sub-agent 交付前必须在 `blocks/{sub}/assets.txt` QA 段追加「bg-* 独立切图清单证明」段；主 agent 合并前 grep 断言（覆盖 RN 5 种 Image 引用形式：require / uri / ImageBackground / FastImage / ASSET_PREFIX）。历史事故：sub-agent 因父 `bg-<A>` 整体切图覆盖多个同级容器区域，省略每个容器里 `bg-<B>` 独立切图，产物对应容器空 View —— doctor BGP033 error
+- 禁止用祖先 `bg-*` 切图的物理覆盖范围"合并省略"后代 `bg-*` 独立切图（v0.3.11 §4.3 bg- 独立切图契约）：每个 `bg-*` 前缀节点必须在 slice-manifest 中拥有独立条目(v1.1.0 起由步骤 2.6 reskin-slice 逐节点独立导出,补切亦按单节点),前缀维度优先于物理覆盖维度。sub-agent 交付前必须在 `blocks/{sub}/assets.txt` QA 段追加「bg-* 独立切图清单证明」段；主 agent 合并前 grep 断言（覆盖 RN 5 种 Image 引用形式：require / uri / ImageBackground / FastImage / ASSET_PREFIX）。历史事故：sub-agent 因父 `bg-<A>` 整体切图覆盖多个同级容器区域，省略每个容器里 `bg-<B>` 独立切图，产物对应容器空 View —— doctor BGP033 error
+- 禁止跳过步骤 3.5 Rule-Scan 直接出码(v1.0.0):rule-hits.json 缺失、fallback 占位无 assets.txt `[Rule-Scan 降级]` 记录、或 assets.txt 捏造"rule-hits 消费证明"而文件不存在——三种形态都由 GATE-rule-hits 机械拦截(exit 1)
+- 禁止带 check-rules violations 交付(v1.0.0 §步骤 3.6):sub-agent 交付前 `--block`、主 agent 合并后 `--merge`,任一 exit 1 必须回滚修复;禁止在生成流程使用 `--force-skip`(仅供维护者本地调试)
+- 禁止对 check-rules 报数做批量豁免(v1.0.0 §6.0.4):`[脚本误判]` 单次 ≤3 条且每条附三段证据(文件:行号 + grep 命令 + 命中内容);"语义盲点 / 装饰性内容 / 父层整体切图承载"话术无效——`_inBakedSubtree` 标注已把合法承载滤掉,报数即真值
+- 禁止跳过步骤 2.6 前置切图直接进入步骤 3(v1.1.0):无 slice-manifest = IMG-reconcile / GATE-slice-confirm 失去对账基准;reskin-slice 脚本缺失(卫星未安装)同样 hard stop 提示安装,禁止占位绕过
+- 禁止 reskin-slice 退出码非 0 后继续生成或改用 `figma.mjs export-image` 手工逐张切图兜底(v1.1.0 §步骤 2.6 硬门禁):修复后从步骤 2.6 重跑
+- 禁止 sub-agent 绕开 slice-manifest 直接调 `figma.mjs export-image` 或 Figma REST `/v1/images`(v1.1.0 §步骤 2.6 消费契约):清单缺条目只能写 `[清单缺失]` 上报主 agent 补切
+- 禁止改写清单里的 `filename` / `renderWidth` / `renderHeight` 后再消费,禁止未经用户确认自行执行 `confirm-slices`(v1.1.0 §步骤 2.6 确认留痕):口头"别问了"不豁免流程确认,跳过确认的唯一通道是 config `slice.confirmBeforeContinue: false`
