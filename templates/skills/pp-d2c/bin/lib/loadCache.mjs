@@ -48,6 +48,17 @@ function structureSig(node, depth) {
 // 仅对"有自身子结构的容器"生效（叶子如并列 TEXT "20"/"元" 不算列表项，不误标）。
 function markTemplateDups(node) {
   if (!Array.isArray(node.children) || node.children.length < 2) return;
+  // list- 前缀 = 设计师显式声明"直接子层为同构列表项"(v1.2.6):
+  // 非首个有 id 的子项一律标数据副本,不做 structureSig 推断(叶子项列表同样生效)
+  if (typeof node.name === 'string' && node.name.startsWith('list-')) {
+    let first = true;
+    for (const c of node.children) {
+      if (!c || typeof c !== 'object' || !c.id) continue;
+      if (first) { first = false; continue; }
+      c.__isDup = true;
+    }
+    return;
+  }
   const seen = new Map(); // sig -> 已出现
   for (const c of node.children) {
     if (!c || typeof c !== 'object' || !c.id) continue;

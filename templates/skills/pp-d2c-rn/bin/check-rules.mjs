@@ -3,7 +3,7 @@
 //   ① import 换 styleMatch / nodeIdToStyleKey;② ALL_RULES 为 RN 规则清单;
 //   ③ IMG-reconcile 文件名正则通用,RN 引用形态(require/source={{uri}}/ImageBackground/FastImage/${ASSET_PREFIX})天然覆盖;
 //   ④ CLI 契约、exit code(0/1/2)、GATE 执行顺序不变)
-// 覆盖(v1.0.0 全量): 21 条 exit-1(R01-R06/R08/R09/R12/R14/R16-R21/R23 + RN01-RN04)
+// 覆盖(v1.1.1 全量): 22 条 exit-1(R01-R06/R08/R09/R12/R14/R16-R21/R23/R24 + RN01-RN04)
 //   + R22(warning 级) + 四道门禁(GATE-cache-truncation / GATE-rule-hits /
 //   IMG-reconcile / GATE-slice-confirm,后两道仅 --merge)。
 // RN 特有规则 RN01-RN04 用独立命名空间,与 h5 未来新增的 R24+ 隔离。
@@ -45,6 +45,7 @@ import * as R20 from './rules/R20-absolute-position.mjs';
 import * as R21 from './rules/R21-node-id-coverage.mjs';
 import * as R22 from './rules/R22-empty-visual-btn.mjs';
 import * as R23 from './rules/R23-size-fidelity.mjs';
+import * as R24 from './rules/R24-baseline-align.mjs';
 import * as RN01 from './rules/RN01-scroll-skeleton.mjs';
 import * as RN02 from './rules/RN02-flow-child-position.mjs';
 import * as RN03 from './rules/RN03-no-percent-fill.mjs';
@@ -52,7 +53,7 @@ import * as RN04 from './rules/RN04-styles-file-separation.mjs';
 
 const ALL_RULES = [
   R01, R02, R03, R04, R05, R06, R08, R09, R12, R14,
-  R16, R17, R18, R19, R20, R21, R22, R23,
+  R16, R17, R18, R19, R20, R21, R22, R23, R24,
   RN01, RN02, RN03, RN04,
 ];
 

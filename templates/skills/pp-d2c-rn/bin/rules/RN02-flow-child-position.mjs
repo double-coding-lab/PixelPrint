@@ -25,6 +25,8 @@ export function check({ cache, product, config, classMap }) {
     const lm = parent.layoutMode;
     if (lm !== 'HORIZONTAL' && lm !== 'VERTICAL') continue;
     if (parent._inBakedSubtree || parent._hidden) continue;
+    // bl- 基线流容器(v1.1.1):子位置由基线流负责(R24 校验 baseline 落地),顺流子硬约束豁免
+    if (typeof parent.name === 'string' && parent.name.startsWith('bl-')) continue;
 
     for (const child of parent.children || []) {
       if (!child || typeof child !== 'object' || !child.id) continue;

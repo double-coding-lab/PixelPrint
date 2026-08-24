@@ -25,6 +25,9 @@ export function check({ cache, product, config, classMap }) {
     if (node.name && node.name.startsWith('fixed-')) continue;
 
     const parent = node._parentId ? cache.nodes[node._parentId] : null;
+    // bl- 容器的直接子层(v1.2.6):位置由基线流(flex row + align-items: baseline)负责,
+    // 放弃逐个绝对定位是 bl- 前缀的设计师显式意图(R24 校验 baseline 落地),坐标对账豁免
+    if (parent && typeof parent.name === 'string' && parent.name.startsWith('bl-')) continue;
     const nb = node.absoluteBoundingBox;
     const pb = parent && parent.absoluteBoundingBox;
     if (!nb || !pb) continue; // 缺 bbox 无法精确计算，不误报
