@@ -1,0 +1,86 @@
+templates/skills/pp-d2c-rn/bin/rules/R20-absolute-position.mjs
+  s_7605727328ed6a::t_c5d585959f92c3 1-78
+templates/skills/pp-d2c-rn/bin/lib/nodeIdToStyleKey.mjs
+  s_7605727328ed6a::t_7c0f1bc5d0d7f6 1-59
+templates/skills/pp-d2c-rn/bin/rules/R03-implicit-image.mjs
+  s_7605727328ed6a::t_d425e78d41fbf7 1-103
+templates/skills/pp-d2c-rn/bin/lib/loadCache.mjs
+  s_7605727328ed6a::t_56a3813d2e03c7 1-185
+templates/skills/pp-d2c-rn/bin/rules/RN02-flow-child-position.mjs
+  s_7605727328ed6a::t_449108dd324a58 35-36
+  s_7605727328ed6a::t_72abc92b3da586 56-59
+  s_7605727328ed6a::t_e08b6c1dcfe990 43,48-51
+  s_7605727328ed6a::t_9d970a83781999 1-34,37-42,44-47,52-55,60-84
+templates/skills/pp-d2c-rn/bin/rules/R02-fills-image.mjs
+  s_7605727328ed6a::t_4254a8aad6a338 1-84
+templates/skills/pp-d2c-rn/bin/lib/styleMatch.mjs
+  s_7605727328ed6a::t_0e0effb76cabc2 1-199,213-249
+  s_7605727328ed6a::t_d43930910a3380 200-212
+templates/skills/pp-d2c-rn/bin/rules/R04-text-gradient.mjs
+  s_7605727328ed6a::t_92b95e9379d39a 1-128
+templates/skills/pp-d2c-rn/bin/rules/R19-padding.mjs
+  s_7605727328ed6a::t_c4e2acf00a4059 1-91
+templates/skills/pp-d2c-rn/bin/lib/rnTags.mjs
+  s_7605727328ed6a::t_2f9ee70162ab9a 1-68
+templates/skills/pp-d2c-rn/bin/rules/R21-node-id-coverage.mjs
+  s_7605727328ed6a::t_56a3813d2e03c7 1-99
+templates/skills/pp-d2c-rn/bin/rules/R08-bg-landing-form.mjs
+  s_7605727328ed6a::t_7eba195e2307a0 1-58
+templates/skills/pp-d2c-rn/bin/rules/R05-space-between.mjs
+  s_7605727328ed6a::t_04d2deb8df211c 1-56
+templates/skills/pp-d2c-rn/bin/figma.mjs
+  s_7605727328ed6a::t_be8e0c6c135d48 2,224-243,260-266,279-280,341-364,417,431
+templates/skills/pp-d2c-rn/bin/rules/R01-fixed-position.mjs
+  s_7605727328ed6a::t_c9400e42cb3dcc 1-71
+templates/skills/pp-d2c-rn/bin/rules/R14-fixed-z-index.mjs
+  s_7605727328ed6a::t_a0205b48dc8c7e 1-53
+templates/skills/pp-d2c-rn/bin/rules/R18-flex-direction.mjs
+  s_7605727328ed6a::t_338a750afaa6a3 1-69
+templates/skills/pp-d2c-rn/bin/rules/R23-size-fidelity.mjs
+  s_7605727328ed6a::t_18a43bfc697f33 1-75
+templates/skills/pp-d2c-rn/bin/lib/report.mjs
+  s_7605727328ed6a::t_56a3813d2e03c7 1-18
+templates/skills/pp-d2c-rn/bin/rules/RN03-no-percent-fill.mjs
+  s_7605727328ed6a::t_0a58243a706f52 1-41
+templates/skills/pp-d2c-rn/bin/rules/R17-no-baked-dom.mjs
+  s_7605727328ed6a::t_56a3813d2e03c7 1-60
+templates/skills/pp-d2c-rn/bin/rules/R12-flat-mode-naming.mjs
+  s_7605727328ed6a::t_0c970e6dc6bb62 1-44
+templates/skills/pp-d2c-rn/bin/rules/R16-no-flatten-text.mjs
+  s_7605727328ed6a::t_fe8838931f0989 1-75
+templates/skills/pp-d2c-rn/bin/lib/loadProduct.mjs
+  s_7605727328ed6a::t_e2f6a55bd9dd9c 1-46
+templates/skills/pp-d2c-rn/bin/rules/RN01-scroll-skeleton.mjs
+  s_7605727328ed6a::t_78aed21131f824 1-75
+templates/skills/pp-d2c-rn/bin/rules/R09-btn-bgc.mjs
+  s_7605727328ed6a::t_0ec4c1ecf048ae 1-140
+templates/skills/pp-d2c-rn/bin/check-rules.mjs
+  s_7605727328ed6a::t_d06242a8e949b9 6-9
+  s_7605727328ed6a::t_e7da572aebf6d9 219,228-230
+  s_7605727328ed6a::t_fd4ad60d6dbd1c 309-311,321
+  s_7605727328ed6a::t_e8026e7163fefb 1-5,10-29,41-45,47,52,58-218,220-227,231-308,312-320,322-331,339-344
+  s_7605727328ed6a::t_5e82a28a42dda3 30-40,46,48-51,53-57
+  s_7605727328ed6a::t_12ba98dae9f96d 332-338
+templates/skills/pp-d2c-rn/bin/rules/R06-text-solid-last.mjs
+  s_7605727328ed6a::t_2ce88013d0a1a9 1-112
+templates/skills/pp-d2c-rn/bin/rules/RN04-styles-file-separation.mjs
+  s_7605727328ed6a::t_0749e667cc56d3 1-33
+templates/skills/pp-d2c-rn/bin/rules/R22-empty-visual-btn.mjs
+  s_7605727328ed6a::t_c9df6340119bc1 1-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "b598fbd340370dee9c46d3d4cef0659aa6210f16",
+  "prompts": {},
+  "sessions": {
+    "s_7605727328ed6a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7fd4cc66-8601-4498-88d8-4cc2233bb803",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
