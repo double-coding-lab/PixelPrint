@@ -4,7 +4,7 @@
 
 - **硬防线** (check-rules.mjs 自动拦截): ✅
 - **软防线** (Rule-Scan sub-agent 识别): ✅ (兜底)
-- **排斥条件**: 子 `layoutPositioning === 'ABSOLUTE'` → 归 R20;fixed- 前缀子 → 归 R01;bg- 前缀子(含裸词 bg)→ 归 R08/RN03(铺满层契约本身要求 absolute);子自身是 autolayout 容器时 padding 分支让位 R19(R19 对 autolayout 容器做含凭空分支的全量对账);显式 0 / rpx(0) 的 margin/offset 不改变布局,保守放行(position 无数值形态,恒报);无 styleKey 交 R21
+- **排斥条件**: 父容器带 `bl-` 前缀 → 整组顺流子豁免(基线流负责位置,R24 校验 baseline,v1.1.1);子 `layoutPositioning === 'ABSOLUTE'` → 归 R20;fixed- 前缀子 → 归 R01;bg- 前缀子(含裸词 bg)→ 归 R08/RN03(铺满层契约本身要求 absolute);子自身是 autolayout 容器时 padding 分支让位 R19(R19 对 autolayout 容器做含凭空分支的全量对账);显式 0 / rpx(0) 的 margin/offset 不改变布局,保守放行(position 无数值形态,恒报);无 styleKey 交 R21
 
 ## 触发条件
 

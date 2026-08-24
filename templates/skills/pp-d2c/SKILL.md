@@ -5,7 +5,9 @@ description: 根据 Figma 设计稿 URL 生成 React H5 页面代码与资源；
 
 # pp-d2c Skill
 
-> **当前版本**：v1.2.5(h5 独享,不同步 pp-d2c-rn) —— **防线加固批**(test28/29 取证,主题:输入完整性→节点存在性→尺寸忠实度→确认留痕全链机械化):(1) **GATE-cache-truncation**——合并 cache 中空 GROUP/BOOLEAN_OPERATION = fetch depth 截断实锤,截断 cache 出码必丢内容(test29: 25 节点 cache 令全防线真空通过);(2) **R21 反向对账**——产物 data-node-id 必须存在于 cache,幻觉 id 直接 violation;(3) 新增 **R23 size-fidelity**——显式 px 宽高须 ≈ bbox×scale(容差 4px),`1px×1px+overflow:hidden` 锚点欺诈点名(test28 自供"校验锚点");(4) **GATE-rule-hits 收紧**——fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 失败记录;(5) **GATE-slice-confirm 确认留痕**——reskin-slice 落 `confirmed:false`,用户确认后 `figma.mjs confirm-slices` 翻 true;(6) **单 agent 执行模式**——无 sub-agent 平台(如 Codex)的合法路径,禁止以平台缺失为由跳步骤。
+> **当前版本**：v1.2.6(2026-08-24,双端能力,与 pp-d2c-rn v1.1.1 同批)—— **新增两个图层前缀**:`bl-`(文本基线对齐容器:flex + `align-items: baseline`,直接 TEXT 子放弃逐个绝对定位;新硬规则 **R24 baseline-align** 校验落地,R20 对其直接子层坐标豁免,exit-1 规则数 17→18)与 `list-`(显式同构列表:强制 `.map()` 模板渲染,loadCache 非首子项直标 `_templateDup`;切图按 `imageRef+bbox 尺寸` 跨项去重,同图只切首项、manifest 记 `sharedFrom`,reskin-slice 无 list- 时零行为变化)。前缀语义表 / 裸词规则 / rules/README 常量表同步 +2。
+>
+> **v1.2.5 历史**(h5 独享,不同步 pp-d2c-rn) —— **防线加固批**(test28/29 取证,主题:输入完整性→节点存在性→尺寸忠实度→确认留痕全链机械化):(1) **GATE-cache-truncation**——合并 cache 中空 GROUP/BOOLEAN_OPERATION = fetch depth 截断实锤,截断 cache 出码必丢内容(test29: 25 节点 cache 令全防线真空通过);(2) **R21 反向对账**——产物 data-node-id 必须存在于 cache,幻觉 id 直接 violation;(3) 新增 **R23 size-fidelity**——显式 px 宽高须 ≈ bbox×scale(容差 4px),`1px×1px+overflow:hidden` 锚点欺诈点名(test28 自供"校验锚点");(4) **GATE-rule-hits 收紧**——fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 失败记录;(5) **GATE-slice-confirm 确认留痕**——reskin-slice 落 `confirmed:false`,用户确认后 `figma.mjs confirm-slices` 翻 true;(6) **单 agent 执行模式**——无 sub-agent 平台(如 Codex)的合法路径,禁止以平台缺失为由跳步骤。
 >
 > **v1.2.4 历史** —— **生成过程缺陷修复批**(test24-27 取证):(1) `check-rules --block` 局部化——`--root <nodeId>` 或产物 data-node-id LCA 推断,cache 裁剪到 block 子树,消除 block 外全量误报;(2) **GATE-rule-hits 门禁**——rule-hits.json 缺失即 exit 1,含 assets.txt 消费证明捏造检测;(3) **IMG-reconcile 三方对账**(--merge)——产物图片引用必须来自 slice-manifest;(4) R20 增强——ABSOLUTE 节点强制 `position: absolute` 声明;(5) 新增 R22 empty-visual-btn(warning 级);(6) figma.mjs——修复"全量请求复用深度截断 cache"bug + `truncatedSuspects` 截断检测;(7) 步骤 2.6 硬门禁——reskin-slice 失败 hard stop + 切图确认暂停(`slice.confirmBeforeContinue` 默认 true);(8) micro-sub 快路径与同构 sub- 合并;(9) Rule-Scan 恢复全量扫描出指引(判决权仍在 check-rules)。
 >
@@ -1181,6 +1183,8 @@ R16(不压平文字)与 bg-/img-(整体切图)在**含 TEXT 的容器**上会打
 | `fixed-` | 视口固定定位 | 在当前节点对应的容器上加 `position: fixed`，相对视口定位；top/bottom/left/right 根据 Figma constraints 推断；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加（这三个不生成节点，没法 fixed） |
 | `end-` | 逆向布局（贴父末端） | 让节点在父 autoLayout 里贴向末端：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。**主线机制**：把该 end- 节点前面的兄弟包成一个 wrapper，父 `justify-content: space-between`，天然把 end- 推到末端；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` / `input-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加 |
 | `input-` | 输入框（`<input type="text">`） | 生成语义化 `<input type="text">` 标签而非 `<div>`，取子 TEXT 节点 `characters` 作为 `placeholder`，左侧图标（若存在 vector/img 子）切图作为 `background-image` + `padding-left` 腾位置；**独立前缀**（决定生成什么元素，不是修饰），**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加（doctor NAM019/NAM020 error），**可**与 `fixed-` / `end-` / `sub-` 叠加；命中即停止向内递归 |
+| `bl-`（v1.2.6） | 文本基线对齐容器 | 容器出 `display: flex` + `align-items: baseline`,直接 TEXT 子元素**放弃逐个绝对定位**,水平位置由基线流(顺序 + gap/margin)负责——典型场景:一行内字号不同的文字(如「¥ **199** 起」)按视觉基线对齐;**修饰前缀**,可与 `sub-` / `block-` 叠加;**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `input-` 叠加(要么不生成节点要么不递归,基线流无从谈起);硬规则 R24 校验 baseline 落地,其直接子层 R20 坐标对账豁免 |
+| `list-`（v1.2.6） | 显式同构列表 | 直接子元素声明为**同构列表项**:强制 `.map()` 模板渲染(代表项 = 首个子项,data-node-id 挂代表项;等价 R15 的显式声明形态,不再依赖"同层 ≥3"语义推断,2 项列表同样生效);loadCache 将非首个直接子项标 `_templateDup`;**切图去重**:项内 `img-`/`bg-` 按 `imageRef + bbox 尺寸` 跨项分组,同组只切首项一张、slice-manifest 以 `sharedFrom` 记共享引用,异组逐项切;**修饰前缀**,可与 `sub-` / `block-` / `scrollx-` / `scrolly-` 叠加;**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `input-` 叠加 |
 
 ##### 独立裸词规则
 
@@ -1194,7 +1198,7 @@ R16(不压平文字)与 bg-/img-(整体切图)在**含 TEXT 的容器**上会打
 
 **裸词白名单**（仅这些独立/内容前缀允许裸词形式）：`bg` / `bgc` / `btn` / `img` / `input`
 
-**修饰前缀不允许裸词**：`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end` 这些前缀必须写 `xxx-...` 完整形式，**不允许**独立裸词。
+**修饰前缀不允许裸词**：`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end` / `bl` / `list` 这些前缀必须写 `xxx-...` 完整形式，**不允许**独立裸词。
 
 **裸词不允许与其他前缀组合**：`sub-bg` / `block-btn` 这类"修饰前缀 + 裸词"命名一律**报错**（doctor NAM023）。
 

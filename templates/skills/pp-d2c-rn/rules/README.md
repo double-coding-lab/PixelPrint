@@ -21,6 +21,8 @@
 | `end-` | 逆向布局(贴父末端,修饰前缀) |
 | `input-` | 输入框(生成 `<TextInput>`,不递归) |
 | `x-` | 忽略(跳过整层,优先级最高) |
+| `bl-` | 文本基线对齐容器(v1.1.1,修饰前缀,无裸词;R24 校验 baseline 落地,直接子层 R20/RN02 豁免) |
+| `list-` | 显式同构列表(v1.1.1,修饰前缀,无裸词;强制 .map() 模板,非首子项标 _templateDup,切图按 imageRef+bbox 尺寸跨项去重) |
 
 ## 索引表
 
@@ -49,6 +51,7 @@
 | R21 | node-id-coverage | 硬防线 | 应渲染节点漏挂 data-node-id;反向:产物 id ∉ cache = 幻觉 id |
 | R22 | empty-visual-btn | warning | btn- 无文字/背景/边框/图片/渐变 → 空视觉按钮嫌疑 |
 | R23 | size-fidelity | 硬防线 | 显式数值宽高 ≈ bbox×scale(容差 4);1×1+overflow:hidden 锚点欺诈点名(RN 恒 border-box,无盒模型跳过分支,覆盖面 ≥ h5) |
+| R24 | baseline-align | 硬防线(v1.1.1) | `bl-` 容器必须 `alignItems: 'baseline'`(缺失/其他对齐值 violation;缺 flexDirection:'row' 仅 warning) |
 | RN01 | scroll-skeleton | 硬防线(RN 特有) | 页面根强制 View>ScrollView>View(scrollContent) 骨架;block 反向禁套 |
 | RN02 | flow-child-position | 硬防线(RN 特有) | 顺流子禁 position/top/left/right/bottom/margin*;padding 须溯源;flex:1 须 FILL 依据 |
 | RN03 | no-percent-fill | 硬防线(RN 特有) | bg- 铺满层禁 '100%' 宽高与 absoluteFillObject(父 minHeight 塌陷) |
@@ -56,7 +59,7 @@
 
 ## 判定归属说明
 
-**硬防线 21 条 exit-1**(`check-rules.mjs` 自动拦截):R01-R06 / R08 / R09 / R12 / R14 / R16-R21 / R23 + RN01-RN04。
+**硬防线 22 条 exit-1**(`check-rules.mjs` 自动拦截):R01-R06 / R08 / R09 / R12 / R14 / R16-R21 / R23 / R24 + RN01-RN04。
 
 **软防线 5 条**(Rule-Scan sub-agent 识别,输出 `rule-hits.json`):R07 / R10 / R11 / R13 / R15——判定逻辑需 LLM 语义能力,文档即唯一定义。
 
@@ -84,12 +87,12 @@
 4. 输出 rule-hits.json (schema 见附)
 
 规则命中判定原则:
-- 硬防线规则 (R01-R06/R08/R09/R12/R14/R16-R21/R23/RN01-RN04) 与 warning 级 R22:
+- 硬防线规则 (R01-R06/R08/R09/R12/R14/R16-R21/R23/R24/RN01-RN04) 与 warning 级 R22:
   必须扫出命中作为生成前逐节点指引(判决权在 check-rules.mjs,指引漏扫不算违规,但禁止整类跳过)
 - 软防线规则 (R07/R10/R11/R13/R15): 你是唯一识别方
 - 排斥条件: 若节点命中高优先级规则, 低优先级规则不再重复列
 - 优先级 (由高到低): R21 > RN04 > RN01 > R16 > R17 > RN02 > R02 > R01 > RN03 > R05 > R11 >
-  R03 > R04 > R07 > R06 > R09 > R08 > R20 > R18 > R19 > R14 > R15 > R13 > R12 > R10
+  R03 > R04 > R07 > R06 > R09 > R08 > R20 > R24 > R18 > R19 > R14 > R15 > R13 > R12 > R10
   (R21 最高:节点不可追溯则其余绑定类规则无从谈起;RN04/RN01 次之:样式混写/骨架缺失是结构性坍塌,
    其余规则的对账在错误结构上无意义)
 

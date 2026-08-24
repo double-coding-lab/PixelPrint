@@ -45,3 +45,7 @@ badge: {
 
 - rules/R01-fixed-position.md(fixed- 归属)
 - rules/RN02-flow-child-position.md(顺流子反面:禁写 top/left)
+
+## bl- 豁免(v1.1.1)
+
+父容器带 `bl-` 前缀时,其直接子层豁免本规则——放弃逐个绝对定位、改由基线流(`flexDirection: 'row'` + `alignItems: 'baseline'`)负责位置;baseline 落地由 R24 校验。

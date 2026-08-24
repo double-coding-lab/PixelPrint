@@ -5,7 +5,9 @@ description: 根据 Figma 设计稿 URL 生成 React Native 页面代码与资�
 
 # pp-d2c-rn Skill
 
-> **当前版本:v1.1.0(2026-08-24)——前置切图移植,GATE-slice-confirm / IMG-reconcile 实际生效**。新增步骤 2.6:主 agent 调 `pp-d2c-reskin` 的 `reskin-slice.mjs` 一次性切完全部 `img-`/`bg-` 节点(含裸词)→ 落 `slice-manifest-<slug>.json`;退出码非 0 → hard stop,禁止改用 export-image 手工逐张绕过;切完按 `slice.confirmBeforeContinue`(缺失=默认 `true`)暂停等用户确认,`sizeWarning` 非空不受开关豁免一律必停,确认后 `figma.mjs confirm-slices` 翻 `confirmed:true` 留痕。§4.4 契约反转:sub-agent 只查清单消费(RN 5 种引用形式),清单缺条目写 `[清单缺失]` 上报主 agent 补切,**禁止**自调 `export-image`。两道门禁自此实际生效:GATE-slice-confirm 校验 `confirmed` 字段,IMG-reconcile 三方对账"产物引用 ∉ manifest = violation"。
+> **当前版本:v1.1.1(2026-08-24,双端能力,与 pp-d2c v1.2.6 同批)——新增两个图层前缀**:`bl-`(文本基线对齐容器:`flexDirection: 'row'` + `alignItems: 'baseline'`,直接 Text 子放弃逐个绝对定位;新硬规则 **R24 baseline-align** 校验落地,R20/RN02 对其直接子层豁免,exit-1 规则数 21→22)与 `list-`(显式同构列表:强制 `.map()` 模板渲染,loadCache 非首子项直标 `_templateDup`;切图按 `imageRef+bbox 尺寸` 跨项去重,同图只切首项、manifest 记 `sharedFrom`)。前缀语义表 / 裸词规则 / rules/README 常量表同步 +2。
+>
+> **v1.1.0 历史(2026-08-24)——前置切图移植,GATE-slice-confirm / IMG-reconcile 实际生效**。新增步骤 2.6:主 agent 调 `pp-d2c-reskin` 的 `reskin-slice.mjs` 一次性切完全部 `img-`/`bg-` 节点(含裸词)→ 落 `slice-manifest-<slug>.json`;退出码非 0 → hard stop,禁止改用 export-image 手工逐张绕过;切完按 `slice.confirmBeforeContinue`(缺失=默认 `true`)暂停等用户确认,`sizeWarning` 非空不受开关豁免一律必停,确认后 `figma.mjs confirm-slices` 翻 `confirmed:true` 留痕。§4.4 契约反转:sub-agent 只查清单消费(RN 5 种引用形式),清单缺条目写 `[清单缺失]` 上报主 agent 补切,**禁止**自调 `export-image`。两道门禁自此实际生效:GATE-slice-confirm 校验 `confirmed` 字段,IMG-reconcile 三方对账"产物引用 ∉ manifest = violation"。
 >
 > **v1.0.0 历史(2026-08-24)——防线代与 h5 pp-d2c v1.2.5 对齐**。本版把 h5 v1.2.x 演进出的机械防线体系全量移植到 RN 侧,此后 rn 与 h5 版本号各自独立演进。核心变更:(1) **硬防线 `bin/check-rules.mjs`**——21 条 exit-1 规则(R01-R06/R08/R09/R12/R14/R16-R21/R23 按 RN 语义适配 + RN 特有 RN01-RN04)+ R22(warning 级)+ 四道门禁(GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm),以 `.d2c-cache` 节点 JSON 为真值逐节点对账,violations > 0 禁止交付;(2) **规则文档库 `rules/`**——R01-R23 + RN01-RN04 + README(索引与 Rule-Scan 派发 prompt),冲突时以 rules/ 为准;(3) **styleMatch 引擎**——解析 `styles.ts` 的 `StyleSheet.create`,`rpx(x)` 剥壳后与 Figma 原值 × `unit.scale` 同域对账(rn 模板 scale=1);(4) **步骤 3.5 Rule-Scan 软防线**(R07/R10/R11/R13/R15 语义类规则,先扫出作业指引再出码);(5) **交付双门禁**——sub-agent 交付前 `check-rules --block`、主 agent 合并后 `check-rules --merge`,exit 1 一律回滚;(6) **单 agent 执行模式**与**报数即真值**豁免封口(§6.0.4);(7) v0.3.12 styles.ts 强制独立文件、v0.3.13 顺流子位置来源硬约束升格为机械规则 RN04 / RN02;(8) 数据层 `bin/figma.mjs` 与 h5 同步刷新(含 `confirm-slices` 子命令与 `truncatedSuspects` 截断检测)。关键差异警示:**R18 在 RN 侧与 h5 判定镜像**(RN flex 默认 column,HORIZONTAL 必须显式 `flexDirection: 'row'`);**config 缺 `unit` 段时 check-rules 直接 exit 2**(rpx 口径下兜底默认 scale 会全量误判,禁止兜底)。回归测试:`test/rules-rn/`(npm test 与 h5 套件串跑)。
 
@@ -1253,6 +1255,8 @@ btnLogin: { flexDirection: 'row', paddingLeft: rpx(16), paddingRight: rpx(16), p
 | `fixed-`（`layers.fixed`） | 视口固定定位 | 在当前节点对应的容器上加 `position: fixed`，相对视口定位；top/bottom/left/right 根据 Figma constraints 推断；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加（这三个不生成节点，没法 fixed） |
 | `end-`（`layers.end`） | 逆向布局（贴父末端） | 让节点在父 autoLayout 里贴向末端：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。**主线机制**：把该 end- 节点前面的兄弟包成一个 wrapper，父 `justify-content: space-between`，天然把 end- 推到末端；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` / `input-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加；具体规则见 §4.3 "`end-` 逆向布局规则" 子章节 |
 | `input-`（`layers.input`） | 输入框（`<input type="text">`） | 生成语义化 `<input type="text">` 标签而非 `<div>`，取子 TEXT 节点 `characters` 作为 `placeholder`，左侧图标（若存在 vector/img 子）切图作为 `background-image` + `padding-left` 腾位置；**独立前缀**（决定生成什么元素，不是修饰），**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加（doctor NAM019/NAM020 error），**可**与 `fixed-` / `end-` / `sub-` 叠加；命中即停止向内递归；具体规则见 §4.3 "`input-` 输入框规则" 子章节 |
+| `bl-`（v1.1.1） | 文本基线对齐容器 | 容器出 `flexDirection: 'row'` + `alignItems: 'baseline'`,直接 Text 子元素**放弃逐个绝对定位**,水平位置由基线流(顺序 + gap/margin)负责——典型场景:一行内字号不同的文字(如「¥ **199** 起」)按视觉基线对齐;**修饰前缀**,可与 `sub-` / `block-` 叠加;**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `input-` 叠加;硬规则 R24 校验 baseline 落地,其直接子层 R20/RN02 对账豁免 |
+| `list-`（v1.1.1） | 显式同构列表 | 直接子元素声明为**同构列表项**:强制 `.map()` 模板渲染(代表项 = 首个子项,data-node-id 挂代表项;等价 R15 的显式声明形态,不再依赖"同层 ≥3"语义推断,2 项列表同样生效);loadCache 将非首个直接子项标 `_templateDup`;**切图去重**:项内 `img-`/`bg-` 按 `imageRef + bbox 尺寸` 跨项分组,同组只切首项一张、slice-manifest 以 `sharedFrom` 记共享引用,异组逐项切(`.map()` 数据数组每项带自己的图片路径,共享图是常量);**修饰前缀**,可与 `sub-` / `block-` / `scrollx-` / `scrolly-` 叠加;**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `input-` 叠加 |
 
 **独立裸词规则（v0.3.5 新增）**
 
@@ -1266,7 +1270,7 @@ btnLogin: { flexDirection: 'row', paddingLeft: rpx(16), paddingRight: rpx(16), p
 
 **裸词白名单**（仅这些独立/内容前缀允许裸词形式）：`bg` / `bgc` / `btn` / `img` / `input`
 
-**修饰前缀不允许裸词**：`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end` 这些前缀必须写 `xxx-...` 完整形式，**不允许**独立裸词。理由:修饰前缀本身不表达"内容/角色",脱离被修饰目标没有意义(例如"`sub` 什么?"),语义歧义会诱导 agent 意会。裸词 `sub` / `block` 等一律走无前缀兜底,doctor 会 warn 提示(NAM022)。
+**修饰前缀不允许裸词**：`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end` / `bl` / `list` 这些前缀必须写 `xxx-...` 完整形式，**不允许**独立裸词。理由:修饰前缀本身不表达"内容/角色",脱离被修饰目标没有意义(例如"`sub` 什么?"),语义歧义会诱导 agent 意会。裸词 `sub` / `block` 等一律走无前缀兜底,doctor 会 warn 提示(NAM022)。
 
 **裸词不允许与其他前缀组合**:`sub-bg` / `block-btn` 这类"修饰前缀 + 裸词"命名一律**报错**(doctor NAM023)。要组合就写完整语义 `sub-bg-{purpose}` / `block-btn-{purpose}`——单裸词只服务"就这一个背景/按钮"的直觉命名场景,一旦要组合,已经离开"设计师自然命名"的语境,必须写规范。
 

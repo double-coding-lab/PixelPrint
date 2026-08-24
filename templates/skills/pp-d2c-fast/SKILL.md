@@ -5,7 +5,7 @@ description: pp-d2c 快速模式，根据 Figma 设计稿 URL 生成 React H5 �
 
 # pp-d2c-fast Skill（pp-d2c 快速模式）
 
-> **pp-d2c-fast**：基于 pp-d2c 精简——砍除已被 `check-rules.mjs` 逐节点对账覆盖的自证块（A 梯队：字色溯源 / padding-top / data-node-id 守恒 grep / 四条硬规则 grep 5 条 / rule-hits 消费证明），保留全部决策引导（§4.3 裁决树 / 坐标公式 / §5.1.1 data-node-id 铁律）。硬防线 check-rules 17 条（R04 自 v1.2.3 起、R23 自 v1.2.5 起在内）、`bin/`、`rules/` 与 pp-d2c **完全一致**；**原 pp-d2c 保留完整防线，二者并存**。
+> **pp-d2c-fast**：基于 pp-d2c 精简——砍除已被 `check-rules.mjs` 逐节点对账覆盖的自证块（A 梯队：字色溯源 / padding-top / data-node-id 守恒 grep / 四条硬规则 grep 5 条 / rule-hits 消费证明），保留全部决策引导（§4.3 裁决树 / 坐标公式 / §5.1.1 data-node-id 铁律）。硬防线 check-rules 18 条（R04 自 v1.2.3 起、R23 自 v1.2.5 起、R24 自 v1.2.6 起在内）、`bin/`、`rules/` 与 pp-d2c **完全一致**；**原 pp-d2c 保留完整防线，二者并存**。
 >
 > **当前版本**：v1.2.5(h5 独享,不同步 pp-d2c-rn) —— **防线加固批**(test28/29 取证):(1) GATE-cache-truncation(空 GROUP/BOOL_OP = depth 截断实锤);(2) R21 反向对账(幻觉 id);(3) 新增 R23 size-fidelity(px 宽高 ↔ bbox×scale,1×1 锚点欺诈点名);(4) GATE-rule-hits 收紧(fallback 占位须有降级记录);(5) GATE-slice-confirm 确认留痕(confirm-slices 命令);(6) 单 agent 执行模式(无 sub-agent 平台合法路径)。fast 版 `bin/`、`rules/` 与 pp-d2c 逐字节一致。
 >
@@ -101,7 +101,7 @@ agent 在跑 pp-d2c 全流程时 **只允许问用户业务问题,禁止问 skil
 
 | 是 | 否 |
 |---|---|
-| "临时"可覆盖 `output.dir` 子目录 (放到 `pages/test-tmp/`) | "临时"**不**可豁免任何硬防线规则 (check-rules 全部 17 条) |
+| "临时"可覆盖 `output.dir` 子目录 (放到 `pages/test-tmp/`) | "临时"**不**可豁免任何硬防线规则 (check-rules 全部 18 条) |
 | "临时"可覆盖 `images.assetsDir` 子目录 (放到 `static/test-tmp/`) | "临时"**不**可豁免"整体切图禁用" (R16) |
 | "临时"可覆盖 config.styleFormat 之外的其它临时命名 | "临时"**不**可豁免 §6.0.2 兜底门禁 N=0 |
 | | "临时"**不**可作为 assets.txt `[脚本误判]` / `[整体切图兜底]` 的豁免理由 |
@@ -1104,7 +1104,7 @@ def rgb_to_hex(c):
 | R22 | empty-visual-btn | btn- 子树无文字/背景/图 | 透明热区嫌疑(warning 不阻断) | `rules/R22-empty-visual-btn.md` |
 | R23 | size-fidelity | 显式 px 宽高 ↔ bbox×scale | 尺寸靠猜 / 1×1 锚点欺诈 | `rules/R23-size-fidelity.md` |
 
-**硬防线 17 条** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R03 / R04 / R05 / R06 / R08 / R09 / R12 / R14 / R16 / R17 / R18 / R19 / R20 / R21(v1.2.5 起含反向对账:产物 id ∉ cache = 幻觉 id) / R23(v1.2.5)**;另有 R22(warning 级)与四道流程门禁(GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm)
+**硬防线 18 条** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R03 / R04 / R05 / R06 / R08 / R09 / R12 / R14 / R16 / R17 / R18 / R19 / R20 / R21(v1.2.5 起含反向对账:产物 id ∉ cache = 幻觉 id) / R23(v1.2.5) / R24(v1.2.6, bl- 基线对齐)**;另有 R22(warning 级)与四道流程门禁(GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm)
 **软防线** (Rule-Scan sub-agent 识别 `rule-hits.json`): **R07 / R10 / R11 / R13 / R15**（v1.2.3 起 R03/R04/R09/R12/R14 迁入硬防线,逐节点对账不依赖 sub- 触发;剩余 5 条需 LLM 语义判定仍留软）
 
 > **v1.2.0 对账基座**:R02/R06/R17/R18/R19/R20/R21 依赖 `loadCache.mjs` 标注的 `_inBakedSubtree`/`_hidden`/`_templateDup` 与 `cssMatch.mjs` 的 SCSS 嵌套匹配。这些是"以 cache 为真值逐节点对账"的落点;它们报数即真值,不接受"语义盲点/装饰性内容"批量豁免(§6.0.2)。
@@ -1170,6 +1170,8 @@ R16(不压平文字)与 bg-/img-(整体切图)在**含 TEXT 的容器**上会打
 | `fixed-` | 视口固定定位 | 在当前节点对应的容器上加 `position: fixed`，相对视口定位；top/bottom/left/right 根据 Figma constraints 推断；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加（这三个不生成节点，没法 fixed） |
 | `end-` | 逆向布局（贴父末端） | 让节点在父 autoLayout 里贴向末端：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。**主线机制**：把该 end- 节点前面的兄弟包成一个 wrapper，父 `justify-content: space-between`，天然把 end- 推到末端；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` / `input-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加 |
 | `input-` | 输入框（`<input type="text">`） | 生成语义化 `<input type="text">` 标签而非 `<div>`，取子 TEXT 节点 `characters` 作为 `placeholder`，左侧图标（若存在 vector/img 子）切图作为 `background-image` + `padding-left` 腾位置；**独立前缀**（决定生成什么元素，不是修饰），**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加（doctor NAM019/NAM020 error），**可**与 `fixed-` / `end-` / `sub-` 叠加；命中即停止向内递归 |
+| `bl-`（v1.2.6） | 文本基线对齐容器 | 容器出 `display: flex` + `align-items: baseline`,直接 TEXT 子元素**放弃逐个绝对定位**,水平位置由基线流(顺序 + gap/margin)负责——典型场景:一行内字号不同的文字(如「¥ **199** 起」)按视觉基线对齐;**修饰前缀**,可与 `sub-` / `block-` 叠加;**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `input-` 叠加(要么不生成节点要么不递归,基线流无从谈起);硬规则 R24 校验 baseline 落地,其直接子层 R20 坐标对账豁免 |
+| `list-`（v1.2.6） | 显式同构列表 | 直接子元素声明为**同构列表项**:强制 `.map()` 模板渲染(代表项 = 首个子项,data-node-id 挂代表项;等价 R15 的显式声明形态,不再依赖"同层 ≥3"语义推断,2 项列表同样生效);loadCache 将非首个直接子项标 `_templateDup`;**切图去重**:项内 `img-`/`bg-` 按 `imageRef + bbox 尺寸` 跨项分组,同组只切首项一张、slice-manifest 以 `sharedFrom` 记共享引用,异组逐项切;**修饰前缀**,可与 `sub-` / `block-` / `scrollx-` / `scrolly-` 叠加;**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `input-` 叠加 |
 
 ##### 独立裸词规则
 
@@ -1454,7 +1456,7 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 | 同层 ≥3 同构节点渲染 | `rules/R15-同构 map 渲染.md` |
 | SOLID 色源核对 (无幻觉色) | `rules/R10-no-fake-solid-color.md` |
 
-**rules/ 是设计文档**;执行链条:Rule-Scan sub-agent Read 全部 `rules/*.md` → 输出 `rule-hits.json` → UI sub-agent Read 命中的 R0X.md 按"期望产物"落地。`check-rules.mjs` 硬编码硬防线 17 条(+R22 warning 级与四道流程门禁)逻辑,不依赖 rules/*.md 运行。
+**rules/ 是设计文档**;执行链条:Rule-Scan sub-agent Read 全部 `rules/*.md` → 输出 `rule-hits.json` → UI sub-agent Read 命中的 R0X.md 按"期望产物"落地。`check-rules.mjs` 硬编码硬防线 18 条(+R22 warning 级与四道流程门禁)逻辑,不依赖 rules/*.md 运行。
 
 #### 4.4 图片处理
 

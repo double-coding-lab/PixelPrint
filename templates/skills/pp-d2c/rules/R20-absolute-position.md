@@ -92,3 +92,7 @@
 - SKILL.md §6.0.2（禁「需人工核对」用于可计算量）
 - rules/R01-fixed-position.md
 - bin/lib/loadCache.mjs（`_parentId` 供父 bbox 查询）
+
+## bl- 豁免(v1.2.6)
+
+父容器带 `bl-` 前缀时,其直接子层豁免本规则——放弃逐个绝对定位、改由基线流(flex + `align-items: baseline`)负责位置,是 `bl-` 前缀的设计师显式意图;baseline 落地由 R24 校验。

@@ -20,6 +20,8 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 | `end-` | 逆向布局(贴父末端,修饰前缀) |
 | `input-` | 输入框(生成 `<input type="text">`,不递归) |
 | `x-` | 忽略(跳过整层,优先级最高) |
+| `bl-` | 文本基线对齐容器(v1.2.6,修饰前缀,无裸词;R24 校验 baseline 落地,直接子层 R20 豁免) |
+| `list-` | 显式同构列表(v1.2.6,修饰前缀,无裸词;强制 .map() 模板,非首子项标 _templateDup,切图按 imageRef+bbox 尺寸跨项去重) |
 
 **pp-d2c.config.json 里不再有 `layers` 段**——之前的 `layers.sub` / `layers.bg` / `layers.but` 等映射都已删除。
 
@@ -50,10 +52,11 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 | R21 | node-id-coverage | 硬防线 | 应渲染节点(TEXT/autolayout 容器/ABSOLUTE/img-·btn-·input-)在产物 JSX 里找不到 data-node-id |
 | R22 | empty-visual-btn | warning(v1.2.4) | btn- 子树无文字/背景/图,产物只剩透明热区(常见根因: cache 深度截断 / 该切图没切) |
 | R23 | size-fidelity | 硬防线(v1.2.5) | 显式 px 宽高与 bbox×scale 相差 >4px;1×1+overflow:hidden 锚点欺诈点名 |
+| R24 | baseline-align | 硬防线(v1.2.6) | `bl-` 容器必须 `align-items: baseline`(缺失/其他对齐值 violation;缺 display:flex 仅 warning) |
 
 ## 判定归属说明
 
-**硬防线 17 条** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R03 / R04 / R05 / R06 / R08 / R09 / R12 / R14 / R16 / R17 / R18 / R19 / R20 / R21(v1.2.5 起含反向对账:产物 data-node-id ∉ cache = 幻觉 id) / R23(v1.2.5)。
+**硬防线 18 条** (`check-rules.mjs` 自动拦截): 用代码 grep + JSON scan 精确判定,exit 1 拦截 → R01 / R02 / R03 / R04 / R05 / R06 / R08 / R09 / R12 / R14 / R16 / R17 / R18 / R19 / R20 / R21(v1.2.5 起含反向对账:产物 data-node-id ∉ cache = 幻觉 id) / R23(v1.2.5) / R24(v1.2.6)。
 
 **软防线** (Rule-Scan sub-agent 识别): 需 LLM 语义判断,输出 `rule-hits.json` 给 UI sub-agent 参考 → R07 / R10 / R11 / R13 / R15。（v1.2.3 起 R03/R04/R09/R12/R14 迁入硬防线）
 
@@ -84,7 +87,7 @@ Figma 图层名前缀是**内置常量**,写死在 skill 里,不再从 config �
 - 硬防线规则 (R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16/R17/R18/R19/R20/R21) 与 warning 级 R22: 必须扫出命中作为生成前逐节点指引(判决权在 check-rules.mjs,指引漏扫不算违规,但禁止整类跳过)
 - 软防线规则 (R07/R10/R11/R13/R15): 你是唯一识别方
 - 排斥条件: 若节点命中高优先级规则, 低优先级规则不再重复列
-- 优先级 (由高到低): R21 > R16 > R17 > R02 > R01 > R05 > R11 > R03 > R04 > R07 > R06 > R09 > R08 > R20 > R18 > R19 > R14 > R15 > R13 > R12 > R10（R21 最高:节点不可追溯则其余绑定类规则无从谈起）
+- 优先级 (由高到低): R21 > R16 > R17 > R02 > R01 > R05 > R11 > R03 > R04 > R07 > R06 > R09 > R08 > R20 > R24 > R18 > R19 > R14 > R15 > R13 > R12 > R10（R21 最高:节点不可追溯则其余绑定类规则无从谈起）
 
 输出要求:
 - 每个 hit 包含 nodeId / rule / trigger 描述 / expected 描述 / context (关键 JSON 字段抽样)
