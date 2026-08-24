@@ -1,0 +1,9 @@
+templates/skills/pp-d2c-rn/SKILL.md
+  ai_agent 8-11,60-61,163,549-599,609-636,786,1939,1941,1943,2370,2755,2955-2956,2959-2964,2969-2985,3165,3177-3184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "1c4133321e5a56bf8a19f9cd6c857ddd2c893aa1",
+  "prompts": {}
+}
