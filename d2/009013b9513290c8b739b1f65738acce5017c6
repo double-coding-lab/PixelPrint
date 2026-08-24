@@ -1,0 +1,11 @@
+.Knowledge/req-docs/pp-d2c-rn-防线移植_技术方案.md
+  ai_agent 1-215
+.Knowledge/topics/pp-d2c-rn.md
+  ai_agent 3,11,34-54,229-231,247-248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "d2009013b9513290c8b739b1f65738acce5017c6",
+  "prompts": {}
+}
