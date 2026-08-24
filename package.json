@@ -7,7 +7,7 @@
   },
   "scripts": {
     "init": "node bin/install.js init",
-    "test": "node test/rules/run-all.mjs"
+    "test": "node test/rules/run-all.mjs && node test/rules-rn/run-all.mjs"
   },
   "files": [
     "bin/",
