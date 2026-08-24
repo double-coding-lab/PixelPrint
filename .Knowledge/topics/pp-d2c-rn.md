@@ -1,6 +1,6 @@
 ---
 id: pp-d2c-rn
-revision: 0
+revision: 2
 summary: pp-d2c-rn
 primary: feature
 confidence: manual
@@ -8,7 +8,7 @@ tags: [module, config]
 ---
 # pp-d2c-rn
 
-> D2C RN SKILL(`templates/skills/pp-d2c-rn/`)的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md(约 1700 行),本 topic 是路由摘要 + 关键边界。**与 [[pp-d2c]](h5)完全独立并列**,共享前缀识别 / 布局判定 / 图片处理决策逻辑,但输出层完全不同。
+> D2C RN SKILL(`templates/skills/pp-d2c-rn/`)的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md(v1.0.0,约 3100 行)+ `rules/*.md`(冲突时以 rules/ 为准),本 topic 是路由摘要 + 关键边界。**与 [[pp-d2c]](h5)完全独立并列**,共享前缀识别 / 布局判定 / 图片处理决策逻辑,但输出层完全不同。v1.0.0 起防线代与 h5 v1.2.5 对齐(机械防线见下文专节),此后 rn 与 h5 版本号各自独立演进。
 
 ## 适用场景 / 触发词
 
@@ -30,6 +30,27 @@ tags: [module, config]
 - rn SKILL 从 h5 SKILL 复制起步,前缀识别 / 布局判定 / 图片处理**决策等价**,但**输出层完全不同**(标签 / 样式)
 - 用户根据项目类型只装其中一个,或两个共存(不同 config 分别指向)
 - rn SKILL 内**不接 doctor 卫星**(config 默认 `health.enabled=false`);**不做 styleFormat 探测**(rn 只有 StyleSheet 一种)
+
+## 机械防线(v1.0.0)
+
+`bin/check-rules.mjs` 以 `.d2c-cache/<fileKey>/nodes/*.json` 为真值逐节点对账产物,violations > 0 禁止交付:
+
+- **规则口径**:21 条 exit-1(R01-R06/R08/R09/R12/R14/R16-R21/R23 按 RN 语义适配 + RN 特有 RN01-RN04)+ R22(warning 级)+ 四道门禁(GATE-cache-truncation / GATE-rule-hits 全模式;IMG-reconcile / GATE-slice-confirm 仅 --merge)。规则明细见 `templates/skills/pp-d2c-rn/rules/README.md`。
+- **强制时机**:sub-agent 交付前 `check-rules --block blocks/<label>/ --cache-key <fileKey> [--root <nodeId>]`;主 agent 合并后 `check-rules --merge <输出目录>/ --cache-key <fileKey>`。exit 1 = 回滚重做;exit 2 = 环境错误。
+- **styleMatch 引擎**:解析独立 `styles.ts` 的 `StyleSheet.create`,`rpx(x)` 剥壳后与 Figma 原值 × `config.unit.scale` 同域对账(rn 模板 scale=1,rpx 参数即 Figma 原值);`Platform.select` / 三元等动态值标 unparseable 保守跳过。
+- **RN 特有硬规则一览**:
+
+| 规则 | 拦什么 |
+|---|---|
+| RN01 scroll-skeleton | --merge:页面根必须 View>ScrollView>View(scrollContent) 骨架、scrollContent 用 minHeight、禁 overflow:'hidden';--block 反向:block 产物不得套骨架 |
+| RN02 flow-child-position | 顺流子禁 position/top/left/right/bottom/margin*(显式 0 值放行);padding 须溯源 cache 同名字段;flex:1 须 layoutGrow=1 或 layoutSizing*=FILL |
+| RN03 no-percent-fill | bg- 铺满层禁 '100%' 宽高与 absoluteFillObject(父 minHeight 时塌陷),须写 Figma 事实尺寸 |
+| RN04 styles-file-separation | JSX 文件禁 StyleSheet.create 与静态 inline style={{...}};数组含动态变量放行 |
+
+- **与 h5 防线的关键差异**:R18 判定镜像(RN flex 默认 column,HORIZONTAL 必须显式 `flexDirection: 'row'`);R01 校验"fixed- 在根 View 直接子层 + absolute + zIndex≥100"(RN 无 position:fixed);R04/R09 校验退化正确性(首 stop 纯色 + assets.txt `[退化告警]` 行留痕,或 R09 引 LinearGradient);R23 无盒模型跳过分支(RN 恒 border-box,覆盖面更大);config 缺 `unit` 段直接 exit 2(禁止兜底默认 scale)。
+- **软防线**:步骤 3.5 Rule-Scan 先扫 R07/R10/R11/R13/R15 语义类规则出 `rule-hits.json` 作业指引;判决权在 check-rules。降级须落 fallback 占位 + assets.txt `[Rule-Scan 降级]` 记录,只有占位没有记录按捏造拦截。
+- **前置切图(v1.1.0,步骤 2.6)**:主 agent 调 `pp-d2c-reskin` 的 `reskin-slice.mjs` 一次性切完全部 `img-`/`bg-` 节点(含裸词)落 `slice-manifest-<slug>.json`;退出码非 0 → hard stop,禁止改用 export-image 手工逐张绕过。切完按 `slice.confirmBeforeContinue`(config 缺失=默认 `true`)暂停等用户确认,`sizeWarning` 非空不受开关豁免一律必停;确认后 `figma.mjs confirm-slices` 翻 `confirmed:true`。sub-agent 只消费清单(RN 5 种引用形式),清单缺条目写 `[清单缺失]` 上报主 agent 补切,禁止自调 `export-image`。生成流程必产 manifest,IMG-reconcile 与 GATE-slice-confirm 两道门禁由此获得对账基准(check-rules 对无 manifest 的旧产物仍按 warning 跳过,属兼容通道,不适用于新生成流程)。
+- **回归测试**:`test/rules-rn/`(npm test 与 h5 套件串跑)。
 
 ## 核心机制:RN 内核 + 可配置 Adapter
 
@@ -205,6 +226,9 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 | §1 解析 URL | 同 h5 |
 | §2 拉稿 | 同 h5 |
 | §2.5 页面级背景 | **大幅简化**(rn 无 body / css-modules 等分支,直接写根 View 的 backgroundColor) |
+| §2.6 前置切图(v1.1.0 新增) | 主 agent 一次切完 img-/bg- 落 slice-manifest + 确认暂停留痕;sub-agent 只消费清单 |
+| §3.5 Rule-Scan(v1.0.0 新增) | 软防线派发,出 `rule-hits.json` 作业指引;无 sub- 页面对页面根跑虚拟 block |
+| §3.6 交付双门禁(v1.0.0 新增) | sub-agent 交付前 `check-rules --block`、合并后 `--merge`,exit 1 回滚 |
 | §4 解析规则 §A/B 表 | **改造为 RN StyleSheet 映射**(CSS 属性名 → camelCase / 数字) |
 | §4.3.rn 退化表 | **新增**(fixed / vh / bg-image / gradient / blur / outline) |
 | §5 合并输出 | 用 RN 六件套 + StyleSheet,不生成 `.scss` |
@@ -220,7 +244,8 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 - **禁止**:rn 侧 config 里出现 `scss` / `scss-modules` 等 h5 值不做降级处理
 - **禁止**:rn 侧生成"字符串 + px 后缀"的样式属性(`'20px'`),必须写数字 `20`
 - **禁止**:让根 `<View>` 直接装内容而不套 `<ScrollView>`;禁止把根或 `scrollContent` 写 `overflow: 'hidden'`(会阻止滚动);**禁止把任何带 `fixed-` 前缀的节点放进 `<ScrollView>` 内部**(RN 无 CSS fixed,ScrollView 内的 absolute 会跟内容滚 → 所有 fixed-* 必须放根 `<View>` 直接子层,不区分 constraints,不推断设计意图)
-- **禁止**:`bg-` 铺满层用 `StyleSheet.absoluteFillObject` 或 `width/height: '100%'`(父 `minHeight` 时 `%` 值会引用父计算高度跟着塌陷);必须写 Figma 事实固定尺寸 `width: rpx(w), height: rpx(h)` + `top: 0, left: 0`
+- **禁止**:`bg-` 铺满层用 `StyleSheet.absoluteFillObject` 或 `width/height: '100%'`(父 `minHeight` 时 `%` 值会引用父计算高度跟着塌陷);必须写 Figma 事实固定尺寸 `width: rpx(w), height: rpx(h)` + `top: 0, left: 0`(v1.0.0 起由 RN03 机械强制)
+- **禁止**(v1.0.0):带 check-rules violations 交付;生成流程使用 `--force-skip`;跳过步骤 3.5 Rule-Scan 或捏造 rule-hits 消费证明(GATE-rule-hits 机械拦截);对报数做批量豁免(`[脚本误判]` 单次 ≤3 条且附三段证据)
 
 ## 不在本 topic 覆盖的内容
 
