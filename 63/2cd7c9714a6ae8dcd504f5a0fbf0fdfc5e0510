@@ -1,0 +1,56 @@
+templates/skills/pp-d2c/SKILL.md
+  s_7605727328ed6a::t_7c54ea311462d0 8-10
+  s_7605727328ed6a::t_33a026472fc755 1186-1187
+  s_7605727328ed6a::t_cd4d823926b750 1201
+"templates/skills/pp-d2c-rn/rules/R15-同构 map 渲染.md"
+  s_7605727328ed6a::t_0bec572d0a6b41 7
+templates/skills/pp-d2c/rules/R20-absolute-position.md
+  s_7605727328ed6a::t_0bec572d0a6b41 95-98
+templates/skills/pp-d2c-rn/rules/R24-baseline-align.md
+  s_7605727328ed6a::t_7d25fe7764452e 1-37
+templates/skills/pp-d2c-fast/SKILL.md
+  s_7605727328ed6a::t_1f356dfdd69248 8,104,1107,1173-1174,1459
+templates/skills/pp-d2c-fast/rules/README.md
+  s_7605727328ed6a::t_3fb62db4032c84 23-24,55,59,90
+templates/skills/pp-d2c-rn/rules/README.md
+  s_7605727328ed6a::t_3f414ba82222f7 24-25,54,62,90
+  s_7605727328ed6a::t_a15520310905cc 95
+"templates/skills/pp-d2c-fast/rules/R15-同构 map 渲染.md"
+  s_7605727328ed6a::t_b4a3f008df11a5 7
+templates/skills/pp-d2c-fast/rules/R24-baseline-align.md
+  s_7605727328ed6a::t_3fb62db4032c84 1-38
+templates/skills/pp-d2c-rn/rules/R20-absolute-position.md
+  s_7605727328ed6a::t_0bec572d0a6b41 48-51
+templates/skills/pp-d2c/rules/R24-baseline-align.md
+  s_7605727328ed6a::t_a0eff537d7556e 1-38
+templates/skills/pp-d2c-rn/SKILL.md
+  s_7605727328ed6a::t_86183087c68abc 1273
+  s_7605727328ed6a::t_456f0833c7e86e 8-10
+  s_7605727328ed6a::t_2a0b60f41b509a 1258-1259
+templates/skills/pp-d2c-rn/rules/RN02-flow-child-position.md
+  s_7605727328ed6a::t_0bec572d0a6b41 7
+docs/design-guide.md
+  s_7605727328ed6a::t_7977d5c07577a1 26-27,155-171
+"templates/skills/pp-d2c/rules/R15-同构 map 渲染.md"
+  s_7605727328ed6a::t_0bec572d0a6b41 7
+templates/skills/pp-d2c/rules/README.md
+  s_7605727328ed6a::t_3f414ba82222f7 23-24,55,59,90
+templates/skills/pp-d2c-fast/rules/R20-absolute-position.md
+  s_7605727328ed6a::t_3fb62db4032c84 95-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "632cd7c9714a6ae8dcd504f5a0fbf0fdfc5e0510",
+  "prompts": {},
+  "sessions": {
+    "s_7605727328ed6a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7fd4cc66-8601-4498-88d8-4cc2233bb803",
+        "model": "arn:aws:bedrock:us-west-2:296122126678:application-inference-profile/uxc50ltr1528"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
