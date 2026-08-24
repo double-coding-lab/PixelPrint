@@ -1,0 +1,30 @@
+docs/pp-d2c-in-plain-words.md
+  s_7605727328ed6a::t_b52f41822ef936 1-45,57,60-102,120-151,176-201,224-237,259-347
+  s_7605727328ed6a::t_8ac67bbcc6832c 103-119
+  s_7605727328ed6a::t_32157a6d6a9b2c 152-175
+  s_7605727328ed6a::t_6734a734e9145c 238-258
+  s_7605727328ed6a::t_38138301622ae7 202-223
+  s_7605727328ed6a::t_eb58a1433866d8 46-47,49-56,58-59
+  h_02deff59416ae5 48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.40-trip",
+  "base_commit_sha": "92ff911abbe70bffc0385325a9a66b8352919d56",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_7605727328ed6a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7fd4cc66-8601-4498-88d8-4cc2233bb803",
+        "model": "arn:aws:bedrock:us-west-2:296122126678:application-inference-profile/uxc50ltr1528"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
