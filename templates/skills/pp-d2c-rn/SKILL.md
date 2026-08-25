@@ -5,7 +5,7 @@ description: 根据 Figma 设计稿 URL 生成 React Native 页面代码与资�
 
 # pp-d2c-rn Skill
 
-> **当前版本**:v1.1.2(2026-08-24,三端能力,与 pp-d2c v1.2.7 / pp-d2c-fast v1.2.7 同批)。
+> **当前版本**:v1.1.2
 
 ## 触发条件
 - 用户提供 Figma 设计稿 URL,且**项目 config `project.framework === 'rn'`**

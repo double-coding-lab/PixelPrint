@@ -5,7 +5,7 @@ description: 根据 Figma 设计稿 URL 生成 React H5 页面代码与资源；
 
 # pp-d2c Skill
 
-> **当前版本**：v1.2.7(2026-08-24,三端能力,与 pp-d2c-rn v1.1.2 / pp-d2c-fast v1.2.7 同批)。
+> **当前版本**:v1.2.7
 
 ## 触发条件
 - 用户提供 Figma 设计稿 URL
