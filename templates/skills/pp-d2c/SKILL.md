@@ -5,24 +5,9 @@ description: 根据 Figma 设计稿 URL 生成 React H5 页面代码与资源；
 
 # pp-d2c Skill
 
-> **当前版本**：v1.2.7(2026-08-24,三端能力,与 pp-d2c-rn v1.1.2 / pp-d2c-fast v1.2.7 同批)—— **新增步骤 0.5.1 目录三态守卫**(硬约束,不可跳过):slug 确定后、任何写盘之前,主 agent 必须 `ls -la` 探测目标 `output.dir/<slug>` 与 `assetsDir/<slug>`。三态处置:不存在→创建;仅含 `.gitkeep`/`.DS_Store` 等无实义占位视作空→直接使用;**存在且含实际业务文件(`.tsx`/`.scss`/`.ts`/`.js`/`.png` 等)→ hard stop**,列 `ls -la` 原文交用户三选一(换路径/自处理/中止)。禁 `rm -rf` 与"备份后覆盖"通道,禁把新产物混入已有目录。取证:用户实测已有 `xxx/` 业务目录被 D2C 无感知替换,业务代码丢失,文本约束不足以拦下。
+> **当前版本**：v1.2.7(2026-08-24,三端能力,与 pp-d2c-rn v1.1.2 / pp-d2c-fast v1.2.7 同批)。
 >
->
-> **v1.2.6 历史**：v1.2.6(2026-08-24,双端能力,与 pp-d2c-rn v1.1.1 同批)—— **新增两个图层前缀**:`bl-`(文本基线对齐容器:flex + `align-items: baseline`,直接 TEXT 子放弃逐个绝对定位;新硬规则 **R24 baseline-align** 校验落地,R20 对其直接子层坐标豁免,exit-1 规则数 17→18)与 `list-`(显式同构列表:强制 `.map()` 模板渲染,loadCache 非首子项直标 `_templateDup`;切图按 `imageRef+bbox 尺寸` 跨项去重,同图只切首项、manifest 记 `sharedFrom`,reskin-slice 无 list- 时零行为变化)。前缀语义表 / 裸词规则 / rules/README 常量表同步 +2。
->
-> **v1.2.5 历史**(h5 独享,不同步 pp-d2c-rn) —— **防线加固批**(test28/29 取证,主题:输入完整性→节点存在性→尺寸忠实度→确认留痕全链机械化):(1) **GATE-cache-truncation**——合并 cache 中空 GROUP/BOOLEAN_OPERATION = fetch depth 截断实锤,截断 cache 出码必丢内容(test29: 25 节点 cache 令全防线真空通过);(2) **R21 反向对账**——产物 data-node-id 必须存在于 cache,幻觉 id 直接 violation;(3) 新增 **R23 size-fidelity**——显式 px 宽高须 ≈ bbox×scale(容差 4px),`1px×1px+overflow:hidden` 锚点欺诈点名(test28 自供"校验锚点");(4) **GATE-rule-hits 收紧**——fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 失败记录;(5) **GATE-slice-confirm 确认留痕**——reskin-slice 落 `confirmed:false`,用户确认后 `figma.mjs confirm-slices` 翻 true;(6) **单 agent 执行模式**——无 sub-agent 平台(如 Codex)的合法路径,禁止以平台缺失为由跳步骤。
->
-> **v1.2.4 历史** —— **生成过程缺陷修复批**(test24-27 取证):(1) `check-rules --block` 局部化——`--root <nodeId>` 或产物 data-node-id LCA 推断,cache 裁剪到 block 子树,消除 block 外全量误报;(2) **GATE-rule-hits 门禁**——rule-hits.json 缺失即 exit 1,含 assets.txt 消费证明捏造检测;(3) **IMG-reconcile 三方对账**(--merge)——产物图片引用必须来自 slice-manifest;(4) R20 增强——ABSOLUTE 节点强制 `position: absolute` 声明;(5) 新增 R22 empty-visual-btn(warning 级);(6) figma.mjs——修复"全量请求复用深度截断 cache"bug + `truncatedSuspects` 截断检测;(7) 步骤 2.6 硬门禁——reskin-slice 失败 hard stop + 切图确认暂停(`slice.confirmBeforeContinue` 默认 true);(8) micro-sub 快路径与同构 sub- 合并;(9) Rule-Scan 恢复全量扫描出指引(判决权仍在 check-rules)。
->
-> **v1.2.3 历史** —— **软规则硬化**:把原 Rule-Scan 软防线中机械可判的 5 条(R03 implicit-image / R04 text-gradient / R09 btn-bgc / R12 flat-mode-naming / R14 fixed-z-index)下沉 `check-rules.mjs` 硬防线,逐节点对账、exit 1 阻断,不再依赖 sub- 触发。软防线瘦身至需 LLM 语义判定的 R07/R10/R11/R13/R15。新硬规则一律保守(宁漏报不误判,边界 skip)。
->
-> **v1.2.2 历史** —— **软防线覆盖补全**:Rule-Scan 触发不再依赖 sub- 存在。执行清单 sub- block 数为 0 时,主 agent 出码前对**整页**跑一次 Rule-Scan(页面根视为虚拟 block,`rule-hits.json` 落页面根目录,消费证明与聚合口径同 sub- 场景,详见步骤 3.5)。修复:无 sub- 页面软规则完全不触发的覆盖空档——软防线不应取决于设计师是否标了 sub-。
->
-> **v1.2.1 历史** —— 校验范式从「黑名单抽查」升级为「以 cache 为真值的逐节点对账」,并借机简化防线。**v1.2.1 补丁**:(a) `_inBakedSubtree` 移除 bgc-(bgc- 盒级 CSS 写父、非切图,子孙误放 TEXT 应被 R06/R21 暴露而非静默吞);(b) 新增 **R21 node-id-coverage** 把 §5.1.1 data-node-id 铁律机械强制(应渲染节点漏挂 id 即 exit 1,堵 R18/R19/R20 遇空 classMap 静默 continue);(c) §6.0.2 禁生成流程用 `--force-skip`。v1.2.0 核心变更:(1) `bin/lib/loadCache.mjs` 为每节点标注 **`_inBakedSubtree`**(祖先含 bg-/bgc-/img-/x- 整体切图)/**`_hidden`**(自身或祖先 visible=false)/**`_templateDup`**(`.map()` 列表同构兄弟的非首个数据副本);R02/R06 跳过这三类,**假阳性从根源清除**(test13 实测 89→14);(2) 抽 **`bin/lib/cssMatch.mjs`** 共享 SCSS `&__foo`/`&-foo` 嵌套匹配,R01/R02/R06/R18/R19 统一走,修掉"产物用嵌套写法、正则找平铺类"的全线盲区;(3) 新增 4 条对账规则——**R17 no-baked-dom**(baked 子孙禁止再出 DOM,拦双重渲染)/**R18 flex-direction**(layoutMode↔flex-direction 忠实度)/**R19 padding**(padding↔Figma×scale 忠实度)/**R20 absolute-position**(ABSOLUTE 子节点 top/left=(子bbox−父bbox)×scale 忠实度);(4) §6.0.2 **封逃逸口**:禁"语义盲点/装饰性内容/父层整体切图承载"批量豁免话术,"需人工核对"不再适用于可机械计算的坐标/尺寸/方向/间距;(5) §5.1.1 **data-node-id 全覆盖铁律**:凡承载 Figma 语义的 DOM 必挂 node-id,`.map()` 模板挂代表项(variant a)id;(6) §4.3 新增**「含 TEXT 容器 压平 vs 拆」唯一裁决树** + **bg- 背景直接挂父 vs 独立层**判定。硬规则详情迁到 `rules/*.md`,SKILL.md 保留总概表。核心哲学: **允许兜底的路径就是错误来源;校验以 cache 为唯一真值逐节点对账,而非抽查已知坏味道。**
->
-> **v1.1.0 历史**:R16 no-flatten-text 硬防线 + §6.0.2 兜底门禁 N=0 + Step 0.5 询问输出路径 + Step 2.6 前置切图 + bg 溢出检测 + §2.5.2 config.styleFormat 唯一权威 + R01 SCSS 嵌套匹配。详见 `git log`。
->
-> 历史 changelog 查 `git log templates/skills/pp-d2c/SKILL.md`,不在本文件维护。所有规则以下文章节 + `rules/*.md` 为准;冲突时以 `rules/` 为准。
+> 历史 changelog 查 `git log --follow templates/skills/pp-d2c/SKILL.md`,不在本文件维护。所有规则以下文章节 + `rules/*.md` 为准;冲突时以 `rules/` 为准。
 
 ## 触发条件
 - 用户提供 Figma 设计稿 URL

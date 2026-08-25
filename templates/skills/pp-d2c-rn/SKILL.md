@@ -5,30 +5,9 @@ description: 根据 Figma 设计稿 URL 生成 React Native 页面代码与资�
 
 # pp-d2c-rn Skill
 
-> **当前版本:v1.1.2(2026-08-24,三端能力,与 pp-d2c v1.2.7 / pp-d2c-fast v1.2.7 同批)——新增步骤 0.5.1 目录三态守卫**(硬约束,不可跳过):slug 确定后、任何写盘之前,主 agent 必须 `ls -la` 探测目标 `output.dir/<slug>` 与 `assetsDir/<slug>`。三态处置:不存在→创建;仅含 `.gitkeep`/`.DS_Store` 等无实义占位视作空→直接使用;**存在且含实际业务文件(`.tsx`/`.ts`/`.js`/`.png` 等)→ hard stop**,列 `ls -la` 原文交用户三选一(换路径/自处理/中止)。禁 `rm -rf` 与"备份后覆盖"通道,禁把新产物混入已有目录。rn 侧同步补齐步骤 0.5 询问输出路径(此前 rn SKILL 缺路径锁定)。取证:用户实测已有 `xxx/` 业务目录被 D2C 无感知替换,业务代码丢失。
+> **当前版本**:v1.1.2(2026-08-24,三端能力,与 pp-d2c v1.2.7 / pp-d2c-fast v1.2.7 同批)。
 >
->
-> **v1.1.1 历史**：v1.1.1(2026-08-24,双端能力,与 pp-d2c v1.2.6 同批)——新增两个图层前缀**:`bl-`(文本基线对齐容器:`flexDirection: 'row'` + `alignItems: 'baseline'`,直接 Text 子放弃逐个绝对定位;新硬规则 **R24 baseline-align** 校验落地,R20/RN02 对其直接子层豁免,exit-1 规则数 21→22)与 `list-`(显式同构列表:强制 `.map()` 模板渲染,loadCache 非首子项直标 `_templateDup`;切图按 `imageRef+bbox 尺寸` 跨项去重,同图只切首项、manifest 记 `sharedFrom`)。前缀语义表 / 裸词规则 / rules/README 常量表同步 +2。
->
-> **v1.1.0 历史(2026-08-24)——前置切图移植,GATE-slice-confirm / IMG-reconcile 实际生效**。新增步骤 2.6:主 agent 调 `pp-d2c-reskin` 的 `reskin-slice.mjs` 一次性切完全部 `img-`/`bg-` 节点(含裸词)→ 落 `slice-manifest-<slug>.json`;退出码非 0 → hard stop,禁止改用 export-image 手工逐张绕过;切完按 `slice.confirmBeforeContinue`(缺失=默认 `true`)暂停等用户确认,`sizeWarning` 非空不受开关豁免一律必停,确认后 `figma.mjs confirm-slices` 翻 `confirmed:true` 留痕。§4.4 契约反转:sub-agent 只查清单消费(RN 5 种引用形式),清单缺条目写 `[清单缺失]` 上报主 agent 补切,**禁止**自调 `export-image`。两道门禁自此实际生效:GATE-slice-confirm 校验 `confirmed` 字段,IMG-reconcile 三方对账"产物引用 ∉ manifest = violation"。
->
-> **v1.0.0 历史(2026-08-24)——防线代与 h5 pp-d2c v1.2.5 对齐**。本版把 h5 v1.2.x 演进出的机械防线体系全量移植到 RN 侧,此后 rn 与 h5 版本号各自独立演进。核心变更:(1) **硬防线 `bin/check-rules.mjs`**——21 条 exit-1 规则(R01-R06/R08/R09/R12/R14/R16-R21/R23 按 RN 语义适配 + RN 特有 RN01-RN04)+ R22(warning 级)+ 四道门禁(GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm),以 `.d2c-cache` 节点 JSON 为真值逐节点对账,violations > 0 禁止交付;(2) **规则文档库 `rules/`**——R01-R23 + RN01-RN04 + README(索引与 Rule-Scan 派发 prompt),冲突时以 rules/ 为准;(3) **styleMatch 引擎**——解析 `styles.ts` 的 `StyleSheet.create`,`rpx(x)` 剥壳后与 Figma 原值 × `unit.scale` 同域对账(rn 模板 scale=1);(4) **步骤 3.5 Rule-Scan 软防线**(R07/R10/R11/R13/R15 语义类规则,先扫出作业指引再出码);(5) **交付双门禁**——sub-agent 交付前 `check-rules --block`、主 agent 合并后 `check-rules --merge`,exit 1 一律回滚;(6) **单 agent 执行模式**与**报数即真值**豁免封口(§6.0.4);(7) v0.3.12 styles.ts 强制独立文件、v0.3.13 顺流子位置来源硬约束升格为机械规则 RN04 / RN02;(8) 数据层 `bin/figma.mjs` 与 h5 同步刷新(含 `confirm-slices` 子命令与 `truncatedSuspects` 截断检测)。关键差异警示:**R18 在 RN 侧与 h5 判定镜像**(RN flex 默认 column,HORIZONTAL 必须显式 `flexDirection: 'row'`);**config 缺 `unit` 段时 check-rules 直接 exit 2**(rpx 口径下兜底默认 scale 会全量误判,禁止兜底)。回归测试:`test/rules-rn/`(npm test 与 h5 套件串跑)。
-
-> **v0.3.13(2026-08-08,RN 独享)**:修复 RN 侧 autoLayout 顺流子被 agent 用 `absoluteBoundingBox` 逆推成 `marginTop` / `position:absolute` 的事故——父 Frame 为 VERTICAL/primary=CENTER/itemSpacing=N,产物中顺流子分别写 `marginTop:<y1>` / `marginTop:<y2>` / `position:absolute; top:<y3>`,绕过父 flex 语义视觉整体下移;同批命中:父 VERTICAL Frame 的顺流子被逆推成 `position:absolute; top:<y>` / `bottom:<y'>`,且子 style `paddingLeft:<n>` 凭空捏造、`flex:1` 违反 FIXED sizing。改动：§4.3 新增「顺流子位置来源硬约束」章节——父 `layoutMode!=NONE` 且子 `layoutPositioning!=ABSOLUTE` 时，子 style 禁止出现 `position:absolute` / `top` / `left` / `right` / `bottom` / `marginTop` / `marginBottom` / `marginLeft` / `marginRight` / 凭空 `padding*` / 违反 FIXED sizing 的 `flex:1`；位置由父 flex 5 字段（flexDirection / justifyContent / alignItems / gap / padding）负责；配 grep 自证脚本。**本次改动只在 pp-d2c-rn 生效**，不同步到 pp-d2c（h5），doctor 暂不加规则。
-
-> **v0.3.12（2026-08-08，RN 独享）**：修复 RN 侧 `bg-*` / `img-*` 前缀节点在**中间层遍历**时的越过事故——`sub-<X> > bg-<Y> > <中间容器> > <TEXT 叶子>` 场景下，agent 因 §4.0 红线只在 sub-agent 根节点入口生效，遍历到中间层 `bg-<Y>` 时未再判前缀，把内部 TEXT 叶子提取到了 DOM。改动：(1) §4.0 表格追加「红线扩展到中间层遍历」强制段 + grep 自证；(2) §5 合并结构里的 `styles.ts` 从"可选，也可写在 index.tsx 底部"**收紧为强制独立文件**——`StyleSheet.create` / `const styles =` / 静态 inline style 一律禁止出现在 `index.tsx` 里，避免响应式改写 / adapter 改写触碰 JSX。**本次改动只在 pp-d2c-rn 生效**，不同步到 pp-d2c（h5）。
-
-> **v0.3.11（2026-08-08）**：与 pp-d2c 对齐——新增「bg- 独立切图契约」（§4.3）：每个 `bg-*` 前缀节点必须独立走一次 export-image，禁止用祖先 `bg-*` 切图物理覆盖范围"合并省略"后代 `bg-*` 独立切图；配套 sub-agent QA 段自证 + 主 agent grep 断言（RN 侧覆盖 `require` / `source={{uri}}` / `<ImageBackground>` / `<FastImage>` / `${ASSET_PREFIX}` 五种引用形式）+ §6.0.3 忠实度证明块 7 组扩到 8 组 + doctor BGP033 error 规则。修复历史事故：sub-agent 因父 `bg-<A>` 整体切图覆盖多个同级容器区域，省略每个容器里 `bg-<B>` 独立切图，产物对应容器空 View、装饰完全丢失。
-
-> **v0.3.10（2026-08-08）**：与 pp-d2c 对齐——新增 3 组强制溯源证明块（字色 fills 溯源 §4.1.1 / sub 容器 min-height 尺寸源 §4.3 / 页面根 paddingTop 尺寸源 §4.3.1）；§6.0.3 合并忠实度证明块 4 组扩到 7 组（RN 侧字色断言含 `color:` 属性无引号 / 有引号 / 数字色三种形式）；禁止项 +3;配套 doctor CLR030 / DIM031 / DIM032。RN 侧统一 `styleFormat=stylesheet`（无 h5 style 大类分歧，不引入新 page 空档兜底）。
-
-> **v0.3.9（2026-08-07）**：与 pp-d2c 对齐——新增 §4.4.pre.b「子树结构禁切规则」（结构维度优先于前缀维度）；§4.4 前置自检 5 行 → 7 行；§4.8 checklist + §6.0.3 忠实度证明块 + 禁止项 各追加 1 条；配套 doctor SUB029.
-
-> **v0.3.8（2026-08-07）**：与 pp-d2c 对齐——新增「问题边界」章节（顶部执行模型说明内）；配套 §4.8 checklist +1 条 + §6.0.3 忠实度证明块 +「未打断用户核查」段 + 禁止项 +1 条。RN 特有决策（LinearGradient / shadow*+elevation / rpx 包装等）均属"skill 已定死"范畴，禁止问用户。
-
-> **v0.3.7（2026-08-07）**：与 pp-d2c 对齐——新增「flat 合并忠实度契约」（§5.0.pre）、「data-node-id 守恒律」（§5.1）、「节点整体切图适格性」（§4.4.pre）、「assets.txt 消费契约」（§6.0.2）、「合并忠实度证明块」（§6.0.3 强制主 agent 交付前 grep 自证输出）；RN 侧引用形式覆盖 `require` / `source={{uri}}` / `<ImageBackground>` / `<FastImage>` 全套。配套 doctor SUB027 / IMG028。
-
-> **v0.3.6（2026-08-07）**：与 pp-d2c 对齐——新增「父容器盒级装饰兜底」（§4.3，渐变走 `LinearGradient`）、「TEXT 多层 fills 取末位」（§4.1.1）、「切图强制忠实执行 + images.json md5 复用」（§4.4.0）、「`btn-` 内嵌 TEXT 双写防护」（§4.3）；§4.3.rn 退化表更新渐变父容器处理策略。
+> 历史 changelog 查 `git log --follow templates/skills/pp-d2c-rn/SKILL.md`,不在本文件维护。所有规则以下文章节 + `rules/*.md` 为准;冲突时以 `rules/` 为准。
 
 > **独立 SKILL**:本 SKILL 专为 React Native 端产出代码。目标框架:**React Native**(原生 `react-native`)以及一切 RN-like 框架(如 `@tarojs/components`、`expo`、`react-native-web`,或组织内部的 RN 组件库,通过 adapter 配置接入)。
 >
