@@ -5,7 +5,10 @@ description: 根据 Figma 设计稿 URL 生成 React Native 页面代码与资�
 
 # pp-d2c-rn Skill
 
-> **当前版本:v1.1.1(2026-08-24,双端能力,与 pp-d2c v1.2.6 同批)——新增两个图层前缀**:`bl-`(文本基线对齐容器:`flexDirection: 'row'` + `alignItems: 'baseline'`,直接 Text 子放弃逐个绝对定位;新硬规则 **R24 baseline-align** 校验落地,R20/RN02 对其直接子层豁免,exit-1 规则数 21→22)与 `list-`(显式同构列表:强制 `.map()` 模板渲染,loadCache 非首子项直标 `_templateDup`;切图按 `imageRef+bbox 尺寸` 跨项去重,同图只切首项、manifest 记 `sharedFrom`)。前缀语义表 / 裸词规则 / rules/README 常量表同步 +2。
+> **当前版本:v1.1.2(2026-08-24,三端能力,与 pp-d2c v1.2.7 / pp-d2c-fast v1.2.7 同批)——新增步骤 0.5.1 目录三态守卫**(硬约束,不可跳过):slug 确定后、任何写盘之前,主 agent 必须 `ls -la` 探测目标 `output.dir/<slug>` 与 `assetsDir/<slug>`。三态处置:不存在→创建;仅含 `.gitkeep`/`.DS_Store` 等无实义占位视作空→直接使用;**存在且含实际业务文件(`.tsx`/`.ts`/`.js`/`.png` 等)→ hard stop**,列 `ls -la` 原文交用户三选一(换路径/自处理/中止)。禁 `rm -rf` 与"备份后覆盖"通道,禁把新产物混入已有目录。rn 侧同步补齐步骤 0.5 询问输出路径(此前 rn SKILL 缺路径锁定)。取证:用户实测已有 `xxx/` 业务目录被 D2C 无感知替换,业务代码丢失。
+>
+>
+> **v1.1.1 历史**：v1.1.1(2026-08-24,双端能力,与 pp-d2c v1.2.6 同批)——新增两个图层前缀**:`bl-`(文本基线对齐容器:`flexDirection: 'row'` + `alignItems: 'baseline'`,直接 Text 子放弃逐个绝对定位;新硬规则 **R24 baseline-align** 校验落地,R20/RN02 对其直接子层豁免,exit-1 规则数 21→22)与 `list-`(显式同构列表:强制 `.map()` 模板渲染,loadCache 非首子项直标 `_templateDup`;切图按 `imageRef+bbox 尺寸` 跨项去重,同图只切首项、manifest 记 `sharedFrom`)。前缀语义表 / 裸词规则 / rules/README 常量表同步 +2。
 >
 > **v1.1.0 历史(2026-08-24)——前置切图移植,GATE-slice-confirm / IMG-reconcile 实际生效**。新增步骤 2.6:主 agent 调 `pp-d2c-reskin` 的 `reskin-slice.mjs` 一次性切完全部 `img-`/`bg-` 节点(含裸词)→ 落 `slice-manifest-<slug>.json`;退出码非 0 → hard stop,禁止改用 export-image 手工逐张绕过;切完按 `slice.confirmBeforeContinue`(缺失=默认 `true`)暂停等用户确认,`sizeWarning` 非空不受开关豁免一律必停,确认后 `figma.mjs confirm-slices` 翻 `confirmed:true` 留痕。§4.4 契约反转:sub-agent 只查清单消费(RN 5 种引用形式),清单缺条目写 `[清单缺失]` 上报主 agent 补切,**禁止**自调 `export-image`。两道门禁自此实际生效:GATE-slice-confirm 校验 `confirmed` 字段,IMG-reconcile 三方对账"产物引用 ∉ manifest = violation"。
 >
@@ -307,6 +310,54 @@ node .claude/skills/pp-d2c-rn/bin/figma.mjs cache-check <fileKey>
 **rn SKILL 不接 doctor 卫星**。config 默认 `health.enabled=false`,即便老 config 里遗留 `health.enabled=true` 字段,本 SKILL 也**忽略**该字段直接跳过体检。理由:doctor 卫星 SKILL 当前只覆盖 h5 场景的图层规则(前缀命名 / 布局配对 / 结构层级),rn 端并未针对性适配;rn 侧直接进入解析流程即可。
 
 如需静态体检 rn 项目的图层规范,请手动调用 h5 版 `pp-doctor`(与本 SKILL 独立并列,前缀识别规则是等价的),或后续版本再引入 rn 专属 doctor。
+
+### 步骤 0.5.1:询问输出路径 + 目录三态守卫(v1.1.2,硬约束,不可跳过)
+
+在读完 config、开始扫图层前,主 agent **必须**先问用户本次输出路径与图片路径,再对目标目录做三态探测。
+
+**询问模板**:
+
+```
+配置根:<projectRoot>
+config.output.dir       = <output.dir 原值>
+config.images.assetsDir = <images.assetsDir 原值>
+
+请指定本次生成路径:
+  1) 代码放到 <output.dir> 下哪个子目录? (默认 <default-slug>)
+  2) 图片放到 <images.assetsDir> 下哪个子目录? (默认 <default-slug>)
+
+直接回车 = 用默认值;也可 "同 1" 让图片子目录与代码子目录一致。
+```
+
+**默认 slug 生成**:Figma 稿子的 frame name 经内置脚本 slug 化(ASCII 保留 `[a-z0-9-]`、中文转 pinyin,连续 `-` 压一,首尾去 `-`;转空则用 `page-<nodeId-safe>` 兜底,`nodeId` 里 `:` 换 `_`)。
+
+**用户回答后立即锁定** `.d2c-tasks.md` 输出路径段(代码路径 / 图片路径 / slug 来源),此后不可变。
+
+**目录三态守卫**——slug 确定后、切图 / 出码 / QA 任何写盘动作**之前**,主 agent **必须**用 `ls -la <projectRoot>/<output.dir>/<code-slug>/` 探测目标落盘路径,同样探测 `<projectRoot>/<images.assetsDir>/<asset-slug>/`。按三态处置:
+
+| 目标路径状态 | agent 行为 |
+|---|---|
+| 不存在 | 告知用户完整路径 → 直接创建并使用,进入下一步 |
+| 存在但为空(仅含 `.gitkeep` / `.DS_Store` 等无实义占位视作空) | 告知用户完整路径 → 直接使用,进入下一步 |
+| **存在且含有实际文件**(任意 `.tsx` / `.ts` / `.js` / `.png` 等业务文件) | **hard stop**——立即停止,列出目录内实际文件清单(`ls -la` 原文)给用户看,请用户三选一:(a)换路径(改 slug 或改父目录 `output.dir`)(b)自行 `git mv` / `rm` 处理该目录后回复"已处理"再继续 (c)中止本次 D2C |
+
+**用户三选一的处理**:
+
+- (a)换路径 → 回到本节重新问 slug,重跑三态探测
+- (b)自处理 → 用户回复"已处理"后重跑一次 `ls -la` 探测,状态变为"不存在"或"空"才继续;若仍非空一律再次 hard stop,禁止相信用户口头承诺
+- (c)中止 → 完整退出 D2C 流程,不写盘任何文件
+
+**空目录放行清单**(仅这几个视作"空"):`.gitkeep` / `.DS_Store` / `Thumbs.db` / 空 `README.md`(0 字节)。任何其他文件即视为"含实际文件"。
+
+**禁止项(硬约束,与 R21/GATE-cache-truncation 同级)**:
+
+- 禁止 `rm -rf <目标路径>` 或等价删除既有目录内容——**agent 无权删旧目录**,清理由用户在(b)分支自处理
+- 禁止"备份后覆盖"通道(如 `mv <目标> .d2c-trash/`)——不留后门,用户选的是"绝不允许 agent 删旧目录"
+- 禁止把新产物混入已有目录(哪怕文件名不冲突)——`components/` / `utils.ts` 等"看起来无关"的旧文件最常被误覆盖;三态检查按目录整体判定,不按文件名逐个判
+- 禁止跳过本节直接进入切图 / 出码(§6.0 忠实度证明块会自证本节判定与用户处置轨迹,缺失即不合格)
+
+**取证背景**:用户实测事故——已有 `xxx/` 业务目录内部实现被 D2C 无感知替换,业务代码丢失。
+
 
 ---
 

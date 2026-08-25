@@ -5,7 +5,10 @@ description: 根据 Figma 设计稿 URL 生成 React H5 页面代码与资源；
 
 # pp-d2c Skill
 
-> **当前版本**：v1.2.6(2026-08-24,双端能力,与 pp-d2c-rn v1.1.1 同批)—— **新增两个图层前缀**:`bl-`(文本基线对齐容器:flex + `align-items: baseline`,直接 TEXT 子放弃逐个绝对定位;新硬规则 **R24 baseline-align** 校验落地,R20 对其直接子层坐标豁免,exit-1 规则数 17→18)与 `list-`(显式同构列表:强制 `.map()` 模板渲染,loadCache 非首子项直标 `_templateDup`;切图按 `imageRef+bbox 尺寸` 跨项去重,同图只切首项、manifest 记 `sharedFrom`,reskin-slice 无 list- 时零行为变化)。前缀语义表 / 裸词规则 / rules/README 常量表同步 +2。
+> **当前版本**：v1.2.7(2026-08-24,三端能力,与 pp-d2c-rn v1.1.2 / pp-d2c-fast v1.2.7 同批)—— **新增步骤 0.5.1 目录三态守卫**(硬约束,不可跳过):slug 确定后、任何写盘之前,主 agent 必须 `ls -la` 探测目标 `output.dir/<slug>` 与 `assetsDir/<slug>`。三态处置:不存在→创建;仅含 `.gitkeep`/`.DS_Store` 等无实义占位视作空→直接使用;**存在且含实际业务文件(`.tsx`/`.scss`/`.ts`/`.js`/`.png` 等)→ hard stop**,列 `ls -la` 原文交用户三选一(换路径/自处理/中止)。禁 `rm -rf` 与"备份后覆盖"通道,禁把新产物混入已有目录。取证:用户实测已有 `xxx/` 业务目录被 D2C 无感知替换,业务代码丢失,文本约束不足以拦下。
+>
+>
+> **v1.2.6 历史**：v1.2.6(2026-08-24,双端能力,与 pp-d2c-rn v1.1.1 同批)—— **新增两个图层前缀**:`bl-`(文本基线对齐容器:flex + `align-items: baseline`,直接 TEXT 子放弃逐个绝对定位;新硬规则 **R24 baseline-align** 校验落地,R20 对其直接子层坐标豁免,exit-1 规则数 17→18)与 `list-`(显式同构列表:强制 `.map()` 模板渲染,loadCache 非首子项直标 `_templateDup`;切图按 `imageRef+bbox 尺寸` 跨项去重,同图只切首项、manifest 记 `sharedFrom`,reskin-slice 无 list- 时零行为变化)。前缀语义表 / 裸词规则 / rules/README 常量表同步 +2。
 >
 > **v1.2.5 历史**(h5 独享,不同步 pp-d2c-rn) —— **防线加固批**(test28/29 取证,主题:输入完整性→节点存在性→尺寸忠实度→确认留痕全链机械化):(1) **GATE-cache-truncation**——合并 cache 中空 GROUP/BOOLEAN_OPERATION = fetch depth 截断实锤,截断 cache 出码必丢内容(test29: 25 节点 cache 令全防线真空通过);(2) **R21 反向对账**——产物 data-node-id 必须存在于 cache,幻觉 id 直接 violation;(3) 新增 **R23 size-fidelity**——显式 px 宽高须 ≈ bbox×scale(容差 4px),`1px×1px+overflow:hidden` 锚点欺诈点名(test28 自供"校验锚点");(4) **GATE-rule-hits 收紧**——fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 失败记录;(5) **GATE-slice-confirm 确认留痕**——reskin-slice 落 `confirmed:false`,用户确认后 `figma.mjs confirm-slices` 翻 true;(6) **单 agent 执行模式**——无 sub-agent 平台(如 Codex)的合法路径,禁止以平台缺失为由跳步骤。
 >
@@ -243,6 +246,35 @@ config.images.assetsDir = <images.assetsDir 原值>
 - 代码路径: <output.dir>/<code-slug>/         (例: pages/test-tmp/)
 - 图片路径: <images.assetsDir>/<asset-slug>/  (例: static/test-tmp/)
 - slug 来源: {frame-name-slug / page-nodeId / user-explicit / same-as-code}
+```
+
+### 步骤 0.5.1:目录三态守卫(v1.2.7 / v1.1.2,硬约束,不可跳过)
+
+slug 确定后、切图 / 出码 / QA 任何写盘动作**之前**,主 agent **必须**用 `ls -la <projectRoot>/<output.dir>/<code-slug>/` 探测目标落盘路径,并同样探测 `<projectRoot>/<images.assetsDir>/<asset-slug>/`。按三态处置:
+
+| 目标路径状态 | agent 行为 |
+|---|---|
+| 不存在 | 告知用户完整路径 → 直接创建并使用,进入下一步 |
+| 存在但为空(仅含 `.gitkeep` / `.DS_Store` 等无实义占位视作空) | 告知用户完整路径 → 直接使用,进入下一步 |
+| **存在且含有实际文件**(任意 `.tsx` / `.scss` / `.ts` / `.js` / `.png` 等业务文件) | **hard stop**——立即停止,列出目录内实际文件清单(`ls -la` 原文)给用户看,请用户三选一:(a)换路径(改 slug 或改父目录 `output.dir`)(b)自行 `git mv` / `rm` 处理该目录后回复"已处理"再继续 (c)中止本次 D2C |
+
+**用户三选一的处理**:
+
+- (a)换路径 → 回到步骤 0.5 重新问 slug,重跑本节三态探测
+- (b)自处理 → 用户回复"已处理"后重跑一次 `ls -la` 探测,状态变为"不存在"或"空"才继续;若仍非空一律再次 hard stop,禁止相信用户口头承诺
+- (c)中止 → 完整退出 D2C 流程,不写盘任何文件
+
+**空目录放行清单**(仅这几个视作"空"):`.gitkeep` / `.DS_Store` / `Thumbs.db` / 空 `README.md`(0 字节)。任何其他文件即视为"含实际文件"。
+
+**禁止项(硬约束,与 R21/GATE-cache-truncation 同级)**:
+
+- 禁止 `rm -rf <目标路径>` 或等价删除既有目录内容——**agent 无权删旧目录**,清理由用户在(b)分支自处理
+- 禁止"备份后覆盖"通道(如 `mv <目标> .d2c-trash/`)——不留后门,用户选的是"绝不允许 agent 删旧目录"
+- 禁止把新产物混入已有目录(哪怕文件名不冲突)——`components/` / `utils.ts` 等"看起来无关"的旧文件最常被误覆盖;三态检查按目录整体判定,不按文件名逐个判
+- 禁止跳过本节直接进入切图 / 出码(§6.0 忠实度证明块会自证本节判定与用户处置轨迹,缺失即不合格)
+
+**取证背景**:用户实测事故——已有 `xxx/` 业务目录内部实现被 D2C 无感知替换,业务代码丢失。文本约束不足以拦下,故正式列入硬约束。
+
 - 用户"临时"标记: {true / false}   ← 仅影响本段路径命名, 不豁免任何硬规则(见 §问题边界)
 ```
 
