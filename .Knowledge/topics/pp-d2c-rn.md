@@ -1,6 +1,6 @@
 ---
 id: pp-d2c-rn
-revision: 3
+revision: 4
 summary: pp-d2c-rn
 primary: feature
 confidence: manual
@@ -49,6 +49,7 @@ tags: [module, config]
 
 - **与 h5 防线的关键差异**:R18 判定镜像(RN flex 默认 column,HORIZONTAL 必须显式 `flexDirection: 'row'`);R01 校验"fixed- 在根 View 直接子层 + absolute + zIndex≥100"(RN 无 position:fixed);R04/R09 校验退化正确性(首 stop 纯色 + assets.txt `[退化告警]` 行留痕,或 R09 引 LinearGradient);R23 无盒模型跳过分支(RN 恒 border-box,覆盖面更大);config 缺 `unit` 段直接 exit 2(禁止兜底默认 scale)。
 - **软防线**:步骤 3.5 Rule-Scan 先扫 R07/R10/R11/R13/R15 语义类规则出 `rule-hits.json` 作业指引;判决权在 check-rules。降级须落 fallback 占位 + assets.txt `[Rule-Scan 降级]` 记录,只有占位没有记录按捏造拦截。
+- **步骤 0.5.1 目录三态守卫(v1.1.2)**:slug 确定后 `ls -la` 探测目标 `output.dir/<slug>` 与 `assetsDir/<slug>`,存在且含实际业务文件即 hard stop 列清单交用户三选一(换路径/自处理/中止),禁 `rm -rf` 与备份覆盖通道,禁把新产物混入已有目录;rn 侧同批补齐步骤 0.5 询问输出路径(此前 rn 缺路径锁定)。
 - **前置切图(v1.1.0,步骤 2.6)**:主 agent 调 `pp-d2c-reskin` 的 `reskin-slice.mjs` 一次性切完全部 `img-`/`bg-` 节点(含裸词)落 `slice-manifest-<slug>.json`;退出码非 0 → hard stop,禁止改用 export-image 手工逐张绕过。切完按 `slice.confirmBeforeContinue`(config 缺失=默认 `true`)暂停等用户确认,`sizeWarning` 非空不受开关豁免一律必停;确认后 `figma.mjs confirm-slices` 翻 `confirmed:true`。sub-agent 只消费清单(RN 5 种引用形式),清单缺条目写 `[清单缺失]` 上报主 agent 补切,禁止自调 `export-image`。生成流程必产 manifest,IMG-reconcile 与 GATE-slice-confirm 两道门禁由此获得对账基准(check-rules 对无 manifest 的旧产物仍按 warning 跳过,属兼容通道,不适用于新生成流程)。
 - **回归测试**:`test/rules-rn/`(npm test 与 h5 套件串跑)。
 
