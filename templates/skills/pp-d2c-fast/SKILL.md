@@ -5,12 +5,7 @@ description: pp-d2c 快速模式，根据 Figma 设计稿 URL 生成 React H5 �
 
 # pp-d2c-fast Skill（pp-d2c 快速模式）
 
-> **pp-d2c-fast**：基于 pp-d2c 精简——砍除已被 `check-rules.mjs` 逐节点对账覆盖的自证块（A 梯队：字色溯源 / padding-top / data-node-id 守恒 grep / 四条硬规则 grep 5 条 / rule-hits 消费证明），保留全部决策引导（§4.3 裁决树 / 坐标公式 / §5.1.1 data-node-id 铁律）。硬防线 check-rules 18 条（R04 自 v1.2.3 起、R23 自 v1.2.5 起、R24 自 v1.2.6 起在内）、`bin/`、`rules/` 与 pp-d2c **完全一致**；**原 pp-d2c 保留完整防线，二者并存**。
->
-
 > **当前版本**：v1.2.7(2026-08-24,三端能力,与 pp-d2c-rn v1.1.2 / pp-d2c-fast v1.2.7 同批)。
->
-> 历史 changelog 查 `git log --follow templates/skills/pp-d2c-fast/SKILL.md`,不在本文件维护。所有规则以下文章节 + `rules/*.md` 为准;冲突时以 `rules/` 为准。
 
 ## 触发条件
 - 用户提供 Figma 设计稿 URL
@@ -1990,8 +1985,6 @@ fi
 **doctor 关联规则**：IMG028—— assets.txt 声明的切图文件在最终产物中未被引用，参见 pp-doctor §3.6q。
 
 #### 6.0.2 合并忠实度证明块（fast 版精简）
-
-> **pp-d2c-fast**：v1.2 对账上线后，data-node-id 守恒（R21）、SOLID 字色（R06）、fixed/IMAGE/bg 伪元素/space-between（R01/R02/R08/R05）、padding-top（R19）均由 `check-rules.mjs` 逐节点对账覆盖，**不再要求主 agent 手写自证**。此处只保留 check-rules **未覆盖**的三项：图片引用完整性、GRADIENT/IMAGE 字色落地（R04 不在 check-rules）、min-height 尺寸源。
 
 主 agent 在步骤 7（输出交付物清单）**之前**，须在对话输出以下证明块：
 

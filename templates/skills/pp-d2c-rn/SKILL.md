@@ -6,14 +6,6 @@ description: 根据 Figma 设计稿 URL 生成 React Native 页面代码与资�
 # pp-d2c-rn Skill
 
 > **当前版本**:v1.1.2(2026-08-24,三端能力,与 pp-d2c v1.2.7 / pp-d2c-fast v1.2.7 同批)。
->
-> 历史 changelog 查 `git log --follow templates/skills/pp-d2c-rn/SKILL.md`,不在本文件维护。所有规则以下文章节 + `rules/*.md` 为准;冲突时以 `rules/` 为准。
-
-> **独立 SKILL**:本 SKILL 专为 React Native 端产出代码。目标框架:**React Native**(原生 `react-native`)以及一切 RN-like 框架(如 `@tarojs/components`、`expo`、`react-native-web`,或组织内部的 RN 组件库,通过 adapter 配置接入)。
->
-> 与现有 h5 SKILL `pp-d2c` **完全独立并列**:h5 SKILL 一字不改。用户根据项目类型选装 h5 SKILL / rn SKILL / 两者共存。
->
-> **核心机制**:内核以 RN 原生标签(View / Text / Image / Pressable / TextInput / ScrollView + StyleSheet)描述一切,再通过 `config.adapter` 配置(tagMap + importMap + propMap)映射到具体框架标签。
 
 ## 触发条件
 - 用户提供 Figma 设计稿 URL,且**项目 config `project.framework === 'rn'`**
