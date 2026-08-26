@@ -86,7 +86,7 @@ npx @double-coding/pixel-print init
 
 **2. 让设计师按规范命名图层**
 
-把 [`docs/design-guide.md`](./design-guide.md) 发给对接设计师。他花 20 分钟改图层名,你后面省 10 倍时间。
+把 [`docs/PixelPrint-设计师图层规范.md`](./PixelPrint-设计师图层规范.md) 发给对接设计师。他花 20 分钟改图层名,你后面省 10 倍时间。
 
 **3. 让 Claude 干活**
 
@@ -343,7 +343,7 @@ $ npx @double-coding/pixel-print init --framework rn --adapter-preset custom
 
 ## 8. 图层命名规范
 
-完整规范:[`design-guide.md`](./design-guide.md)。速查表:
+完整规范:[`PixelPrint-设计师图层规范.md`](./PixelPrint-设计师图层规范.md)。速查表:
 
 | 前缀 | 含义 | 生成效果 |
 |------|------|---------|
@@ -515,7 +515,7 @@ SKILL 通过 Figma REST API 拉稿子 + 导图,只需要一枚 Personal Access T
 
 ## 12. 架构与执行模型
 
-> 本节是产品级概览。**深入原理**(四层架构、前缀协议、Rule-Scan / check-rules 双防线、以 cache 为真值的逐节点对账、合并忠实度契约)见 [`pp-d2c-principles.md`](./pp-d2c-principles.md)。
+> 本节是产品级概览。**深入原理**(四层架构、前缀协议、Rule-Scan / check-rules 双防线、以 cache 为真值的逐节点对账、合并忠实度契约)见 [`pp-d2c-设计原理.md`](./pp-d2c-设计原理.md)。
 
 ### 一句话定位
 
@@ -615,12 +615,12 @@ SKILL.md 里所有类似 `doctor.run({...})` / `partial.replace(file, str)` 的�
 
 ## 14. 版本历史
 
-> 完整版本编年史（时间逆序，含 ctrip-train-d2c 起源、MCP → REST 转折、npm 与 skill 两条版本线的交错）见 [`pp-d2c-history.md`](./pp-d2c-history.md)。
+> 完整版本编年史（时间逆序，含 ctrip-train-d2c 起源、MCP → REST 转折、npm 与 skill 两条版本线的交错）见 [`pp-d2c-演化史.md`](./pp-d2c-演化史.md)。
 
 | 版本 | 里程碑 |
 |---|---|
 | skill v1.2.3–v1.2.5 | pp-d2c/fast 软规则硬化(硬防线 11→16→17 条) + 生成过程缺陷修复批(GATE-rule-hits / IMG-reconcile / --block 局部化 / reskin-slice hard stop + 切图确认暂停 / R22 warning) + 防线加固批(GATE-cache-truncation 截断门禁 / R21 反向对账拦幻觉 id / R23 尺寸忠实度与 1×1 锚点欺诈 / confirm-slices 确认留痕 / 单 agent 执行模式) |
-| **v1.3.0** | **init/install 支持 Codex:skill 双写 `.claude/skills/` 与 `.codex/skills/`;SKILL 模板补 YAML frontmatter(name/description,Codex 识别触发的前提);新增 [`pp-d2c-principles.md`](./pp-d2c-principles.md) 原理文档** |
+| **v1.3.0** | **init/install 支持 Codex:skill 双写 `.claude/skills/` 与 `.codex/skills/`;SKILL 模板补 YAML frontmatter(name/description,Codex 识别触发的前提);新增 [`pp-d2c-设计原理.md`](./pp-d2c-设计原理.md) 原理文档** |
 | v1.2.x | pp-d2c 校验范式升级为「以 cache 为真值逐节点对账」:`rules/R01-R22` 规则库 + `check-rules.mjs` 硬防线 + Rule-Scan 软防线;loadCache 三标注(`_inBakedSubtree`/`_hidden`/`_templateDup`)清假阳性;新增 `pp-d2c-reskin`(换肤批量切图)/`pp-image-compress` skill;图层前缀由配置项降级为内置常量 |
 | v1.1.1 | 新增 14 个 CLI 快捷参数(`--framework / --adapter-preset / --merge-mode / ...`,CLI > config > 交互);merge.mode 默认改成 flat;custom adapter 生成 6 键空 tagMap 骨架;移除 code-connect 复制;输出精简(阶段数从 5 收成 4) |
 | v1.1.0 | 新增 `pp-fix-partial` 局部修复 skill + `.d2c-cache/last-page.json` + `pp-strip-nodeid` 存 anchor 档案 + `clean-cache` 命令 + init [1/N] 平铺一层 |

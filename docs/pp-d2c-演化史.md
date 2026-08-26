@@ -1,8 +1,8 @@
 # pp-d2c skill 版本演进史（时间逆序）
 
 > 从今天回溯到 2026-06-17 项目起点的 **pp-d2c skill 版本编年史**。考据源：`git log`（早期匿名 commit 按文件 diff 还原）+ 各时点 SKILL.md 快照。
-> 本文只记 **pp-d2c skill 版本线**（`SKILL.md` 头部版本）与配套能力演进；npm 包（CLI / install / 分发）的发布版本不在本文范围，见 `package.json` 与 [`pixel-print-guide.md §14`](./pixel-print-guide.md#14-版本历史)。
-> 原理性内容（防线设计、对账范式的为什么）见 [`pp-d2c-principles.md`](./pp-d2c-principles.md)。
+> 本文只记 **pp-d2c skill 版本线**（`SKILL.md` 头部版本）与配套能力演进；npm 包（CLI / install / 分发）的发布版本不在本文范围，见 `package.json` 与 [`PixelPrint-使用指南.md §14`](./PixelPrint-使用指南.md#14-版本历史)。
+> 原理性内容（防线设计、对账范式的为什么）见 [`pp-d2c-设计原理.md`](./pp-d2c-设计原理.md)。
 
 ---
 
@@ -47,13 +47,13 @@
 ## 2026-08-12 · pp-d2c-fast 快速模式 skill（开发中）
 
 - `pp-d2c-fast`：拷 pp-d2c 砍冗余自证（A 梯队）的精简版，保留全部决策引导与硬防线，原 pp-d2c 不动、二者并存（未合入 main）
-- 新增 `docs/pp-d2c-history.md`（本文）
+- 新增 `docs/pp-d2c-演化史.md`（本文）
 
 ## 2026-08-12 · 配套：SKILL 模板 frontmatter + Codex 支持 + 原理文档
 
 - **9 个 SKILL 模板补 YAML frontmatter**（`name`/`description`）——`install.js` 双写是原样拷贝，模板缺 frontmatter 导致 Codex 认不出 skill；源头补齐后 `.claude/skills` 与 `.codex/skills` 两端都合规
 - **init/install 支持 Codex**：skill 无条件双写 `.claude/skills/` 与 `.codex/skills/`（两处镜像），单位换算规则注入同步双写
-- 新增 [`pp-d2c-principles.md`](./pp-d2c-principles.md) 原理文档；README / guide 同步 Codex 说明与文档入口
+- 新增 [`pp-d2c-设计原理.md`](./pp-d2c-设计原理.md) 原理文档；README / guide 同步 Codex 说明与文档入口
 
 ## 2026-08-12 · skill v1.2.1
 
@@ -139,7 +139,7 @@ git 上一串匿名 commit（`~`）的时代，按文件 diff 还原三条主线
 
 1. **doctor 体检体系诞生**（首版 469 行，连续多轮 +150~200 行加厚：NAM/LAY/STR/STY/AST 逐类补齐）——问题在生成前暴露，比生成后修补便宜
 2. **前缀体系泛化成型**：`fixed-` ✨、`bgc-`、`btn-`/`x-`/`scrollx-`/`scrolly-`、嵌套 `sub-`（上报-派发协议 + `<__SUBSLOT__>` 占位符）；「执行模型说明」章节出现（明确伪代码 ≠ 真函数，被"agent 等待永远不会到来的返回值"卡死教育出来的）；`ctrip-train-d2c-style` 规则速查手册（+390 行，后来的 pp-style）
-3. **从文档变成包**：`bin/install.js` + `package.json`（包结构成型）；README 36 → 275 行；`design-guide.md` 设计师指南成文——「设计师花 20 分钟改图层名，开发省 10 倍时间」的合约思想定型
+3. **从文档变成包**：`bin/install.js` + `package.json`（包结构成型）；README 36 → 275 行；`PixelPrint-设计师图层规范.md` 设计师指南成文——「设计师花 20 分钟改图层名，开发省 10 倍时间」的合约思想定型
 
 ## 2026-06-17 · skill v0.1：起点
 

@@ -1,7 +1,7 @@
 # pp-d2c 原理
 
 > 本文讲 **pp-d2c（H5 主 D2C skill）为什么这样设计、内部如何运转**。面向想理解或改造 skill 的开发者。
-> 使用手册见 [`pixel-print-guide.md`](./pixel-print-guide.md)；图层命名规范见 [`design-guide.md`](./design-guide.md)；规则明细以 `templates/skills/pp-d2c/SKILL.md` + `rules/*.md` 为准（冲突时以 `rules/` 为准）。
+> 使用手册见 [`PixelPrint-使用指南.md`](./PixelPrint-使用指南.md)；图层命名规范见 [`PixelPrint-设计师图层规范.md`](./PixelPrint-设计师图层规范.md)；规则明细以 `templates/skills/pp-d2c/SKILL.md` + `rules/*.md` 为准（冲突时以 `rules/` 为准）。
 
 ---
 
@@ -264,5 +264,5 @@ v1.2 的升级是把校验换成**对账**：`.d2c-cache/<fileKey>/nodes/*.json`
 | `templates/skills/pp-d2c/bin/check-rules.mjs` | 硬防线：`--block` / `--merge` 两种模式，exit 0/1/2 |
 | `templates/skills/pp-d2c/bin/lib/loadCache.mjs` | 对账基座：`_inBakedSubtree` / `_hidden` / `_templateDup` 标注 |
 | `templates/skills/pp-d2c/bin/lib/cssMatch.mjs` | SCSS 嵌套类名匹配（R01/R02/R06/R18/R19 共享） |
-| `docs/pixel-print-guide.md` | 产品级完整指南（安装/配置/CLI/案例） |
-| `docs/design-guide.md` | 给设计师的图层命名规范 |
+| `docs/PixelPrint-使用指南.md` | 产品级完整指南（安装/配置/CLI/案例） |
+| `docs/PixelPrint-设计师图层规范.md` | 给设计师的图层命名规范 |
