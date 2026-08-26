@@ -1,0 +1,31 @@
+.Knowledge/topics/pp-install-dispatch.md
+  s_7605727328ed6a::t_193447f4c39c48 56
+.Knowledge/topics/pp-d2c.md
+  s_7605727328ed6a::t_193447f4c39c48 75,436,444
+docs/PixelPrint-项目立项文档.md
+  s_7605727328ed6a::t_1ca76ea49d19b4 1-359
+.Knowledge/stock-docs/pp-d2c-原理_终稿.md
+  s_7605727328ed6a::t_193447f4c39c48 4,183
+.Knowledge/topics/pp-d2c-rn.md
+  s_7605727328ed6a::t_193447f4c39c48 255
+README.md
+  s_7605727328ed6a::t_193447f4c39c48 42,46,60,62,64
+.Knowledge/index.md
+  s_7605727328ed6a::t_193447f4c39c48 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "07bdcbc836a2738c93463cdbe0214bd9cd3eebc3",
+  "prompts": {},
+  "sessions": {
+    "s_7605727328ed6a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7fd4cc66-8601-4498-88d8-4cc2233bb803",
+        "model": "arn:aws:bedrock:us-west-2:296122126678:application-inference-profile/uxc50ltr1528"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
