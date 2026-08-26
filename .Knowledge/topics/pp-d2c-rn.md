@@ -252,5 +252,5 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 
 - doctor 的体检规则 → 见 [[pp-doctor]](rn 不接,但可手动跑一遍 h5 版看规范)
 - h5 版 D2C 完整规则 → 见 [[pp-d2c]]
-- 通用 D2C 设计意图(如何写图层名 / Auto Layout 怎么用) → 见 `docs/design-guide.md`
+- 通用 D2C 设计意图(如何写图层名 / Auto Layout 怎么用) → 见 `docs/PixelPrint-设计师图层规范.md`
 - 项目级 rn config 示例 → 见 `templates/pp-d2c.rn.config.json`

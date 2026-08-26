@@ -72,7 +72,7 @@ pp-d2c 有**两套独立版本号**，不一致是正常的：
 - **data-node-id 贯穿全流程**：对账绑定 / 守恒律差集 / review 反查 / 局部修复锚点，四用途；R21 把"全覆盖"变硬规则。
 - **封逃逸口 + 自证代替信任**：已知逃逸路径(整体切图代拆结构/凭空搓渐变/幻觉 padding)显式禁止 + 机械拦截；豁免须三段证据且单次 ≤3；生成流程禁 `--force-skip`。
 
-> 完整原理（四层架构 / 执行流水线 步骤-1→7 / 前缀协议 / sub-agent 分块 / 对账范式 / 忠实度契约 / 设计取舍）见终稿 [`.Knowledge/stock-docs/pp-d2c-原理_终稿.md`](../stock-docs/pp-d2c-原理_终稿.md)；开发者视角原文长文另见 `docs/pp-d2c-principles.md`。
+> 完整原理（四层架构 / 执行流水线 步骤-1→7 / 前缀协议 / sub-agent 分块 / 对账范式 / 忠实度契约 / 设计取舍）见终稿 [`.Knowledge/stock-docs/pp-d2c-原理_终稿.md`](../stock-docs/pp-d2c-原理_终稿.md)；开发者视角原文长文另见 `docs/pp-d2c-设计原理.md`。
 
 ## v1.2.0/v1.2.1 对账范式（校验从「抽查」升级为「逐节点对账」）
 
@@ -433,7 +433,7 @@ cat pp-d2c.config.json | grep -E "health\.enabled|images\.preserveEffectIds|laye
 | `bg-box.png` 切图带紫色"画板底色"假象 | bg-box 是简单 GRADIENT + DROP_SHADOW，应改 bgc- 用 CSS 实现，但被切成位图 | §`bg-` 切图前的"CSS-able 自检" + doctor NAM012 新增 |
 | 用户项目 config 缺 health / layers / preserveEffectIds 段，跑 SKILL 时靠默认值兜底 | install.js `runInit()` 写 config 时漏写这三段 | install.js 修复 + 业务项目 config patch |
 | `doctor.run({...})` 函数找不到，agent 等待返回值卡死 | 误把 SKILL.md 里的伪代码当真函数调用 | 主 SKILL 顶部加「执行模型说明」总纲 + doctor §5.4 / §6 改写自然语言 |
-| 设计稿里有"吸顶/吸底/悬浮"语义但没有对应前缀，AI 全部生成 `position: absolute` 跟随滚动 | layer 前缀体系缺"视口固定定位"语义 | 新增 `fixed-` 修饰前缀（SKILL §`fixed-` 定位规则 + doctor NAM014/LAY013 + design-guide.md 同步） |
+| 设计稿里有"吸顶/吸底/悬浮"语义但没有对应前缀，AI 全部生成 `position: absolute` 跟随滚动 | layer 前缀体系缺"视口固定定位"语义 | 新增 `fixed-` 修饰前缀（SKILL §`fixed-` 定位规则 + doctor NAM014/LAY013 + PixelPrint-设计师图层规范.md 同步） |
 | init 第 2 题「样式方案」单选 `scss/css-modules/tailwind/inline`，less 项目无法表达；"scss + module" 也勾不出来 | 两个独立维度（预处理语法 / 是否走 module）压到一个单选里 | install.js 拆成 [2a] 样式方式 + [2b] 预处理语法 + [2c] 是否走 module；styleFormat 扩展到 8 种值；SKILL §0 加「样式方案标识符」表，§2.5 探测分支泛化到 scss/less/css，§4.6 框架适配表补全 |
 | init 第二阶段所有题目都显示「沿用现有配置」，但项目里其实没 config 文件 | `runInit()` 先调 `installFiles(true)` 把 templates 模板复制过去，再读 existing，读到的是 templates 默认值 | `runInit()` 调换顺序：先读 existing → 再 `installFiles(true, true)`（init 模式不复制 templates config 模板） |
 | MCP 没装时 Claude 跑半套流程才回退报错；原 §步骤 -1 只区分"成功 / 失败"两态，分不清「未装 / 未认证 / 无权限」 | 探针太粗（只描述"尝试调用 MCP 工具"）+ install.js 阶段一假装"检测"实际只打印说明 | SKILL §步骤 -1 改为调 `whoami` 最便宜探针，按错误类型精准分 4 态（未装 / 未认证 / 无权限 / 业务错误），每种给独立提示文案；install.js 阶段一改名「安装提示」并明示无法验证 |
@@ -441,6 +441,6 @@ cat pp-d2c.config.json | grep -E "health\.enabled|images\.preserveEffectIds|laye
 ## 不在本 topic 覆盖的内容
 
 - doctor 的体检规则、报告格式、阈值 → 见 [[pp-doctor]]
-- 通用 D2C 设计意图（如何写图层名 / Auto Layout 怎么用） → 见 `docs/design-guide.md`
+- 通用 D2C 设计意图（如何写图层名 / Auto Layout 怎么用） → 见 `docs/PixelPrint-设计师图层规范.md`
 - 项目级配置示例（`pp-d2c.config.json` 全字段） → 见 SKILL.md §0
 - `templates/pp-d2c.config.json` 模板源 → 见 `templates/` 目录

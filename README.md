@@ -39,11 +39,11 @@ npx @double-coding/pixel-print init \
   --output-dir pages/ --figma-token figd_你的token
 ```
 
-完整参数表见 [`docs/pixel-print-guide.md §6`](./docs/pixel-print-guide.md#6-cli-快捷参数速查)。
+完整参数表见 [`docs/PixelPrint-使用指南.md §6`](./docs/PixelPrint-使用指南.md#6-cli-快捷参数速查)。
 
 ### 2. 让设计师按规范命名图层
 
-把 [`docs/design-guide.md`](./docs/design-guide.md) 发给对接设计师。他花 20 分钟改图层名,你后面省 10 倍时间。
+把 [`docs/PixelPrint-设计师图层规范.md`](./docs/PixelPrint-设计师图层规范.md) 发给对接设计师。他花 20 分钟改图层名,你后面省 10 倍时间。
 
 ### 3. 让 Claude 干活
 
@@ -57,11 +57,11 @@ Claude 自动:探活 Token → 跑体检 → 拆图层 → 派 sub-agent 并行�
 
 ## 想了解更多
 
-📖 **详细文档:[`docs/pixel-print-guide.md`](./docs/pixel-print-guide.md)** — 包含架构说明、init 交互实录(3 种模式)、CLI 参数、配置字段、Token 说明、故障排查、版本历史、效果图。
+📖 **详细文档:[`docs/PixelPrint-使用指南.md`](./docs/PixelPrint-使用指南.md)** — 包含架构说明、init 交互实录(3 种模式)、CLI 参数、配置字段、Token 说明、故障排查、版本历史、效果图。
 
-🔬 **原理文档:[`docs/pp-d2c-principles.md`](./docs/pp-d2c-principles.md)** — pp-d2c 内部如何运转:四层架构、前缀协议、sub-agent 分块、软/硬双防线、以 cache 为真值的逐节点对账。想理解或改造 skill 的看这篇。
+🔬 **原理文档:[`docs/pp-d2c-设计原理.md`](./docs/pp-d2c-设计原理.md)** — pp-d2c 内部如何运转:四层架构、前缀协议、sub-agent 分块、软/硬双防线、以 cache 为真值的逐节点对账。想理解或改造 skill 的看这篇。
 
-🎨 **给设计师看:[`docs/design-guide.md`](./docs/design-guide.md)** — 图层命名规范速查(sub- / img- / bg- / fixed- / …)。
+🎨 **给设计师看:[`docs/PixelPrint-设计师图层规范.md`](./docs/PixelPrint-设计师图层规范.md)** — 图层命名规范速查(sub- / img- / bg- / fixed- / …)。
 
 ---
 
