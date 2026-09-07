@@ -1,0 +1,138 @@
+.claude/skills/f2s-kb-distill/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 288,290,295,378
+.Knowledge/topics/pp-d2c-fast.md
+  s_d64f3b83dbe2fd::t_10deebb8e8e608 4
+.Knowledge/index.md
+  s_d64f3b83dbe2fd::t_c39c4cc6bf4357 48
+  s_d64f3b83dbe2fd::t_3c6318e1acaeb7 74
+  s_d64f3b83dbe2fd::t_d903e6b9582aa4 13
+  s_d64f3b83dbe2fd::t_02a19a14d942c3 31
+.cursor/skills/f2s-req-clarify/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 22-27
+.claude/rules/f2s-flow2spec-unified-entry.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 31,39,41,57,62,72,100-103,105,111
+.codex/skills/f2s-req-plan/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 27,68,70,72-78,80-86,90,148
+.Knowledge/topics/f2s-stock-docs-vs-req-docs.md
+  s_d64f3b83dbe2fd::t_d024256c795b95 4
+.cursor/rules/f2s-topic-authoring.mdc
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 18,35,41-77,100,120,127,139,142,151,160
+.claude/skills/f2s-kb-sync/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 53-101,123,151-152,156-158,160,162-173
+.cursor/rules/f2s-kb-feedback-closing.mdc
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 110-115
+.Knowledge/topics/pp-fix-partial.md
+  s_d64f3b83dbe2fd::t_f1c894a39fb1e5 4
+.claude/rules/f2s-implement-tech-design.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 96,98-108,149
+.codex/topics/f2s-flow2spec-unified-entry.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 27,35,37,53,58,68,96-99,101,107
+.codex/topics/f2s-implement-tech-design.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 90,92-102,143
+.codex/skills/f2s-kb-sync/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 53-101,123,151-152,156-158,160,162-173
+.Knowledge/topics/f2s-req-plan.md
+  s_d64f3b83dbe2fd::t_1c359af37a1571 4
+.claude/skills/f2s-req-plan/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 27,68,70,72-78,80-86,90,148
+.claude/rules/f2s-topic-authoring.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 17,34,40-76,99,119,126,138,141,150,159
+.cursor/skills/f2s-req-plan/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 27,68,70,72-78,80-86,90,148
+.Knowledge/template/index.template.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 13,40,66
+.codex/skills/f2s-req-clarify/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 22-27
+.codex/hooks/f2s-update-check.js
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 3-4,9,12-13,15-16,19-23,26-32,35-36,39-40,43-46,49-51,54-57,60-72,74-86,89-102,104-114,117-121,124,126-132,135-137,140,142-152,155-160
+.Knowledge/manifest-routing.json
+  s_d64f3b83dbe2fd::t_c579241e981535 46,56,65,74,83,100-101,109-110,118-119,127-128,136-137,145-146,154-155,163-164,167
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 2,45,55,64,73,82,91-92,168
+.Knowledge/topics/kb-routing-summary.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 1-64
+.cursor/hooks/f2s-update-check.js
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 3-4,9,12-13,15-16,19-23,26-32,35-36,39-40,43-46,49-51,54-57,60-72,74-86,89-102,104-114,117-121,124,126-132,135-137,140,142-152,155-160
+.cursor/rules/f2s-flow2spec-unified-entry.mdc
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 32,40,42,58,63,73,101-104,106,112
+.codex/topics/f2s-kb-feedback-closing.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 107-112
+.Knowledge/topics/f2s-task.md
+  s_d64f3b83dbe2fd::t_af8b7f8ed4774d 4
+.Knowledge/topics/pp-image-compress.md
+  s_d64f3b83dbe2fd::t_1bc4d4ce894439 4
+.claude/skills/f2s-kb-upgrade/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 3,15,20,30-33,37-38,47,55,57,59-69,101,103,106-107,110,112-116,118,120,122-124,130,136,146,160,162-163,172,238-239,296-297,316-317,328,349-350,357
+.codex/skills/f2s-kb-build/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 50,53
+.Knowledge/topics/pp-d2c-rn.md
+  s_d64f3b83dbe2fd::t_c278808c78150e 4
+.codex/skills/f2s-kb-upgrade/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 3,15,20,30-33,37-38,47,55,57,59-69,101,103,106-107,110,112-116,118,120,122-124,130,136,146,160,162-163,172,238-239,296-297,316-317,328,349-350,357
+.codex/topics/f2s-topic-authoring.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 14,31,37-73,96,116,123,135,138,147,156
+.claude/rules/f2s-kb-feedback-closing.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 110-115
+.cursor/skills/f2s-kb-sync/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 53-101,123,151-152,156-158,160,162-173
+.Knowledge/topics/pp-doctor.md
+  s_d64f3b83dbe2fd::t_777d114fe3b58b 4
+.codex/skills/f2s-kb-distill/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 288,290,295,378
+.claude/skills/f2s-kb-build/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 50,53
+.codex/skills/f2s-kb-addRules/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 86
+AGENTS.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 111
+.Knowledge/topics/pp-d2c.md
+  s_d64f3b83dbe2fd::t_8d309791649674 4
+package.json
+  h_02deff59416ae5 3
+.Knowledge/topics/pp-d2c-reskin.md
+  s_d64f3b83dbe2fd::t_64c4e1254eb0f3 4
+.claude/skills/f2s-kb-addRules/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 86
+.cursor/skills/f2s-kb-addRules/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 86
+.cursor/skills/f2s-kb-build/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 50,53
+.cursor/skills/f2s-kb-distill/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 288,290,295,378
+.Knowledge/topics/f2s-config-precheck.md
+  s_d64f3b83dbe2fd::t_520183d5fc3739 4
+.Knowledge/topics/pp-install-dispatch.md
+  s_d64f3b83dbe2fd::t_6b5a74c167afa6 4
+.Knowledge/topics/f2s-implement-tech-design.md
+  s_d64f3b83dbe2fd::t_4020c6f6b54231 4
+.Knowledge/topics/f2s-fallback-triage.md
+  s_d64f3b83dbe2fd::t_01e35bf2e92467 4
+.cursor/rules/f2s-implement-tech-design.mdc
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 97,99-109,150
+.cursor/skills/f2s-kb-upgrade/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 3,15,20,30-33,37-38,47,55,57,59-69,101,103,106-107,110,112-116,118,120,122-124,130,136,146,160,162-163,172,238-239,296-297,316-317,328,349-350,357
+.claude/skills/f2s-req-clarify/SKILL.md
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 22-27
+.claude/hooks/f2s-update-check.js
+  s_d64f3b83dbe2fd::t_a40b06c3de0c95 3-4,9,12-13,15-16,19-23,26-32,35-36,39-40,43-46,49-51,54-57,60-72,74-86,89-102,104-114,117-121,124,126-132,135-137,140,142-152,155-160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.43-trip",
+  "base_commit_sha": "f81bf6f4dccbd0dfcfce95907be40e6a5c5efe25",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_d64f3b83dbe2fd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11cdca9b-d160-4030-88ac-bffa57ade98e",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
