@@ -1,7 +1,7 @@
 ---
 id: f2s-doc-routing
 revision: 0
-summary: "f2s-doc-routing (routing summary)"
+summary: "stock-docs 与 req-docs 目录职责边界:归档 vs 交付输入"
 primary: policy
 confidence: manual
 ---

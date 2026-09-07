@@ -10,7 +10,7 @@
 ## 推荐阅读顺序
 
 1. `.Knowledge/manifest-routing.json`（任务路由、`topicPaths`、`topicDependencies`、`fallbackTopic`）
-2. 按需：由 `matcherPath` 读取 `.Knowledge/matchers/<id>.json`（`includeAny` 关键词）
+2. 按需：由 `matcherPath` 读取 `.Knowledge/matchers/<id>.json`(`includeAny` / `includeAll` 资格词、`excludeAny` / `excludeAll` 否决词)
 3. 按需：本 `index.md`（主题语义与边界）
 4. `.Knowledge/topics/<topic>.md`（执行约束与流程）
 5. 按需：`.Knowledge/stock-docs/`、`.Knowledge/req-docs/`
@@ -28,6 +28,7 @@
 | config-precheck | `.Knowledge/topics/f2s-config-precheck.md` | 执行 `f2s-*` 前读 `flow2spec.config.json` / 编排开关 | Codex 长文：仓库根 `.codex/topics/f2s-config-check.md`；[路由摘要](topics/f2s-config-precheck.md) |
 | f2s-task | `.Knowledge/topics/f2s-task.md` | 变更追踪、`.task/` 任务清单与跨会话续作 | 长文：配置根 `rules/f2s-task.*`；Codex：`.codex/topics/f2s-task.md` |
 | f2s-req-plan | `.Knowledge/topics/f2s-req-plan.md` | 需求/方案规划与实现；始终维护 `.task/` | 技能：`skills/f2s-req-plan/SKILL.md`；依赖 `f2s-task` |
+| flow2spec-dsh-adapter | `.Knowledge/topics/flow2spec-dsh-adapter.md` | `flow2spec init dsh` 与 DeepSeek Harness 项目技能发现 | 用户文档：`docs/使用说明.md`；实现：`lib/dshAgentsAdapter.js` |
 | pp-doctor | `.Knowledge/topics/pp-doctor.md` | D2C 设计稿体检 SKILL 的执行约定、步骤 2 卡顿排查、阈值与边界 | SKILL：`templates/skills/pp-doctor/SKILL.md`；spec：`docs/d2c-health-check-spec.md` |
 | pp-d2c | `.Knowledge/topics/pp-d2c.md` | D2C 主 SKILL 的执行约定、图层前缀体系（sub-/img-/bg-/bgc-/fixed-/end-/input-/bl-/list- 等）、图片导出参数、scroll 容器规则、token 兜底链与避坑；**v1.2.0/v1.2.1 对账范式**：check-rules 从黑名单抽查升级为以 cache 为真值逐节点对账（loadCache 标注 `_inBakedSubtree`/`_hidden`/`_templateDup` + cssMatch 共享 SCSS 嵌套匹配消除假阳性），新增 R17 双重渲染 / R18 flex 方向 / R19 padding / R20 绝对定位坐标 / R21 node-id 覆盖五条硬规则，§6.0.2 封逃逸口 + §5.1.1 data-node-id 铁律 + §4.3 含 TEXT 容器裁决树；**视觉验收截图机制**（设计稿侧 `figma.mjs screenshot` 脚本化 / 产物侧软要求，无无头浏览器）；**设计原理概述**（四层架构 / 双防线 / 对账 / 前缀协议，终稿见 `.Knowledge/stock-docs/pp-d2c-原理_终稿.md`）；**v1.2.3 软→硬迁移**（R03/R04/R09/R12/R14 由软防线下沉硬防线 check-rules，共 16 条；软防线剩 R07/R10/R11/R13/R15）；**v1.2.4 生成过程缺陷修复批**（GATE-rule-hits / IMG-reconcile 两道门禁 + `--block` 局部化 + figma.mjs 深度截断修复 + R22 warning + 步骤 2.6 硬门禁与切图确认暂停 + micro-sub/同构合并）；**v1.2.5 防线加固批**（硬防线 16→17 条：新增 R23 size-fidelity 尺寸忠实度 + R21 反向对账拦幻觉 id + GATE-cache-truncation / GATE-slice-confirm 补齐四道门禁 + 切图确认留痕 `confirm-slices` + 单 agent 执行模式）；**v1.2.6 前缀扩展**（bl- 基线对齐 + list- 显式同构列表与切图 imageRef 去重，硬防线 17→18 条：新增 R24 baseline-align）；**v1.2.7 目录三态守卫**（步骤 0.5.1，slug 确定后 ls -la 探测目标目录，存在且含实际业务文件即 hard stop 交用户三选一，禁 agent 删旧目录或混入产物） | SKILL：`templates/skills/pp-d2c/SKILL.md`；规则库：`templates/skills/pp-d2c/rules/`；关联：[[pp-doctor]] |
 | pp-d2c-fast | `.Knowledge/topics/pp-d2c-fast.md` | D2C 快速模式：拷 pp-d2c 砍 A 梯队冗余自证（对账已覆盖），保留决策引导 + R04 GRADIENT，原 pp-d2c 不动、二者并存 | SKILL：`templates/skills/pp-d2c-fast/SKILL.md`；依赖 [[pp-d2c]] |
@@ -44,7 +45,7 @@
 
 ## 命中与执行（与统一入口一致）
 
-- **路由**：`taskToTopicRules` 给出任务 → 主题集合；**关键词**在 matcher 分片的 `includeAny`。
+- **路由**：`taskToTopicRules` 给出任务 → 主题集合；**关键词**在 matcher 分片(`includeAny` / `includeAll` 资格门 + `excludeAny` / `excludeAll` 否决门；否决优先于 `task` 精确命中)。
 - **依赖**：命中主主题前，按 `topicDependencies` 先读依赖主题。
 - **兜底**：`fallbackTopic` 指向分诊主题（如 `fallback-triage`），仅低置信度上下文，**不得**当作最终命中直接改代码。
 - **执行链**：`match → expand → verify → act`；`expand` 须含依赖展开，并保留次高候选做校验。
@@ -70,7 +71,7 @@
 
 | 情况 | 你怎么做 |
 | --- | --- |
-| 有文档但没配到（1a） | 维护侧：`f2s-kb-build` / `f2s-kb-sync` / `f2s-kb-add` 补路由与 `includeAny`。执行侧：分诊主题澄清任务类型，**不**用全仓扫替代 manifest。 |
+| 有文档但没配到（1a） | 维护侧：`f2s-kb-build` / `f2s-kb-sync` / `f2s-kb-add` 补路由与 matcher 词表(`includeAny` / `includeAll` / `excludeAny` / `excludeAll`)。执行侧：分诊主题澄清任务类型，**不**用全仓扫替代 manifest。 |
 | 配到了但不够（1b） | 走依赖与次高候选 → `verify` 点名缺哪篇文档；仍缺则向用户要路径或补 `req-docs`。 |
 | 库里没有（2） | 承认缺口 → 代码下钻或请用户补需求/方案文档。 |
 | 反复读 manifest 费 token（2a） | 同一任务线内 routing 只当快照；只读命中项的单个 matcher；不遍历整个 `matchers/` 目录枚举；`index.md` 勿与 routing 循环互刷。 |

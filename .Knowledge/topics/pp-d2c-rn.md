@@ -1,7 +1,7 @@
 ---
 id: pp-d2c-rn
 revision: 4
-summary: pp-d2c-rn
+summary: "RN D2C:Figma 还原为 RN + StyleSheet"
 primary: feature
 confidence: manual
 tags: [module, config]

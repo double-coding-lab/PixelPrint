@@ -1,7 +1,7 @@
 ---
 id: fallback-triage
 revision: 0
-summary: fallback-triage
+summary: "路由未命中或低置信度时的兜底分诊流程与用户确认"
 primary: policy
 confidence: manual
 ---

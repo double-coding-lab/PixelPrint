@@ -1,7 +1,7 @@
 ---
 id: pp-image-compress
 revision: 0
-summary: pp-image-compress
+summary: "Pillow 无损压缩 PNG/JPEG,产物写入 compressed 子目录"
 primary: feature
 confidence: inferred
 tags: [module]

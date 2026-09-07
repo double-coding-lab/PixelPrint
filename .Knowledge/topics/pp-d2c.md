@@ -1,7 +1,7 @@
 ---
 id: pp-d2c
 revision: 2
-summary: pp-d2c
+summary: "H5 D2C 主流程:Figma 还原、前缀协议、check-rules 硬防线"
 primary: policy
 confidence: inferred
 tags: [feature, config]

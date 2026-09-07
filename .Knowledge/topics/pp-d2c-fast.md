@@ -1,7 +1,8 @@
 ---
 id: pp-d2c-fast
 revision: 2
-summary: pp-d2c-fast
+summary: "pp-d2c 快速模式:砍 check-rules 已覆盖的自证块"
+dependsOn: [pp-d2c]
 primary: feature
 confidence: inferred
 tags: [policy]

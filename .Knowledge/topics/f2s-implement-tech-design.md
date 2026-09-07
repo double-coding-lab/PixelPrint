@@ -1,7 +1,7 @@
 ---
 id: implement-tech-design
 revision: 0
-summary: "implement-tech-design (routing summary)"
+summary: "按 req-docs 技术方案编码实现,不用 stock-docs 作直接输入"
 dependsOn: [f2s-doc-routing]
 primary: policy
 confidence: manual

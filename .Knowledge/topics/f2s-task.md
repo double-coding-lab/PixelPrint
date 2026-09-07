@@ -1,7 +1,7 @@
 ---
 id: f2s-task
 revision: 0
-summary: "f2s-task (routing summary)"
+summary: ".task 变更追踪目录、todo.json、任务续作与归档规范"
 primary: policy
 confidence: manual
 ---

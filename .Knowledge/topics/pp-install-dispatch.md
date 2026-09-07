@@ -1,7 +1,7 @@
 ---
 id: pp-install-dispatch
 revision: 0
-summary: pp-install-dispatch
+summary: "install.js 分发 templates/skills 的黑名单与过滤"
 primary: policy
 confidence: inferred
 tags: [module]

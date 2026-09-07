@@ -1,7 +1,7 @@
 ---
 id: pp-fix-partial
 revision: 0
-summary: pp-fix-partial
+summary: "整页出码后按 nodeId 或自然语言局部重生成 sub-block 的修复流程"
 dependsOn: [pp-d2c]
 primary: feature
 confidence: manual
