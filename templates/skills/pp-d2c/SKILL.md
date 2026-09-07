@@ -5,19 +5,7 @@ description: 根据 Figma 设计稿 URL 生成 React H5 页面代码与资源；
 
 # pp-d2c Skill
 
-> **当前版本**：v1.2.5(h5 独享,不同步 pp-d2c-rn) —— **防线加固批**(test28/29 取证,主题:输入完整性→节点存在性→尺寸忠实度→确认留痕全链机械化):(1) **GATE-cache-truncation**——合并 cache 中空 GROUP/BOOLEAN_OPERATION = fetch depth 截断实锤,截断 cache 出码必丢内容(test29: 25 节点 cache 令全防线真空通过);(2) **R21 反向对账**——产物 data-node-id 必须存在于 cache,幻觉 id 直接 violation;(3) 新增 **R23 size-fidelity**——显式 px 宽高须 ≈ bbox×scale(容差 4px),`1px×1px+overflow:hidden` 锚点欺诈点名(test28 自供"校验锚点");(4) **GATE-rule-hits 收紧**——fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 失败记录;(5) **GATE-slice-confirm 确认留痕**——reskin-slice 落 `confirmed:false`,用户确认后 `figma.mjs confirm-slices` 翻 true;(6) **单 agent 执行模式**——无 sub-agent 平台(如 Codex)的合法路径,禁止以平台缺失为由跳步骤。
->
-> **v1.2.4 历史** —— **生成过程缺陷修复批**(test24-27 取证):(1) `check-rules --block` 局部化——`--root <nodeId>` 或产物 data-node-id LCA 推断,cache 裁剪到 block 子树,消除 block 外全量误报;(2) **GATE-rule-hits 门禁**——rule-hits.json 缺失即 exit 1,含 assets.txt 消费证明捏造检测;(3) **IMG-reconcile 三方对账**(--merge)——产物图片引用必须来自 slice-manifest;(4) R20 增强——ABSOLUTE 节点强制 `position: absolute` 声明;(5) 新增 R22 empty-visual-btn(warning 级);(6) figma.mjs——修复"全量请求复用深度截断 cache"bug + `truncatedSuspects` 截断检测;(7) 步骤 2.6 硬门禁——reskin-slice 失败 hard stop + 切图确认暂停(`slice.confirmBeforeContinue` 默认 true);(8) micro-sub 快路径与同构 sub- 合并;(9) Rule-Scan 恢复全量扫描出指引(判决权仍在 check-rules)。
->
-> **v1.2.3 历史** —— **软规则硬化**:把原 Rule-Scan 软防线中机械可判的 5 条(R03 implicit-image / R04 text-gradient / R09 btn-bgc / R12 flat-mode-naming / R14 fixed-z-index)下沉 `check-rules.mjs` 硬防线,逐节点对账、exit 1 阻断,不再依赖 sub- 触发。软防线瘦身至需 LLM 语义判定的 R07/R10/R11/R13/R15。新硬规则一律保守(宁漏报不误判,边界 skip)。
->
-> **v1.2.2 历史** —— **软防线覆盖补全**:Rule-Scan 触发不再依赖 sub- 存在。执行清单 sub- block 数为 0 时,主 agent 出码前对**整页**跑一次 Rule-Scan(页面根视为虚拟 block,`rule-hits.json` 落页面根目录,消费证明与聚合口径同 sub- 场景,详见步骤 3.5)。修复:无 sub- 页面软规则完全不触发的覆盖空档——软防线不应取决于设计师是否标了 sub-。
->
-> **v1.2.1 历史** —— 校验范式从「黑名单抽查」升级为「以 cache 为真值的逐节点对账」,并借机简化防线。**v1.2.1 补丁**:(a) `_inBakedSubtree` 移除 bgc-(bgc- 盒级 CSS 写父、非切图,子孙误放 TEXT 应被 R06/R21 暴露而非静默吞);(b) 新增 **R21 node-id-coverage** 把 §5.1.1 data-node-id 铁律机械强制(应渲染节点漏挂 id 即 exit 1,堵 R18/R19/R20 遇空 classMap 静默 continue);(c) §6.0.2 禁生成流程用 `--force-skip`。v1.2.0 核心变更:(1) `bin/lib/loadCache.mjs` 为每节点标注 **`_inBakedSubtree`**(祖先含 bg-/bgc-/img-/x- 整体切图)/**`_hidden`**(自身或祖先 visible=false)/**`_templateDup`**(`.map()` 列表同构兄弟的非首个数据副本);R02/R06 跳过这三类,**假阳性从根源清除**(test13 实测 89→14);(2) 抽 **`bin/lib/cssMatch.mjs`** 共享 SCSS `&__foo`/`&-foo` 嵌套匹配,R01/R02/R06/R18/R19 统一走,修掉"产物用嵌套写法、正则找平铺类"的全线盲区;(3) 新增 4 条对账规则——**R17 no-baked-dom**(baked 子孙禁止再出 DOM,拦双重渲染)/**R18 flex-direction**(layoutMode↔flex-direction 忠实度)/**R19 padding**(padding↔Figma×scale 忠实度)/**R20 absolute-position**(ABSOLUTE 子节点 top/left=(子bbox−父bbox)×scale 忠实度);(4) §6.0.2 **封逃逸口**:禁"语义盲点/装饰性内容/父层整体切图承载"批量豁免话术,"需人工核对"不再适用于可机械计算的坐标/尺寸/方向/间距;(5) §5.1.1 **data-node-id 全覆盖铁律**:凡承载 Figma 语义的 DOM 必挂 node-id,`.map()` 模板挂代表项(variant a)id;(6) §4.3 新增**「含 TEXT 容器 压平 vs 拆」唯一裁决树** + **bg- 背景直接挂父 vs 独立层**判定。硬规则详情迁到 `rules/*.md`,SKILL.md 保留总概表。核心哲学: **允许兜底的路径就是错误来源;校验以 cache 为唯一真值逐节点对账,而非抽查已知坏味道。**
->
-> **v1.1.0 历史**:R16 no-flatten-text 硬防线 + §6.0.2 兜底门禁 N=0 + Step 0.5 询问输出路径 + Step 2.6 前置切图 + bg 溢出检测 + §2.5.2 config.styleFormat 唯一权威 + R01 SCSS 嵌套匹配。详见 `git log`。
->
-> 历史 changelog 查 `git log templates/skills/pp-d2c/SKILL.md`,不在本文件维护。所有规则以下文章节 + `rules/*.md` 为准;冲突时以 `rules/` 为准。
+> **当前版本**:v1.2.7
 
 ## 触发条件
 - 用户提供 Figma 设计稿 URL
@@ -241,6 +229,35 @@ config.images.assetsDir = <images.assetsDir 原值>
 - 代码路径: <output.dir>/<code-slug>/         (例: pages/test-tmp/)
 - 图片路径: <images.assetsDir>/<asset-slug>/  (例: static/test-tmp/)
 - slug 来源: {frame-name-slug / page-nodeId / user-explicit / same-as-code}
+```
+
+### 步骤 0.5.1:目录三态守卫(v1.2.7 / v1.1.2,硬约束,不可跳过)
+
+slug 确定后、切图 / 出码 / QA 任何写盘动作**之前**,主 agent **必须**用 `ls -la <projectRoot>/<output.dir>/<code-slug>/` 探测目标落盘路径,并同样探测 `<projectRoot>/<images.assetsDir>/<asset-slug>/`。按三态处置:
+
+| 目标路径状态 | agent 行为 |
+|---|---|
+| 不存在 | 告知用户完整路径 → 直接创建并使用,进入下一步 |
+| 存在但为空(仅含 `.gitkeep` / `.DS_Store` 等无实义占位视作空) | 告知用户完整路径 → 直接使用,进入下一步 |
+| **存在且含有实际文件**(任意 `.tsx` / `.scss` / `.ts` / `.js` / `.png` 等业务文件) | **hard stop**——立即停止,列出目录内实际文件清单(`ls -la` 原文)给用户看,请用户三选一:(a)换路径(改 slug 或改父目录 `output.dir`)(b)自行 `git mv` / `rm` 处理该目录后回复"已处理"再继续 (c)中止本次 D2C |
+
+**用户三选一的处理**:
+
+- (a)换路径 → 回到步骤 0.5 重新问 slug,重跑本节三态探测
+- (b)自处理 → 用户回复"已处理"后重跑一次 `ls -la` 探测,状态变为"不存在"或"空"才继续;若仍非空一律再次 hard stop,禁止相信用户口头承诺
+- (c)中止 → 完整退出 D2C 流程,不写盘任何文件
+
+**空目录放行清单**(仅这几个视作"空"):`.gitkeep` / `.DS_Store` / `Thumbs.db` / 空 `README.md`(0 字节)。任何其他文件即视为"含实际文件"。
+
+**禁止项(硬约束,与 R21/GATE-cache-truncation 同级)**:
+
+- 禁止 `rm -rf <目标路径>` 或等价删除既有目录内容——**agent 无权删旧目录**,清理由用户在(b)分支自处理
+- 禁止"备份后覆盖"通道(如 `mv <目标> .d2c-trash/`)——不留后门,用户选的是"绝不允许 agent 删旧目录"
+- 禁止把新产物混入已有目录(哪怕文件名不冲突)——`components/` / `utils.ts` 等"看起来无关"的旧文件最常被误覆盖;三态检查按目录整体判定,不按文件名逐个判
+- 禁止跳过本节直接进入切图 / 出码(§6.0 忠实度证明块会自证本节判定与用户处置轨迹,缺失即不合格)
+
+**取证背景**:用户实测事故——已有 `xxx/` 业务目录内部实现被 D2C 无感知替换,业务代码丢失。文本约束不足以拦下,故正式列入硬约束。
+
 - 用户"临时"标记: {true / false}   ← 仅影响本段路径命名, 不豁免任何硬规则(见 §问题边界)
 ```
 
@@ -1181,6 +1198,8 @@ R16(不压平文字)与 bg-/img-(整体切图)在**含 TEXT 的容器**上会打
 | `fixed-` | 视口固定定位 | 在当前节点对应的容器上加 `position: fixed`，相对视口定位；top/bottom/left/right 根据 Figma constraints 推断；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加（这三个不生成节点，没法 fixed） |
 | `end-` | 逆向布局（贴父末端） | 让节点在父 autoLayout 里贴向末端：父 `VERTICAL` → 贴底；父 `HORIZONTAL` → 贴右。**主线机制**：把该 end- 节点前面的兄弟包成一个 wrapper，父 `justify-content: space-between`，天然把 end- 推到末端；**修饰前缀**，可与 `sub-` / `block-` / `btn-` / `img-` / `scrollx-` / `scrolly-` / `input-` 叠加；**不可**与 `bg-` / `bgc-` / `x-` 叠加 |
 | `input-` | 输入框（`<input type="text">`） | 生成语义化 `<input type="text">` 标签而非 `<div>`，取子 TEXT 节点 `characters` 作为 `placeholder`，左侧图标（若存在 vector/img 子）切图作为 `background-image` + `padding-left` 腾位置；**独立前缀**（决定生成什么元素，不是修饰），**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `btn-` 叠加（doctor NAM019/NAM020 error），**可**与 `fixed-` / `end-` / `sub-` 叠加；命中即停止向内递归 |
+| `bl-`（v1.2.6） | 文本基线对齐容器 | 容器出 `display: flex` + `align-items: baseline`,直接 TEXT 子元素**放弃逐个绝对定位**,水平位置由基线流(顺序 + gap/margin)负责——典型场景:一行内字号不同的文字(如「¥ **199** 起」)按视觉基线对齐;**修饰前缀**,可与 `sub-` / `block-` 叠加;**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `input-` 叠加(要么不生成节点要么不递归,基线流无从谈起);硬规则 R24 校验 baseline 落地,其直接子层 R20 坐标对账豁免 |
+| `list-`（v1.2.6） | 显式同构列表 | 直接子元素声明为**同构列表项**:强制 `.map()` 模板渲染(代表项 = 首个子项,data-node-id 挂代表项;等价 R15 的显式声明形态,不再依赖"同层 ≥3"语义推断,2 项列表同样生效);loadCache 将非首个直接子项标 `_templateDup`;**切图去重**:项内 `img-`/`bg-` 按 `imageRef + bbox 尺寸` 跨项分组,同组只切首项一张、slice-manifest 以 `sharedFrom` 记共享引用,异组逐项切;**修饰前缀**,可与 `sub-` / `block-` / `scrollx-` / `scrolly-` 叠加;**不可**与 `bg-` / `bgc-` / `x-` / `img-` / `input-` 叠加 |
 
 ##### 独立裸词规则
 
@@ -1194,7 +1213,7 @@ R16(不压平文字)与 bg-/img-(整体切图)在**含 TEXT 的容器**上会打
 
 **裸词白名单**（仅这些独立/内容前缀允许裸词形式）：`bg` / `bgc` / `btn` / `img` / `input`
 
-**修饰前缀不允许裸词**：`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end` 这些前缀必须写 `xxx-...` 完整形式，**不允许**独立裸词。
+**修饰前缀不允许裸词**：`sub` / `block` / `x` / `scrollx` / `scrolly` / `fixed` / `end` / `bl` / `list` 这些前缀必须写 `xxx-...` 完整形式，**不允许**独立裸词。
 
 **裸词不允许与其他前缀组合**：`sub-bg` / `block-btn` 这类"修饰前缀 + 裸词"命名一律**报错**（doctor NAM023）。
 

@@ -1,7 +1,7 @@
 ---
 id: pp-d2c-reskin
 revision: 0
-summary: pp-d2c-reskin
+summary: "按前缀批量切换肤稿:基线模式与 standalone 模式的图片替换流程"
 primary: feature
 confidence: inferred
 tags: [module, policy]

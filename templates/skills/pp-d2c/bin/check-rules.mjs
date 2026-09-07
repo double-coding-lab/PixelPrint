@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // check-rules.mjs — pp-d2c 硬防线脚本 (v1.2.5)
-// 覆盖 R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16/R17/R18/R19/R20/R21/R23 + R22(warning)
+// 覆盖 R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16/R17/R18/R19/R20/R21/R23/R24 + R22(warning)
 // v1.2.5：(1) GATE-cache-truncation——合并 cache 中空 GROUP/BOOLEAN_OPERATION = depth 截断实锤,
 //   截断 cache 会让逐节点对账真空通过(test29: 25 节点 cache 全防线失效);(2) R21 反向对账——
 //   产物 data-node-id 必须存在于 cache(幻觉 id);(3) 新增 R23 size-fidelity——显式 px 宽高须
@@ -57,8 +57,9 @@ import * as R20 from './rules/R20-absolute-position.mjs';
 import * as R21 from './rules/R21-node-id-coverage.mjs';
 import * as R22 from './rules/R22-empty-visual-btn.mjs';
 import * as R23 from './rules/R23-size-fidelity.mjs';
+import * as R24 from './rules/R24-baseline-align.mjs';
 
-const ALL_RULES = [R01, R02, R03, R04, R05, R06, R08, R09, R12, R14, R16, R17, R18, R19, R20, R21, R22, R23];
+const ALL_RULES = [R01, R02, R03, R04, R05, R06, R08, R09, R12, R14, R16, R17, R18, R19, R20, R21, R22, R23, R24];
 
 // ── rule-hits 存在性门禁(v1.2.4,问题5) ─────────────────────────
 // Rule-Scan 是步骤 3.5 硬性动作;v1.2.2 起无 sub- 页面也必须对页面根跑一次(虚拟 block)。
@@ -245,7 +246,7 @@ Usage:
 
 --root: block 子树根 nodeId(局部化对账范围);缺省时 --block 模式自动从产物 data-node-id 推断(LCA)
 
-Rules covered: R01 R02 R03 R04 R05 R06 R08 R09 R12 R14 R16 R17 R18 R19 R20 R21 R23 R22(warn)
+Rules covered: R01 R02 R03 R04 R05 R06 R08 R09 R12 R14 R16 R17 R18 R19 R20 R21 R23 R24 R22(warn)
 Gates: GATE-cache-truncation(cache 完整性) GATE-rule-hits(存在性+fallback 收紧)
        IMG-reconcile(--merge 三方对账) GATE-slice-confirm(--merge 切图确认留痕)
 Exit: 0=ok, 1=violations, 2=env-error

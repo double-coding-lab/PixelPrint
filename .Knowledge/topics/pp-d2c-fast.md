@@ -1,7 +1,8 @@
 ---
 id: pp-d2c-fast
-revision: 0
-summary: pp-d2c-fast
+revision: 2
+summary: "pp-d2c 快速模式:砍 check-rules 已覆盖的自证块"
+dependsOn: [pp-d2c]
 primary: feature
 confidence: inferred
 tags: [policy]
@@ -31,7 +32,8 @@ fast 版删除以下**已被 check-rules 覆盖**的手写自证（质量下限�
 
 ## 完全保留（与 pp-d2c 一致）
 
-- 硬防线 check-rules **17 条 + R22 warning 级 + 四道门禁（GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm）**（`bin/` `rules/` 与 pp-d2c 字节相同）
+- **步骤 0.5.1 目录三态守卫(v1.2.7,同 pp-d2c)**:slug 确定后 `ls -la` 探测目标目录,存在且含实际文件即 hard stop 交用户处置,禁 `rm -rf` 与备份覆盖通道
+- 硬防线 check-rules **18 条 + R22 warning 级 + 四道门禁（GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm）**（`bin/` `rules/` 与 pp-d2c 字节相同,含 v1.2.6 R24 与 bl-/list- 前缀）
 - §4.3 含 TEXT 容器裁决树、前缀语义、R20 坐标公式
 - §5.1.1 data-node-id **铁律规则说明**（挂 id 是 R21 前提）
 - §6.0.2 **精简证明块**保留三项：assets 消费契约、GRADIENT/IMAGE 字色（R04）、min-height 尺寸源

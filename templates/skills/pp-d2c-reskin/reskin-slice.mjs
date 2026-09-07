@@ -261,7 +261,15 @@ function isSliceName(name, prefixes) {
   return false
 }
 
-function collectSliceNodes(node, prefixes, out = [], pathStack = [], parentName = null) {
+// v1.2.6 list- 同构列表去重键:节点可见 IMAGE fill 的 imageRef 集合(排序拼接);无 IMAGE fill → null(不参与去重)
+function imageRefKeyOf(node) {
+  const refs = (Array.isArray(node.fills) ? node.fills : [])
+    .filter((f) => f && f.type === 'IMAGE' && f.visible !== false && f.imageRef)
+    .map((f) => f.imageRef)
+  return refs.length ? refs.sort().join(',') : null
+}
+
+function collectSliceNodes(node, prefixes, out = [], pathStack = [], parentName = null, listAncestor = null) {
   if (!node) return out
   const name = node.name || ''
   if (isSliceName(name, prefixes)) {
@@ -276,11 +284,15 @@ function collectSliceNodes(node, prefixes, out = [], pathStack = [], parentName 
       pathStack: [...pathStack, name],
       renderBounds,
       boundingBox,
+      // v1.2.6 list- 同构列表切图去重:最近 list- 祖先 id + 可见 IMAGE fill 的 imageRef 键
+      listAncestor,
+      imageRefKey: imageRefKeyOf(node),
     })
   }
+  const childListAncestor = name.startsWith('list-') ? node.id : listAncestor
   if (Array.isArray(node.children)) {
     for (const child of node.children) {
-      collectSliceNodes(child, prefixes, out, [...pathStack, name], name)
+      collectSliceNodes(child, prefixes, out, [...pathStack, name], name, childListAncestor)
     }
   }
   return out
@@ -536,6 +548,8 @@ async function main() {
         nodeId: s.id,
         renderBounds: s.renderBounds,
         boundingBox: s.boundingBox,
+        listAncestor: s.listAncestor || null,
+        imageRefKey: s.imageRefKey || null,
       }))
       console.log(`  自扫切图清单:${sliceItems.length} 项(扫描到 ${selfList.length}, dedupe-siblings=${args.dedupeSiblings ? 'on' : 'off'})`)
     }
@@ -544,7 +558,34 @@ async function main() {
     const hits = []
     const manifestEntries = []
     const sizeWarnings = []
+    // v1.2.6 list- 同构列表切图去重:`${listAncestor}|${imageRefKey}|WxH` → 首项 manifest entry
+    const listShared = new Map()
     for (const item of sliceItems) {
+      // 同 list- 容器内 imageRef+bbox 尺寸一致的非首项:不再导出,清单条目复用首项文件并记 sharedFrom;
+      // 无 list- 祖先或无 imageRef 时不去重(保守,多切不丢)——默认路径零行为变化
+      const bbW = item.boundingBox ? Math.round(item.boundingBox.width) : null
+      const bbH = item.boundingBox ? Math.round(item.boundingBox.height) : null
+      const groupKey = item.listAncestor && item.imageRefKey && bbW != null
+        ? `${item.listAncestor}|${item.imageRefKey}|${bbW}x${bbH}` : null
+      if (groupKey && listShared.has(groupKey)) {
+        const first = listShared.get(groupKey)
+        console.log(`  · share ${item.name}  →  复用 ${first.filename}   (nodeId=${item.nodeId}, sharedFrom=${first.nodeId})`)
+        hits.push({ name: item.name, path: first.filepath })
+        manifestEntries.push({
+          nodeId: item.nodeId,
+          name: item.name,
+          parentName: item.parentName || null,
+          filename: first.filename,
+          filepath: first.filepath,
+          renderWidth: first.renderWidth,
+          renderHeight: first.renderHeight,
+          bboxWidth: bbW,
+          bboxHeight: bbH,
+          sizeWarning: null,
+          sharedFrom: first.nodeId,
+        })
+        continue
+      }
       const destAbs = path.join(outDirAbs, `${item.filename}.png`)
       try {
         await exportImageToPath(themeFileKey, item.nodeId, token, destAbs)
@@ -576,6 +617,7 @@ async function main() {
           bboxHeight: item.boundingBox ? Math.round(item.boundingBox.height) : null,
           sizeWarning: warn || null,
         })
+        if (groupKey) listShared.set(groupKey, manifestEntries[manifestEntries.length - 1])
       } catch (e) {
         console.log(`  × err   ${item.name}  (${e.message})`)
         missNames.push(`${item.name} (${e.message})`)

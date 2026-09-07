@@ -1,7 +1,7 @@
 ---
 id: f2s-req-plan
 revision: 0
-summary: "f2s-req-plan (routing summary)"
+summary: "从技术方案生成任务清单、写入 .task 并按步实现的编排流程"
 dependsOn: [f2s-task]
 primary: policy
 confidence: manual

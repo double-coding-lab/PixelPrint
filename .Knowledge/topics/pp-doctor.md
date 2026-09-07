@@ -1,7 +1,7 @@
 ---
 id: pp-doctor
 revision: 0
-summary: pp-doctor
+summary: "D2C 设计稿健康检测:节点数上限、阈值、卡顿排查与集成阻塞决策"
 primary: policy
 confidence: inferred
 tags: [config, module]

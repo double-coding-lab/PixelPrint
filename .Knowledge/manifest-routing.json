@@ -1,5 +1,5 @@
 {
-  "version": "3.2.12",
+  "version": "3.8.0",
   "knowledgeRoot": ".Knowledge",
   "matcherKey": "matcherId",
   "sourceOfTruth": ".Knowledge/manifest-routing.json",
@@ -25,6 +25,7 @@
     "config-precheck": ".Knowledge/topics/f2s-config-precheck.md",
     "f2s-task": ".Knowledge/topics/f2s-task.md",
     "f2s-req-plan": ".Knowledge/topics/f2s-req-plan.md",
+    "flow2spec-dsh-adapter": ".Knowledge/topics/flow2spec-dsh-adapter.md",
     "pp-doctor": ".Knowledge/topics/pp-doctor.md",
     "pp-d2c": ".Knowledge/topics/pp-d2c.md",
     "pp-d2c-rn": ".Knowledge/topics/pp-d2c-rn.md",
@@ -41,7 +42,8 @@
       "matcherPath": ".Knowledge/matchers/m-f2s-config-precheck.json",
       "topics": [
         "config-precheck"
-      ]
+      ],
+      "summary": "f2s-* 技能执行前必先 Read flow2spec.config.json"
     },
     {
       "task": "implement-from-spec",
@@ -50,7 +52,8 @@
       "topics": [
         "f2s-doc-routing",
         "implement-tech-design"
-      ]
+      ],
+      "summary": "stock-docs 与 req-docs 目录职责边界:归档 vs 交付输入；按 req-docs 技术方案编码实现,不用 stock-docs 作直接输入"
     },
     {
       "task": "doc-routing",
@@ -58,7 +61,8 @@
       "matcherPath": ".Knowledge/matchers/m-doc-routing.json",
       "topics": [
         "f2s-doc-routing"
-      ]
+      ],
+      "summary": "stock-docs 与 req-docs 目录职责边界:归档 vs 交付输入"
     },
     {
       "task": "change-tracking",
@@ -66,7 +70,8 @@
       "matcherPath": ".Knowledge/matchers/m-change-tracking.json",
       "topics": [
         "f2s-task"
-      ]
+      ],
+      "summary": ".task 变更追踪目录、todo.json、任务续作与归档规范"
     },
     {
       "task": "req-plan",
@@ -74,7 +79,17 @@
       "matcherPath": ".Knowledge/matchers/m-req-plan.json",
       "topics": [
         "f2s-req-plan"
-      ]
+      ],
+      "summary": "从技术方案生成任务清单、写入 .task 并按步实现的编排流程"
+    },
+    {
+      "task": "flow2spec-dsh-adapter",
+      "matcherId": "m-flow2spec-dsh-adapter",
+      "matcherPath": ".Knowledge/matchers/m-flow2spec-dsh-adapter.json",
+      "topics": [
+        "flow2spec-dsh-adapter"
+      ],
+      "summary": "DeepSeek Harness 项目级技能初始化与目录适配"
     },
     {
       "task": "pp-doctor",
@@ -82,7 +97,8 @@
       "matcherPath": ".Knowledge/matchers/m-pp-doctor.json",
       "topics": [
         "pp-doctor"
-      ]
+      ],
+      "summary": "D2C 设计稿健康检测:节点数上限、阈值、卡顿排查与集成阻塞决策"
     },
     {
       "task": "pp-d2c",
@@ -90,7 +106,8 @@
       "matcherPath": ".Knowledge/matchers/m-pp-d2c.json",
       "topics": [
         "pp-d2c"
-      ]
+      ],
+      "summary": "H5 D2C 主流程:Figma 还原、前缀协议、check-rules 硬防线"
     },
     {
       "task": "pp-d2c",
@@ -98,7 +115,8 @@
       "matcherPath": ".Knowledge/matchers/m-pp-d2c-rn.json",
       "topics": [
         "pp-d2c-rn"
-      ]
+      ],
+      "summary": "RN D2C:Figma 还原为 RN + StyleSheet"
     },
     {
       "task": "pp-fix-partial",
@@ -106,7 +124,8 @@
       "matcherPath": ".Knowledge/matchers/m-pp-fix-partial.json",
       "topics": [
         "pp-fix-partial"
-      ]
+      ],
+      "summary": "整页出码后按 nodeId 或自然语言局部重生成 sub-block 的修复流程"
     },
     {
       "task": "pp-install-dispatch",
@@ -114,7 +133,8 @@
       "matcherPath": ".Knowledge/matchers/m-pp-install-dispatch.json",
       "topics": [
         "pp-install-dispatch"
-      ]
+      ],
+      "summary": "install.js 分发 templates/skills 的黑名单与过滤"
     },
     {
       "task": "pp-d2c-reskin",
@@ -122,7 +142,8 @@
       "matcherPath": ".Knowledge/matchers/m-pp-d2c-reskin.json",
       "topics": [
         "pp-d2c-reskin"
-      ]
+      ],
+      "summary": "按前缀批量切换肤稿:基线模式与 standalone 模式的图片替换流程"
     },
     {
       "task": "pp-image-compress",
@@ -130,7 +151,8 @@
       "matcherPath": ".Knowledge/matchers/m-pp-image-compress.json",
       "topics": [
         "pp-image-compress"
-      ]
+      ],
+      "summary": "Pillow 无损压缩 PNG/JPEG,产物写入 compressed 子目录"
     },
     {
       "task": "pp-d2c-fast",
@@ -138,11 +160,12 @@
       "matcherPath": ".Knowledge/matchers/m-pp-d2c-fast.json",
       "topics": [
         "pp-d2c-fast"
-      ]
+      ],
+      "summary": "pp-d2c 快速模式:砍 check-rules 已覆盖的自证块"
     }
   ],
-  "projectRev": 2,
-  "pkgRev": 2,
+  "projectRev": 3,
+  "pkgRev": 3,
   "topicMetadata": {
     "implement-tech-design": {
       "primary": "policy",
@@ -229,6 +252,13 @@
       "confidence": "inferred",
       "tags": [
         "policy"
+      ]
+    },
+    "flow2spec-dsh-adapter": {
+      "primary": "feature",
+      "confidence": "inferred",
+      "tags": [
+        "module"
       ]
     }
   }

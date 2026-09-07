@@ -1,7 +1,7 @@
 ---
 id: pp-d2c
-revision: 0
-summary: pp-d2c
+revision: 2
+summary: "H5 D2C 主流程:Figma 还原、前缀协议、check-rules 硬防线"
 primary: policy
 confidence: inferred
 tags: [feature, config]
@@ -66,13 +66,13 @@ pp-d2c 有**两套独立版本号**，不一致是正常的：
 一句收敛：**允许兜底的路径就是错误来源；校验以 cache 为唯一真值逐节点对账，而非抽查已知坏味道。**
 
 - **四层架构**：数据层(`figma.mjs`) / 规则层(`SKILL.md`+`rules/`) / 执行层(LLM) / 校验层(`check-rules.mjs`)——两个确定性脚本层夹住一个概率性 LLM 层，机械动作(HTTP/缓存/下载/校验)从 LLM 手里拿走，LLM 只做"理解结构+产出代码"。
-- **前缀即协议**：图层名前缀是硬编码内置常量(config 无 `layers` 段)，设计师用前缀显式写意图，skill 不猜。组合优先级 `x- > img- > bg- > bgc- > btn- > 滚动 > 无前缀`，`fixed-`/`end-` 是修饰前缀最后叠加；裸词白名单 `bg/bgc/btn/img/input`。
-- **双防线**：软防线 Rule-Scan(生成前识别语义类 R07/R10/R11/R13/R15) + 硬防线 check-rules(交付前逐节点对账,17 条 R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16–R21/R23)。软管提效(先扫作业指引再动笔)、硬管保质(exit 1 回滚)。**v1.2.3 起 软规则硬化**：Rule-Scan 软防线里机械可判的 R03/R04/R09/R12/R14 下沉硬防线(逐节点对账不依赖 sub- 触发、exit 1 阻断,一律保守判定宁漏报不误判),软防线瘦身至需 LLM 语义的 R07/R10/R11/R13/R15。**v1.2.2 起 Rule-Scan 触发与 sub- 解耦**：页面无 sub- 图层时,主 agent 出码前把「页面根」当虚拟 block 对整页跑一次 Rule-Scan,`rule-hits.json` 落页面根目录(与页面 `assets.txt` 同级)——软防线覆盖不依赖设计师是否标了 sub-(pp-d2c 与 pp-d2c-fast 同口径)。**v1.2.4 起 生成过程缺陷修复批**（exit-1 规则数维持 16 条）：`check-rules --block` 局部化（`--root <nodeId>` 或产物 data-node-id LCA 推断,cache 裁剪到 block 子树,消除 block 外全量误报）；新增 **GATE-rule-hits 门禁**（rule-hits.json 缺失即 exit 1,含 assets.txt 消费证明捏造检测）与 **IMG-reconcile 三方对账**（`--merge` 时产物图片引用必须来自 slice-manifest,动态拼接碎片按后缀匹配保守放行）；R20 增强（ABSOLUTE 节点强制 `position: absolute` 声明）；新增 R22 empty-visual-btn（warning 级,btn- 空视觉按钮嫌疑,不计入 16 条）；Rule-Scan 恢复全量扫描出指引（软 5 条仍是唯一判定点,硬防线命中只作生成前指引,判决权在 check-rules）。**v1.2.5 起 防线加固批**（exit-1 硬规则 16→**17 条**,新增 R23 计入;warning 级 R22 与四道门禁 GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm 不计入 17）：新增 **GATE-cache-truncation**（合并 cache 中空 GROUP/BOOLEAN_OPERATION = fetch depth 截断实锤,截断 cache 会令逐节点对账真空通过——test29 取证:cache 仅 25 节点令全防线真空通过,产物 33 个 data-node-id 有 11 个幻觉 id）；**R21 增加反向对账**（产物 data-node-id 必须存在于 cache,幻觉 id 直接 violation）；新增 **R23 size-fidelity**（显式 px 宽高须 ≈ bbox×scale 容差 4px,点名 `1px×1px + overflow:hidden` 锚点欺诈——test28 取证:agent 自供"校验锚点",把真实 331.5×141 写成 1×1 隐藏 div）；**GATE-rule-hits 收紧**（fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 失败记录）；**GATE-slice-confirm 确认留痕**（slice-manifest `confirmed` 须为 true,由 `figma.mjs confirm-slices` 用户确认后翻转,legacy 缺字段仅 warning）。
+- **前缀即协议**：图层名前缀是硬编码内置常量(config 无 `layers` 段)，设计师用前缀显式写意图，skill 不猜。组合优先级 `x- > img- > bg- > bgc- > btn- > 滚动 > 无前缀`，`fixed-`/`end-`/`bl-`/`list-` 是修饰前缀最后叠加；裸词白名单 `bg/bgc/btn/img/input`(bl/list 仅前缀形态,不启用裸词)。**v1.2.6 新增**:`bl-` 文本基线对齐容器(flex + `align-items: baseline`,TEXT 子放弃逐个绝对定位,R24 硬校验、直接子层 R20 坐标豁免);`list-` 显式同构列表(强制 `.map()`、非首子项直标 `_templateDup`;切图按 `imageRef+bbox 尺寸` 跨项去重,同图只切首项、manifest 记 `sharedFrom`)。
+- **双防线**：软防线 Rule-Scan(生成前识别语义类 R07/R10/R11/R13/R15) + 硬防线 check-rules(交付前逐节点对账,18 条 R01/R02/R03/R04/R05/R06/R08/R09/R12/R14/R16–R21/R23/R24)。软管提效(先扫作业指引再动笔)、硬管保质(exit 1 回滚);**步骤 0.5.1 目录三态守卫(v1.2.7)**——slug 确定后 `ls -la` 探测目标 `output.dir/<slug>` 与 `assetsDir/<slug>`,存在且含实际文件即 hard stop 列清单让用户三选一(换路径/自处理/中止),禁 `rm -rf` 与备份覆盖通道,禁产物混入已有目录。**v1.2.3 起 软规则硬化**：Rule-Scan 软防线里机械可判的 R03/R04/R09/R12/R14 下沉硬防线(逐节点对账不依赖 sub- 触发、exit 1 阻断,一律保守判定宁漏报不误判),软防线瘦身至需 LLM 语义的 R07/R10/R11/R13/R15。**v1.2.2 起 Rule-Scan 触发与 sub- 解耦**：页面无 sub- 图层时,主 agent 出码前把「页面根」当虚拟 block 对整页跑一次 Rule-Scan,`rule-hits.json` 落页面根目录(与页面 `assets.txt` 同级)——软防线覆盖不依赖设计师是否标了 sub-(pp-d2c 与 pp-d2c-fast 同口径)。**v1.2.4 起 生成过程缺陷修复批**（exit-1 规则数维持 16 条）：`check-rules --block` 局部化（`--root <nodeId>` 或产物 data-node-id LCA 推断,cache 裁剪到 block 子树,消除 block 外全量误报）；新增 **GATE-rule-hits 门禁**（rule-hits.json 缺失即 exit 1,含 assets.txt 消费证明捏造检测）与 **IMG-reconcile 三方对账**（`--merge` 时产物图片引用必须来自 slice-manifest,动态拼接碎片按后缀匹配保守放行）；R20 增强（ABSOLUTE 节点强制 `position: absolute` 声明）；新增 R22 empty-visual-btn（warning 级,btn- 空视觉按钮嫌疑,不计入 16 条）；Rule-Scan 恢复全量扫描出指引（软 5 条仍是唯一判定点,硬防线命中只作生成前指引,判决权在 check-rules）。**v1.2.5 起 防线加固批**（exit-1 硬规则 16→**17 条**,新增 R23 计入;warning 级 R22 与四道门禁 GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm 不计入 17）：新增 **GATE-cache-truncation**（合并 cache 中空 GROUP/BOOLEAN_OPERATION = fetch depth 截断实锤,截断 cache 会令逐节点对账真空通过——test29 取证:cache 仅 25 节点令全防线真空通过,产物 33 个 data-node-id 有 11 个幻觉 id）；**R21 增加反向对账**（产物 data-node-id 必须存在于 cache,幻觉 id 直接 violation）；新增 **R23 size-fidelity**（显式 px 宽高须 ≈ bbox×scale 容差 4px,点名 `1px×1px + overflow:hidden` 锚点欺诈——test28 取证:agent 自供"校验锚点",把真实 331.5×141 写成 1×1 隐藏 div）；**GATE-rule-hits 收紧**（fallback 占位必须伴随 assets.txt `[Rule-Scan 降级]` 失败记录）；**GATE-slice-confirm 确认留痕**（slice-manifest `confirmed` 须为 true,由 `figma.mjs confirm-slices` 用户确认后翻转,legacy 缺字段仅 warning）。
 - **sub-agent 分块是质量保证非性能优化**：单 agent 同时处理全局协调+局部细节时细节退化，故 `sub-` 强制分发、最深 3 层、`<__SUBSLOT__>`+`subslots.json` 上报-派发。
 - **data-node-id 贯穿全流程**：对账绑定 / 守恒律差集 / review 反查 / 局部修复锚点，四用途；R21 把"全覆盖"变硬规则。
 - **封逃逸口 + 自证代替信任**：已知逃逸路径(整体切图代拆结构/凭空搓渐变/幻觉 padding)显式禁止 + 机械拦截；豁免须三段证据且单次 ≤3；生成流程禁 `--force-skip`。
 
-> 完整原理（四层架构 / 执行流水线 步骤-1→7 / 前缀协议 / sub-agent 分块 / 对账范式 / 忠实度契约 / 设计取舍）见终稿 [`.Knowledge/stock-docs/pp-d2c-原理_终稿.md`](../stock-docs/pp-d2c-原理_终稿.md)；开发者视角原文长文另见 `docs/pp-d2c-principles.md`。
+> 完整原理（四层架构 / 执行流水线 步骤-1→7 / 前缀协议 / sub-agent 分块 / 对账范式 / 忠实度契约 / 设计取舍）见终稿 [`.Knowledge/stock-docs/pp-d2c-原理_终稿.md`](../stock-docs/pp-d2c-原理_终稿.md)；开发者视角原文长文另见 `docs/pp-d2c-设计原理.md`。
 
 ## v1.2.0/v1.2.1 对账范式（校验从「抽查」升级为「逐节点对账」）
 
@@ -433,7 +433,7 @@ cat pp-d2c.config.json | grep -E "health\.enabled|images\.preserveEffectIds|laye
 | `bg-box.png` 切图带紫色"画板底色"假象 | bg-box 是简单 GRADIENT + DROP_SHADOW，应改 bgc- 用 CSS 实现，但被切成位图 | §`bg-` 切图前的"CSS-able 自检" + doctor NAM012 新增 |
 | 用户项目 config 缺 health / layers / preserveEffectIds 段，跑 SKILL 时靠默认值兜底 | install.js `runInit()` 写 config 时漏写这三段 | install.js 修复 + 业务项目 config patch |
 | `doctor.run({...})` 函数找不到，agent 等待返回值卡死 | 误把 SKILL.md 里的伪代码当真函数调用 | 主 SKILL 顶部加「执行模型说明」总纲 + doctor §5.4 / §6 改写自然语言 |
-| 设计稿里有"吸顶/吸底/悬浮"语义但没有对应前缀，AI 全部生成 `position: absolute` 跟随滚动 | layer 前缀体系缺"视口固定定位"语义 | 新增 `fixed-` 修饰前缀（SKILL §`fixed-` 定位规则 + doctor NAM014/LAY013 + design-guide.md 同步） |
+| 设计稿里有"吸顶/吸底/悬浮"语义但没有对应前缀，AI 全部生成 `position: absolute` 跟随滚动 | layer 前缀体系缺"视口固定定位"语义 | 新增 `fixed-` 修饰前缀（SKILL §`fixed-` 定位规则 + doctor NAM014/LAY013 + PixelPrint-设计师图层规范.md 同步） |
 | init 第 2 题「样式方案」单选 `scss/css-modules/tailwind/inline`，less 项目无法表达；"scss + module" 也勾不出来 | 两个独立维度（预处理语法 / 是否走 module）压到一个单选里 | install.js 拆成 [2a] 样式方式 + [2b] 预处理语法 + [2c] 是否走 module；styleFormat 扩展到 8 种值；SKILL §0 加「样式方案标识符」表，§2.5 探测分支泛化到 scss/less/css，§4.6 框架适配表补全 |
 | init 第二阶段所有题目都显示「沿用现有配置」，但项目里其实没 config 文件 | `runInit()` 先调 `installFiles(true)` 把 templates 模板复制过去，再读 existing，读到的是 templates 默认值 | `runInit()` 调换顺序：先读 existing → 再 `installFiles(true, true)`（init 模式不复制 templates config 模板） |
 | MCP 没装时 Claude 跑半套流程才回退报错；原 §步骤 -1 只区分"成功 / 失败"两态，分不清「未装 / 未认证 / 无权限」 | 探针太粗（只描述"尝试调用 MCP 工具"）+ install.js 阶段一假装"检测"实际只打印说明 | SKILL §步骤 -1 改为调 `whoami` 最便宜探针，按错误类型精准分 4 态（未装 / 未认证 / 无权限 / 业务错误），每种给独立提示文案；install.js 阶段一改名「安装提示」并明示无法验证 |
@@ -441,6 +441,6 @@ cat pp-d2c.config.json | grep -E "health\.enabled|images\.preserveEffectIds|laye
 ## 不在本 topic 覆盖的内容
 
 - doctor 的体检规则、报告格式、阈值 → 见 [[pp-doctor]]
-- 通用 D2C 设计意图（如何写图层名 / Auto Layout 怎么用） → 见 `docs/design-guide.md`
+- 通用 D2C 设计意图（如何写图层名 / Auto Layout 怎么用） → 见 `docs/PixelPrint-设计师图层规范.md`
 - 项目级配置示例（`pp-d2c.config.json` 全字段） → 见 SKILL.md §0
 - `templates/pp-d2c.config.json` 模板源 → 见 `templates/` 目录

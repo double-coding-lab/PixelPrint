@@ -1,7 +1,7 @@
 ---
 id: pp-install-dispatch
 revision: 0
-summary: pp-install-dispatch
+summary: "install.js 分发 templates/skills 的黑名单与过滤"
 primary: policy
 confidence: inferred
 tags: [module]
@@ -53,7 +53,7 @@ tags: [module]
 
 新 skill 若要面向用户暴露,还需同步:
 
-- `docs/pixel-print-guide.md` §7 "装完之后长什么样"表格:一行说明 skill 作用 + 落地条件
+- `docs/PixelPrint-使用指南.md` §7 "装完之后长什么样"表格:一行说明 skill 作用 + 落地条件
 - 若 skill 有独立触发词且需要 f2s 任务路由匹配 → 走 `f2s-kb-feat` 走完整路由登记流程
 - 若 skill 只是本地工具(用户直接命令行触发,不参与 f2s 路由)→ **不在** `manifest-routing.json` 登记 topic(按 `f2s-topic-authoring.md` §6)
 

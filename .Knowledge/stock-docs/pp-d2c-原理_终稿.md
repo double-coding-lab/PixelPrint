@@ -1,7 +1,7 @@
 # pp-d2c 原理设计
 
 > pp-d2c（H5 主 D2C skill）的设计哲学与内部运转机制。面向理解或改造 skill 的开发者。
-> 规则明细以 `templates/skills/pp-d2c/SKILL.md` + `rules/*.md` 为准（冲突以 `rules/` 为准）；使用手册见 `docs/pixel-print-guide.md`；图层命名规范见 `docs/design-guide.md`。
+> 规则明细以 `templates/skills/pp-d2c/SKILL.md` + `rules/*.md` 为准（冲突以 `rules/` 为准）；使用手册见 `docs/PixelPrint-使用指南.md`；图层命名规范见 `docs/PixelPrint-设计师图层规范.md`。
 
 ---
 
@@ -180,4 +180,4 @@ violations > 0 一律禁止交付；`[整体切图兜底]` 标签废除；`[脚�
 
 > 生成本终稿时实际读取的原始路径，便于溯源与后续更新。
 
-- `docs/pp-d2c-principles.md`
+- `docs/pp-d2c-设计原理.md`
