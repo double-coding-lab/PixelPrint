@@ -1,0 +1,27 @@
+.Knowledge/manifest-routing.json
+  s_539d57db648668::t_0b3a494b837457 32
+.Knowledge/index.md
+  s_539d57db648668::t_38c44995fb8306 33
+test/rules/README.md
+  s_539d57db648668::t_bce611255b2524 14
+bin/install.js
+  s_539d57db648668::t_f3883ac4bc3e5f 224
+test/rules/run-all.mjs
+  s_539d57db648668::t_3129d006ea75ce 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "243cf93b1993a949bf66e95a3094193adef04af3",
+  "prompts": {},
+  "sessions": {
+    "s_539d57db648668": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c604f125-84be-427f-809b-41ec219fc3f1",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}

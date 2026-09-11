@@ -1,0 +1,19 @@
+package.json
+  s_539d57db648668::t_719d5ef9abce71 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "385c5d5e43c5cd4b4398c6ea70031fce3f40e1e8",
+  "prompts": {},
+  "sessions": {
+    "s_539d57db648668": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c604f125-84be-427f-809b-41ec219fc3f1",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
