@@ -11,7 +11,7 @@
 | `test-r20.mjs` | R20 absolute-position（含 v1.2.4 `position: absolute` 强制；case 2 = test27 `main__screen` relative 逃逸回归） | 7 | v1.2.4 |
 | `test-scope.mjs` | `inferBlockRoot`(LCA) / `pruneToSubtree`（--block 局部化基座） | 9 | v1.2.4 |
 
-测试对象只有 `templates/skills/pp-d2c/bin/`（主本）。`pp-d2c-fast/bin` 按约定与主本**逐字节同步**（`rsync -a --delete` + `diff -r` 校验），测主本即覆盖 fast；**禁止**把本目录塞进 `bin/`（会随 install 下发到下游）。
+测试对象只有 `templates/skills/pp-d2c/bin/`(主本);**禁止**把本目录塞进 `bin/`(会随 install 下发到下游)。
 
 ## 已知保守取舍（不是 bug，勿"修"）
 

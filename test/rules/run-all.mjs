@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // pp-d2c 硬防线规则回归入口：node test/rules/run-all.mjs（或 npm test）
 // 逐个子进程跑 test-*.mjs，任一失败则 exit 1。
-// 测试对象是 templates/skills/pp-d2c/bin/（主本）；pp-d2c-fast/bin 与主本逐字节同步，测主本即覆盖 fast。
+// 测试对象是 templates/skills/pp-d2c/bin/(主本)。
 import { execFileSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
