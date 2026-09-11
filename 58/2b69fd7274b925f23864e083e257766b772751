@@ -1,0 +1,29 @@
+templates/skills/pp-d2c-reskin/SKILL.md
+  s_539d57db648668::t_ca98eb6654cb84 8-11
+templates/skills/pp-d2c/SKILL.md
+  s_539d57db648668::t_80eff4ea32b01a 647,649,651,653,660,662-665,667,669-670,672-673
+  s_539d57db648668::t_8082ab5e37822c 1426,1428,1430-1435,1437,1439,1441,1447-1448,1450,1452,1460,1463,1470-1474,1476
+templates/skills/pp-d2c-rn/SKILL.md
+  s_539d57db648668::t_966e705c31b28f 2770-2774
+  s_539d57db648668::t_1035c29e06a4cd 1866,1868,1870-1876,1878,1880,1882
+  s_539d57db648668::t_44f1cf0b5326de 2797-2803
+  s_539d57db648668::t_827a061e1bb813 575-576,581,588,590-594,596,599
+templates/skills/pp-d2c-reskin/SLICE-CONTRACT.md
+  s_539d57db648668::t_529118d56968e1 1-367
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "582b69fd7274b925f23864e083e257766b772751",
+  "prompts": {},
+  "sessions": {
+    "s_539d57db648668": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c604f125-84be-427f-809b-41ec219fc3f1",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
