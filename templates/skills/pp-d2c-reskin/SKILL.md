@@ -5,6 +5,10 @@ description: 按 img/bg 前缀扫描 Figma 图层树批量切图并归入 theme 
 
 # pp-d2c-reskin Skill
 
+> **底层切图规则见** [`./SLICE-CONTRACT.md`](./SLICE-CONTRACT.md)(与 pp-d2c / pp-d2c-rn 共享的切图契约主本;命名冲突消解、list- 同构、内容 md5 三层去重、切图确认暂停、Token 处理等均在契约中定义)。
+>
+> 本 SKILL 只讲 **reskin CLI UX 层**(命令行参数、模式选择、换肤匹配、theme 子目录布局),不重复维护切图规则本体。
+
 > 用户给一批 figma 稿子,本 skill 按 `img` / `bg` 前缀规则扫图层树,把命中节点单独切图,归到 `<assetsDir>/theme-<slug>/` 子目录。**两种工作模式**:
 >
 > - **有基线**:先有一套跑过 pp-d2c 的页面(或用 `--base <url>` 显式指定基线稿),skill 按基线的切图清单去每套稿子上找**同名节点**切图,并报告 miss。用于"多套换肤稿对齐同一套代码"场景。

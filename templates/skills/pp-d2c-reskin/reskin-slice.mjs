@@ -19,6 +19,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 
 const CWD = process.cwd()
@@ -187,6 +188,23 @@ async function downloadToFile(url, destPath) {
   throw lastErr
 }
 
+// v1.2.7 内容 md5 去重变体:只下载到内存 buffer,由调用方决定"落盘 vs 复用首个 entry"
+// 与 downloadToFile 共享同一份重试策略与错误语义;写盘由主循环里显式 fs.writeFileSync 完成
+async function downloadToBuffer(url) {
+  let lastErr
+  for (let i = 0; i < MAX_RETRIES; i++) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`download HTTP ${res.status}`)
+      return Buffer.from(await res.arrayBuffer())
+    } catch (e) {
+      lastErr = e
+      if (i < MAX_RETRIES - 1) await sleep(Math.pow(2, i) * 1000)
+    }
+  }
+  throw lastErr
+}
+
 // 拉一个 frame 的子树 JSON
 async function fetchNodeTree(fileKey, nodeId, token) {
   const q = new URLSearchParams({ ids: nodeId })
@@ -208,6 +226,21 @@ async function exportImageToPath(fileKey, nodeId, token, destPath, scale = 2) {
   const url = resp.images?.[nodeId]
   if (!url) throw new Error(`Figma /v1/images 未返回 ${nodeId} 的 URL`)
   await downloadToFile(url, destPath)
+}
+
+// v1.2.7 内容 md5 去重专用:REST 取 URL → 下载到 buffer,不落盘;
+// 调用方拿到 buffer 后算 md5 决定"命中即丢 buf 复用首个" 或 "未命中则写盘"
+async function exportImageToBuffer(fileKey, nodeId, token, scale = 2) {
+  const q = new URLSearchParams({
+    ids: nodeId,
+    format: 'png',
+    scale: String(scale),
+    use_absolute_bounds: 'true',
+  })
+  const resp = await figmaFetch(`/v1/images/${fileKey}?${q.toString()}`, token)
+  const url = resp.images?.[nodeId]
+  if (!url) throw new Error(`Figma /v1/images 未返回 ${nodeId} 的 URL`)
+  return await downloadToBuffer(url)
 }
 
 // 读 PNG 前 24 字节的 IHDR chunk 拿宽高 (纯 Node fs, 无第三方依赖)
@@ -560,6 +593,10 @@ async function main() {
     const sizeWarnings = []
     // v1.2.6 list- 同构列表切图去重:`${listAncestor}|${imageRefKey}|WxH` → 首项 manifest entry
     const listShared = new Map()
+    // v1.2.7 内容 md5 兜底去重(恒开,无开关):不同 nodeId 从 Figma 拉回同一份 png → 只落第一份,后续复用
+    // 与 listShared 是 fallthrough:list- 元数据 gate 先跑省一次下载,md5 gate 兜底跨 basename 分支重复
+    // 触发场景:裸标签 `bg` 走 `parent__bg` 命名分支 vs 带子名 `bg-xxx` 去前缀分支拿回同一位图
+    const contentShared = new Map()  // md5 → first manifest entry
     for (const item of sliceItems) {
       // 同 list- 容器内 imageRef+bbox 尺寸一致的非首项:不再导出,清单条目复用首项文件并记 sharedFrom;
       // 无 list- 祖先或无 imageRef 时不去重(保守,多切不丢)——默认路径零行为变化
@@ -569,7 +606,7 @@ async function main() {
         ? `${item.listAncestor}|${item.imageRefKey}|${bbW}x${bbH}` : null
       if (groupKey && listShared.has(groupKey)) {
         const first = listShared.get(groupKey)
-        console.log(`  · share ${item.name}  →  复用 ${first.filename}   (nodeId=${item.nodeId}, sharedFrom=${first.nodeId})`)
+        console.log(`  · share ${item.name}  →  复用 ${first.filename}   (nodeId=${item.nodeId}, sharedFrom=${first.nodeId}, reason=list-isomorphic)`)
         hits.push({ name: item.name, path: first.filepath })
         manifestEntries.push({
           nodeId: item.nodeId,
@@ -583,12 +620,41 @@ async function main() {
           bboxHeight: bbH,
           sizeWarning: null,
           sharedFrom: first.nodeId,
+          sharedFromReason: 'list-isomorphic',
         })
         continue
       }
       const destAbs = path.join(outDirAbs, `${item.filename}.png`)
       try {
-        await exportImageToPath(themeFileKey, item.nodeId, token, destAbs)
+        // v1.2.7 改为"下载到 buffer → 算 md5 → 决定落盘 or 复用" 的两步式
+        const buf = await exportImageToBuffer(themeFileKey, item.nodeId, token)
+        const md5 = crypto.createHash('md5').update(buf).digest('hex')
+
+        // 内容 md5 兜底去重:同批次内不同 nodeId 拉回同一份位图 → 复用首个 entry,不再写第二份物理文件
+        if (contentShared.has(md5)) {
+          const first = contentShared.get(md5)
+          console.log(`  · share ${item.name}  →  复用 ${first.filename}   (nodeId=${item.nodeId}, sharedFrom=${first.nodeId}, md5=${md5.slice(0, 8)}.., reason=content-md5)`)
+          hits.push({ name: item.name, path: first.filepath })
+          manifestEntries.push({
+            nodeId: item.nodeId,
+            name: item.name,
+            parentName: item.parentName || null,
+            filename: first.filename,
+            filepath: first.filepath,
+            renderWidth: first.renderWidth,
+            renderHeight: first.renderHeight,
+            bboxWidth: bbW,      // 用当前 item 自己的 bbox(下游按 nodeId 读,不用 first 的)
+            bboxHeight: bbH,
+            sizeWarning: null,
+            sharedFrom: first.nodeId,
+            sharedFromReason: 'content-md5',
+          })
+          continue
+        }
+
+        // md5 未命中 → 落盘(等价于旧路径的 exportImageToPath 效果)
+        ensureDir(path.dirname(destAbs))
+        fs.writeFileSync(destAbs, buf)
         const destRel = path.relative(projectRoot, destAbs)
         const rb = item.renderBounds
         // aligned-to-base 场景下 item.renderBounds 未透传(用的是换肤稿节点),不打 render 尺寸
@@ -605,7 +671,7 @@ async function main() {
           sizeWarnings.push({ nodeId: item.nodeId, name: item.name, reason: warn })
         }
 
-        manifestEntries.push({
+        const entry = {
           nodeId: item.nodeId,
           name: item.name,
           parentName: item.parentName || null,
@@ -616,8 +682,10 @@ async function main() {
           bboxWidth: item.boundingBox ? Math.round(item.boundingBox.width) : null,
           bboxHeight: item.boundingBox ? Math.round(item.boundingBox.height) : null,
           sizeWarning: warn || null,
-        })
-        if (groupKey) listShared.set(groupKey, manifestEntries[manifestEntries.length - 1])
+        }
+        manifestEntries.push(entry)
+        if (groupKey) listShared.set(groupKey, entry)
+        contentShared.set(md5, entry)  // v1.2.7 首个 entry 落盘后登记 md5,供后续同批次 nodeId 复用
       } catch (e) {
         console.log(`  × err   ${item.name}  (${e.message})`)
         missNames.push(`${item.name} (${e.message})`)

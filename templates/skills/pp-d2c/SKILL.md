@@ -644,98 +644,33 @@ useEffect(() => {
 
 ---
 
-### 步骤 2.6：前置切图（v1.1.0，正式进入 D2C 前必做）
+### 步骤 2.6:前置切图(v1.1.0,正式进入 D2C 前必做)
 
-**执行时序**: 步骤 2 扫描 + 步骤 2.5 页面级背景 + 步骤 0.5 输出路径锁定完成后, 步骤 3 分发 sub-agent 前。
+> **底层切图规则以** [`../pp-d2c-reskin/SLICE-CONTRACT.md`](../pp-d2c-reskin/SLICE-CONTRACT.md) **§1 全节为准**(三 skill 共享的切图契约主本;本 SKILL 只声明"何时进入切图 + 与后续步骤的衔接",不重复维护)。若链接打不开,重跑 `npx @double-coding/pixel-print init` 恢复。
 
-**目的**: 一次性把稿子里所有 `img-` / `bg-` 前缀节点切完落盘, 生成 nodeId → filename 清单; sub-agent 生 jsx/scss 时**只消费清单**, 不再自己调 Figma API 现切现挂。
+**执行时序**:步骤 2 扫描 + 步骤 2.5 页面级背景 + 步骤 0.5 输出路径锁定完成后,步骤 3 分发 sub-agent 前。
 
-**动作**:
-
+**动作**(简写,完整参数见契约 §1.2):
 ```bash
 node .claude/skills/pp-d2c-reskin/reskin-slice.mjs \
   --theme <slug>=<figma-url> \
   --out-manifest <projectRoot>/.d2c-cache/<fileKey>/slice-manifest-<slug>.json
 ```
 
-- `<slug>` = 步骤 0.5 锁定的 `<asset-slug>`
-- `<figma-url>` = 步骤 1 解析出来的原 URL(带 nodeId)
-- reskin standalone 模式自扫 `img` / `bg` 前缀节点(含裸词), 落图到 `<images.assetsDir>/<asset-slug>/`
-- **清单 schema**(见 `slice-manifest-*.json`):
-  ```json
-  {
-    "generatedAt": "2026-08-11 17:00:00",
-    "mode": "standalone",
-    "themes": [{
-      "slug": "test13",
-      "outDir": "static/test13",
-      "hit": 21, "miss": 0,
-      "entries": [
-        { "nodeId": "211:37", "name": "bg-body", "parentName": "完整版11",
-          "filename": "bg-body.png", "filepath": "static/test13/bg-body.png",
-          "renderWidth": 750, "renderHeight": 1050,
-          "bboxWidth": 750, "bboxHeight": 1050,
-          "sizeWarning": null }
-      ]
-    }]
-  }
-  ```
+**衔接约束(必读)**:
 
-**bg 溢出告警检视（v1.1.0）**:
+- **产物**:`<assetsDir>/<slug>/*.png` + `slice-manifest-<slug>.json`,后续 §4.4 图片处理主段(见契约 §2)由 sub-agent 只读清单消费,不再自调 Figma API
+- **三层去重**(命名冲突消解 / list- 同构 / **内容 md5 兜底**)、切图确认暂停、`confirmed` 留痕 → 契约 §1.3 / §1.8
+- **主 agent 补切回路**:sub-agent 报 `[清单缺失]` → 主 agent 重跑 reskin-slice 定点补切 → 硬错停下问用户,**禁止**整体切图兜底 → 契约 §1.6 / §1.7
+- **bg 溢出告警**:`entries[].sizeWarning` 非空必须停下问用户,不受 `slice.confirmBeforeContinue` 开关影响 → 契约 §1.4
 
-reskin 每切一张图会**自动**做尺寸断言:`png 实际尺寸 vs node.absoluteBoundingBox × scale` 相差 > 4px → 写入 `entries[i].sizeWarning`。**主 agent 收到清单后必须扫一遍所有 entries[].sizeWarning**:
+**门禁短句(不得删)**:
 
-- 有非 null 的告警 → **必须停下问用户**是否要拆解或让美术在 Figma 里加 mask 收紧 renderBounds; 禁止直接用溢出 png
-- 典型征兆:`bg-*` 节点 png 宽高远大于自身 bbox → Figma 把父容器兄弟节点渲染进 png（如 test12 事故 coupon-big-bg.png 里烤进 "1折"/"亚洲火车立减"）
-- Figma 侧修复选项:① 把 mask 拉大到包住 bg 自己;② 把兄弟节点移到 bg 外面,由代码单独渲染
-
-**产物消费契约（Sub-Agent 侧）**:
-
-- UI sub-agent 收到 `<blockDir>/rule-hits.json` 时, 同时收 `<projectRoot>/.d2c-cache/<fileKey>/slice-manifest-<slug>.json`
-- 生成 jsx 时, 引用 `img-` / `bg-` 节点必须从清单 `entries` 查 `filename`:
-  ```jsx
-  {/* nodeId 211:37 → 查清单 entries → filename=bg-body.png */}
-  <div className={...} style={{ backgroundImage: `url(${ASSET}bg-body.png)` }} />
-  ```
-- 清单里没有的 nodeId → **禁止 sub-agent 自补切图**, 必须在 `assets.txt` 写 `[清单缺失] nodeId=XXX name=XXX 需主 agent 补切`
-
-**主 agent 补切回路（v1.1.0）**:
-
-sub-agent 全部返回后, 主 agent 汇总所有 `blocks/*/assets.txt` 里的 `[清单缺失]` 条目:
-
-1. 数量为 0 → 直接进入步骤 5 合并
-2. 数量 > 0 → **主 agent 重跑一次** `reskin-slice.mjs` 只针对这些 nodeId 补切, 追加到同一清单文件, 然后让相关 sub-agent 用更新后的清单重生 jsx/scss
-3. 重跑仍无法补上（Figma 返回 404 / renderBounds 空等硬错误）→ 停下问用户排查, 禁止走整体切图兜底
-
-**执行结果硬门禁（v1.2.4）**:
-
-- `reskin-slice.mjs` **退出码非 0 → hard stop**:立即停止 D2C 流程,向用户报告失败原因(token / 网络 / Figma 4xx),**禁止**继续步骤 3、**禁止**改用 `figma.mjs export-image` 手工逐张切图代替清单(test25 实测:绕过后 manifest 失效 → 图片覆盖检查全线失灵 → 大块区域被整张切图)。修复后从步骤 2.6 重跑。
-- `figma.mjs export-image` 仅允许出现在「补切单节点修复模式」(上文补切回路 3 之后、经用户确认的定点修复),且切完**必须**把该图回写进 slice-manifest 与 `images.json`——否则步骤 6 `check-rules --merge` 的 **IMG-reconcile 三方对账**会按"绕清单切图"报 violation。
-
-**切图确认暂停（v1.2.4,`slice.confirmBeforeContinue` 默认 true）**:
-
-reskin-slice 成功后,主 agent **无条件暂停**,向用户输出切图结果摘要并等待确认,确认后才进入步骤 3:
-
-```
-## 切图确认 (步骤 2.6)
-- 清单: .d2c-cache/<fileKey>/slice-manifest-<slug>.json
-- hit=N miss=M
-- entries: {nodeId} {name} → {filename} ({renderWidth}x{renderHeight})   ← 逐行列出
-- sizeWarning: 无 / [列出非 null 项]
-- 图片目录: {assetsDir}/<slug>/ (可肉眼查图)
-请确认切图正确后回复继续;发现切错/漏切在此修正,比 sub-agent 分发后返工便宜得多。
-```
-
-- `pp-d2c.config.json` 配 `slice.confirmBeforeContinue: false` 可跳过本暂停(全自动流水场景);**sizeWarning 非空时仍必须停**(v1.1.0 既有规则,不受开关影响)。
-- **确认留痕（v1.2.5）**: 用户确认后,主 agent 执行 `node .claude/skills/pp-d2c/bin/figma.mjs confirm-slices <fileKey> <slug>` 把 manifest `confirmed` 置 true——步骤 6 `check-rules --merge` 的 **GATE-slice-confirm** 以该字段为准,`confirmed=false` 直接 violation。**禁止**未经用户确认自行执行 confirm-slices(留痕即取证,伪造可事后对会话审计)。用户口头"别问了/不要询问"指的是**权限弹窗**,**不豁免本流程确认**——跳过本暂停的唯一通道是改 config `slice.confirmBeforeContinue: false`(该配置下 reskin-slice 直接落 `confirmed: true`)。
-
-**禁止项**:
-
-- 禁止跳过步骤 2.6 直接进入步骤 3（无清单 = UI sub-agent 只能猜切图, 大概率违规）
-- 禁止 reskin-slice 失败后继续生成或手工切图兜底（v1.2.4 硬门禁,见上）
+- 禁止跳过步骤 2.6 直接进入步骤 3(无清单 = UI sub-agent 只能猜切图,大概率违规)
+- 禁止 reskin-slice 失败后继续生成或手工切图兜底(硬门禁,见契约 §1.7)
 - 禁止 sub-agent 绕开清单直接调 `figma.mjs export-image` 或 `figma REST /v1/images`
-- 禁止把清单里的 `filename` 或 `renderWidth/Height` 改写后再消费（改写 = 幻觉 = 事故源）
-- 禁止 sub-agent 对含 TEXT 的 GROUP/FRAME 生成 `<img>` 兜底（R16 硬防线会拦，见 rules/R16-no-flatten-text.md）
+- 禁止把清单里的 `filename` 或 `renderWidth/Height` 改写后再消费(改写 = 幻觉 = 事故源)
+- 禁止 sub-agent 对含 TEXT 的 GROUP/FRAME 生成 `<img>` 兜底(R16 硬防线会拦,见 rules/R16-no-flatten-text.md)
 
 ---
 
@@ -1488,153 +1423,33 @@ input-{name}   Frame          ← 输入框容器,layoutSizingHorizontal 通常 
 
 #### 4.4 图片处理
 
-##### 4.4.0 切图强制忠实执行
+> **底层切图规则以** [`../pp-d2c-reskin/SLICE-CONTRACT.md`](../pp-d2c-reskin/SLICE-CONTRACT.md) **§2 图片处理契约 + §3 Token 处理为准**(三 skill 共享的切图契约主本)。本 SKILL 只保留**门禁短句** + **产物侧 URL 拼接规则**(URL 是产物代码规则,不是切图规则)。
 
-**适用范围（v1.2.4 收口）**：本节的 `figma.mjs export-image` 直切路径**仅用于「补切单节点修复模式」**——步骤 2.6 补切回路仍失败后、经用户确认的定点修复。**普通生成流程中 UI sub-agent 一律只消费 `slice-manifest`（步骤 2.6 契约），不走本节直切**；直切完成后必须把该图回写 slice-manifest 与 `images.json`，否则 §6 IMG-reconcile 三方对账按"绕清单切图"报 violation。
+**门禁短句(必读,不得删)**:
 
-**核心原则**：命中切图四条硬规则（bg 前缀 / img 前缀 / fills 含 IMAGE）且进入补切修复模式时，必须调 `figma.mjs export-image`（走 REST API）产出图片；**不允许**"看到 assetsDir 里有同名文件就跳过"或"从其他来源复用"。
+- **忠实执行**:命中切图四条硬规则(bg 前缀 / img 前缀 / fills 含 IMAGE)且进入补切修复模式时,**必须**调 `figma.mjs export-image`(REST API 单一路径),**禁止**"看到 assetsDir 里有同名文件就跳过"或"从其他来源复用" → 契约 §2.1
+- **补切场景收口**(v1.2.4):`figma.mjs export-image` 直切仅用于「补切单节点修复模式」——步骤 2.6 补切回路仍失败后、经用户确认的定点修复。**普通生成流程中 UI sub-agent 一律只消费 slice-manifest**(步骤 2.6 契约),不走本节直切;直切完成后**必须**把该图回写 slice-manifest 与 `images.json`,否则 §6 IMG-reconcile 三方对账按"绕清单切图"报 violation
+- **前置自检**:调 `figma.mjs export-image` 前,sub-agent 每张图都必须输出 3 行(切图源 nodeId / 切图源 name / 交叉验证前缀),命中"否"立即停下重判 → 契约 §2.2
+- **use_absolute_bounds=true 默认开**:防止 effect / 父背景色被烤进 PNG,极少数场景加 `--preserve-effect` 覆盖 → 契约 §2.4
+- **禁止**手工挑图 / 手工改切图 `filename` / 使用 nodeId 或数字序号作文件名 → 契约 §1.3 命名规则 + §2.5 禁止项
+- **Token 过期**(HTTP 401 / 403):立即终止,输出错误提示由用户补 token 后重跑,**禁止**用临时链接占位 / 调用任何 `mcp__plugin_figma_figma__*` → 契约 §3
 
-**流程（每张切图必走）**：
+**doctor IMG026**:命中切图四条硬规则,但 images.json 里对应 nodeId 缺失 → **error**(说明本次 skill 没走 REST 就落图,属于严重忠实度事故)。
 
-1. **查 images.json**：读 `.d2c-cache/<fileKey>/images.json`，看当前 nodeId 是否已有记录：
-   - **无记录** → 直接调 `figma.mjs export-image`，脚本会：(a) 调 REST API 拿临时 URL；(b) 下载到 `{projectRoot}/{assetsDir}/{filename}.{ext}`；(c) 算 md5；(d) 写回 `images.json`
-   - **有记录** → 走下面 md5 校验分支
+**代码中图片可访问地址(铁律)**:
 
-2. **md5 校验复用**（有记录时）：
-   - 读磁盘文件算 md5
-   - 与 `images.json` 里记录的 md5 对比：
-     - **相等** → 复用（`reused=true`），不重切
-     - **不等 / 文件不存在** → 视作缓存失效，**强制重切**（调 `figma.mjs export-image`，覆盖旧记录）
-
-3. **images.json 写入契约**（每次成功切图后必写）：
-   ```json
-   {
-     "<nodeId>": {
-       "path": "<绝对路径>",
-       "format": "png | svg",
-       "filename": "<basename>.<ext>",
-       "md5": "<32 位 hex>",
-       "bboxHash": "<nodeId>|<w>x<h>|<scale>|<use_absolute_bounds>"
-     }
-   }
-   ```
-   `bboxHash` 用于识别"同 nodeId 但导出参数变了"的情况；命中 hash 不同 → 也视作缓存失效强制重切。
-
-4. **assets.txt 3 行溯源模板**（每张图切完必写）：
-   ```
-   - {filename}.{ext}                       ← {figmaNodeName} ({nodeId})
-     · API 参数：ids={nodeId} format={png|svg} scale={2} use_absolute_bounds={true|false}
-     · 返回 URL：{figma S3 临时 URL}
-     · 落盘尺寸：{width}x{height} md5={md5}
-   ```
-   这 3 行在 flat 和 component 两种 merge.mode 下都**必须**出现，用户复现时能直接对比 md5 判定 skill 是否忠实执行了 API 调用。
-
-**doctor IMG026**：命中切图四条硬规则，但 images.json 里对应 nodeId 缺失 → **error**（说明本次 skill 没走 REST 就落图，属于严重忠实度事故）。
-
-##### 4.4 图片处理主段（v0.3.6 起以 §4.4.0 为前提）
-
-所有图片（切图四条硬规则命中）通过 `figma.mjs export-image` 导出。脚本内置：两步式下载 / `use_absolute_bounds=true` 默认开 / 存在即跳过 / 3 次指数退避 / 回写 `images.json` / 绝对路径写入 `{projectRoot}/{assetsDir}/{filename}.{ext}`。
-
-**⚠️ 调脚本前的强制前置自检（sub-agent 每张图都必须做,且必须把 3 行输出到对话）**：
-
-```
-· 切图源 nodeId:{要写进 --ids 的值}
-· 切图源 name:{该 nodeId 对应节点的图层名}
-· 交叉验证前缀:切图源 name 是否以「bg-」/「img-」开头,或完全等于裸词「bg」/「img」,或该节点 fills 含 IMAGE 类型?{是 → 继续切图 / 否 → 立即停下,回归 §4.3 四条硬规则重判}
-```
-
-**交叉验证判定**：
-- 前缀是 `bg-` → 切图源 name **必须**以 `bg-` 开头(如 `bg-piao` / `bg-body`),**或完全等于裸词 `bg`**(whole word)
-- 前缀是 `img-` → 切图源 name 必须以 `img-` 开头,**或完全等于裸词 `img`**
-- fills 含 IMAGE(第 2 条硬规则) → 无前缀要求,直接切图挂父 background
-- **裸词识别范围**:仅 `bg` / `bgc` / `btn` / `img` / `input` 五个独立/内容前缀允许裸词
-
-**这是"把兄弟节点文字烤进 bg 位图"这类 bug 的唯一防线**——若 sub-agent 拿了 `bg-` 的**父容器 nodeId** 传给 API,Figma 会把父容器**整棵子树**(含兄弟节点的文字/图标/其他 block)一起 render 成位图,必须避免。
-
-**调用**：
-
-```bash
-# PNG 2 倍图（默认，含透明通道）
-node .claude/skills/pp-d2c/bin/figma.mjs export-image <fileKey> <nodeId> --filename=<name>
-
-# SVG（矢量图层优先）
-node .claude/skills/pp-d2c/bin/figma.mjs export-image <fileKey> <nodeId> --filename=<name> --format=svg
-
-# 极少数场景:需要把 Figma effect 烤进位图(通常不用)
-node .claude/skills/pp-d2c/bin/figma.mjs export-image <fileKey> <nodeId> --filename=<name> --preserve-effect
-```
-
-stdout 返回 `{"ok":true,"data":{"path":"<绝对路径>","reused":<bool>,"format":"png|svg"}}`。`reused=true` 表示命中缓存跳过下载。
-
-> **`use_absolute_bounds=true` 是默认开的**：
-> - 默认导出会包含图层 effect（drop-shadow / outer-stroke / blur）的可见范围与父容器背景色，PNG 会比 bbox 大一圈并带画板底色 → 导致 `gap`/`margin` 算不准 + 图带背景色两个历史 bug。
-> - 加此参数后，Figma 严格按节点 `absoluteBoundingBox` 导出，effect 和父背景被裁掉。**代价**：Figma effect 实现的阴影/光晕不会烤进 PNG——但这本来就是要的（应用 CSS `filter: drop-shadow()` 实现）。
-> - 若某张图**就是要**把 effect 烤进位图（极少见），加 `--preserve-effect` 覆盖。也可在 config `images.preserveEffectIds` 数组里列出该 nodeId。
-
-**格式选择**：
-- 图层为矢量（Vector / Icon / 无栅格内容）→ `--format=svg`
-- 其他 → 默认 PNG 2 倍图
-
-**前提**：项目根 `.env` 里 `FIGMA_TOKEN` 必须已配置（v1.0.2 起从 `pp-d2c.config.json` 迁到 `.env`）。**当 token 缺失或过期时（HTTP 403 / 401 / `invalid_token`）**，本 SKILL v0.3 起**不再有 MCP 兜底路径**——直接终止并要求用户补 token 后重跑。
-
-#### 4.4.1 Token 过期 / 缺失时的处理
-
-v0.3 起本 SKILL 完全不依赖 MCP，图片导出**只有 REST API 一条路径**：
-
-| 情况 | 处理 |
-|------|------|
-| Token 有效，导出成功 | 正常流程 |
-| Token 缺失 / 过期（HTTP 401/403） | **立即终止**，输出下方错误提示，由用户补 token 后重跑 |
-| `/v1/images` 返回 `err` 字段或临时 URL 404 | 3 次指数退避重试（1s/2s/4s），三次都失败 → 终止并输出错误 |
-
-**错误提示文案**：
-
-```
-❌ 图片导出失败：Figma Token 无效或过期
-
-请检查项目根 `.env` 里的 `FIGMA_TOKEN`：
-1. Token 是否已过期或被撤销
-2. Token 权限是否包含 File content: Read-only
-3. Token 对应的账号是否有该 fileKey 的访问权限
-
-修正后重新运行本 SKILL（缓存会因 lastModified 校验自动决定是否复用）。
-```
-
-**禁止**：
-- 禁止在 token 过期时直接跳过下载或用临时链接占位（Figma `/v1/images` 返回的 S3 临时 URL 约 30 分钟过期，代码上线就 404）
-- 禁止把 Figma `/v1/images` 返回的 S3 临时 URL 写进代码 `<img src>`
-- 禁止调用任何 `mcp__plugin_figma_figma__*` 工具
-
-**文件命名规则**：
-
-图层名去掉所有已知前缀后，转为 kebab-case 作为文件名：
-
-| 图层名 | 去前缀后 | 文件名 |
-|--------|---------|--------|
-| `img-hero-bg` | `hero-bg` | `hero-bg.png` |
-| `bg-body` | `body` | `body.png` |
-| `img-编组4` | `编组4` | `编组4.png`（含中文直接保留） |
-| `btn-img-submit-btn` | `submit-btn` | `submit-btn.png` |
-
-- 去掉前缀后为空或无法识别 → 使用图层原始名转 kebab-case
-- 同一目录下有重名 → 追加父图层名前缀区分，如 `main-hero-bg.png`
-- **禁止**使用 Figma node ID 作为文件名
-- **禁止**使用 `101`、`201` 等数字序号作为文件名
-
-**代码中图片可访问地址（铁律）**：
-
-唯一公式：
+唯一公式:
 
 ```
 最终 URL = images.imageBaseUrl + images.assetsDir + filename
 ```
 
-- **原样字符串拼接**，不要修剪 / 不要补 / 不要"规整化"末尾斜杠
-- `imageBaseUrl` 和 `assetsDir` 由项目自己配置，配置者已经决定了斜杠位置
+- **原样字符串拼接**,不要修剪 / 不要补 / 不要"规整化"末尾斜杠
+- `imageBaseUrl` 和 `assetsDir` 由项目自己配置,配置者已经决定了斜杠位置
 - 不允许根据"看起来对不对"调整任何一段
-- 不允许在 SCSS / CSS 里手写完整 URL；必须用 SCSS 变量统一定义后引用，**且变量值即上述公式的字面拼接结果**
+- 不允许在 SCSS / CSS 里手写完整 URL;必须用 SCSS 变量统一定义后引用,**且变量值即上述公式的字面拼接结果**
 
-**TSX/JSX 写法**：
+**TSX/JSX 写法**:
 
 ```tsx
 const ASSET_PREFIX = `${imageBaseUrl}${assetsDir}`;  // ← 直接字面拼接两个 config 字符串
@@ -1642,23 +1457,23 @@ const ASSET_PREFIX = `${imageBaseUrl}${assetsDir}`;  // ← 直接字面拼接�
 <img src={`${ASSET_PREFIX}${filename}`} />
 ```
 
-**SCSS 写法（强制）**：
+**SCSS 写法(强制)**:
 
 ```scss
-$asset-prefix: '<imageBaseUrl 字面值><assetsDir 字面值>';  // ← 把 config 两段字符串原样首尾拼接，不动任何字符
+$asset-prefix: '<imageBaseUrl 字面值><assetsDir 字面值>';  // ← 把 config 两段字符串原样首尾拼接,不动任何字符
 
 .foo {
   background-image: url('#{$asset-prefix}filename.png');
 }
 ```
 
-> 反例（绝对禁止）：
-> - `url('http://.../static_xxx.png')`（漏 `/`）
-> - `url('http://.../static//xxx.png')`（自作主张补 `/`）
-> - `url('http://.../xxx.png')`（自作主张省略 `assetsDir`）
-> - 在 SCSS 中直接硬编码完整 URL，每个图各写一遍 → 容易写错且改 config 改不动
+> 反例(绝对禁止):
+> - `url('http://.../static_xxx.png')`(漏 `/`)
+> - `url('http://.../static//xxx.png')`(自作主张补 `/`)
+> - `url('http://.../xxx.png')`(自作主张省略 `assetsDir`)
+> - 在 SCSS 中直接硬编码完整 URL,每个图各写一遍 → 容易写错且改 config 改不动
 
-**自检**：写完任何引用图片的代码后，**逐个 URL 在大脑中重新拼一遍**：取 config 里的 `imageBaseUrl`（连带末尾字符）+ `assetsDir`（连带末尾字符）+ 文件名，三段字符串按字面值连起来，与生成出来的 URL 字符串**逐字符比对**，不一致就改。
+**自检**:写完任何引用图片的代码后,**逐个 URL 在大脑中重新拼一遍**:取 config 里的 `imageBaseUrl`(连带末尾字符)+ `assetsDir`(连带末尾字符)+ 文件名,三段字符串按字面值连起来,与生成出来的 URL 字符串**逐字符比对**,不一致就改。
 
 #### 4.4.2 字体处理（阿里巴巴普惠体固定 CDN）
 
