@@ -1,0 +1,21 @@
+templates/skills/pp-d2c-reskin/reskin-slice.mjs
+  s_539d57db648668::t_ec15b679ea0371 22
+  s_539d57db648668::t_14293d8db54d55 191-207,231-243
+  s_539d57db648668::t_3450a0f9dde116 596-599,609,623,629-657,674,685-688
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "9555d9abcea2194e78793ce985fb04d1e74eb8c6",
+  "prompts": {},
+  "sessions": {
+    "s_539d57db648668": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c604f125-84be-427f-809b-41ec219fc3f1",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
