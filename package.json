@@ -7,7 +7,19 @@
   },
   "scripts": {
     "init": "node bin/install.js init",
-    "test": "node test/rules/run-all.mjs && node test/rules-rn/run-all.mjs"
+    "test": "node test/rules/run-all.mjs && node test/rules-rn/run-all.mjs",
+    "build:plugin": "node plugin/build.mjs",
+    "watch:plugin": "node plugin/build.mjs --watch",
+    "typecheck:plugin": "tsc --noEmit -p plugin/tsconfig.json"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.100.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "esbuild": "^0.20.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.3.0"
   },
   "files": [
     "bin/",
