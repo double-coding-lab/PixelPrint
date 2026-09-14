@@ -1,0 +1,68 @@
+plugin/src/rules/prefix/infer.ts
+  s_c0f72d156adf49::t_c23e42446868ae 1-101
+plugin/src/rules/prefix/bg-bgc.ts
+  s_c0f72d156adf49::t_935c6680838ab4 1-108
+plugin/src/scanner/index.ts
+  s_c0f72d156adf49::t_003cffa6250b47 1-139
+plugin/src/rules/prefix/input.ts
+  s_c0f72d156adf49::t_25ee14e24dc403 1-52
+plugin/src/rules/prefix/x.ts
+  s_c0f72d156adf49::t_ebe21b435c04f7 1-23
+plugin/src/rules/prefix/btn.ts
+  s_c0f72d156adf49::t_522296ba952d1d 1-60
+plugin/src/scanner/walker.ts
+  s_c0f72d156adf49::t_d136d13023374e 1-95
+plugin/src/rules/prefix/bl.ts
+  s_c0f72d156adf49::t_26d0ffe43a9b84 1-9
+plugin/src/naming/generate.ts
+  s_c0f72d156adf49::t_0d7cde26275e6c 1-197
+plugin/src/applier/index.ts
+  s_c0f72d156adf49::t_23e806c8793cce 1-94
+plugin/src/rules/prefix/img.ts
+  s_c0f72d156adf49::t_1e8590eb2dad07 1-34
+plugin/src/rules/prefix/list.ts
+  s_c0f72d156adf49::t_f6ee324198bc20 1-43
+plugin/src/rules/prefix/end.ts
+  s_c0f72d156adf49::t_a05322606a9bac 1-53
+plugin/src/rules/prefix/scroll.ts
+  s_c0f72d156adf49::t_6d0ef2ef15fbe4 1-4,6-11,14-43,46-73
+  s_c0f72d156adf49::t_908295b29af0ac 5,12-13
+  s_c0f72d156adf49::t_ad302a67078216 44-45
+plugin/src/rules/prefix/sub.ts
+  s_c0f72d156adf49::t_6f0eb6aa690852 1-77
+plugin/src/rules/autolayout/infer.ts
+  s_c0f72d156adf49::t_74733082dbe0c4 1-314
+plugin/src/rules/prefix/types.ts
+  s_c0f72d156adf49::t_47a47613ecd6e4 1-66
+plugin/src/rules/prefix-catalog.ts
+  s_c0f72d156adf49::t_e798b0bfa0785b 1-118
+plugin/src/guards/mutex.ts
+  s_c0f72d156adf49::t_39e020c44150e5 1-126
+plugin/src/report/generate.ts
+  s_c0f72d156adf49::t_88e9456ea81188 1-121
+plugin/src/code.ts
+  s_c0f72d156adf49::t_b1b0fbeb8c6343 1-88
+plugin/src/types.ts
+  s_c0f72d156adf49::t_b8537513c56331 1-89
+plugin/src/rules/prefix/fixed.ts
+  s_c0f72d156adf49::t_60fa78d56eeb13 1-4,6,11-16,18-22,24-46
+  s_c0f72d156adf49::t_9c5c0d40610e78 5,7-10,17,23
+plugin/src/globals.d.ts
+  s_c0f72d156adf49::t_54e3e88a7d69f9 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "43943d7c6572738525272a083c59b7ffe5ba5b6c",
+  "prompts": {},
+  "sessions": {
+    "s_c0f72d156adf49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4a2bfa8e-82e6-4df9-b469-79e3a3cfdb82",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
