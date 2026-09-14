@@ -1,0 +1,21 @@
+.Knowledge/req-docs/pp-d2c-prep-plugin_需求澄清.md
+  s_c0f72d156adf49::t_3b6455f491fdd9 1-233
+.Knowledge/req-docs/pp-d2c-prep-plugin_技术方案.md
+  s_c0f72d156adf49::t_173990383f7b3f 1-792
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "a5dd1a9f269dc8c99ad9bdc637c51650aa22486f",
+  "prompts": {},
+  "sessions": {
+    "s_c0f72d156adf49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4a2bfa8e-82e6-4df9-b469-79e3a3cfdb82",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
