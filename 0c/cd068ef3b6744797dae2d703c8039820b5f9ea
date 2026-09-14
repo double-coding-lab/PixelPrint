@@ -1,0 +1,31 @@
+plugin/src/ui/styles.css
+  s_c0f72d156adf49::t_ebdc6b2813ed45 1-346
+plugin/src/ui/components/AutolayoutEditor.tsx
+  s_c0f72d156adf49::t_07d20626e348be 1-108
+plugin/src/ui/components/CandidateTable.tsx
+  s_c0f72d156adf49::t_be6deabdf6c060 1-135
+plugin/src/ui/index.tsx
+  s_c0f72d156adf49::t_4bb6228e25e3ea 1-14
+plugin/src/ui/components/WarningBadge.tsx
+  s_c0f72d156adf49::t_ab3b360b133e02 1-29
+plugin/src/ui/components/ScopeSwitcher.tsx
+  s_c0f72d156adf49::t_919739f4931671 1-37
+plugin/src/ui/App.tsx
+  s_c0f72d156adf49::t_77ee0581cf78a4 1-279
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "0ccd068ef3b6744797dae2d703c8039820b5f9ea",
+  "prompts": {},
+  "sessions": {
+    "s_c0f72d156adf49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4a2bfa8e-82e6-4df9-b469-79e3a3cfdb82",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
