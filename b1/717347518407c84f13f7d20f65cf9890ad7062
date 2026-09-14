@@ -1,0 +1,27 @@
+plugin/tsconfig.json
+  s_c0f72d156adf49::t_3022fa10ee5213 1-18
+plugin/build.mjs
+  s_c0f72d156adf49::t_dc04c96daa077e 1-79
+plugin/manifest.json
+  s_c0f72d156adf49::t_8d452cdc8858e7 1-12
+plugin/README.md
+  s_c0f72d156adf49::t_f65758cc16473c 1-127
+plugin/.gitignore
+  s_c0f72d156adf49::t_2d466b08a4e093 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "b1717347518407c84f13f7d20f65cf9890ad7062",
+  "prompts": {},
+  "sessions": {
+    "s_c0f72d156adf49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4a2bfa8e-82e6-4df9-b469-79e3a3cfdb82",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
