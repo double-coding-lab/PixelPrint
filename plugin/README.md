@@ -1,17 +1,30 @@
 # PixelPrint D2C Prep · Figma 插件
 
-把普通 Figma 设计稿**半自动**改造为符合 pp-d2c 约定的稿子——**打前缀标 + Autolayout 化**——供 pp-d2c 后续像素级出码使用。
+在 Figma 里把普通设计稿快速改造成 pp-d2c 能吃的稿子——**打前缀标** + **AI/规则辅助建议**。目标不是全自动,是把最枯燥的部分变成一两次点击。
 
 ---
 
-## 功能
+## 功能一览
 
-1. **前缀打标(半自动)**:遍历图层树,对每个 frame 推荐 pp-d2c 前缀(`sub-` / `img-` / `bg-` / `bgc-` / `btn-` / `list-` / `input-` / `fixed-` / `end-` / `x-` / `scrollx-` / `scrolly-` / `bl-`)+ 置信度,面板批量确认后**原地改名**。
-2. **Autolayout 化**:识别子层几何呈规整水平/垂直排列的绝对定位容器,反推 `layoutMode` / `padding` / `itemSpacing` / `align`,**原地设置**auto layout。
-3. **前缀互斥硬规则**:NAM014 / NAM016 / NAM019 / NAM020 + scroll 互斥,命中即在面板阻止 Apply(标红)。
-4. **健康报告导出**:导出改造后的前缀/autolayout 分布 JSON,供后续手动跑 `pp-doctor` 终检。
+**手工打标(核心)**
 
-**不做**:业务语义猜测、强改已有 auto layout、根容器 `min-height:100vh` 覆写、`end-` wrapper 结构变换(这些留给 pp-d2c 出码时处理)、自动调 `pp-doctor`。
+- 全量图层树 + 虚拟滚动,画布 selection 与树上高亮双向同步。
+- 一键前缀按钮:9 个基础前缀(`sub-` / `img-` / `bg-` / `bgc-` / `btn-` / `input-` / `scrollx-` / `scrolly-` / `x-`)+ 4 个修饰前缀(`fixed-` / `end-` / `list-` / `bl-`)。
+- 已有前缀检测 + 冲突二次确认(替换 / 保持 / 跳过)。
+- 前缀互斥硬规则(NAM014 / NAM016 / NAM019 / NAM020 + scroll 互斥),命中即拒绝改名并给出原因。
+- 直接改名 + Merge selected(合并画布选中节点为 group,自动加 `img-` / `sub-` / `bg-` 前缀)。
+
+**Analyze(纯代码,不依赖 AI)**
+
+- **图片父层建议**:遍历树,当某容器的可见子孙叶子 ≥60% 是 IMAGE fill / 矢量图形,建议整体打 `img-`。
+- **透明/遮挡清理**:opacity=0、fills 全隐、被兄弟 bbox 完全遮挡 → 建议打 `x-` 忽略。
+- 完全离线,几十毫秒到几百毫秒返。
+
+**AI 建议(通过本地 ai-proxy 转 PETA)**
+
+- **bg vs bgc 消歧**:结合截图判某个 frame 应该 `bg-` 还是 `bgc-`。
+- **视觉分组**:找视觉上贴在一起、但图层没成组的多个节点,建议 merge + `img-` / `sub-`。
+- 需要先跑本机 `ai-proxy`,详见下节。
 
 ---
 
@@ -20,25 +33,13 @@
 在项目根目录(与 `plugin/` 同级)执行:
 
 ```bash
-# 首次安装依赖
-npm install
-
-# 一次性构建
-npm run build:plugin
-
-# 开发时监听重建
-npm run watch:plugin
-
-# 类型检查(不产物)
-npm run typecheck:plugin
+npm install                 # 首次装依赖
+npm run build:plugin        # 一次性构建
+npm run watch:plugin        # 开发监听
+npm run typecheck:plugin    # 只做类型检查
 ```
 
-产物落在 `plugin/dist/`:
-
-- `plugin/dist/code.js` — 沙箱主入口
-- `plugin/dist/ui.html` — 面板 HTML(已内联 UI JS)
-
-`plugin/dist/` 已在 `.gitignore`,不入版本控制。
+产物在 `plugin/dist/code.js` + `plugin/dist/ui.html`(已 gitignore)。
 
 ---
 
@@ -46,42 +47,69 @@ npm run typecheck:plugin
 
 > ⚠️ 只能在 **Figma 桌面版**加载本地插件,Web 版不支持。
 
-1. 打开 Figma 桌面版,登录。
-2. 打开一份设计稿。
-3. 菜单栏 → `Plugins` → `Development` → `Import plugin from manifest...`
-4. 选择 `plugin/manifest.json`(本仓库路径 `<repo>/plugin/manifest.json`)。
-5. 加载完毕后,菜单栏 → `Plugins` → `Development` → `PixelPrint D2C Prep`。
+1. Figma 桌面版 → Plugins → Development → **Import plugin from manifest...**
+2. 选 `plugin/manifest.json`。
+3. Plugins → Development → **PixelPrint D2C Prep** 启动。
 
-后续每次开发迭代,只要跑过 `npm run build:plugin`,Figma 里重启插件即可看到新版本。开着 `npm run watch:plugin` 时,改代码后 Figma 关插件重开即可。
+改代码后重跑 `npm run build:plugin`,Figma 关掉插件重开即可。
+
+---
+
+## AI 能力:先跑 ai-proxy
+
+Figma 沙箱不能直接调 PETA(公司 AI 网关,Python SDK + 凭证),需要本机转发。
+
+首次:
+
+```bash
+cd ai-proxy
+cp .env.example .env
+# 编辑 .env,填 PAAS_APP_APPID / PETA_KEY_ID / PETA_DEFAULT_MODEL
+bash run.sh                 # 起 localhost:8787
+```
+
+之后每次开发前 `bash ai-proxy/run.sh` 即可。健康检查:
+
+```bash
+curl http://localhost:8787/health
+# {"ok":true,"hasCredentials":true,"defaultModel":"gemini-3.7-flash"}
+```
+
+`hasCredentials=false` → 说明 `.env` 没配好;此时插件里点 "AI 建议" 会返回 degraded,面板会告诉你原因。
+
+详细接口 / 部署边界见 `ai-proxy/README.md`。
 
 ---
 
 ## 使用流程
 
-1. 打开一份普通稿子(或选中某个 frame)。
-2. 启动插件,面板顶部选**整页**或**选中节点**。
-3. 点 **Scan**:插件遍历目标 frame 树,列出所有候选。
-   - 高置信度默认勾选、中/低不勾选、硬规则命中不可勾选。
-   - 表格里可下拉修改前缀、点开 autolayout 编辑参数。
-4. 逐行看备注列:
-   - 🔴 红色 badge:硬规则命中(NAM014 等),不可 Apply。
-   - 🟡 黄色 badge:旧前缀 / 已有 D2C 前缀,建议人工确认。
-   - 🔵 蓝色 badge:兜底命名等提示。
-5. 确认好勾选项后,点 **Apply**:
-   - 弹确认框,确认后逐条修改。
-   - 完成后弹 toast 显示成功/失败数。
-   - **Cmd+Z 可整体撤销**这次 Apply(Figma 原生行为)。
-6. 需要再看统计时,点 **导出健康报告** 下载 JSON。
+1. 打开 Figma 桌面版一份稿子,启动插件。
+2. 顶部选 scope(**整页** / **选中节点**),点 **Scan**。左侧树刷新,画布选中会自动定位到树。
+3. 想让插件推建议时:
+   - **Analyze**:纯代码规则,即时返(图片父层 + 透明/遮挡)。
+   - **AI 建议**:调 ai-proxy(需要先跑),异步返(bg/bgc 消歧 + 视觉分组)。
+4. 建议面板出现:
+   - 每条显示动作(打标 / 合并)+ 前缀 + 目标节点 + 置信度 + 理由。
+   - 点 **应用** 一次生效(自动 replace 已有基础前缀),**忽略** 本次会话隐藏,**全部应用** 批量。
+   - 建议 target 可点击,画布会跳到该节点。
+5. 手工打标(不依赖建议):
+   - 在画布或树上选中节点(单选 / Cmd+click 多选),或树上勾选批量。
+   - 右侧 QuickTag 面板点前缀按钮即改名。
+   - 已有前缀 + 想改基础前缀 → 弹确认框,确定 = 替换,取消 = 保持。
+   - 修饰前缀(`fixed-` / `end-` / `list-` / `bl-`)直接叠加,不弹框。
+6. **合并**:在 Figma 画布选中要合并的一组节点,顶部 **Merge** 按钮里选 `img-` / `sub-` / `bg-`,自动 `figma.group()` 并加前缀。
+7. 所有改动都是原生 Figma 操作,**Cmd+Z 逐步撤销**。
 
 ---
 
 ## 已知限制
 
-- **不识别网格布局**:3×N 网格类排列的容器,主副轴都散布,保留 ABSOLUTE。
-- **不改 Instance**:面板跳过 Instance(避免解绑主件),需自己处理主 Component 后 Instance 自动同步。
-- **锁定图层**:面板显示但不可 Apply,需先在 Figma 里解锁。
-- **`bl-` 无自动推断**:baseline 对齐依赖字体度量,v1 只支持手动加。
-- **不备份**:改动依赖 Figma 原生 Cmd+Z 撤销,插件不自动 duplicate 页面做快照。担心风险请自己在跑插件前复制页面。
+- **Instance 节点**:允许改名,但不下钻(避免解绑主件)。要改 instance 内部,先在 Figma 里 detach 或改主 Component。
+- **锁定图层**:改名 / 合并会跳过并给出原因,先在 Figma 里解锁。
+- **`bl-` 无推断**:baseline 对齐依赖字体度量,只支持手工加。
+- **不做 autolayout 自动设置**:v1 只做打标 + 建议,autolayout 留给设计师在 Figma 里手动开(反正 Figma 面板自己支持)。
+- **AI 依赖本机进程**:未跑 ai-proxy 时,AI 建议按钮点了会立即报"无法连上 localhost:8787"。属预期,提示信息里带一键命令。
+- **Analyze 不识别语义**:规则纯几何,不理解业务。视觉分组类问题只有 AI 才可能给出好建议。
 
 ---
 
@@ -89,39 +117,40 @@ npm run typecheck:plugin
 
 | 现象 | 原因 | 处置 |
 |-----|-----|-----|
-| Scan 后候选是空的 | 选中范围只有 TEXT / VECTOR 等叶子节点 | 选中一个 FRAME 或整页跑 |
-| 弹提示"节点数超硬上限 5000" | 选择范围太大 | 缩小到某个 sub-frame 单独跑 |
-| Apply 提示"节点类型 XXX 不支持 auto layout" | GROUP 无法设 layoutMode | 先在 Figma 里将 GROUP 转为 FRAME 再 Scan |
-| Apply 后视觉有 ±几 px 偏移 | Figma 设 autolayout 后自动重排子层几何 | 属预期,目视核对无问题即可 |
-| 面板加载空白 | ui.html 未构建 | 跑 `npm run build:plugin` 后重启插件 |
-| 报"节点已锁定" | Figma 里图层被锁 | 在 Figma 里解锁后重新 Scan |
+| Scan 后树是空的 | 目标 scope 只有 PAGE 空 frame | 选整页 或 至少选中一个 FRAME |
+| 弹"节点数超硬上限 5000" | 选择太大 | 缩到某个 sub-frame 跑 |
+| AI 建议返回 "无法连上 localhost:8787" | ai-proxy 未启动 | `cd ai-proxy && bash run.sh` |
+| AI 建议返回 "PETA 凭证未配" | ai-proxy/.env 空 | 填 PAAS_APP_APPID / PETA_KEY_ID 后重启 proxy |
+| Analyze 一直转圈 | 树太大 + Figma 响应慢 | 收 scope 到 selection |
+| 前缀按钮点了没变化 | 命中互斥硬规则 | 看 toast 里的 NAM 代号,先解开冲突再打 |
+| 改名后消失 | 是 rename 事件里 `existingPrefix` 被替换 | 属预期,cmd+z 可恢复 |
 
 ---
 
 ## 与 pp-d2c 主流程的关系
 
-- 本插件产出:一份**图层名和 auto layout 属性被改过的 Figma 稿**。
-- pp-d2c 消费:通过 `figma.mjs get-metadata` 拉图层树时读到的就是改造后的结构。
-- 两者**完全解耦**,无 import 依赖,只通过"设计稿实体"传递。
+- 本插件产出:**图层名被改过的 Figma 稿**(和可能被合并的 group 结构)。
+- pp-d2c 消费:通过 `figma.mjs get-metadata` 拉图层树读到改造后的结构。
+- 两者完全解耦,只通过 Figma 稿实体传递。
 
-跑完本插件后建议(顺序):
+推荐顺序:
 
-1. 用 Figma 目视核对改造效果(3 个参考稿见 `.Knowledge/req-docs/pp-d2c-prep-plugin_需求澄清.md` §7)。
-2. 用 `pp-doctor` SKILL 做健康检测,过 grade 就 OK。
+1. 用本插件半自动打标(Analyze → 应用 → 手工补 / 改)。
+2. 用 `pp-doctor` SKILL 做健康检测,过 grade 就走下一步。
 3. 用 `pp-d2c` SKILL 出码。
 
 ---
 
 ## 版本
 
-- 插件版本(`plugin/manifest.json`):独立于 npm 主包 `@double-coding/pixel-print`。
-- 起始版本 `v0.1.0`。
+- 起始版本 `v0.1.0`(v0.3 内部重构,不影响外部版本号)。
+- 独立于 npm 主包 `@double-coding/pixel-print`。
 
 ---
 
 ## 相关文档
 
-- 技术方案:`.Knowledge/req-docs/pp-d2c-prep-plugin_技术方案.md`
 - 需求澄清:`.Knowledge/req-docs/pp-d2c-prep-plugin_需求澄清.md`
-- 前缀协议:`.Knowledge/topics/pp-d2c.md` / `docs/PixelPrint-设计师图层规范.md`
-- 健康检测:`.Knowledge/topics/pp-doctor.md`
+- 技术方案:`.Knowledge/req-docs/pp-d2c-prep-plugin_技术方案.md`
+- 前缀协议:`.Knowledge/topics/pp-d2c.md`
+- AI proxy:`ai-proxy/README.md`
