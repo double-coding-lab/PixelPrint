@@ -1,11 +1,11 @@
 /**
  * 深度优先遍历工具。
  *
- * 边界:
- * - 不递归进 Instance(避免解绑主件)
- * - 不递归进 x- 前缀子树
- * - 只对 FRAME/GROUP/COMPONENT/COMPONENT_SET/RECTANGLE 生成候选
- * - TEXT / VECTOR / LINE / ELLIPSE 等叶子跳过(不打前缀)
+ * v0.2 全量树模式:
+ * - 递归所有 SceneNode(含 TEXT / VECTOR / LINE 等叶子)
+ * - Instance 不下钻(避免解绑主件的隐式副作用)
+ * - x- 前缀子树 **也下钻**(以便 UI 树完整;打标时 candidate 层自己会过滤)
+ * - shouldGenerateCandidate 仅决定"能否被打前缀 / 加 autolayout",不决定树是否收录
  */
 
 export type NodeVisitor = (
@@ -55,10 +55,8 @@ export async function walk(
     }
     if (action === 'skip') return;
 
-    // Instance 不下钻
+    // Instance 不下钻(仍然避免解绑主件)
     if (node.type === 'INSTANCE') return;
-    // x- 前缀子树不下钻
-    if (isExistingXPrefix(node.name)) return;
 
     if ('children' in node) {
       const children = node.children;
