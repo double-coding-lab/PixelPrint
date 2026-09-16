@@ -29,7 +29,9 @@
     "pp-fix-partial": ".Knowledge/topics/pp-fix-partial.md",
     "pp-install-dispatch": ".Knowledge/topics/pp-install-dispatch.md",
     "pp-d2c-reskin": ".Knowledge/topics/pp-d2c-reskin.md",
-    "pp-image-compress": ".Knowledge/topics/pp-image-compress.md"
+    "pp-image-compress": ".Knowledge/topics/pp-image-compress.md",
+    "pp-d2c-prep-plugin": ".Knowledge/topics/pp-d2c-prep-plugin.md",
+    "ai-proxy": ".Knowledge/topics/ai-proxy.md"
   },
   "taskToTopicRules": [
     {
@@ -149,9 +151,27 @@
         "pp-image-compress"
       ],
       "summary": "Pillow 无损压缩 PNG/JPEG,产物写入 compressed 子目录"
+    },
+    {
+      "task": "pp-d2c-prep-plugin",
+      "matcherId": "m-pp-d2c-prep-plugin",
+      "matcherPath": ".Knowledge/matchers/m-pp-d2c-prep-plugin.json",
+      "topics": [
+        "pp-d2c-prep-plugin"
+      ],
+      "summary": "D2C 预处理 Figma 插件:三阶段迭代合并、清理隐藏与 Slice、手动打前缀、AI 咨询"
+    },
+    {
+      "task": "ai-proxy",
+      "matcherId": "m-ai-proxy",
+      "matcherPath": ".Knowledge/matchers/m-ai-proxy.json",
+      "topics": [
+        "ai-proxy"
+      ],
+      "summary": "本地 AI 中转:把 Figma 插件调用转发到 PETA gpt-6-astra,固定端口 8787"
     }
   ],
-  "projectRev": 3,
+  "projectRev": 4,
   "pkgRev": 3,
   "topicMetadata": {
     "implement-tech-design": {
@@ -239,6 +259,20 @@
       "confidence": "inferred",
       "tags": [
         "module"
+      ]
+    },
+    "pp-d2c-prep-plugin": {
+      "primary": "feature",
+      "confidence": "manual",
+      "tags": [
+        "module"
+      ]
+    },
+    "ai-proxy": {
+      "primary": "module",
+      "confidence": "manual",
+      "tags": [
+        "config"
       ]
     }
   }

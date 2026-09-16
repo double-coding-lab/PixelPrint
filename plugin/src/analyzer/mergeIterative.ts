@@ -101,33 +101,65 @@ function bboxOverlapRatio(a: BBox, b: BBox): number {
   return overlap / smaller;
 }
 
-/** bbox 面积。 */
-function bboxArea(b: BBox): number {
-  return Math.max(1, b.width * b.height);
-}
-
 /**
- * 合并后把 group 内部按面积重排:大的在最下(children[0]),小的在最上。
- * 这样父视觉一致 —— 大背景不会遮住小内容。
+ * 合并后按**原父层里的 z-order** 恢复 group 内部顺序。
  *
- * `figma.group()` 之后新 group 里的 children 顺序不完全可控;这里显式用
- * `group.insertChild(index, node)` 重排到期望位置。
+ * Figma 图层顺序 = z-order:`parent.children[0]` 在最底(z 最小),末尾在最顶。
+ * 用户在设计稿里的排布已经表达了 z 意图 —— 例如大背景可能画在**顶层**当浮层
+ * 蒙层 / 突出高亮框;按面积粗暴沉底会颠倒它。
+ *
+ * `figma.group(nodes, parent)` 之后新 group 里 children 的顺序不一定保留原样,
+ * 这里显式用合并前记录的 index map,`group.insertChild(i, node)` 恢复到原相对次序。
  */
-function sortGroupChildrenBottomUp(group: GroupNode | FrameNode): void {
-  // 收集 (node, area)
+function preserveOriginalZOrder(
+  group: GroupNode | FrameNode,
+  originalOrder: Map<string, number>,
+): void {
   const kids = group.children.slice();
-  const withArea = kids.map((n) => {
-    const box = 'absoluteBoundingBox' in n ? n.absoluteBoundingBox : null;
-    return { node: n, area: box ? bboxArea(box) : 0 };
-  });
-  // 想要:大 → 小(children[0] 大 = z 最底);同面积保持原顺序
-  withArea.sort((a, b) => b.area - a.area);
-  for (let i = 0; i < withArea.length; i++) {
+  // originalOrder 里的 index 小 = 原父里更靠底 = 新 group children[0]
+  kids.sort((a, b) => (originalOrder.get(a.id) ?? 0) - (originalOrder.get(b.id) ?? 0));
+  for (let i = 0; i < kids.length; i++) {
     try {
-      group.insertChild(i, withArea[i].node);
+      group.insertChild(i, kids[i]);
     } catch {
       /* 若节点已在正确位置或不能移动,跳过 */
     }
+  }
+}
+
+/**
+ * 把新 group **在外层 parent 里** 移到"所有被合并元素中最底那一个"的原位置。
+ *
+ * `figma.group(nodes, parent)` 默认把新 group 放到 parent 的**最末尾(最顶层)**,
+ * 等于所有被合并的元素整体上浮。如果被合并的元素里有原本在很底的背景层、上面还压
+ * 着别的兄弟,合并后这些兄弟就被新 group 遮住了——外部 z-order 被破坏。
+ *
+ * 正确做法:新 group 的位置 = **合并前所有成员在 parent.children 里最小的那个 index**。
+ * 这样合并前后外部 z 关系保持一致。
+ *
+ * 参数 `preMergeParentOrder` 是合并**前**父层的 children id → index 快照;
+ * `memberIds` 是本簇即将被合并的所有节点 id。
+ */
+function moveGroupToBottomMemberPosition(
+  group: GroupNode | FrameNode,
+  memberIds: string[],
+  preMergeParentOrder: Map<string, number>,
+): void {
+  const parent = group.parent;
+  if (!parent || !('insertChild' in parent)) return;
+  let minIndex = Infinity;
+  for (const id of memberIds) {
+    const idx = preMergeParentOrder.get(id);
+    if (typeof idx === 'number' && idx < minIndex) minIndex = idx;
+  }
+  if (!isFinite(minIndex)) return;
+  try {
+    (parent as ChildrenMixin & { insertChild: (i: number, n: SceneNode) => void }).insertChild(
+      minIndex,
+      group,
+    );
+  } catch {
+    /* 边界情况下 Figma 可能拒绝(比如 index 越界),忽略 */
   }
 }
 
@@ -206,6 +238,16 @@ function mergeInContainerByOverlap(
     const remainingAfterMerge = parent.children.length - idxs.length + 1;
     if (remainingAfterMerge < 2) continue;
     const nodes = idxs.map((i) => cands[i].node);
+    const memberIds = nodes.map((n) => n.id);
+    // 关键:合并前先记录父层每个子的 z-order 快照
+    // (parent.children 索引小 = z 更底;用户在 Figma 画的顺序就是他表达的 z 意图,不能按面积推翻)
+    // 该快照同时用于:
+    //   1) group 内部按原顺序恢复(preserveOriginalZOrder)
+    //   2) group 在外层的位置 = 成员中最底那一个的原 index(moveGroupToBottomMemberPosition)
+    const preMergeParentOrder = new Map<string, number>();
+    parent.children.forEach((c, idx) => {
+      preMergeParentOrder.set(c.id, idx);
+    });
     try {
       const g = figma.group(nodes, parent);
       if (g.children.length < 2) {
@@ -216,8 +258,10 @@ function mergeInContainerByOverlap(
         }
         continue;
       }
-      // 大元素沉底(否则大背景会覆盖上面的小元素)
-      sortGroupChildrenBottomUp(g);
+      // group 内部:恢复原始 z-order —— 谁在下面还是在下面,谁在上面还是在上面
+      preserveOriginalZOrder(g, preMergeParentOrder);
+      // group 外部:移到"最底成员"的原位置,避免整簇被 figma.group 默认置顶后遮挡其他兄弟
+      moveGroupToBottomMemberPosition(g, memberIds, preMergeParentOrder);
       newGroups.push(g);
     } catch {
       // 单次失败(比如节点已被上一步吸收),下一轮再看
@@ -369,6 +413,12 @@ function mergeInContainer(
     const remainingAfterMerge = parent.children.length - idxs.length + 1;
     if (remainingAfterMerge < 2) continue;
     const nodes = idxs.map((i) => cands[i].node);
+    const memberIds = nodes.map((n) => n.id);
+    // 关键:合并前先记录父层每个子的 z-order 快照(用于内部顺序恢复 + 外部位置定位)
+    const preMergeParentOrder = new Map<string, number>();
+    parent.children.forEach((c, idx) => {
+      preMergeParentOrder.set(c.id, idx);
+    });
     try {
       const g = figma.group(nodes, parent);
       // 兜底:group 建出来后 children < 2(理论上不会,但防 Figma API 边界 bug)
@@ -380,8 +430,10 @@ function mergeInContainer(
         }
         continue;
       }
-      // 大元素沉底(否则大背景会覆盖上面的小元素)
-      sortGroupChildrenBottomUp(g);
+      // group 内部:恢复原始 z-order —— 谁在下面还是在下面,谁在上面还是在上面
+      preserveOriginalZOrder(g, preMergeParentOrder);
+      // group 外部:移到"最底成员"的原位置,避免整簇被 figma.group 默认置顶后遮挡其他兄弟
+      moveGroupToBottomMemberPosition(g, memberIds, preMergeParentOrder);
       // 不改名 —— 保留 Figma 默认名(Group N),前缀语义留给用户或 AI 后续打标
       newGroups.push(g);
     } catch {

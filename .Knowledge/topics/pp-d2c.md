@@ -440,6 +440,7 @@ cat pp-d2c.config.json | grep -E "health\.enabled|images\.preserveEffectIds|laye
 
 ## 不在本 topic 覆盖的内容
 
+- **上游几何预处理**(把普通稿子先合并碎片、清理隐藏/Slice、大背景归组,再手工打前缀)→ 见 [[pp-d2c-prep-plugin]]
 - doctor 的体检规则、报告格式、阈值 → 见 [[pp-doctor]]
 - 通用 D2C 设计意图（如何写图层名 / Auto Layout 怎么用） → 见 `docs/PixelPrint-设计师图层规范.md`
 - 项目级配置示例（`pp-d2c.config.json` 全字段） → 见 SKILL.md §0
