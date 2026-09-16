@@ -7,6 +7,8 @@
   "editorType": ["figma"],
   "capabilities": [],
   "networkAccess": {
-    "allowedDomains": ["none"]
+    "allowedDomains": ["*"],
+    "devAllowedDomains": ["http://localhost:8787"],
+    "reasoning": "AI 建议能力通过本机 ai-proxy(Node on localhost:8787)转发到 PETA。设计稿数据只在本机流转。发布正式版前应把 allowedDomains 换成具体域名。"
   }
 }
