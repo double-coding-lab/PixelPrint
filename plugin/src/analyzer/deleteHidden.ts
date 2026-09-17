@@ -21,7 +21,7 @@ export interface DeleteHiddenResult {
   skippedInstance: number;
 }
 
-export async function deleteHiddenNodes(): Promise<DeleteHiddenResult> {
+export async function deleteHiddenNodes(rootIds?: string[]): Promise<DeleteHiddenResult> {
   let deletedHidden = 0;
   let deletedSlice = 0;
   let skippedLocked = 0;
@@ -87,8 +87,17 @@ export async function deleteHiddenNodes(): Promise<DeleteHiddenResult> {
     }
   }
 
-  const roots = [...figma.currentPage.children];
-  for (const r of roots) await visit(r);
+  // 起点:rootIds 非空则用它,否则整页顶层
+  if (rootIds && rootIds.length > 0) {
+    for (const id of rootIds) {
+      const node = (await figma.getNodeByIdAsync(id)) as SceneNode | null;
+      if (!node || node.removed) continue;
+      await visit(node);
+    }
+  } else {
+    const roots = [...figma.currentPage.children];
+    for (const r of roots) await visit(r);
+  }
 
   return {
     deleted: deletedHidden + deletedSlice,

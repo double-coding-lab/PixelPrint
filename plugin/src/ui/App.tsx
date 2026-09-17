@@ -54,7 +54,7 @@ export function App() {
   const [mergeDeleteHidden, setMergeDeleteHidden] = React.useState<boolean>(true);
 
   // 一键拆分参数
-  const [ungroupDeep, setUngroupDeep] = React.useState<boolean>(false);
+  const [ungroupDeep, setUngroupDeep] = React.useState<boolean>(true);
 
   // 操作日志
   const [logs, setLogs] = React.useState<LogEntry[]>([]);
@@ -209,7 +209,7 @@ export function App() {
           const parts: string[] = [];
           parts.push(`拆开 ${msg.ungrouped} 个 group`);
           parts.push(`释放 ${msg.releasedNodes} 个子节点`);
-          if (msg.skippedNonGroup) parts.push(`跳过 ${msg.skippedNonGroup} 非 group`);
+          if (msg.skippedNonGroup) parts.push(`跳过 ${msg.skippedNonGroup} 非可拆节点`);
           if (msg.skippedLocked) parts.push(`跳过 ${msg.skippedLocked} 锁定`);
           const suffix = msg.deep ? '(深拆)' : '(浅拆)';
           const done = `一键拆分完成${suffix}:${parts.join(' · ')}`;
@@ -368,18 +368,21 @@ export function App() {
       window.alert('最大候选尺寸请填 10~100000');
       return;
     }
+    // 范围决策:面板里有勾选 / 高亮就只合并这些子树,否则整页
+    const rootIds = targetIds.length > 0 ? targetIds : undefined;
+    const scopeLabel = rootIds ? `选中 ${rootIds.length} 个子树` : '整页';
     const cleanupPart = mergeDeleteHidden
-      ? '1. 永久删除当前页所有隐藏节点(visible=false)与 Slice 节点\n2. 迭代合并同级贴合的图形与文字'
-      : '迭代合并同级贴合的图形与文字(不清理隐藏/Slice)';
+      ? `1. 永久删除 ${scopeLabel} 内所有隐藏节点(visible=false)与 Slice 节点\n2. 迭代合并同级贴合的图形与文字`
+      : `迭代合并 ${scopeLabel} 内同级贴合的图形与文字(不清理隐藏/Slice)`;
     const ok = window.confirm(
-      `一键合并会:\n\n${cleanupPart}\n\n均可 Cmd+Z 撤销。\n\n参数:gap=${gap}px,size≤${maxItemSize}px,最多 ${rounds} 轮 × 2 阶段。继续?`,
+      `一键合并会:\n\n${cleanupPart}\n\n均可 Cmd+Z 撤销。\n\n范围:${scopeLabel}。参数:gap=${gap}px,size≤${maxItemSize}px,最多 ${rounds} 轮 × 2 阶段。继续?`,
     );
     if (!ok) return;
     setAnalyzing(true);
     setAnalyzingMsg(mergeDeleteHidden ? '清理隐藏 + 迭代合并中...' : '迭代合并中...');
     log(
       'info',
-      `一键合并:开始(gap=${gap}px,maxRounds=${rounds},maxItemSize=${maxItemSize}px,清理隐藏=${mergeDeleteHidden ? '是' : '否'})`,
+      `一键合并:开始(范围=${scopeLabel},gap=${gap}px,maxRounds=${rounds},maxItemSize=${maxItemSize}px,清理隐藏=${mergeDeleteHidden ? '是' : '否'})`,
     );
     post({
       type: 'iterativeMerge',
@@ -388,16 +391,19 @@ export function App() {
       maxItemSize,
       overlapThreshold: mergeOverlapThreshold,
       deleteHiddenFirst: mergeDeleteHidden,
+      rootIds,
     });
   }
 
   function onDeleteHidden() {
+    const rootIds = targetIds.length > 0 ? targetIds : undefined;
+    const scopeLabel = rootIds ? `选中 ${rootIds.length} 个子树` : '当前页';
     const ok = window.confirm(
-      '会永久删除当前页所有 visible=false 的可见性隐藏节点(锁定 / Instance 内不动)。Cmd+Z 可撤销。继续?',
+      `会永久删除 ${scopeLabel} 内所有 visible=false 的隐藏节点与 Slice 节点(锁定 / Instance 内不动)。Cmd+Z 可撤销。继续?`,
     );
     if (!ok) return;
-    log('info', '开始清理隐藏节点');
-    post({ type: 'deleteHidden' });
+    log('info', `开始清理隐藏节点(范围=${scopeLabel})`);
+    post({ type: 'deleteHidden', rootIds });
   }
 
   function onDiagnose() {
@@ -425,7 +431,7 @@ export function App() {
       return;
     }
     const ok = window.confirm(
-      `拆分 ${ids.length} 个选中节点${ungroupDeep ? '(深拆:递归到无 GROUP)' : '(浅拆:只拆一层)'}?Cmd+Z 可撤销。`,
+      `拆分 ${ids.length} 个选中节点${ungroupDeep ? '(深拆:递归到无 GROUP)' : '(浅拆:只拆一层)'}?只拆 GROUP,FRAME / autolayout / Instance / Component 都跳过。Cmd+Z 可撤销。`,
     );
     if (!ok) return;
     log(
@@ -622,9 +628,18 @@ export function App() {
           className="btn-ungroup"
           onClick={onUngroupSelected}
           disabled={scanning || analyzing}
-          title="一键拆分:对选中的 group 执行 ungroup。默认浅拆,勾深拆递归到无 group。"
+          title="一键拆分:只拆 GROUP,FRAME / autolayout / Instance / Component 全部跳过。默认深拆递归到无 GROUP;⚙面板可勾「仅浅拆一层」。"
         >
           一键拆分
+        </button>
+        <button
+          type="button"
+          className="btn-clean"
+          onClick={onDeleteHidden}
+          disabled={scanning || analyzing}
+          title="一键清除:永久删除当前页所有隐藏节点(visible=false)与 Slice 节点。锁定 / Instance 内不动。Cmd+Z 可撤销。"
+        >
+          一键清除
         </button>
         <button
           type="button"

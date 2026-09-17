@@ -37,6 +37,11 @@ export interface IterativeMergeOptions {
   /** 单簇成员上限。默认 12。 */
   maxClusterSize?: number;
   /**
+   * 限制合并范围到这些子树内;为空或缺省 = 整页所有顶层 frame。
+   * 传入时,walk 只从这些 rootIds 起点 postorder 遍历,不再全页扫描。
+   */
+  rootIds?: string[];
+  /**
    * 阶段 O 的 bbox 重叠占比阈值(0..1)。默认 0.3。
    * 语义:两个 bbox 的重叠面积 / 较小 bbox 面积 ≥ 此值 → 视为相交,合并。
    * 阈值调高更严(必须大幅重叠),调低更宽(轻微擦边也合)。
@@ -128,17 +133,33 @@ function preserveOriginalZOrder(
 }
 
 /**
- * 把新 group **在外层 parent 里** 移到"所有被合并元素中最底那一个"的原位置。
+ * 把新 group **在外层 parent 里** 移到"最顶那个合并成员"的原相对位置。
  *
- * `figma.group(nodes, parent)` 默认把新 group 放到 parent 的**最末尾(最顶层)**,
- * 等于所有被合并的元素整体上浮。如果被合并的元素里有原本在很底的背景层、上面还压
- * 着别的兄弟,合并后这些兄弟就被新 group 遮住了——外部 z-order 被破坏。
+ * ## 关键难点:收缩后的 index 映射
  *
- * 正确做法:新 group 的位置 = **合并前所有成员在 parent.children 里最小的那个 index**。
- * 这样合并前后外部 z 关系保持一致。
+ * 假设 parent 原来 `[X(0), A(1), B(2), Y(3)]`,合并 A、B:
+ *   - `figma.group([A,B], parent)` 后 parent.children 变成 `[X, Y, group]`(长度 3,
+ *     成员 A、B 被抽走进 group,新 group 默认加在末尾)。
+ *   - 我们希望 group 落在**原 B 的位置之后、原 Y 之前** —— 视觉上 group 顶替最顶
+ *     成员 B 的 z 层级,不遮 Y。
  *
- * 参数 `preMergeParentOrder` 是合并**前**父层的 children id → index 快照;
- * `memberIds` 是本簇即将被合并的所有节点 id。
+ * 直接用 `insertChild(maxMemberIndex, group)` **错**:
+ *   maxMemberIndex=2 对应**收缩前**的位置,收缩后长度只有 3,index=2 = 末尾 = 最顶,
+ *   Y 被挤到 index=1,反而遮住了原本最顶的 Y。
+ *
+ * ## 正确公式
+ *
+ * **收缩后 group 位置 = 原父中"位置 ≤ maxMemberIndex 的非成员数"**。
+ *
+ * 举例:原 [X, A, B, Y],max=2(B)。位置 ≤ 2 的非成员 = X = 1 个 → group index=1
+ *   → 结果 [X, group, Y] ✓ group 顶替 B 的 z 层,Y 依然在最顶。
+ *
+ * ## 为什么选 max 而不是 min
+ *
+ * Figma Plugin API:`children[0]` = 最底(先绘制),`children[last]` = 最顶。
+ * 用 max(最顶成员原位置)让 group 继承"最顶那个成员"的 z 层。因为合并成员通常包含
+ * 一个"最上层"的关键视觉(如高亮、文字、图标),其它成员是它的背景;group 落在最顶
+ * 成员位置,能让原本压在成员**上方**的兄弟依然在 group 之上,不被遮挡。
  */
 function moveGroupToBottomMemberPosition(
   group: GroupNode | FrameNode,
@@ -147,15 +168,30 @@ function moveGroupToBottomMemberPosition(
 ): void {
   const parent = group.parent;
   if (!parent || !('insertChild' in parent)) return;
-  let minIndex = Infinity;
+
+  // 1. 找最顶成员的原 index
+  let maxMemberIndex = -Infinity;
+  const memberSet = new Set(memberIds);
   for (const id of memberIds) {
     const idx = preMergeParentOrder.get(id);
-    if (typeof idx === 'number' && idx < minIndex) minIndex = idx;
+    if (typeof idx === 'number' && idx > maxMemberIndex) maxMemberIndex = idx;
   }
-  if (!isFinite(minIndex)) return;
+  if (!isFinite(maxMemberIndex)) return;
+
+  // 2. 统计"原父中位置 ≤ maxMemberIndex 的非成员数" —— 这就是收缩后 group 应该在的 index
+  let nonMemberCountUpToMax = 0;
+  for (const [id, idx] of preMergeParentOrder) {
+    if (idx <= maxMemberIndex && !memberSet.has(id)) {
+      nonMemberCountUpToMax += 1;
+    }
+  }
+
+  // 3. 收缩后 parent.children 里 group 的目标 index
+  const targetIndex = Math.min(nonMemberCountUpToMax, parent.children.length - 1);
+
   try {
     (parent as ChildrenMixin & { insertChild: (i: number, n: SceneNode) => void }).insertChild(
-      minIndex,
+      Math.max(0, targetIndex),
       group,
     );
   } catch {
@@ -205,78 +241,405 @@ function isPhaseOCandidate(node: SceneNode, sessionGroupIds: Set<string>): boole
   return true;
 }
 
-/** 阶段 O 的簇聚合:两两 overlap ratio ≥ 阈值即 union。 */
-function mergeInContainerByOverlap(
-  parent: SceneNode & ChildrenMixin,
-  cands: Cand[],
-  overlapThreshold: number,
-  maxClusterSize: number,
-): SceneNode[] {
-  if (cands.length < 2) return [];
+/**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * 作用域 + 亲密度 合并核心(scope + intimacy)
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * 老算法(DSU 一次传染)的失败根因:
+ *   - 同父下所有满足 edge 的元素被并成一大簇 → 大背景 + 独立卡片一坨扁平合
+ *   - 或超上限整簇丢 → 该合的也不合
+ *   - 无法区分"卡内亲密"和"跨卡冒进"
+ *
+ * 新算法思路:
+ *   Step 1:构建**包含森林** —— 每个 X 的"作用域父" = 严格包含 X 的最小容器
+ *          (与谁 bbox 完全包住 X,谁就是它的作用域父)
+ *   Step 2:每个**内部节点**(有 ≥ 2 个严格子)= 一个**合并作用域**
+ *          作用域内的成员**只跟同作用域的成员比较亲密度**,不会跟别的作用域串
+ *          → 解决"第一个 C 和第二个 C 误合"的问题
+ *   Step 3:在每个作用域内跑**亲密度贪心**:
+ *          - 相交(overlap ratio ≥ 阈值)→ intimacy = ratio + 1 (1.0..2.0)
+ *          - 相邻(bbox gap ≤ 阈值)     → intimacy = (阈值 - gap) / 阈值 (0..1)
+ *          - 都不满足 → 无边,不合
+ *          挑最紧的对合成 pair,新 pair 加回作用域池继续,直到无对
+ *   Step 4:作用域顶层容器**本身不参与合并**(它已经是自然的语义容器)
+ *   Step 5:不属于任何作用域的顶层候选(比如你贴的"顶部 C" 只与 X 部分相交、
+ *          不被 X 严格包含),保持独立,不合
+ */
 
-  const dsu = new DSU(cands.length);
-  for (let i = 0; i < cands.length; i++) {
-    for (let j = i + 1; j < cands.length; j++) {
-      if (bboxOverlapRatio(cands[i].box, cands[j].box) >= overlapThreshold) {
-        dsu.union(i, j);
+interface Cand {
+  node: SceneNode;
+  box: BBox;
+}
+
+function isLocked(node: SceneNode): boolean {
+  return 'locked' in node && (node as SceneNode & { locked: boolean }).locked;
+}
+
+function getBBox(node: SceneNode): BBox | null {
+  if ('absoluteBoundingBox' in node && node.absoluteBoundingBox) {
+    return node.absoluteBoundingBox;
+  }
+  return null;
+}
+
+/**
+ * 阶段 B 候选:阶段 A 之后仍未成组的所有可见节点(包括文字、GROUP、FRAME),但 INSTANCE 不动。
+ *
+ * 注意:阶段 B **不复用**本次运行生成的 sub- group(否则会一层层套娃)。
+ * A 阶段的 img- group 允许继续被 B 阶段合并(合理:一堆图 + 一段文字合成一张卡)。
+ */
+function isPhaseBCandidate(
+  node: SceneNode,
+  sessionGroupIds: Set<string>,
+  sessionSubGroupIds: Set<string>,
+): boolean {
+  if (node.type === 'INSTANCE') return false;
+  if (sessionGroupIds.has(node.id) && !sessionSubGroupIds.has(node.id)) return true;
+  if (sessionSubGroupIds.has(node.id)) return false;
+  if (hasSettledPrefix(node.name)) return false;
+  return true;
+}
+
+/** 边策略:决定两个候选算不算"应该合",以及"多亲密"。 */
+interface EdgePolicy {
+  /** 判"两节点是否有边"。 */
+  edge(a: Cand, b: Cand): boolean;
+  /** 亲密度:越大越紧。 */
+  intimacy(a: Cand, b: Cand): number;
+}
+
+/** 严格包含:X 完全在 Y 里,且 X 面积 < Y 面积。 */
+function isContainedIn(x: BBox, y: BBox, threshold = 0.9): boolean {
+  const ox = Math.max(0, Math.min(x.x + x.width, y.x + y.width) - Math.max(x.x, y.x));
+  const oy = Math.max(0, Math.min(x.y + x.height, y.y + y.height) - Math.max(x.y, y.y));
+  const overlap = ox * oy;
+  if (overlap <= 0) return false;
+  const areaX = Math.max(1, x.width * x.height);
+  const areaY = Math.max(1, y.width * y.height);
+  if (areaX >= areaY) return false;
+  return overlap / areaX >= threshold;
+}
+
+/**
+ * 构建作用域森林。
+ * 输入:同一 parent 下的所有候选 pool。
+ * 输出:parentIdx[i] = 严格包含 cands[i] 的最小容器在 pool 里的下标(-1 = 无容器)
+ */
+function buildScopeForest(pool: Cand[], containmentThreshold: number): number[] {
+  const n = pool.length;
+  const parentIdx: number[] = new Array(n).fill(-1);
+  for (let i = 0; i < n; i++) {
+    let bestP = -1;
+    let bestArea = Infinity;
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      if (isContainedIn(pool[i].box, pool[j].box, containmentThreshold)) {
+        const areaJ = pool[j].box.width * pool[j].box.height;
+        if (areaJ < bestArea) {
+          bestArea = areaJ;
+          bestP = j;
+        }
       }
     }
+    parentIdx[i] = bestP;
   }
-  const clusters = new Map<number, number[]>();
-  for (let i = 0; i < cands.length; i++) {
-    const r = dsu.find(i);
-    const arr = clusters.get(r) || [];
-    arr.push(i);
-    clusters.set(r, arr);
+  return parentIdx;
+}
+
+/**
+ * 在作用域内跑"簇聚合"合并(方向 B:消灭两两 pair 套娃)。
+ *
+ * 输入:作用域内的初始成员 scopeMembers + edge policy(相交 / 相邻 / …)。
+ *
+ * 做法:
+ *   1. 用 policy.edge 建无向图,跑 DSU/BFS 得到**连通分量**(不用亲密度选谁先合;
+ *      亲密度只用于"要不要建边"和"给用户的诊断读数")。
+ *   2. 每个 size ≥ 2 的分量 —— **一次性** `figma.group(所有成员, parent)` 成扁平 group,
+ *      不再两两 pair。既避免嵌套套娃,也避免 pair 后 bbox 膨胀传染。
+ *   3. 分量内亲密度平均值可用于调试,不影响是否合。
+ *
+ * 返回本作用域产生的所有 group 列表。
+ */
+function mergeInScope(
+  parent: SceneNode & ChildrenMixin,
+  scopeMembers: Cand[],
+  policy: EdgePolicy,
+  mergedSignatures: Set<string>,
+): SceneNode[] {
+  const n = scopeMembers.length;
+  if (n < 2) return [];
+
+  // 1. DSU 建连通分量:边 = policy.edge 判定
+  const dsu: number[] = Array.from({ length: n }, (_, i) => i);
+  const find = (x: number): number => {
+    while (dsu[x] !== x) {
+      dsu[x] = dsu[dsu[x]];
+      x = dsu[x];
+    }
+    return x;
+  };
+  const union = (a: number, b: number): void => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) dsu[ra] = rb;
+  };
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (policy.edge(scopeMembers[i], scopeMembers[j])) union(i, j);
+    }
   }
 
+  // 2. 分组:root → 成员下标列表
+  const clusters = new Map<number, number[]>();
+  for (let i = 0; i < n; i++) {
+    const r = find(i);
+    if (!clusters.has(r)) clusters.set(r, []);
+    clusters.get(r)!.push(i);
+  }
+
+  // 3. 每个 size ≥ 2 的簇一次性合
   const newGroups: SceneNode[] = [];
   for (const idxs of clusters.values()) {
     if (idxs.length < 2) continue;
-    if (idxs.length > maxClusterSize) continue;
-    // 合并守卫:父层合并后不能只剩 1 个子
-    const remainingAfterMerge = parent.children.length - idxs.length + 1;
-    if (remainingAfterMerge < 2) continue;
-    const nodes = idxs.map((i) => cands[i].node);
-    const memberIds = nodes.map((n) => n.id);
-    // 关键:合并前先记录父层每个子的 z-order 快照
-    // (parent.children 索引小 = z 更底;用户在 Figma 画的顺序就是他表达的 z 意图,不能按面积推翻)
-    // 该快照同时用于:
-    //   1) group 内部按原顺序恢复(preserveOriginalZOrder)
-    //   2) group 在外层的位置 = 成员中最底那一个的原 index(moveGroupToBottomMemberPosition)
-    const preMergeParentOrder = new Map<string, number>();
-    parent.children.forEach((c, idx) => {
-      preMergeParentOrder.set(c.id, idx);
-    });
+    const nodes = idxs.map((i) => scopeMembers[i].node);
+    // 全部节点都必须还在 parent 里(可能上一轮已被吸收);过滤掉
+    const alive = nodes.filter((n) => !n.removed && n.parent && n.parent.id === parent.id);
+    if (alive.length < 2) continue;
+    // 签名去重:同一批成员集不重复合(防止 session 产物内部自指套娃)
+    const sig = membersSignature(alive);
+    if (mergedSignatures.has(sig)) continue;
+    const preOrder = snapshotParentOrder(parent);
     try {
-      const g = figma.group(nodes, parent);
+      const g = figma.group(alive, parent);
       if (g.children.length < 2) {
-        try {
-          g.remove();
-        } catch {
-          /* ignore */
-        }
+        try { g.remove(); } catch { /* ignore */ }
         continue;
       }
-      // group 内部:恢复原始 z-order —— 谁在下面还是在下面,谁在上面还是在上面
-      preserveOriginalZOrder(g, preMergeParentOrder);
-      // group 外部:移到"最底成员"的原位置,避免整簇被 figma.group 默认置顶后遮挡其他兄弟
-      moveGroupToBottomMemberPosition(g, memberIds, preMergeParentOrder);
+      mergedSignatures.add(sig);
+      preserveOriginalZOrder(g, preOrder);
+      moveGroupToBottomMemberPosition(g, alive.map((n) => n.id), preOrder);
       newGroups.push(g);
     } catch {
-      // 单次失败(比如节点已被上一步吸收),下一轮再看
+      /* 边界:节点已被上层吸收 / API 拒绝,跳过 */
     }
   }
+
   return newGroups;
 }
 
 /**
- * 阶段 O 的一轮遍历:postorder,对每个容器做 overlap 聚簇合并。
+ * 阶段 O 专用:一次性 N 元合(方向 A:大背景 + 兄弟小元素合并)。
+ *
+ * 语义:找到"容器候选"C(严格包含 ≥ 2 个兄弟,或与 ≥ 2 个兄弟相交),
+ * 一次性把 C + 所有被它包含 / 与它相交的兄弟合成一组。**不走两两 pair,
+ * 不走作用域框架,不排除容器自己**。
+ *
+ * 挑选策略:选**受众最多**的候选(严格包含 + 相交的兄弟数最大)作为本轮 anchor;
+ * 一轮只处理一个 anchor,剩下的靠 for round 迭代继续。
+ */
+function mergeInContainerByAnchor(
+  parent: SceneNode & ChildrenMixin,
+  cands: Cand[],
+  overlapThreshold: number,
+  containmentThreshold: number,
+  mergedSignatures: Set<string>,
+): SceneNode[] {
+  const n = cands.length;
+  if (n < 2) return [];
+
+  // 对每个候选,统计"被它严格包含 或 与它显著相交"的其它候选下标
+  const receivers: number[][] = Array.from({ length: n }, () => []);
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      // j 被 i 严格包含
+      if (isContainedIn(cands[j].box, cands[i].box, containmentThreshold)) {
+        receivers[i].push(j);
+        continue;
+      }
+      // 或者 i 与 j 显著相交(且面积相近,不属于严格包含关系)
+      if (bboxOverlapRatio(cands[i].box, cands[j].box) >= overlapThreshold) {
+        // 排除已经作为严格包含加入的
+        if (!receivers[i].includes(j)) receivers[i].push(j);
+      }
+    }
+  }
+
+  // 挑受众最多的 anchor
+  let anchor = -1;
+  let bestCount = 1; // 至少要吸引 2 个兄弟(anchor + 2 members = size 3),避免琐碎合并
+  for (let i = 0; i < n; i++) {
+    if (receivers[i].length > bestCount) {
+      bestCount = receivers[i].length;
+      anchor = i;
+    }
+  }
+  if (anchor < 0) return [];
+
+  const memberIdx = new Set<number>([anchor, ...receivers[anchor]]);
+  const members = Array.from(memberIdx).map((i) => cands[i].node);
+  const alive = members.filter((n) => !n.removed && n.parent && n.parent.id === parent.id);
+  if (alive.length < 2) return [];
+
+  // 签名去重:同一批成员集不重复合
+  const sig = membersSignature(alive);
+  if (mergedSignatures.has(sig)) return [];
+
+  const preOrder = snapshotParentOrder(parent);
+  try {
+    const g = figma.group(alive, parent);
+    if (g.children.length < 2) {
+      try { g.remove(); } catch { /* ignore */ }
+      return [];
+    }
+    mergedSignatures.add(sig);
+    preserveOriginalZOrder(g, preOrder);
+    moveGroupToBottomMemberPosition(g, alive.map((n) => n.id), preOrder);
+    return [g];
+  } catch {
+    return [];
+  }
+}
+
+function snapshotParentOrder(parent: SceneNode & ChildrenMixin): Map<string, number> {
+  const m = new Map<string, number>();
+  parent.children.forEach((c, idx) => m.set(c.id, idx));
+  return m;
+}
+
+/**
+ * 成员集签名:排序后的 id 用 | 拼接。用来在 session 级别去重"同一批成员再包一层"这种
+ * 自指套娃 —— 上一轮已经把 [BG, A, B, C] 合成 G,下一轮 visit(G) 时 G.children 仍是
+ * [BG, A, B, C],anchor / 簇条件再次满足;签名一查 → 拒绝,收敛。
+ *
+ * 允许"成员集不同的合并"进入(比如 G 内部还有更细的子孙可细分),因此比"session 产物
+ * 内部不管"的粗暴 gate 保留了合并力度。
+ */
+function membersSignature(nodes: SceneNode[]): string {
+  return nodes.map((n) => n.id).sort().join('|');
+}
+
+/**
+ * 一轮"作用域 + 亲密度"合并的调度器:
+ *   1. 构建包含森林
+ *   2. 对每个"内部节点"(严格子 ≥ 2)—— 作为一个作用域,在其严格子集上跑 mergeInScope
+ *   3. 顶层"孤儿"(不被任何人严格包含的候选)也算一个作用域,跑一遍 mergeInScope
+ *
+ * 注意:作用域**容器本身**不参与合并;只合它的严格子们。
+ *      如果一个候选既是别人的严格子,也是别人的作用域容器,它仍然可能作为**它的作用域父**的成员参与合并
+ *      —— 这自然形成"洋葱"层级(内层作用域先合,外层作用域再拿内层作用域的容器当成员合)。
+ *      但这里做**一轮**只处理一层作用域;上层由外层 for round 迭代自然接手。
+ */
+function mergeByScopeAndIntimacy(
+  parent: SceneNode & ChildrenMixin,
+  cands: Cand[],
+  policy: EdgePolicy,
+  containmentThreshold: number,
+  mergedSignatures: Set<string>,
+): SceneNode[] {
+  if (cands.length < 2) return [];
+  const n = cands.length;
+  const parentIdx = buildScopeForest(cands, containmentThreshold);
+  const childrenOf: number[][] = Array.from({ length: n }, () => []);
+  const roots: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (parentIdx[i] >= 0) childrenOf[parentIdx[i]].push(i);
+    else roots.push(i);
+  }
+
+  const newGroups: SceneNode[] = [];
+
+  for (let i = 0; i < n; i++) {
+    const kids = childrenOf[i];
+    if (kids.length < 2) continue;
+    const isLeafScope = kids.every((c) => childrenOf[c].length === 0);
+    if (!isLeafScope) continue;
+    const members = kids.map((k) => cands[k]);
+    const groups = mergeInScope(parent, members, policy, mergedSignatures);
+    newGroups.push(...groups);
+  }
+
+  const orphans = roots
+    .filter((i) => childrenOf[i].length === 0)
+    .map((i) => cands[i]);
+  if (orphans.length >= 2) {
+    const groups = mergeInScope(parent, orphans, policy, mergedSignatures);
+    newGroups.push(...groups);
+  }
+
+  return newGroups;
+}
+
+/**
+ * 阶段 O(overlap 主导)的边策略:只有相交才有边;亲密度 = overlap ratio。
+ */
+function overlapPolicy(overlapThreshold: number): EdgePolicy {
+  return {
+    edge: (a, b) => bboxOverlapRatio(a.box, b.box) >= overlapThreshold,
+    intimacy: (a, b) => bboxOverlapRatio(a.box, b.box) + 1, // 1.0 ~ 2.0 高于 gap 亲密度
+  };
+}
+
+/**
+ * 阶段 A/B(gap 主导)的边策略:相交或相邻都有边;亲密度分档 —— 相交 > 相邻。
+ * 相交场景仍然让 overlap 主导(比如 A ⊂ B 的紧密视觉包含),但也允许 gap 邻近的合。
+ */
+function gapPolicy(gap: number, overlapThreshold: number): EdgePolicy {
+  return {
+    edge: (a, b) => {
+      if (bboxOverlapRatio(a.box, b.box) >= overlapThreshold) return true;
+      return bboxGap(a.box, b.box) <= gap;
+    },
+    intimacy: (a, b) => {
+      const r = bboxOverlapRatio(a.box, b.box);
+      if (r >= overlapThreshold) return r + 1; // 1.0 ~ 2.0
+      const g = bboxGap(a.box, b.box);
+      return Math.max(0, (gap - g) / Math.max(1, gap)); // 0 ~ 1
+    },
+  };
+}
+
+/**
+ * 阶段 O 的簇聚合入口(方向 A):不走作用域框架,直接用 anchor 一次性 N 元合。
+ * 目标:大背景 + 上面一堆小元素合成一组。
+ */
+function mergeInContainerByOverlap(
+  parent: SceneNode & ChildrenMixin,
+  cands: Cand[],
+  overlapThreshold: number,
+  _maxClusterSize: number,
+  mergedSignatures: Set<string>,
+): SceneNode[] {
+  return mergeInContainerByAnchor(parent, cands, overlapThreshold, 0.9, mergedSignatures);
+}
+
+/**
+ * 阶段 A/B 的簇聚合入口:使用作用域 + gap policy。
+ */
+function mergeInContainer(
+  parent: SceneNode & ChildrenMixin,
+  cands: Cand[],
+  gap: number,
+  _maxClusterSize: number,
+  _prefix: 'img-' | 'sub-',
+  _namer: () => string,
+  mergedSignatures: Set<string>,
+): SceneNode[] {
+  const overlapThreshold = 0.3;
+  return mergeByScopeAndIntimacy(parent, cands, gapPolicy(gap, overlapThreshold), 0.9, mergedSignatures);
+}
+
+/**
+ * 阶段 O 的一轮遍历:postorder,对每个容器做作用域 + overlap 合并。
+ * @param rootIds 遍历起点;缺省 = 整页所有顶层 frame。
  */
 async function walkOnceOverlap(
   overlapThreshold: number,
   maxClusterSize: number,
   sessionGroupIds: Set<string>,
+  mergedSignatures: Set<string>,
+  rootIds?: string[],
 ): Promise<number> {
   let merged = 0;
   const seen = new Set<string>();
@@ -311,136 +674,14 @@ async function walkOnceOverlap(
       cands.push({ node: c, box: b });
     }
 
-    const newGroups = mergeInContainerByOverlap(node, cands, overlapThreshold, maxClusterSize);
+    const newGroups = mergeInContainerByOverlap(node, cands, overlapThreshold, maxClusterSize, mergedSignatures);
     for (const g of newGroups) sessionGroupIds.add(g.id);
     merged += newGroups.length;
   }
 
-  const roots = [...figma.currentPage.children];
-  for (const r of roots) await visit(r.id, 0);
+  const roots = rootIds && rootIds.length > 0 ? rootIds : figma.currentPage.children.map((c) => c.id);
+  for (const r of roots) await visit(r, 0);
   return merged;
-}
-
-/**
- * 阶段 B 候选:阶段 A 之后仍未成组的所有可见节点(包括文字、GROUP、FRAME),但 INSTANCE 不动。
- *
- * 注意:阶段 B **不复用**本次运行生成的 sub- group(否则会一层层套娃)。
- * A 阶段的 img- group 允许继续被 B 阶段合并(合理:一堆图 + 一段文字合成一张卡)。
- */
-function isPhaseBCandidate(
-  node: SceneNode,
-  sessionGroupIds: Set<string>,
-  sessionSubGroupIds: Set<string>,
-): boolean {
-  if (node.type === 'INSTANCE') return false;
-  // A 阶段的 img- group 允许再作候选(帮 B 组合"图 + 文")
-  if (sessionGroupIds.has(node.id) && !sessionSubGroupIds.has(node.id)) return true;
-  // B 阶段自产的 sub- group 一次成型,不再回锅
-  if (sessionSubGroupIds.has(node.id)) return false;
-  if (hasSettledPrefix(node.name)) return false;
-  return true;
-}
-
-function isLocked(node: SceneNode): boolean {
-  return 'locked' in node && (node as SceneNode & { locked: boolean }).locked;
-}
-
-function getBBox(node: SceneNode): BBox | null {
-  if ('absoluteBoundingBox' in node && node.absoluteBoundingBox) {
-    return node.absoluteBoundingBox;
-  }
-  return null;
-}
-
-/** 并查集。 */
-class DSU {
-  parent: number[];
-  constructor(n: number) {
-    this.parent = Array.from({ length: n }, (_, i) => i);
-  }
-  find(x: number): number {
-    if (this.parent[x] !== x) this.parent[x] = this.find(this.parent[x]);
-    return this.parent[x];
-  }
-  union(a: number, b: number): void {
-    const ra = this.find(a);
-    const rb = this.find(b);
-    if (ra !== rb) this.parent[ra] = rb;
-  }
-}
-
-interface Cand {
-  node: SceneNode;
-  box: BBox;
-}
-
-/**
- * 对给定容器的直接子做一轮聚簇合并。返回本轮新产生的 group 列表。
- */
-function mergeInContainer(
-  parent: SceneNode & ChildrenMixin,
-  cands: Cand[],
-  gap: number,
-  maxClusterSize: number,
-  prefix: 'img-' | 'sub-',
-  namer: () => string,
-): SceneNode[] {
-  if (cands.length < 2) return [];
-
-  const dsu = new DSU(cands.length);
-  for (let i = 0; i < cands.length; i++) {
-    for (let j = i + 1; j < cands.length; j++) {
-      if (bboxGap(cands[i].box, cands[j].box) <= gap) {
-        dsu.union(i, j);
-      }
-    }
-  }
-  const clusters = new Map<number, number[]>();
-  for (let i = 0; i < cands.length; i++) {
-    const r = dsu.find(i);
-    const arr = clusters.get(r) || [];
-    arr.push(i);
-    clusters.set(r, arr);
-  }
-
-  const newGroups: SceneNode[] = [];
-  for (const idxs of clusters.values()) {
-    if (idxs.length < 2) continue;
-    if (idxs.length > maxClusterSize) continue;
-    // ⚠ 关键:如果这次合并会让父层直接子数量掉到 < 2(即簇覆盖了父的所有子,或只剩一个非候选),
-    // 就跳过 —— 那种合并等于给父层重命名,毫无意义,还会污染树。
-    // 计算:合并后 parent.children 数 = 当前 children 数 - 簇大小 + 1(新 group)
-    const remainingAfterMerge = parent.children.length - idxs.length + 1;
-    if (remainingAfterMerge < 2) continue;
-    const nodes = idxs.map((i) => cands[i].node);
-    const memberIds = nodes.map((n) => n.id);
-    // 关键:合并前先记录父层每个子的 z-order 快照(用于内部顺序恢复 + 外部位置定位)
-    const preMergeParentOrder = new Map<string, number>();
-    parent.children.forEach((c, idx) => {
-      preMergeParentOrder.set(c.id, idx);
-    });
-    try {
-      const g = figma.group(nodes, parent);
-      // 兜底:group 建出来后 children < 2(理论上不会,但防 Figma API 边界 bug)
-      if (g.children.length < 2) {
-        try {
-          g.remove();
-        } catch {
-          /* ignore */
-        }
-        continue;
-      }
-      // group 内部:恢复原始 z-order —— 谁在下面还是在下面,谁在上面还是在上面
-      preserveOriginalZOrder(g, preMergeParentOrder);
-      // group 外部:移到"最底成员"的原位置,避免整簇被 figma.group 默认置顶后遮挡其他兄弟
-      moveGroupToBottomMemberPosition(g, memberIds, preMergeParentOrder);
-      // 不改名 —— 保留 Figma 默认名(Group N),前缀语义留给用户或 AI 后续打标
-      newGroups.push(g);
-    } catch {
-      // 单次失败(比如节点已被上一步吸收),下一轮再看
-    }
-  }
-  return newGroups;
 }
 
 /**
@@ -455,7 +696,9 @@ async function walkOnce(
   prefix: 'img-' | 'sub-',
   namer: () => string,
   sessionGroupIds: Set<string>,
+  mergedSignatures: Set<string>,
   extraGroupIds?: Set<string>,
+  rootIds?: string[],
 ): Promise<number> {
   let merged = 0;
   const seen = new Set<string>();
@@ -492,7 +735,7 @@ async function walkOnce(
       cands.push({ node: c, box: b });
     }
 
-    const newGroups = mergeInContainer(node, cands, gap, maxClusterSize, prefix, namer);
+    const newGroups = mergeInContainer(node, cands, gap, maxClusterSize, prefix, namer, mergedSignatures);
     for (const g of newGroups) {
       sessionGroupIds.add(g.id);
       if (extraGroupIds) extraGroupIds.add(g.id);
@@ -500,8 +743,8 @@ async function walkOnce(
     merged += newGroups.length;
   }
 
-  const roots = [...figma.currentPage.children];
-  for (const r of roots) await visit(r.id, 0);
+  const roots = rootIds && rootIds.length > 0 ? rootIds : figma.currentPage.children.map((c) => c.id);
+  for (const r of roots) await visit(r, 0);
   return merged;
 }
 
@@ -527,6 +770,8 @@ export async function iterativeMerge(opts: IterativeMergeOptions = {}): Promise<
   const t0 = Date.now();
   const sessionGroupIds = new Set<string>();
   const sessionSubGroupIds = new Set<string>();
+  const mergedSignatures = new Set<string>();
+  const rootIds = opts.rootIds && opts.rootIds.length > 0 ? opts.rootIds : undefined;
   let seqA = 0;
   let seqB = 0;
   let stoppedByLimit: 'O' | 'A' | 'B' | null = null;
@@ -535,7 +780,7 @@ export async function iterativeMerge(opts: IterativeMergeOptions = {}): Promise<
   let oGroups = 0;
   let oRounds = 0;
   for (let round = 1; round <= maxRounds; round++) {
-    const merged = await walkOnceOverlap(overlapThreshold, maxClusterSize, sessionGroupIds);
+    const merged = await walkOnceOverlap(overlapThreshold, maxClusterSize, sessionGroupIds, mergedSignatures, rootIds);
     oGroups += merged;
     oRounds = round;
     if (onProgress) onProgress('O', round, merged);
@@ -555,6 +800,9 @@ export async function iterativeMerge(opts: IterativeMergeOptions = {}): Promise<
       'img-',
       () => `image-${String(++seqA).padStart(2, '0')}`,
       sessionGroupIds,
+      mergedSignatures,
+      undefined,
+      rootIds,
     );
     aGroups += merged;
     aRounds = round;
@@ -575,7 +823,9 @@ export async function iterativeMerge(opts: IterativeMergeOptions = {}): Promise<
       'sub-',
       () => `card-${String(++seqB).padStart(2, '0')}`,
       sessionGroupIds,
+      mergedSignatures,
       sessionSubGroupIds,
+      rootIds,
     );
     bGroups += merged;
     bRounds = round;

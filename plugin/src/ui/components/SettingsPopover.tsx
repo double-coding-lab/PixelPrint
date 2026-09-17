@@ -133,14 +133,14 @@ export function SettingsPopover({
 
           <div className="settings-section">
             <div className="settings-section-title">一键拆分</div>
-            <label className="settings-check" title="勾选:递归拆到无 GROUP(慎用);不勾:只拆一层">
+            <label className="settings-check" title="默认勾选:深拆递归到无 GROUP。不勾:只拆一层(保留内部子 group)。只拆 GROUP,FRAME / autolayout 不拆。">
               <input
                 type="checkbox"
                 checked={ungroupDeep}
                 onChange={(e) => onUngroupDeepChange(e.target.checked)}
                 disabled={disabled}
               />
-              深拆(递归)
+              深拆(递归到无 GROUP)
             </label>
           </div>
 

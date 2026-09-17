@@ -135,7 +135,11 @@ export type UiMessage =
   | { type: 'renameNode'; nodeId: string; newName: string }
   | { type: 'analyze' } // 纯代码分析(不需要参数,基于当前 currentPage 或 selection)
   | { type: 'oneClickMerge' } // 一键合并:纯生成合并建议(不删除任何东西)- 保留兼容
-  | { type: 'deleteHidden' } // 单独触发:清理所有隐藏节点
+  | {
+      type: 'deleteHidden';
+      /** 限制清理范围到这些子树内;为空或缺省 = 整页 */
+      rootIds?: string[];
+    } // 单独触发:清理隐藏节点 + Slice
   | {
       type: 'iterativeMerge';
       gap: number;
@@ -146,6 +150,11 @@ export type UiMessage =
       overlapThreshold?: number;
       /** 合并前是否先清理隐藏节点 + Slice。默认 true。 */
       deleteHiddenFirst?: boolean;
+      /**
+       * 限制合并范围到这些子树内;为空或缺省 = 整页所有顶层 frame。
+       * 传入时,walk 只从这些 rootIds 起点 postorder 遍历,不再全页扫描。
+       */
+      rootIds?: string[];
     } // 一键迭代合并:(可选清理隐藏 + Slice)+ 阶段 O(相交)+ A(图形)+ B(混文字)迭代到收敛
   | {
       type: 'diagnoseMerge';

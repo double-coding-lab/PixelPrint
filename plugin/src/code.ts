@@ -106,7 +106,7 @@ figma.ui.onmessage = async (msg: UiMessage) => {
         break;
       }
       case 'deleteHidden': {
-        const r = await deleteHiddenNodes();
+        const r = await deleteHiddenNodes(msg.rootIds);
         post({
           type: 'deleteHiddenResult',
           deleted: r.deleted,
@@ -118,9 +118,9 @@ figma.ui.onmessage = async (msg: UiMessage) => {
         break;
       }
       case 'iterativeMerge': {
-        // 可选:先清理隐藏节点 + slice
+        // 可选:先清理隐藏节点 + slice(与主合并共用 rootIds)
         if (msg.deleteHiddenFirst !== false) {
-          const del = await deleteHiddenNodes();
+          const del = await deleteHiddenNodes(msg.rootIds);
           post({
             type: 'deleteHiddenResult',
             deleted: del.deleted,
@@ -135,6 +135,7 @@ figma.ui.onmessage = async (msg: UiMessage) => {
           maxRounds: msg.maxRounds,
           maxItemSize: msg.maxItemSize,
           overlapThreshold: msg.overlapThreshold,
+          rootIds: msg.rootIds,
           onProgress: (phase, round, merged) => {
             post({ type: 'iterativeMergeProgress', phase, round, merged });
           },
