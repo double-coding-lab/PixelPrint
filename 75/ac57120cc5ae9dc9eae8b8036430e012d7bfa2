@@ -1,0 +1,59 @@
+plugin/src/analyzer/mergeIterative.ts
+  s_c0f72d156adf49::t_d4345a69a14512 244-268,304-342,345-350,352,354,361,363-367,369,379,392,412,416,420,427,505-510,524-538,540-558,560-566,568-603,606-611,613,618-626
+  s_c0f72d156adf49::t_ae3f870b53076d 270-274
+  s_c0f72d156adf49::t_b38e9d88ca9b39 512-523
+  s_c0f72d156adf49::t_df0bba8101521a 774,804-805,828
+  s_c0f72d156adf49::t_4ab5f8e5778d57 641,677
+  s_c0f72d156adf49::t_478495b785a67c 699,738
+  s_c0f72d156adf49::t_149ddf3ca77b1a 539,559,567
+  s_c0f72d156adf49::t_7683e154612c39 368,409-411,419
+  s_c0f72d156adf49::t_a2f7103e85f39e 701,746-747
+  s_c0f72d156adf49::t_e645da43feb384 773,783,803,826
+  s_c0f72d156adf49::t_8cf0de04a5d3f2 604-605
+  s_c0f72d156adf49::t_1c54092a949ab3 351,353,355-360,362,370-378,380-390,393,395-398,401,405-408,414,421,424,432-445,447-484,489-495,497-502
+  s_c0f72d156adf49::t_3ba35e4ccd5f02 40-43
+  s_c0f72d156adf49::t_b9b403b96240b0 612,614,627-630
+  s_c0f72d156adf49::t_45a7e8251527e1 446,485-488,496
+  s_c0f72d156adf49::t_0ffc59db02ca12 634
+  s_c0f72d156adf49::t_eddfc8f43806f0 136-144,146-148,150,152-162,171-174,177,179-191,194
+  s_c0f72d156adf49::t_1b9667fac5034c 635,642,682-683
+  s_c0f72d156adf49::t_bae9e833c1da57 275-303
+plugin/src/ui/App.tsx
+  s_c0f72d156adf49::t_b37b2856a4c429 212
+  s_c0f72d156adf49::t_06778dc1105912 434
+  s_c0f72d156adf49::t_4e5d162b6c0cf0 57
+  s_c0f72d156adf49::t_c620efafc37e75 371-373,375-376,378,385,394,399-400,402,405-406
+  s_c0f72d156adf49::t_4465f104342b5e 631
+  s_c0f72d156adf49::t_304a0c9ae7f3f9 637-643
+plugin/src/types.ts
+  s_c0f72d156adf49::t_c110af29aacfd3 139-142,153-157
+plugin/src/code.ts
+  s_c0f72d156adf49::t_0af97994081aea 109,121,123,138
+plugin/src/analyzer/deleteHidden.ts
+  s_c0f72d156adf49::t_fe45a912e4debd 24,90-100
+plugin/src/ui/styles.css
+  s_c0f72d156adf49::t_aa049dadc9dd42 1634-1650
+plugin/src/ui/components/SettingsPopover.tsx
+  s_c0f72d156adf49::t_b5781ce1305b48 136,143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "75ac57120cc5ae9dc9eae8b8036430e012d7bfa2",
+  "prompts": {},
+  "humans": {
+    "h_02deff59416ae5": {
+      "author": "lands <550947002@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_c0f72d156adf49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4a2bfa8e-82e6-4df9-b469-79e3a3cfdb82",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
