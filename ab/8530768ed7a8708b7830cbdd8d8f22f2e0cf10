@@ -1,0 +1,22 @@
+docs/自动化标注与自动化布局_放弃复盘.md
+  s_c0f72d156adf49::t_fc42b30c948142 117-120
+docs/自动化分组_放弃复盘.md
+  s_c0f72d156adf49::t_f9005d85eb29db 23-24
+  s_c0f72d156adf49::t_565dc48d344d12 121-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "ab8530768ed7a8708b7830cbdd8d8f22f2e0cf10",
+  "prompts": {},
+  "sessions": {
+    "s_c0f72d156adf49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4a2bfa8e-82e6-4df9-b469-79e3a3cfdb82",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
