@@ -2,11 +2,12 @@
  * 拆分选中节点(ungroup)。
  *
  * 规则:
- * - 只拆 GROUP;FRAME/COMPONENT/COMPONENT_SET 结构上不同,不能 ungroup(会明确报错)
+ * - 只拆 **GROUP** → 走 figma.ungroup(),原生 API 保持 z 顺序
+ * - **FRAME / COMPONENT / INSTANCE / COMPONENT_SET / 其他类型都跳过**,归到 skippedNonGroup
+ *   (FRAME 含 autolayout 结构上不同,不拆;Instance / Component 拆会解绑主件)
  * - 锁定节点跳过
- * - Instance 内部不拆(会解绑主件)
- * - **浅拆(deep=false,默认)**:只拆传入的这些节点一层,里面的子 group 保留
- * - **深拆(deep=true)**:递归拆到没有 GROUP 为止(可能一路拆穿,慎用)
+ * - **浅拆(deep=false)**:只拆传入的这些节点一层,里面的子 group 保留
+ * - **深拆(deep=true,默认)**:递归拆到没有 GROUP 为止(FRAME / INSTANCE / COMPONENT 不拆)
  */
 
 export interface UngroupOptions {
@@ -39,8 +40,9 @@ async function ungroupOne(
     result.ungrouped += 1;
     result.releasedNodes += released.length;
     if (deep) {
-      // 释放出来的节点里若还有 GROUP,继续拆
+      // 释放出来的节点里若还有 GROUP,继续拆;FRAME/INSTANCE/... 一律不动
       for (const child of released) {
+        if (child.removed) continue;
         if (child.type === 'GROUP') {
           await ungroupOne(child, result, true);
         }
