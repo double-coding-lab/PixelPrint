@@ -1,0 +1,25 @@
+docs/自动化标注与自动化布局_放弃复盘.md
+  s_c0f72d156adf49::t_395bde6d2f746c 100,146,209,217
+  s_c0f72d156adf49::t_90502235148049 28,46,63,80,129,157,171,179,211,215
+  s_c0f72d156adf49::t_65ce53c8e0d356 13,26,169,227,244,255,268
+docs/自动化分组_放弃复盘.md
+  s_c0f72d156adf49::t_90502235148049 54,70,81,89,98,102,108
+  s_c0f72d156adf49::t_395bde6d2f746c 119,121-123
+  s_c0f72d156adf49::t_65ce53c8e0d356 9,25,37,50,129,142,164,178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "93ae43021419f9c6bd7dbdeed5e2e7bf9b49bba0",
+  "prompts": {},
+  "sessions": {
+    "s_c0f72d156adf49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4a2bfa8e-82e6-4df9-b469-79e3a3cfdb82",
+        "model": "arn:aws:bedrock:us-west-2:456197019624:application-inference-profile/bumrjndkqzw8"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
