@@ -1,0 +1,40 @@
+docs/设计师自动布局设计规范.md
+  s_08ed091bb01393::t_51318057d5e45f 159
+  s_08ed091bb01393::t_02a9edf727fbe9 184,187-190
+  s_08ed091bb01393::t_d9949f32bea4ad 42,44
+  s_08ed091bb01393::t_16d805f16f8169 121-122
+  s_08ed091bb01393::t_ec2e8391ba527f 108
+  s_08ed091bb01393::t_8d4d8a08677cff 201-207,209-214
+  s_08ed091bb01393::t_7ac10a2384e5e3 82-89
+  s_08ed091bb01393::t_68f2fd1bc5da55 123
+  s_08ed091bb01393::t_d161d0fb73cf07 120,124-127
+  s_08ed091bb01393::t_5e6d0fb2eebd22 171-183,185-186
+  s_08ed091bb01393::t_636f634b1c8eae 191-200
+  s_08ed091bb01393::t_ec99a5f836104b 149-150
+  s_08ed091bb01393::t_7c4da98edcce12 105-107,109-119
+  s_08ed091bb01393::t_7a2581ad2ebeb2 62
+  s_08ed091bb01393::t_196b82feffe493 138-147
+  s_08ed091bb01393::t_0df9a0ca022aa5 128-137
+  s_08ed091bb01393::t_7ee1303fd3d2d1 148,151-158,160
+  s_08ed091bb01393::t_11526bb3cb0e78 208
+  s_08ed091bb01393::t_43c7d5bdf321b7 17
+  s_08ed091bb01393::t_cdd047fb827d6a 161-170
+  s_08ed091bb01393::t_2c783115b2e45e 1-16,18-41,43,45-61,63-74
+  s_08ed091bb01393::t_a1017453fbc791 75-81,90-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "dcf3079535cf89f8f0648f77fbcb26b27bb9c3fd",
+  "prompts": {},
+  "sessions": {
+    "s_08ed091bb01393": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a06d732-f60a-429a-89e6-f6008e8050bc",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
