@@ -1,0 +1,8 @@
+# docs-sync 排除:只同步「自动化分组_放弃复盘.md」和「自动化标注与自动化布局_放弃复盘.md」
+# 其它项目文档不进飞书 wiki
+
+PixelPrint-设计师图层规范.md
+PixelPrint-使用指南.md
+pp-d2c-设计原理.md
+pp-d2c-通俗版.md
+pp-d2c-演化史.md
