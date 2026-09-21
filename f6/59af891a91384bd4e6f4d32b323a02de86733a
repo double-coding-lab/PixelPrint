@@ -1,0 +1,19 @@
+docs/.docs-sync-ignore
+  s_08ed091bb01393::t_bc6ec1a2438ef9 9-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "f659af891a91384bd4e6f4d32b323a02de86733a",
+  "prompts": {},
+  "sessions": {
+    "s_08ed091bb01393": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a06d732-f60a-429a-89e6-f6008e8050bc",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
