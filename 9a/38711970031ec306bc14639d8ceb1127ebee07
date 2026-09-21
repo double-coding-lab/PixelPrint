@@ -1,0 +1,19 @@
+docs/设计师自动布局设计规范.md
+  s_08ed091bb01393::t_b3159299928d98 215-227
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.44-trip",
+  "base_commit_sha": "9a38711970031ec306bc14639d8ceb1127ebee07",
+  "prompts": {},
+  "sessions": {
+    "s_08ed091bb01393": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a06d732-f60a-429a-89e6-f6008e8050bc",
+        "model": "claude-fable-5"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
