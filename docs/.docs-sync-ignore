@@ -6,3 +6,6 @@ PixelPrint-使用指南.md
 pp-d2c-设计原理.md
 pp-d2c-通俗版.md
 pp-d2c-演化史.md
+
+# 已通过 lark-doc 带图发布(2026-09-21),勿再走 docs-sync 纯文本同步
+设计师自动布局设计规范.md
