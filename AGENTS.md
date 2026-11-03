@@ -27,7 +27,8 @@
 | `changeTracking.fix` | `false` | `true` 时 `f2s-kb-fix` 步骤 0 必须创建/续作 `.task/active/` 变更追踪任务；`false` 时跳过。 |
 | `changeTracking.implement` | `true` | `true` 时 `f2s-implement-tech-design` 写入任务清单并在满足归档门禁后归档；`false` 时跳过变更追踪部分。 |
 | `collaboration.enabled` | `true` | `true` 时按 developerId 隔离任务根 `.task/<id>/`；`false` 时始终 legacy 单根 `.task/`。 |
-| `collaboration.developerId` | `""` | 非空则作为任务进度目录名；空则尝试 git user.email/name 规范化；仍无则 legacy `.task/`。解析顺序：config → git → legacy。 |
+| `collaboration.developerId` | `""` | 非空则作为任务进度目录名；空则尝试 git user.email/name 规范化；仍无则 legacy `.task/`。解析顺序：config → git → legacy。跨机续作要求两端解析结果一致（推荐两端使用相同 git user.email）。 |
+| `collaboration.syncActiveTasks` | `true` | `true` 时仅忽略 `.task/completed/` 与 `.task/*/completed/`，进行中任务可随 Git 同步；`false` 时整个 `.task/` 留在本地。 |
 
 - `subAgent=true` 时，主 agent 必须在技能前段**显式判断一次**本次是否拆子，并说明原因；即使判断不拆，也必须输出不拆原因。`subAgent=false` 时不得拆子 agent。
 - `intentRecognition=false` 或字段缺失时，禁止自动进入任何 skill；只能按用户显式触发或当前规则允许的高置信分流进入。

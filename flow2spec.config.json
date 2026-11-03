@@ -11,7 +11,8 @@
     "enabled": true
   },
   "collaboration": {
-    "enabled": true
+    "enabled": true,
+    "syncActiveTasks": true
   },
   "locale": "zh-CN"
 }

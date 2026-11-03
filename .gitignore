@@ -20,4 +20,12 @@ pp-d2c.config.json
 .env.bak
 
 # Flow2Spec local state
-.task/
+
+# docs → 飞书云文档同步工具的本地状态(含 doc_token / node_token)
+docs/.docs-sync.json
+docs/.mermaid-cache.json
+docs/.sync-mapping.json
+docs/.sync-nodes.json
+
+.task/completed/
+.task/*/completed/
