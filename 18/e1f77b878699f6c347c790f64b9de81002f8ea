@@ -1,0 +1,35 @@
+.task/550947002/todo.json
+  s_d4d24cbcb3bdea::t_f7202184d53108 1-37
+.task/550947002/active/pp_d2c_v0_3_19_simplify/context.md
+  s_d4d24cbcb3bdea::t_f7202184d53108 1-24
+.task/550947002/active/pp_d2c_v0_3_19_simplify/user-todos.md
+  s_d4d24cbcb3bdea::t_f7202184d53108 1-11
+.task/550947002/active/pp_d2c_rule_scan_split/task.md
+  s_d4d24cbcb3bdea::t_f7202184d53108 1-38
+.task/550947002/active/pp_d2c_rule_scan_split/user-todos.md
+  s_d4d24cbcb3bdea::t_f7202184d53108 1-14
+.task/550947002/active/pp_d2c_v0_3_19_simplify/acceptance.md
+  s_d4d24cbcb3bdea::t_f7202184d53108 1-4
+.task/550947002/active/pp_d2c_rule_scan_split/context.md
+  s_d4d24cbcb3bdea::t_f7202184d53108 1-58
+.task/550947002/active/pp_d2c_v0_3_19_simplify/task.md
+  s_d4d24cbcb3bdea::t_f7202184d53108 1-24
+.task/550947002/active/pp_d2c_rule_scan_split/acceptance.md
+  s_d4d24cbcb3bdea::t_f7202184d53108 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.51-trip",
+  "base_commit_sha": "18e1f77b878699f6c347c790f64b9de81002f8ea",
+  "prompts": {},
+  "sessions": {
+    "s_d4d24cbcb3bdea": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a19f76-7d59-7943-bf1b-0f87b6d954c3",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
