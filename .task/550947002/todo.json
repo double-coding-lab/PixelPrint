@@ -1,0 +1,37 @@
+[
+  {
+    "name": "pp_d2c_v0_3_19_simplify",
+    "folder": ".task/550947002/active/pp_d2c_v0_3_19_simplify/",
+    "keywords": [
+      "v0.3.19",
+      "极简重写",
+      "SKILL 精简",
+      "删例外通道",
+      "三条硬规则",
+      "css-first",
+      "fills IMAGE 切图",
+      "bg img 切图"
+    ],
+    "linkedSkill": "f2s-kb-feat",
+    "createdAt": "2026-08-10",
+    "assignee": "550947002"
+  },
+  {
+    "name": "pp_d2c_rule_scan_split",
+    "folder": ".task/550947002/active/pp_d2c_rule_scan_split/",
+    "keywords": [
+      "v0.3.22",
+      "Rule-Scan",
+      "check-rules.mjs",
+      "rules 拆分",
+      "规则库",
+      "分层防线",
+      "sub-agent 规则识别",
+      "硬规则总概表",
+      "遗漏补捕"
+    ],
+    "linkedSkill": "f2s-req-plan",
+    "createdAt": "2026-08-11",
+    "assignee": "550947002"
+  }
+]
