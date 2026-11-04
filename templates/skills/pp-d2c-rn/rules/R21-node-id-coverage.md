@@ -13,6 +13,8 @@
 
 ## 期望产物
 
+- node-id 挂在真实承载该节点视觉或交互的元素上，禁止隐藏、透明、零尺寸或占位锚点冒充覆盖。静态 ID 匹配不证明运行时可见，也不能用自造 data-baked 改变缓存真值。
+
 - 凡承载 Figma 语义的组件必挂 `data-node-id="<figma nodeId>"`(RN 运行时忽略未知 prop;上线前 `pp-strip-nodeid` 统一剥离并转存锚点)
 - `.map()` 模板项挂**代表项(variant a)**的 id;唯一例外是 Figma 里不存在源节点的虚拟 wrapper(如 `end-` 机制的 `__front-group`、骨架的 root/scroll/scrollContent)
 

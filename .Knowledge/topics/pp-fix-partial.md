@@ -1,6 +1,6 @@
 ---
 id: pp-fix-partial
-revision: 0
+revision: 2
 summary: "整页出码后按 nodeId 或自然语言局部重生成 sub-block 的修复流程"
 dependsOn: [pp-d2c]
 primary: feature
@@ -8,6 +8,8 @@ confidence: manual
 tags: [module]
 ---
 # pp-fix-partial
+
+执行前须先读依赖主题 `pp-d2c`。
 
 > 局部 UI 修复 SKILL 的执行约定、缓存分层、图层匹配三种形态、防污染硬规则。首次实现整页走 [[pp-d2c]] / [[pp-d2c-rn]];已经出码但某一小块要重生成才用本 topic。
 
@@ -79,6 +81,12 @@ tags: [module]
 | `--dry-run` | 只走 1-4 步不动代码,输出 diff 给用户看 |
 | `--no-cache` | 强制忽略 figma / images 缓存,一切重拉 |
 | `--force` | 跳过 framework / outputDir 不一致的警告 |
+
+## 最小修复与验收
+
+- 先读当前 framework 主 SKILL 的并行校验与修复收敛约定；从现有源码和用户具体反馈做最小 patch，结构确需重建才重出完整 block。
+- 候选在临时目录中验证，patch 的检查上下文应包含现有完整 block 与依赖；取得真实规则报告和运行截图，达标后替换，按候选 diff 同时应用目标 JSX 与关联样式，替换后核对最终版本及受影响的组合门禁；RN 先按配置做 §5.4 rpx 转换再做 §5.5 adapter，已有转换不重复包装。
+- 同一问题无改善转根因诊断；失败保留候选、具体规则与证据，不能隐藏节点或伪造通过。正常收尾不主动增加新优化。
 
 ## 完整流程见 SKILL
 

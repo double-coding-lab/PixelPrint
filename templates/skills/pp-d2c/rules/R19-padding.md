@@ -84,3 +84,7 @@
 - SKILL.md §5.1.1 data-node-id 全覆盖铁律
 - bin/lib/cssMatch.mjs
 - rules/R18-flex-direction.md
+
+## 修复取证
+
+padding 按 Figma 四边与 scale 推导，核对实际匹配的选择器/styleKey、声明覆盖顺序及单位。报告与运行样式不一致时保留最小复现，由 owner 核实，不反复试改数值求过检；联合检查 R23 的尺寸与盒模型，不以改变无关布局消报数。

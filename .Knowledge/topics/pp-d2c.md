@@ -1,6 +1,6 @@
 ---
 id: pp-d2c
-revision: 2
+revision: 4
 summary: "H5 D2C 主流程:Figma 还原、前缀协议、check-rules 硬防线"
 primary: policy
 confidence: inferred
@@ -8,7 +8,7 @@ tags: [feature, config]
 ---
 # pp-d2c
 
-> D2C 主 SKILL（`templates/skills/pp-d2c/`）的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md（共约 770 行），本 topic 是路由摘要 + 关键边界，不重复长篇内容。
+> D2C 主 SKILL（`templates/skills/pp-d2c/`）的执行约定与避坑路由摘要。完整规则定义见同名 SKILL.md，本 topic 是路由摘要 + 关键边界，不重复长篇内容。
 
 ## 适用场景 / 触发词
 
@@ -18,28 +18,9 @@ tags: [feature, config]
 - 排查"文字/图双重渲染（切图里一份 + DOM 一份）/ flex 方向反 / padding 凭空加 / 绝对定位坐标靠猜 / `.map()` 模板节点漏挂 data-node-id / check-rules 报一堆 R02·R06 假阳性被『语义盲点』批量豁免"等 v1.2.0 对账类 bug
 - 排查"rule-hits.json 缺失但 assets.txt 已写消费证明 / check-rules --block 报 block 外节点误报 / 切图透明热区（深度截断丢内容）/ btn- 空视觉按钮"等 v1.2.4 生成过程类 bug
 
-## SKILL.md 是给 LLM 读的操作手册，不是可执行代码（v0.2 关键澄清）
+## 执行模型
 
-主 SKILL.md 和 doctor SKILL.md 全篇都是**自然语言指令**。文档里出现的 `doctor.run({...})`、`return { passed, ... }`、`派发新 sub-agent`、`sub-agent 上报` 等表述全是**伪代码/隐喻**，不是真函数调用、不是真多进程通信。
-
-**全程只有一个 LLM agent**（执行的 Claude），它按 SKILL 步骤顺序：
-- Read 各 SKILL.md 当操作手册读
-- 调 MCP 工具（Figma get_metadata / get_screenshot / get_design_context、文件读写）
-- 在对话里产出文本（代码、JSON 摘要、报告、决策）
-
-唯一真正"被执行"的是 MCP 工具调用和文本输出。其余"调用"、"派发"、"返回"全部由 agent 自己按文档说明顺序操作完成。
-
-**典型映射**（详见主 SKILL 顶部「执行模型说明」表）：
-
-| 文档表述 | 实际操作 |
-|---------|---------|
-| 主 SKILL §0.5 `doctor.run({fileKey, nodeId, mode:'integrated'})` | 当前 agent Read doctor SKILL.md，按其 §-1 → §5.4 步骤执行，最后输出 §5.4 描述的 JSON 摘要到对话 |
-| doctor §5.4 `return { passed, ... }` | 当前 agent 在对话里输出该 JSON 字符串；主 SKILL 后续步骤从同一对话上下文读这段 JSON 继续推进 |
-| 主 SKILL §4.0.5 "派发新 sub-agent" | 当前 agent 重新进入 §4.0 流程，把根节点重置为新 nodeId、depth +1，重走一遍 |
-| §4.0.5 "sub-agent 上报" | 当前 agent 把 subslots.json 内容**写到真实磁盘文件**（与 assets.txt 同级），下一轮读这个文件继续 |
-| `<__SUBSLOT__ nodeId="..." />` | **真实字符串**，要字面写进 JSX 文件作占位符；§5.0 合并时再字面替换 |
-
-**误读后果**：把伪代码当真函数会**卡死流程**（等待一个永远不到来的"返回值"），或**绕过关键步骤**（"既然 SKILL 里说 `doctor.run()` 就行，那直接跳到 §1"）。
+SKILL 是操作手册；工具与 sub-agent 必须使用宿主本次实际提供的能力执行。支持委派时真实分发独立 block，缺失时串行完成同等扫描、出码与校验，保留落盘与门禁；不按产品名称推断能力。doctor.run 等文档伪代码需展开为实际步骤，不能把自然语言声明当成执行结果。
 
 ## 与 doctor 的分工（必读）
 
@@ -133,7 +114,7 @@ pp-d2c 有**两套独立版本号**，不一致是正常的：
 ## v1.2.5 生成过程要点（确认留痕与单 agent 模式）
 
 - **切图确认留痕**：reskin-slice 完成后在 slice-manifest 落 `confirmed:false`，用户确认切图结果后由 `figma.mjs confirm-slices` 翻为 `true`；GATE-slice-confirm 据此机械校验，用户口头"别问了"不构成豁免，跳过确认的唯一通道是 config `slice.confirmBeforeContinue: false`（此时 reskin-slice 直接落 `confirmed:true`）。
-- **单 agent 执行模式**：无 sub-agent 能力的平台（如 Codex）由主 agent 串行完成 Rule-Scan、出码、check-rules 等同等动作——单 agent 模式是合法路径，禁止以"平台没有 sub-agent"为由用占位绕过任何步骤。
+- **单 agent 执行模式**：本次宿主无真实 sub-agent 能力时由主 agent 串行完成 Rule-Scan、出码、check-rules 等同等动作——单 agent 模式是合法路径，禁止以"平台没有 sub-agent"为由用占位绕过任何步骤。
 
 ## 关键执行约束（按重要度排序）
 
@@ -368,12 +349,9 @@ input-{name}              ← Frame,自身 fills(输入框底色) + strokes + co
 
 ## 视觉验收机制（截图对比）
 
-步骤 6 视觉验收有**两条截图链路**，工具化程度不同：
-
-- **设计稿侧（脚本化）**：`bin/figma.mjs screenshot <fileKey> <nodeId> --tag=leaf|block|whole [--scale=2]` 调 Figma REST `/v1/images` 导出**设计稿节点**的 PNG，落 `.d2c-tmp/screenshots/`（不入 `.d2c-cache/`），SKILL 结束由 `cleanup-tmp` 统一 `rm -rf`。三档 tag：`leaf`（§6.0 逐叶子 block）/ `block`（§4.8 sub-agent 自验）/ `whole`（§6.1 整页）。这是视觉对比的**真值来源**。
-- **产物侧（软要求，无工具支撑）**：§6.0 第 2 步要求「在浏览器或 dev-server 中定位渲染出的 DOM 区域，截图相同区域」，再与设计稿并排比对（尺寸 / 颜色 ΔE≤3 / 字号字重 / 位置）。产物截图**如何获得无任何规定**——无无头浏览器（puppeteer / playwright / headless）、无 dev-server 启动脚本、无自动截图与 diff 工具（全仓 SKILL + bin 无相关实现）。
-
-**薄弱点**：产物侧截图依赖 agent 手动操作，缺工具支撑时易被"脑补"跳过，是 §6.0 视觉对比不可靠的根因。要把该环节从软要求变为可机器执行，需补「无头浏览器自动截产物图 + 与设计稿 diff」能力，方向与 v1.2 对账「质量从 agent 自觉搬到工具」一致。
+- 设计侧 `figma.mjs screenshot` 实际导出绑定 nodeId 的 PNG；出码前绑定完整目标根并保存基准，tag 只是标签，不负责自动寻找根。
+- 渲染侧使用宿主实际可用的预览/浏览器；owner 对自身区域自验，主 agent 核对交付证据、接缝与整体组合。截图成功且实际查看后才可声明已检查，规则通过与视觉通过分别报告。
+- 截图标注设计/运行来源、版本、视口和覆盖范围；稳定保存并验证可读后再清临时文件，缺工具时报告视觉未验证，不虚构工具或图片。
 
 ## 工具链注意事项（install.js / config 完整性）
 
@@ -444,3 +422,17 @@ cat pp-d2c.config.json | grep -E "health\.enabled|images\.preserveEffectIds|laye
 - 通用 D2C 设计意图（如何写图层名 / Auto Layout 怎么用） → 见 `docs/PixelPrint-设计师图层规范.md`
 - 项目级配置示例（`pp-d2c.config.json` 全字段） → 见 SKILL.md §0
 - `templates/pp-d2c.config.json` 模板源 → 见 `templates/` 目录
+
+## 并行校验与修复收敛
+
+- 按宿主实际能力真实委派；独立 block 可限额内并行，Rule-Scan 先于本 block 实现，父子按依赖调度。每块绑定 owner/nodeId/可写文件/输入与源码版本；同文件单 owner，共享入口、根样式、配置、总清单与合并由主 agent 写入。
+- owner 对固定快照做规则与真实视觉自验；只读检查可并行，资源/配置/源码变化使受影响证据失效。交付保留实际命令、退出码、完整报告与截图定位；owner 上报自身 QA，由主 agent 统一更新总清单。flat 回派修复后主 agent 重新展开受影响 block，再对最终文件执行 merge 门禁及整体预览。
+- 局部反馈先提取用户目标并最小 patch，复用有效资源；每次编辑对应明确差异或 violation。目标满足且必要检查通过即收尾；重复无进展时查映射、样式、单位与盒模型，有新证据再修，不盲目重生成或拿主观预算要求降级。
+- 失败逐项说明 rule/nodeId/expected/actual、文件与报告；工具故障区分网络/存储/缺文件/环境。疑似误判按既有证据门禁处理，失败未解决仍为失败；隐藏锚点、自造 data-baked 与无法解析样式均不能代替真实还原。
+- 完整目标根在出码前绑定并保存真实设计基准；owner 分区自验，主 agent 验接缝。实际运行截图通过宿主已有图片/附件能力展示，标注入口、版本、视口、覆盖范围；未读取查看图片、被截断或仅 RN Web 验证时如实限定结论，清理前保存稳定定位。
+
+## 校验器已复现的静态解析边界
+
+- R19 对 `padding:var(...)` 可能按未写 padding 报告，且取首个匹配规则体；cssMatch 对嵌套 `&__card` 的父选择器区分存在边界。
+- R23 在 `width:150px;width:100%` 中仍可能读取前面的 px；R21/R23 的局部检查不能证明 `display:none` 节点实际可见。已有测试只证明 1×1 锚点被 R23 拦截，不能外推所有隐藏锚点均被机械拦截。
+- 上述是最小复现观察，本次仅修订执行与规则提示，未修改校验器逻辑，也未证明它们就是某次线上失败的根因。实际违规须保留报告与复现证据，不以修改无关布局换取通过。
