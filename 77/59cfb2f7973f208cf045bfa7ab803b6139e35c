@@ -1,0 +1,65 @@
+templates/skills/pp-d2c-rn/rules/R23-size-fidelity.md
+  s_e16f52fd1de115::t_efa3998acf51ee 44-47
+.Knowledge/topics/pp-d2c.md
+  s_e16f52fd1de115::t_55093e184acc88 3,429,433-438
+  s_e16f52fd1de115::t_a237bdc5cac55c 11,21,23,117,352-354,425-428,430-432
+templates/skills/pp-d2c/rules/R17-no-baked-dom.md
+  s_e16f52fd1de115::t_efa3998acf51ee 22
+templates/skills/pp-d2c-rn/SKILL.md
+  s_e16f52fd1de115::t_efa3998acf51ee 50,2143
+  s_a4e26e740c8ebc::t_b35cb78ca09c92 409,471,761,834,2117,2660,2711
+  s_e16f52fd1de115::t_d7ce86e9f05a6a 21-24,28-31,33,37-39,374-392,407,410-411,470,655,661,2119-2126,2651,2653,2655,2657-2659,2662,2672,2676,2726,2842,2852,2859,2861-2865,2867,2929,2974-2975,3014,3021,3023,3028
+.Knowledge/topics/pp-d2c-rn.md
+  s_e16f52fd1de115::t_a237bdc5cac55c 257-260,262-264
+  s_e16f52fd1de115::t_55093e184acc88 3,261
+templates/skills/pp-fix-partial/SKILL.md
+  s_e16f52fd1de115::t_efa3998acf51ee 205,207,209-212,222-223
+templates/skills/pp-d2c/rules/R23-size-fidelity.md
+  s_e16f52fd1de115::t_efa3998acf51ee 43-47
+.Knowledge/matchers/m-pp-fix-partial.json
+  s_e16f52fd1de115::t_d17b042a11f485 37-39
+.Knowledge/matchers/m-pp-d2c.json
+  s_e16f52fd1de115::t_d17b042a11f485 254-258
+.Knowledge/matchers/m-pp-d2c-rn.json
+  s_e16f52fd1de115::t_d17b042a11f485 76-78
+templates/skills/pp-d2c/SKILL.md
+  s_e16f52fd1de115::t_d7ce86e9f05a6a 20-23,27-29,32,36,351-369,384,387-388,447,727,744,766,1612-1619,1796,1798,1800,1802-1804,1807,1819,1834,1997,1999-2003,2005,2065,2071-2072,2092,2099,2105
+  s_e16f52fd1de115::t_efa3998acf51ee 47,1633
+  s_e16f52fd1de115::t_451c5b747f4186 1122
+  s_a4e26e740c8ebc::t_b35cb78ca09c92 386,448,916,989,1610,1805,1950
+templates/skills/pp-d2c/rules/R21-node-id-coverage.md
+  s_e16f52fd1de115::t_efa3998acf51ee 30-31
+templates/skills/pp-d2c/rules/R19-padding.md
+  s_e16f52fd1de115::t_efa3998acf51ee 87-90
+templates/skills/pp-d2c-rn/rules/R19-padding.md
+  s_e16f52fd1de115::t_efa3998acf51ee 52-55
+templates/skills/pp-d2c-rn/rules/R21-node-id-coverage.md
+  s_e16f52fd1de115::t_efa3998acf51ee 16-17
+.Knowledge/topics/pp-fix-partial.md
+  s_e16f52fd1de115::t_55093e184acc88 3,88
+  s_e16f52fd1de115::t_a237bdc5cac55c 12-13,85-87,89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.51-trip",
+  "base_commit_sha": "7759cfb2f7973f208cf045bfa7ab803b6139e35c",
+  "prompts": {},
+  "sessions": {
+    "s_a4e26e740c8ebc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17c5d-a8a9-7e90-8b85-0ffe53c5e35f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    },
+    "s_e16f52fd1de115": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c7b0-40f3-7e81-a139-8f8d612ae806",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
