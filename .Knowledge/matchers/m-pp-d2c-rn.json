@@ -73,6 +73,8 @@
     "内置 xtaro adapter",
     "手动 adapter",
     "自定义 adapter",
-    "v0.4"
+    "v0.4",
+    "RN 并发校验",
+    "RN 修复收敛"
   ]
 }
