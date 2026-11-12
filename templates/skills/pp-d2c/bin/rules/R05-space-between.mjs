@@ -10,6 +10,7 @@ export function check({ cache, product, config, classMap }) {
   const violations = [];
 
   for (const [nodeId, node] of Object.entries(cache.nodes)) {
+    if (node._inBakedSubtree || node._hidden || node._templateDup) continue;
     if (node.primaryAxisAlignItems !== 'SPACE_BETWEEN') continue;
 
     const classes = classMap[nodeId] || [];

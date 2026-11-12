@@ -27,8 +27,10 @@ export function check({ cache, product, config, classMap }) {
     const body = firstBody(product.style, classes);
     if (!body) continue;
 
-    // Figma 期望值（未声明视为 0）
-    const fig = [
+    // 只有显式整体切图前缀 + 实际原生 img/src 才能证明内部 padding 已进入像素。
+    // img 自身 CSS padding 应为 0，避免把切图内边距再加一遍；真实 DOM 容器仍按 Figma 校验。
+    const wholeImage = isWholeImage(nodeId, node, product);
+    const fig = wholeImage ? [0, 0, 0, 0] : [
       Math.round((node.paddingTop || 0) * scale),
       Math.round((node.paddingRight || 0) * scale),
       Math.round((node.paddingBottom || 0) * scale),
@@ -48,7 +50,8 @@ export function check({ cache, product, config, classMap }) {
     // 逐边比对
     const bad = css.some((v, i) => Math.abs(v - fig[i]) > TOL);
     if (bad) {
-      const reason = figAllZero ? '（Figma 四边 padding 均为 0，产物凭空加了 padding）' : '';
+      const reason = wholeImage ? '（整体切图已包含内部 padding，不应在 img 上重复添加）'
+        : figAllZero ? '（Figma 四边 padding 均为 0，产物凭空加了 padding）' : '';
       violations.push(mk(nodeId, node, `padding ≈ [${fig.join(', ')}]px（Figma ×${scale}）`, `产物 padding = [${css.join(', ')}]px${reason}`));
     }
   }
@@ -58,6 +61,24 @@ export function check({ cache, product, config, classMap }) {
   function mk(nodeId, node, expected, actual) {
     return { rule: id, nodeId, name: node.name || '(no name)', type: node.type, expected, actual, file: '(style)', line: 0, snippet: '' };
   }
+}
+
+function isWholeImage(nodeId, node, product) {
+  if (!/^(?:img|bg)(?:-|$)/.test(String(node.name || '').trim())) return false;
+  let found = false;
+  for (const j of product.jsx) {
+    for (const m of j.content.matchAll(/<([A-Za-z][\w.-]*)\b([^<>]*?)\/?>/gs)) {
+      const attrs = m[2];
+      const idAttr = attrs.match(/\bdata-node-id\s*=\s*(?:"([^"]+)"|'([^']+)'|\{\s*['"]([^'"]+)['"]\s*\})/);
+      if (!idAttr || (idAttr[1] || idAttr[2] || idAttr[3]) !== nodeId) continue;
+      // 同一 id 也挂在 wrapper/组件上，或 img 没有实际 src 时，不能推断为纯切图。
+      // 动态绑定/空 src 无法证明实际切图承载，保留原校验；只认具体图片地址。
+      const src = attrs.match(/(?:^|\s)src\s*=\s*(?:"([^"]+)"|'([^']+)'|\{\s*['"]([^'"]+)['"]\s*\})/);
+      if (m[1] !== 'img' || !src || !/\.(?:png|jpe?g|webp|gif|svg|avif)(?:[?#].*)?$/i.test(src[1] || src[2] || src[3])) return false;
+      found = true;
+    }
+  }
+  return found;
 }
 
 function firstBody(styleFiles, classes) {

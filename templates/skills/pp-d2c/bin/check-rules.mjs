@@ -65,7 +65,7 @@ const ALL_RULES = [R01, R02, R03, R04, R05, R06, R08, R09, R12, R14, R16, R17, R
 // Rule-Scan 是步骤 3.5 硬性动作;v1.2.2 起无 sub- 页面也必须对页面根跑一次(虚拟 block)。
 // test24-27 实测: agent 跳过 Rule-Scan 并在 assets.txt 捏造"§3.5 允许合并到 UI 侧"许可
 // → 文本约束拦不住,此处机械兜底。缺失 = violation(exit 1);降级占位(v0.3.21-fallback)算存在。
-function checkRuleHitsGate(mode, productDir) {
+function checkRuleHitsGate(mode, productDir, product) {
   const violations = [];
   const need = [];
   if (mode === 'block') {
@@ -73,7 +73,18 @@ function checkRuleHitsGate(mode, productDir) {
   } else {
     const blocksDir = path.join(productDir, 'blocks');
     let blockDirs = [];
-    if (fs.existsSync(blocksDir)) {
+    if (product.scope === 'entry') {
+      // 与规则对账共用真实依赖范围；不能被留存的未引用子稿/旧报告卡住。
+      // 按最近一层 blocks/<owner> 归属，直接引用内层块不要求未引用的外层报告。
+      const dirs = new Set();
+      for (const file of [...product.jsx, ...product.style]) {
+        const parts = file.rel.split(path.sep);
+        if (parts[0] === '..' || parts[0] !== 'blocks') continue;
+        const i = parts.lastIndexOf('blocks');
+        if (i + 2 < parts.length) dirs.add(path.join(productDir, ...parts.slice(0, i + 2)));
+      }
+      blockDirs = [...dirs];
+    } else if (fs.existsSync(blocksDir)) {
       blockDirs = fs.readdirSync(blocksDir)
         .map((d) => path.join(blocksDir, d))
         .filter((p) => {
@@ -264,7 +275,7 @@ function main() {
   if (!args.cacheKey) fatal('missing --cache-key <fileKey>');
 
   const productDir = path.resolve(args.dir);
-  const product = loadProduct(productDir);
+  const product = loadProduct(productDir, { mode: args.mode });
   if (product.error) fatal(product.error);
   if (product.jsx.length === 0 && product.style.length === 0) {
     fatal(`no jsx/style found under ${productDir}`);
@@ -284,6 +295,7 @@ function main() {
   const skipped = [];
   const violations = [];
   const warnings = [];
+  for (const reason of product.warnings || []) warnings.push({ rule: 'product-scope', reason });
 
   // --block 局部化(v1.2.4): cache 装载的是 fileKey 全量,block 产物只覆盖本子树,
   // 必须裁剪到 block 根,否则 R21/R03 等把 block 外节点全部误报。
@@ -325,7 +337,7 @@ function main() {
   }
 
   // rule-hits 存在性门禁(v1.2.4): Rule-Scan 未跑 → 直接违规,不看规则结果
-  for (const v of checkRuleHitsGate(args.mode, productDir)) violations.push(v);
+  for (const v of checkRuleHitsGate(args.mode, productDir, product)) violations.push(v);
 
   // 切图三方对账(v1.2.4): 合并阶段核对产物图片引用 ↔ slice-manifest
   if (args.mode === 'merge') {
