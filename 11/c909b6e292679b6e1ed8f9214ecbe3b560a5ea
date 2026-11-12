@@ -1,0 +1,40 @@
+templates/skills/pp-d2c/bin/check-rules.mjs
+  s_e16f52fd1de115::t_278a4f03c37a79 278,298
+  s_e16f52fd1de115::t_042a6af6996dd7 68,76-87,340
+templates/skills/pp-d2c/bin/rules/R19-padding.mjs
+  s_e16f52fd1de115::t_278a4f03c37a79 30-33,53-54,66-74,78-81
+  s_e16f52fd1de115::t_5bd5d8af46911d 75-77
+test/rules/test-product-validation.mjs
+  s_e16f52fd1de115::t_e5c107df3b6ae8 1-5,8-65,107-138,143-150,230-241,247-260
+  s_e16f52fd1de115::t_042a6af6996dd7 71-72,87-101,103-105
+  s_e16f52fd1de115::t_5bd5d8af46911d 6-7,66-70,73-86,102,106,139-142,242,245-246
+  s_e16f52fd1de115::t_ce97edd163d704 151-188,190-211,221-229
+  s_e16f52fd1de115::t_9d5bf2c10769f4 189,212-220,243-244
+templates/skills/pp-d2c/bin/rules/R05-space-between.mjs
+  s_e16f52fd1de115::t_278a4f03c37a79 13
+templates/skills/pp-d2c/SKILL.md
+  s_e16f52fd1de115::t_7c3db09b4ae0a0 2002
+  s_e16f52fd1de115::t_6a5d076d217b25 1997-2001,2003
+templates/skills/pp-d2c/bin/lib/loadProduct.mjs
+  s_e16f52fd1de115::t_c65a9aaaa7ce78 17-24,30-39,41-52,58,66,75-76,95,101-104,108,122,128-129,131,136,200,206-207,211-215
+  s_e16f52fd1de115::t_c26cda5c24236e 27-29,40,55-57,73,116,121,141,153-155
+  s_e16f52fd1de115::t_5bd5d8af46911d 106-107,109,123-127,130,132-135,137-140,157-158,176
+  s_e16f52fd1de115::t_042a6af6996dd7 71
+  s_e16f52fd1de115::t_278a4f03c37a79 3,7-8,10,53-54,59-65,67-70,72,74,77-94,96-100,105,110-115,117-120,142-152,156,159-175,177-197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "11c909b6e292679b6e1ed8f9214ecbe3b560a5ea",
+  "prompts": {},
+  "sessions": {
+    "s_e16f52fd1de115": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c7b0-40f3-7e81-a139-8f8d612ae806",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
