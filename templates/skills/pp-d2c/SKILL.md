@@ -17,20 +17,51 @@ description: 根据 Figma 设计稿 URL 生成 React H5 页面代码与资源；
 
 **SKILL.md 是给 LLM 读的自然语言操作手册，不是可执行代码。**
 
-下文出现的 `派发新 sub-agent`、`sub-agent 上报` 等表述都是**伪代码 / 隐喻**，不是真函数调用、不是真多进程通信。**全程只有当前这一个 LLM agent**（即此对话里的 Claude）按 SKILL 步骤顺序执行：
+执行前按**宿主本次实际提供的能力**选择执行形态，不按产品名称推断：
+
+- **支持真实委派**：使用宿主真实 sub-agent 工具分发独立 UI 区块；每块记录 owner、nodeId、责任边界和交付路径。各 owner 负责实现、自校验与修复；主 agent 负责清单、合并与接缝。独立任务可并行，有父子依赖的按依赖调度。
+- **不支持真实委派**：明确报告单 agent 串行模式，由当前 agent 按相同区块边界逐块完成 Rule-Scan、实现、自校验与修复，保持全部落盘契约和硬门禁。不得声称已派发真实 sub-agent，能力缺失也不豁免校验。
 
 | 文档表述 | 实际操作 |
 |---------|---------|
-| "派发新 sub-agent 处理 sub-X" | 当前 agent 重新进入 §4.0 流程，把根节点重置为 sub-X 的 nodeId、depth +1，重走一遍 |
-| "sub-agent 上报 subslots.json" | 当前 agent 把 JSON 内容写到磁盘文件，下一轮处理时自己读 |
-| `<__SUBSLOT__ nodeId="..." />` | **真实字符串**，要字面写进 JSX 文件作占位符 |
+| "派发新 sub-agent 处理 sub-X" | 有能力时真实委派；无能力时当前 agent 以 sub-X 的 nodeId、depth +1 串行执行 §4.0 起的同等流程 |
+| "sub-agent 上报 subslots.json" | 区块 owner 将 JSON 写入磁盘并上报主 agent；串行模式由当前 agent 写入后读取 |
+| `<__SUBSLOT__ nodeId="..." />` | **真实字符串**，写入 JSX 作占位符，合并时展开 |
 | `subslots.json` 文件 | **真实磁盘文件**，与 `assets.txt` 同级写入 block 目录 |
 
-**唯一真正"被执行"的事情有两类**：（1）调用 Figma REST API（通过 Bash 执行 curl）读取节点属性 / 导出图片 / 截图，以及本地文件读写；（2）在对话里产出文本（包括代码、JSON、报告、决策）。其余"调用"、"派发"、"返回"全部由 agent 自己按文档说明顺序操作完成。
+自然语言指令本身不会启动工具或 agent；必须实际调用宿主工具、脚本并核对结果。不得用口头声明、伪造截图或成功报告代替执行。
 
 > **本 SKILL 完全走 Figma REST API,不使用任何 `mcp__plugin_figma_figma__*` 工具**。REST 只返回原始节点 JSON,前缀规则永远优先。
 
-> 误把伪代码当真函数会卡死流程（等待一个永远不会到来的"返回值"），或者绕过关键步骤。
+> 不得把自然语言当成自动执行的函数，也不得把真实委派一概当作隐喻；执行结果必须有实际工具与交付证据。
+
+## 并行校验与修复收敛（执行约定）
+
+### 多 sub-agent 并发与文件归属
+
+- 主 agent 为每个 block 明确 `owner / nodeId / 可写文件 / 依赖 / 源码版本`。真实委派使用宿主工具；独立 block 可在宿主并发限额内并行，限额已满则等待已有任务，不把排队误报成“不支持 sub-agent”。同一 block 的 Rule-Scan 完成后才开始其 UI 实现；不同 block 的扫描与实现可流水并行。
+- **同一文件同一时刻只有一个写入 owner**。区块 owner 只写自己的源码、`rule-hits.json`、`assets.txt` 和子槽交接；共享入口、根样式、全局字体、配置、执行总清单与最终合并只由主 agent 写入。新增共享需求先上报主 agent，不能抢写。父子 block 各有独立目录，父 owner 不写内层 owner 的实现。
+- 固定本次 fileKey/rootNodeId、设计基准、config、切图清单与缓存后再分发。读取可共享，缓存同路径的获取/更新由主 agent 去重协调；资源变化需通知依赖 owner，不能让多个 fetch/切图写入覆盖同一份校验输入。
+- 独立 owner 可同时执行各自 `check-rules --block` 和真实视觉自验。**同一源码快照上的只读规则检查与视觉检查也可并行**，源码修改期间不验收。源码版本使用宿主真实修订或内容哈希；共享依赖、config、缓存与切图清单也须绑定实际版本/哈希，不能自造修订接口。
+- 每份交付记录 owner、nodeId、输入/源码版本、实际命令及退出码、完整报告定位、截图定位与未解决项，写到自己的 QA 记录。独立复核者只读同一快照并把问题交回 owner 修复；不能同时修改被验收文件。版本不匹配的报告标记为旧结果，修改影响哪个范围就由哪个 owner 复验。
+- 主 agent 等依赖完成后合并，基于**最终合并文件**串行执行整页 `check-rules --merge`，检查接缝与整体预览。flat 合并后若回派修复，owner 修改源 block 并自验，主 agent 再展开受影响内容到最终文件、更新输入指纹并作废旧报告后复验；owner 不直接写最终入口。各 block 通过不等于最终页面通过；正常流程不重复深入已自验且未改变的内部区域。无真实委派能力时串行执行同等步骤，如实报告执行形态。
+
+### 用户反馈后的最小调整与结束条件
+
+- 先区分首次生成、继续未完成工作、用户局部调整。局部调整提取本轮可核对目标与受影响文件/nodeId，复用有效资源及已正确区域；不重跑整页生成、重新选择目录或重复切图。明确的新需求可能偏离原设计时保留用户要求并记录偏差，不能悄悄当成规则已通过。
+- 每次编辑对应一个实际问题：用户反馈、已查看截图中的具体差异或报告中的具体 violation。先读当前文件和真实证据，做最小修改；不能仅凭“还可以更好”、页面复杂或主观预算继续重构、降级产物或要求用户在简化方案间选择。宿主真实返回的超时/上下文限制需如实报告；可分块时自行分块推进并保存进度。
+- **本轮目标已满足、受影响的必要检查通过后立即收尾**，展示实际修改、对应截图和验证结果。完成修改且还有有效违规时，仅修复具体违规；视觉达标与规则通过分别报告，二者不能互相代替。只对实际变更、输入变化、上次失败未解决或缺少有效证据的范围重新检查；完整输入指纹未变时复用成功结果，不能复用旧失败冒充新检查。
+- 相同“规则 + nodeId + expected/actual”反复出现且结果无改善时，停止相同猜测式编辑，改为检查节点映射、样式实际命中、单位、盒模型及报告适用范围；有新证据才继续修复。可用独立只读 sub-agent 分析，原 owner 保持写权。无法消除阻塞时保留正确产物与最小复现，明确“未完成/未通过”的具体原因，不伪造通过，也不为已确定的技术规则反复询问用户。
+- 检查失败必须说明具体 `rule / nodeId / expected / actual`、涉及文件及报告定位；工具异常还需保留实际阶段、命令、退出码或错误码。不能只说“规则检查失败/需要用户处理”，也不能把网络、存储、缺文件、工具不可用统称为产物违规。
+
+### 已发现的规避方式与证据边界
+
+- `data-node-id` 挂在真正承载该节点视觉/交互的元素上；切图内已烘焙的子孙按 baked 规则处理。禁止为 R21 补 `display:none`、透明、零尺寸、`1×1` 或自造 `data-baked` 锚点来假装覆盖；不因某检查器没报错就视为合法。
+- R19/R23 等数值失败先核对 Figma 属性、scale、实际样式命中与盒模型，保留已正确的布局；不能用删除映射、重复 CSS 覆盖、转成检查器无法解析的单位或隐藏节点来消掉报数。疑似脚本误判须提供可复现证据并遵守既有 `[脚本误判]` 门禁，未获合法处理的失败仍为失败。
+- 只有实际截图成功、读取并查看后才能声称“已查看截图”；工具返回成功但模型未获得图片时只能报告“已截图，视觉未验证”。设计原图与运行截图分别注明来源、nodeId/入口、版本、视口及覆盖范围；长页被截断时明确未覆盖部分，RN Web 不能冒充原生端验收。
+- 用宿主实际可用的聊天图片/附件能力展示运行截图并保存可读定位；仅有本地文件时提供真实绝对路径及可展示图片，不虚构附件链接或上传能力。截图与报告绑定同一源码快照，临时截图清理前完成稳定保存；未保存成功时保留原图并如实记录。
+
+---
 
 ## 问题边界
 
@@ -317,6 +348,25 @@ node .claude/skills/pp-d2c/bin/figma.mjs cache-check <fileKey>
 
 ---
 
+### 步骤 1.5：绑定目标根节点并保存完整视觉基准（出码前必做）
+
+拿到有效 Figma URL 后，将本次**最外层目标根节点**绑定为 `rootNodeId`：它是本次待还原页面/组件的目标边界，不是整个 Figma 文件，也不是任一内部 sub-block。URL 指向内部节点而任务目标是外层页面时，先根据用户目标和节点树定位正确根；无法确定时报告缺口，不猜节点。分发内部 block 不得改变这项绑定。
+
+在生成任何页面或 block 源码前，实际执行：
+
+```bash
+node .claude/skills/pp-d2c/bin/figma.mjs screenshot <fileKey> <rootNodeId> --tag=whole
+```
+
+- 核对本次命令成功返回 `{"ok":true,"data":{"path":"...","tag":"whole"}}`，读取 `data.path` 指向的真实文件并查看图片，确认完整覆盖绑定的目标根。`whole` 只是 tag，不会自动寻找根节点；**不得用子块截图、拼接子图或整个 Figma 文件的截图替代**。
+- 初始截图沿用 `{projectRoot}/.d2c-tmp/screenshots/whole-<nodeId_safe>.png`。在现有 `.d2c-tasks.md` / `assets.txt` QA 中记录源 URL、fileKey、rootNodeId、节点名称/边界、截图时间、实际路径，以及本次 cache 校验得到的 `lastModified`。已知 URL 设计版本时一并记录；未知写“未知”，不得虚构版本锁定。
+- 当前截图脚本按 fileKey/nodeId 导出当前设计，未提供历史版本锁定参数。URL 指定版本与实际导出版本无法核实时，显式报告版本未核实；中途设计变化时作废旧基准，重建并标明对应版本，不以新图冒充原基准。
+- 截图失败、文件缺失、内容不完整或根绑定不明：保留真实错误与未完成状态，停止源码生成；修复后重试，成功前不得报告“基准已保存”或“视觉通过”。不得靠旧同名文件判定本次成功。
+- **平台适配后的稳定保存**：主 agent 使用宿主实际可用的文件/产物能力，将真实根截图另存为后续在线预览可读取的稳定对象；本地默认放在已通过目录守卫的 `{output.dir}/<slug>/.d2c-reference/` 内，另存元数据，保留与原图的关联。宿主有稳定附件/对象存储时使用其实际返回的定位。该目录为基准附件，不导入页面源码、不作为切图兜底，不写入 `.d2c-cache/`。脚本没有稳定保存参数，不能虚构参数或链接。
+- 必须在 §7 清理临时截图**之前**完成稳定保存并验证可读取；稳定保存失败需保留临时原图与失败记录，不能清掉唯一基准。交付时报告真实定位与保存状态。
+
+---
+
 ### 步骤 2：扫描图层结构，生成执行清单
 
 **拉节点树**：
@@ -331,13 +381,11 @@ stdout 是 `{"ok":true,"data":{"cached":<bool>,"node":{...}}}`。`node` 就是�
 
 唯一的分块触发条件是图层名带有 `sub-` 前缀。其他前缀（`img-`、`bg-`、`btn-` 等）不触发分块，由主 agent 直接处理。
 
-**`sub-` 必须分发 sub-agent（无任何例外）**：
+**`sub-` 按区块独立负责**：
 
-- 哪怕整稿只有 **1 个** `sub-` 节点，也必须分发 1 个 sub-agent，**禁止**以"无并行收益 / 单块"为由让主 agent 直接处理
-- 哪怕 sub- 内容看起来"很简单"，也必须分发；判定简单与否是 sub-agent 的事，不是主 agent 的事
-- 主 agent 只负责：分块识别、清单维护、合并、QA；**不负责** sub- 内部的 JSX/CSS 生成
-
-> **理由**：sub-agent 拆分是质量保证，不是性能优化。把 sub- 内容塞进主 agent 上下文会让主 agent 同时处理"全局协调 + 局部细节"，细节准确度急剧下降（实测：单 agent 串行生成的 sub-card 内部尺寸/对齐/字号偏差比拆分后高 3-5 倍）。
+- 宿主支持真实委派时，即使只有 1 个 sub- 也必须委派；仅使用本 SKILL 已有的显式快路径（如适用），不能因“简单/无并行收益”任意跳过。
+- 宿主无真实委派能力时，按顶部串行等价流程逐块执行，保留所有规则与视觉自验。
+- 主 agent 负责分块识别、清单维护、合并、接缝与整体预览；自己直接实现的区域由自己验。独立 sub-agent 的内部实现、校验与修复归该 owner，主 agent 不重复深入其内部。
 
 **`sub-` 嵌套 `sub-`**：
 
@@ -396,8 +444,8 @@ img-*   → 主 agent 处理，生成 <img>
 - [ ] 所有 sub-agent 完成（含嵌套）
 - [ ] 背景节点已写入根容器
 - [ ] 直接处理节点已写入主文件
-- [ ] **主 agent 逐叶子 block 单独视觉对比（§6.0；非叶子 block 不单独对比，由其叶子覆盖）**
-- [ ] 整体视觉 QA 完成（§6.1）
+- [ ] 各 owner 已完成自身区域的视觉与规则自验/修复，主 agent 已核对交付证据（§4.8 / §6.0）
+- [ ] 接缝与整体预览验收完成，真实截图与未解决项已记录（§6.1）
 - [ ] 图片 URL 自检完成（§6.2）
 ```
 
@@ -676,7 +724,7 @@ node .claude/skills/pp-d2c-reskin/reskin-slice.mjs \
 
 ### 步骤 3：并行分发 sub-agent
 
-向每个 block 分发一个 sub-agent，**全部并行执行**。
+按执行模型向每个独立 block 真实委派 sub-agent；无依赖任务在宿主允许范围内并行，嵌套任务按依赖调度。无真实委派能力时逐块串行等价执行。
 
 **micro-sub 快路径（v1.2.4）**: 满足**全部**条件的 sub- block 不派 UI sub-agent,由主 agent 内联生成（产物仍落 `blocks/{sub}/` 目录、仍跑该 block 的 Rule-Scan 与 `check-rules --block`,只省 sub-agent 派发本身）:
 
@@ -693,6 +741,7 @@ node .claude/skills/pp-d2c-reskin/reskin-slice.mjs \
 - 目标 block 的 `fileKey` 和 `nodeId`
 - 图层解析规则（完整规则见步骤 4）
 - `agentIndex`
+- owner 与责任边界（包含自身非 sub 内容及布局，排除交由其他 owner 的内层 sub-）、§4.8 自校验/修复与 QA 证据要求
 - config 快照：`framework`、`styleFormat`、`images`、`layers`、`output.dir`
 - **** 对应 `blocks/{sub}/rule-hits.json` 路径(由步骤 3.5 生成)
 
@@ -714,7 +763,7 @@ node .claude/skills/pp-d2c-reskin/reskin-slice.mjs \
 
 > 理由: 软防线抓的错误(R11 复合 mask 该切图、R15 同构 map、R07 多层 fills 等)与页面是否分块无因果关系;无 sub- 的小页面恰恰是前缀标注最不认真的稿子。禁止以「页面简单/无 sub-」为由跳过本次扫描。
 
-**单 agent 执行模式（v1.2.5,平台无 sub-agent 能力时）**: 执行环境无法派发 sub-agent(如 Codex 等仅有 shell 工具的平台)时,**不允许以平台缺失为由跳过任何步骤**,改由主 agent 串行完成同等动作:
+**单 agent 执行模式（v1.2.5,平台无 sub-agent 能力时）**: 执行环境本次实际无法派发 sub-agent 时,**不允许以平台缺失为由跳过任何步骤**,改由主 agent 串行完成同等动作:
 
 1. Rule-Scan 由主 agent 作为**独立前置步骤真实执行**——Read 全部 rules/*.md + 本 block cache,写**真实的** `rule-hits.json`;`v0.3.21-fallback` 占位**仅限**「真实执行两次均失败」,且必须同时在 assets.txt 记 `[Rule-Scan 降级] 原因={失败原因}`(v1.2.5 起 GATE-rule-hits 机械校验:占位而无降级记录 = violation);
 2. sub- block **串行逐块**生成,每块完成后照跑 `check-rules --block`,消费证明照写;
@@ -864,7 +913,7 @@ sub-agent 拿到根节点后，**第一步**检查根节点自身的图层名前
 
 #### 4.0.5 嵌套 sub- 检测与上报
 
-> **执行模型说明（先于一切，避免误读）**：本节里的"sub-agent"、"派发"、"上报"都指的是 **同一个 LLM agent 顺序处理多层 SKILL 流程**——LLM 没有真正的多进程或函数调用能力。"派发新 sub-agent"实际操作是：当前 agent 处理完外层 sub- 的占位输出后，**自己重新进入 §4.0 流程**处理内层 sub- 的 nodeId（每次重新进入 §4.0 时把根节点重置为新的 nodeId、把 depth +1）。"上报到主 agent"实际操作是：当前 agent 把要交接的信息（subslots.json 内容）写到磁盘文件，下一段流程读这个文件继续。
+> **执行模型说明**：遵守顶部宿主能力分支。有真实委派能力时，由主 agent 实际派发内层 sub- 的 owner；外层 owner 只交付 placeholder 与真实 `subslots.json`，不自行派孙。无能力时由当前 agent 切换根 nodeId、depth +1 串行完成同等流程，仍写入/读取真实交接文件，不把串行执行声称为真实委派。
 
 进入子层解析前，sub-agent **必须**先扫描自己子树（仅扫到自己直接子层为止），找出**所有带 `sub-` 前缀的直接子孙节点**（不递归更深，更深的层由对应 sub-agent 自己再扫）：
 
@@ -937,7 +986,7 @@ Figma REST API 返回的原始 JSON 字段名与结构比 MCP 加工过的多一
 | **子节点**交叉轴对齐（覆盖父 align-items） | `layoutAlign` | `STRETCH → align-self: stretch`；`INHERIT` / 缺失 → 不写（继承父 align-items） |
 | **子节点**是否脱离父 autoLayout 顺流 | `layoutPositioning` | `AUTO` 或缺失 → 参与父 flex 顺流，不写 position；`ABSOLUTE` → 子代 `position: absolute` + `top/left`（相对父原点，用 `子.absoluteBoundingBox.{x,y} - 父.absoluteBoundingBox.{x,y}` 算得），同时**父容器必须加** `position: relative`。**仅当父 `layoutMode ∈ {HORIZONTAL, VERTICAL}` 时此字段有意义**。此机制通用（不限于 `bg-` / `fixed-` 前缀）——任何设计师在 Figma 里勾选"绝对定位"的子节点都会返 `ABSOLUTE` |
 
-> `layoutMode` 是 `HORIZONTAL` / `VERTICAL` 时，**禁止**对该 Frame 使用 `position: absolute` + `top/left`；主 agent §6.0 验收命中此违反 → 回退整块重写。
+> `layoutMode` 是 `HORIZONTAL` / `VERTICAL` 时，**禁止**对该 Frame 使用 `position: absolute` + `top/left`；owner 自验或机械门禁命中此违反 → 回派该 owner 修复并自验。
 >
 > **两端对齐特别提醒**：`primaryAxisAlignItems === 'SPACE_BETWEEN'` 是明确信号，**直接翻译成 `justify-content: space-between`**，不要用 `margin-left: auto` / `justify-content: flex-end` 等其他手段模拟。设计师用两端对齐排 = REST 返 `SPACE_BETWEEN`；设计师用固定间距排 = REST 返 `MIN` + `itemSpacing`。忠实翻译即可，不做推断。
 >
@@ -1070,7 +1119,7 @@ def rgb_to_hex(c):
 **硬防线 17 条** (`bin/check-rules.mjs` 自动拦截, exit 1): **R01 / R02 / R03 / R04 / R05 / R06 / R08 / R09 / R12 / R14 / R16 / R17 / R18 / R19 / R20 / R21(v1.2.5 起含反向对账:产物 id ∉ cache = 幻觉 id) / R23(v1.2.5)**;另有 R22(warning 级)与四道流程门禁(GATE-cache-truncation / GATE-rule-hits / IMG-reconcile / GATE-slice-confirm)
 **软防线** (Rule-Scan sub-agent 识别 `rule-hits.json`): **R07 / R10 / R11 / R13 / R15**（v1.2.3 起 R03/R04/R09/R12/R14 迁入硬防线,逐节点对账不依赖 sub- 触发;剩余 5 条需 LLM 语义判定仍留软）
 
-> **v1.2.0 对账基座**:R02/R06/R17/R18/R19/R20/R21 依赖 `loadCache.mjs` 标注的 `_inBakedSubtree`/`_hidden`/`_templateDup` 与 `cssMatch.mjs` 的 SCSS 嵌套匹配。这些是"以 cache 为真值逐节点对账"的落点;它们报数即真值,不接受"语义盲点/装饰性内容"批量豁免(§6.0.2)。
+> **v1.2.0 对账基座**:R02/R06/R17/R18/R19/R20/R21 依赖 `loadCache.mjs` 标注的 `_inBakedSubtree`/`_hidden`/`_templateDup` 与 `cssMatch.mjs` 的 SCSS 嵌套匹配。这些是"以 cache 为真值逐节点对账"的落点;实际报告是修复入口，节点映射与样式命中需核实；疑似误判按 §6.0.2 逐项复现取证，不接受“语义盲点/装饰性内容”批量豁免。
 > **v1.2.1**:`_inBakedSubtree` 只含 bg-/img-(baked)+ x-(ignored),**移除 bgc-**(bgc- 是盒级 CSS 写父、非切图,其子孙误放的 TEXT 应被 R06/R21 暴露而非静默吞掉);新增 **R21 node-id-coverage** 把 §5.1.1「data-node-id 铁律」机械强制——应渲染节点漏挂 id 即 exit 1,堵住 R18/R19/R20 遇空 classMap 静默 continue 的逃逸。
 
 ##### 硬规则详情
@@ -1558,12 +1607,16 @@ $asset-prefix: '<imageBaseUrl 字面值><assetsDir 字面值>';  // ← 把 conf
 
 #### 4.8 sub-agent 独立验收
 
-代码生成完成后，sub-agent 对自己负责的 block 做视觉验收：
+代码生成完成后，**实现该区域的 owner 必须自行校验并修复责任范围**，主 agent 实现的部分同样适用。父 block owner 校验自身布局及非 sub 内容，不能因“不是叶子”漏验；内层 sub- 内部由其独立 owner 负责，父 owner 不递归复验。父 block 需等依赖的内层 block 交付后，在实际可用的预览中自验自身区域；无法预览就记录未验证，不假称完成。
 
-1. 调 `figma.mjs screenshot <fileKey> <blockNodeId> --tag=block` 获取本 block 的截图；stdout 返回 `{path}` 即本地绝对路径（`{projectRoot}/.d2c-tmp/screenshots/block-<nodeId_safe>.png`）
-2. 与生成代码做视觉差异分析
-3. 可自动修正的差异（颜色偏差、间距误差）直接修正
-4. 不可自动修正的差异记入 `assets.txt` 底部的 `QA` 段落
+规则验收与视觉验收分别报告：按既有 `check-rules --block` 契约真实执行并修复违规，保留输出/退出码；视觉必须使用真实设计截图和实际渲染截图，不能以读代码或规则通过代替。
+
+视觉步骤：
+
+1. 调 `figma.mjs screenshot <fileKey> <blockNodeId> --tag=block` 获取本 block 的截图；成功结果的 `data.path` 为本地绝对路径（`{projectRoot}/.d2c-tmp/screenshots/block-<nodeId_safe>.png`）
+2. 用实际可用的浏览器/dev-server 或 RN 运行环境预览本区域，保存对应范围的真实渲染截图，与设计图按一致视口/缩放/滚动位置比对；RN/adapter 产物需标明运行端与退化。
+3. 按 §6.0 保留的对齐铁律、布局 checklist 及适用的数值溯源规则检查自身区域，修复后复跑受影响的检查。接缝变化通知相邻 owner 与主 agent。
+4. 在 `assets.txt` QA 段记录 owner、nodeId、责任范围、设计/渲染截图定位、预览方式、规则结果、已修复与未解决差异。无法启动预览、截图失败、工具缺失均写真实原因与“视觉未验证”，不能冒充通过；不可修复项保留“待人工核对”。未实际测量 ΔE / 像素差时不得声称量化达标或像素一致。
 
 ```
 # QA
@@ -1577,7 +1630,7 @@ $asset-prefix: '<imageBaseUrl 字面值><assetsDir 字面值>';  // ← 把 conf
 - [ ] **未主动问用户技术决策（v0.3.8）**：sub-agent 本轮跑完是否**没有向用户提任何 skill 已定死的技术决策问题**（切图/兜底/合并/尺寸/命名冲突等，见「问题边界」章节）？若遇 skill 未覆盖的边界情形，是否已按最接近规则兜底 + 在 `assets.txt` QA 段落写「[需人工核对]」告警，而**不是**打断用户提问？
 - [ ] **字色末位取值（v0.3.6 NAM025）**：产物里所有 TEXT 节点的字色，是否按 §4.1.1「TEXT 多层 fills 处理」取的末位可见 SOLID？
 
-验收通过后 sub-agent **立即将 `.d2c-tasks.md` 中对应的 `[ ]` 改为 `[x]`**，主 agent 方可进入步骤 5。
+规则与视觉自验通过后，owner 在自身 `assets.txt` QA 记录“owner 自验通过”并上报；主 agent 核对证据与版本后统一更新 `.d2c-tasks.md` 对应项为 `[x]`。未验证/失败项保留未完成与报告，不能仅因代码已生成而勾选；owner 不并发写执行总清单。
 
 ---
 
@@ -1740,41 +1793,18 @@ fi
 
 ### 步骤 6：主 agent 合并验收
 
-合并完成后，主 agent **必须**做两轮视觉验收（顺序不可调换）：
+各 owner 在 §4.8 完成自身区域校验/修复后，合并仍按既有契约执行一次确定性 `check-rules --merge` 机械检查（含已有聚合/守恒/切图门禁），不是由单 agent 从头深入全局复验。exit 1 阻止交付，exit 2 按环境错误报告并修复；子区域失败回派原 owner 修复并复验，主 agent 修复自身实现及组合问题，必要时复跑受影响门禁。不能把失败降格为通过。
 
-#### 6.0 逐叶子 sub-block 单独视觉对比
+**现有工具边界**：当前 `--merge` 仍按整页规则对账，不能声称已跳过子区块或只检查接缝；保留其真实行为与结果。不得发明跳过子块、owner 过滤等脚本参数。若嵌套 block 的机械检查范围与 owner 边界不一致，报告契约缺口，不靠省略命令或伪造通过化解。
 
-> **核心原则**：无论 `merge.mode` 是 `component` 还是 `flat`，**主 agent 都必须对每个叶子 sub-agent 产出的 block 做单独的视觉对比**，而不是只对合并整体看一眼大图。
->
-> **叶子 sub-block 的定义**：在 `.d2c-tasks.md` 树状清单中**没有任何子 sub-** 的 block。父 block 不单独对比（其视觉效果 = 内层叶子的总和，会重复检查）；父 block 的协调由 §6.1 整体验收兜底。
+#### 6.0 各 owner 自验收口与责任边界
 
-**为什么必须逐叶子对比**：
+- 所有区块（包括非叶子父 block 自身的非 sub 内容）由实现 owner 执行 §4.8 自验；无 sub- 时由主 agent 对自己实现的页面执行同样动作，micro-sub / 串行 fallback 同理。
+- 主 agent 核对 owner、范围、实际截图/规则结果、修复状态及未解决项；**默认不重读、重写或逐项复验独立 sub-agent 内部**。发现子区域问题回派原 owner，不能自行“简化”子块或以整体大图替代 owner 自验。
+- 以下对齐铁律、布局 checklist 与数值溯源要求均保留，由各 owner 对自身范围执行，作为 §4.8 的交付条件。主 agent 对自己实现的部分执行同等检查。
+- 组合阶段按 §6.1 核对接缝、父子契约、整体可预览性；检查交付证据与确定性 merge 门禁不等于人工从头全局深扫。§5 为忠实合并而机械读取/逐字展开子块的要求仍保留，不借此重新分析或改写子块内部。
 
-- sub-agent 在 §4.8 做的是**自我验收**——同一上下文里写完代码再看截图，视觉差异极易"看不到自己的盲点"（self-blind）。这是大模型生成代码的已知 bias
-- flat 模式合并后子组件结构被打散在同一文件里，**整体大图扫一眼很难定位到具体某个 block 的局部偏差**（尺寸 1px / 颜色 #abc vs #abd / 字号差 1pt）
-- component 模式虽然 block 还在独立目录，但主 agent §6 整体验收时，目标节点 nodeId 是页面根，得到的截图分辨率被压缩到容纳整页，**单个 block 内部细节在大图里像素不够看**
-
-**步骤**：
-
-对 `.d2c-tasks.md` 中**每个叶子 sub-block**（无内层 sub- 的 block），主 agent 依次执行：
-
-1. 调脚本获取该 block 原始设计稿截图：
-
-   ```bash
-   node .claude/skills/pp-d2c/bin/figma.mjs screenshot <fileKey> <leafBlockNodeId> --tag=leaf --scale=2
-   ```
-
-   stdout 返回 `{path}`，本地绝对路径 `{projectRoot}/.d2c-tmp/screenshots/leaf-<nodeId_safe>.png`。用图片查看器 zoom 100% 看即可对齐细节。SKILL 结束时统一清理。
-2. 在浏览器或 dev-server 中定位合并后该 block 渲染出的 DOM 区域，截图相同区域
-3. 两张图并排对比，聚焦四类差异：
-   - **尺寸**：宽 / 高 / padding / margin / gap 是否对齐（对齐铁律见下）
-   - **颜色**：色值偏差（允许 ΔE ≤ 3，即视觉等同）
-   - **字号 / 字重 / 行高**：文本节点逐项核对
-   - **位置 / 排列**：子元素相对父容器的位置、子元素之间的相对关系
-4. 任何差异：先尝试主 agent 自动修正（改 scss 数值）；改不了的写入交付清单 `## 待人工核对`，标明"block 名 + nodeId + 具体差异 + 建议修复方向"
-5. 验收通过后，在 `.d2c-tasks.md` 对应叶子 block 行后追加 `(主验通过)` 标记
-
-**对齐铁律**（逐叶子 block 对比时遵守）：
+**对齐铁律**（各 owner 自验自身区域时遵守；未测量不得宣称达标）：
 
 | 检查项 | 容忍区间 | 超出怎么办 |
 |--------|---------|-----------|
@@ -1786,7 +1816,7 @@ fi
 
 **双重间距 / 布局违反检测 checklist**：
 
-对每个叶子 block 产出的 `.tsx` / `.scss` 文件（或对应片段），**逐项静态扫描**：
+各 owner 对自身产出的 `.tsx` / `.scss` 文件（或对应片段，排除独立委派的内部区域），**逐项静态扫描**：
 
 1. **flex + margin 混用**：是否存在父级同时出现 `display: flex` 且直接子代出现 `margin-{top|right|bottom|left}`？（`margin: auto` / 居中用途除外）
 2. **padding + first/last-child margin 冲突**：是否存在父级 `padding-{side}` 且子代规则 `:first-child { margin-{same-side} }` 或 `:last-child { margin-{same-side} }`？
@@ -1801,7 +1831,7 @@ fi
 11. **sub-/block- 容器 FIXED 高度未写 `min-height` 导致塌陷(v1.0.2)**：图层名带 `sub-` / `block-` 前缀、Figma `layoutSizingVertical: FIXED`,产物 CSS 是否用了 `height: {N * scale}px` 死值?必须改成 `min-height: {N * scale}px`
 12. **冗余嵌套 autoLayout 的属性未下穿到内层(v1.0.2)**:外层 A 是 autoLayout 且仅有 1 个顺流子 B(其他都是 abs 兄弟),B 也是 autoLayout,且 A/B 都不带 `sub-` 前缀 → A 的 `display: flex` / `padding-*` / `gap` / `justify-content` / `align-items` / `flex-wrap` 必须下穿到 B
 
-**任一项命中 → 该叶子 sub-agent 交付不合格,主 agent 必须回退该块重写**。
+**任一项命中 → 该区域交付不合格，回派原 owner 修复并自验；主 agent 实现的部分由主 agent 修复**。
 
 #### 6.0.1 assets.txt 消费契约
 
@@ -1917,7 +1947,7 @@ node .claude/skills/pp-d2c/bin/check-rules.mjs \
 ```
 
 - exit code: 0(通过) / 1(违规) / 2(环境错)
-- **exit 1** → 主 agent 必须修产物或回滚 sub-agent 产物,**不允许**把违规带到步骤 7 交付
+- **exit 1** → 主 agent 修复自身/组合产物，子区域违规回派原 owner 修复并自验,**不允许**把违规带到步骤 7 交付
 - 与步骤 4.0.pre 的 `--block` 模式区别: 那里只扫单个 block 目录;这里扫整个 page 目录,主要防合并时类名冲突/z-index 冲突/幻觉色被引入
 
 ##### 兜底防线硬门禁 N=0(v1.1.0)
@@ -1950,29 +1980,29 @@ node .claude/skills/pp-d2c/bin/check-rules.mjs \
        [脚本误判] 三段证据? → 单次≤3 条豁免;超上限或缺证据 → 回滚
        其余(含 R02/R06/R18/R19/R20) → 修产物或回 sub-agent 重做
        ↓
-   全部处理后重跑 check-rules.mjs → exit 0 → 才允许进入步骤 6.1
+   按「修复收敛」约定定点修复并复验 → exit 0 才进入步骤 6.1；无进展转根因排查，阻塞如实保留
    ```
 
-**v1.2.0 对账升级后,check-rules 的报数即真值**:R02/R06 已在 `lib/loadCache.mjs` 层剔除三类假阳性来源(整体切图 baked 子树 / 隐藏节点 / `.map()` 模板数据副本),并统一走 `lib/cssMatch.mjs` 匹配 SCSS `&__` 嵌套。**因此"checker 语义盲点""bg- 父层整体切图承载""装饰性内容"这套 v1.1.0 时期的批量豁免叙事已失去事实基础**——现在 R02 报的就是真遗漏(如 cd-num bg)、R06 报的就是真不可追溯 TEXT、R17 报的就是真双渲染。
+**以实际报告作为修复入口**：`loadCache.mjs` 已处理 baked/隐藏/模板副本，`cssMatch.mjs` 支持 SCSS 嵌套；先核对这些语义和实际命中，再按 violation 定点修复。规则工具仍有适用边界，不能断言所有报数永远无误；疑似误判提供文件:行号、复现命令和命中内容，按既有三段证据门禁处理，未解决的失败保留失败状态。
 
 **禁止项**:
 
 - 禁止在 assets.txt / 对话中用"临时占位"、"参照邻居 page"、"整体切图兜底"、"用户明确临时"等措辞为违规签豁免
-- **禁止用"语义盲点"、"checker 与 bg- 规则冲突"、"装饰性内容"、"父层整体切图承载"、"实际视觉正确"等叙事为 R02/R06/R17/R18/R19/R20 违规批量豁免**(v1.2.0:这些假阳性来源已在 loadCache 层清除,再出现即真违规)
+- **禁止用"语义盲点"、"checker 与 bg- 规则冲突"、"装饰性内容"、"父层整体切图承载"、"实际视觉正确"等叙事为 R02/R06/R17/R18/R19/R20 违规批量豁免**；怀疑误判时须按三段证据逐项核实，不能批量免责
 - 禁止把违规条数"分类打标签"后 continue → 步骤 7
 - 禁止修改 check-rules.mjs 输出 JSON 里的 `ok` / `violations` 字段来"通过"
 - **禁止在生成流程里用 `--force-skip R0X` 跳过任何硬规则**(v1.2.1)：`--force-skip` 仅供**维护者本地调试脚本**用；生成/交付流程中唯一合法豁免是 assets.txt 里的 `[脚本误判]` 三段证据(单次≤3 条)。用 `--force-skip` 让 check-rules 假装 exit 0 = 绕过门禁,视同违规交付
 - **禁止对"能从 Figma 精确计算的量"(绝对定位 top/left = (子bbox−父bbox)×scale、尺寸 = bbox×scale、flex 方向 = layoutMode、padding = Figma padding×scale)使用「需人工核对」兜底交付**——这些必须算对,`[需人工核对]` 只留给"设计稿本身语义歧义 / skill 未覆盖的新形态",不含可机械推导的坐标/尺寸/方向/间距(R18/R19/R20 会硬校验,写错即 exit 1)
 
-#### 6.1 整体视觉验收
+#### 6.1 接缝与整体预览验收
 
-1. 调 `figma.mjs screenshot <fileKey> <rootNodeId> --tag=whole` 获取原始设计稿**整体**截图，stdout 返回 `{path}`（`.d2c-tmp/screenshots/whole-<nodeId_safe>.png`）
-2. 与合并后的完整组件做视觉差异分析
-3. 汇总各 block QA 段落中未解决的差异 + §6.0 写入 `## 待人工核对` 的项
-4. 可自动修正的整体差异（对齐偏差、间距）直接修正
-5. 不可自动修正的差异输出到最终交付清单
+1. 复用 §1.5 出码前保存的完整目标根截图及元数据，核对 fileKey / rootNodeId / 设计版本对应关系；不能到此才首次截图。基准失效时真实重建并记录原因，不以子图替代。
+2. 启动实际可用的在线预览/运行环境，保存完整目标范围的真实渲染截图，记录预览定位、运行端、视口、缩放与滚动范围。长页面需覆盖完整目标，固定视口截图不足时明确说明缺失范围，不声称已完整比较。
+3. 主 agent 对照根基准检查**接缝与整体组合**：相邻区块间距、背景连续、父子尺寸约束、滚动/固定层、资源加载与整体可预览性；不逐节点重新深入已自验的子区域。自己直接实现的部分仍须完成 §4.8 自验。
+4. 子区域失败回派原 owner 修复与自验，组合问题由主 agent 修复；变更影响接缝或门禁时复验对应范围。汇总所有 owner QA 与失败/未验证状态，规则通过不能代替视觉通过。
+5. 无法获取真实预览或渲染截图时报告“视觉未验证”及原因，保留待核对项；不得声称完成视觉验收、量化像素达标或像素一致。
 
-> §6.0 和 §6.1 不是冗余：§6.0 看每个 block 内部的局部差异，§6.1 看 block 之间的整体协调差异（如全页背景在不同 block 上是否连续、整页滚动定位是否符合预期）。两者关注点正交。
+**用户主动要求的可选全局复验**：仅当用户明确主动要求“单一 agent 从头检查全局”等同义诉求时，才由一个 agent 从根基准开始深入全页（含子区块）做全局校验并记录修复。正常流程不自动执行，不强制提问等待确认；完成时可简短提示“如需，可另行要求单 agent 全局复验”。此选项不豁免任何 owner 自验、机械硬门禁或失败报告。
 
 #### 6.2 图片 URL 自检（强制）
 
@@ -2032,11 +2062,13 @@ EOF
    上线前请运行 `pp-strip-nodeid` skill 一键清理，或直接执行：
      node .claude/skills/pp-strip-nodeid/strip-node-id.mjs --dry-run   # 先预览
      node .claude/skills/pp-strip-nodeid/strip-node-id.mjs             # 确认后清理
-🗑️  临时截图目录：{projectRoot}/.d2c-tmp/screenshots/ 已自动清理（QA 阶段的对比截图，跨会话不保留）
+🖼️  根视觉基准：{稳定对象定位/绝对路径}；保存状态：{成功/失败及原因}；fileKey/rootNodeId/版本：{实际记录}
 💾 缓存目录：{projectRoot}/.d2c-cache/{fileKey}/ 保留（下次跑同一 fileKey 会自动比对 lastModified 决定复用或作废）
 ```
 
 **SKILL 结束时的清理动作**：
+
+先按 §1.5 另存完整根基准并验证可读取，报告稳定定位及真实结果；失败则保留临时原图，暂不执行下列清理。`cleanup-tmp` 只删除临时截图，不提供稳定保存能力，不能以调用清理替代保存。清理后按命令实际结果报告成功/失败，不预填“已自动清理”。
 
 1. `node .claude/skills/pp-d2c/bin/figma.mjs cleanup-tmp`（脚本会 `rm -rf` 掉 `{projectRoot}/.d2c-tmp/screenshots/`）
 2. 不清 `.d2c-cache/`——那是持久化缓存，等 `lastModified` 变化时才失效
@@ -2057,20 +2089,20 @@ EOF
 - 禁止脱离 `images.imageBaseUrl + images.assetsDir + filename` 公式拼接图片 URL；禁止补/删任何字符（包括末尾 `/`）；禁止在 SCSS 中分散硬编码完整 URL，必须先定义 `$asset-prefix` 变量再引用
 - 禁止用相对路径下载图片：`curl -o` 落地路径必须是 `{projectRoot}/{assetsDir}/{filename}.{ext}` 绝对路径
 - 禁止跳过步骤 2.5 页面级背景采集；禁止把顶层 frame 的页面级背景写到组件根容器；禁止改动项目已有的全局样式文件（base.scss / global.css / app.less 等）；禁止凭印象判定项目特征（必须 Read/Grep 实证后选 P-A / P-B / M-A / M-B / J 策略）；禁止多页面项目使用 P-B / M-B（单页策略，会互相污染）；**禁止在普通 stylesheet（非 module 的 scss/less/css）里写 `:global(...)`、禁止在 `*.module.{scss,less,css}` 里直接写 `body { ... }`**
-- 禁止"sub- 只有 1 个就退化为主 agent 处理"；任何 `sub-` 节点都必须分发独立 sub-agent
+- 禁止因“只有一个 sub- / 简单”任意跳过委派；按实际宿主能力及本 SKILL 显式快路径执行，无真实委派能力时保持逐块串行等价校验，不伪造委派
 - 禁止 `scrollx-` / `scrolly-` 与 `img-` / `bg-` / `bgc-` / `x-` / `btn-` 共存；禁止同一节点同时含 `scrollx-` 和 `scrolly-`；禁止省略隐藏滚动条样式（`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`）
 - 禁止把 `sub-scrollx-` / `sub-scrolly-` 节点**整体导出为单张背景图**作为容器 `background-image`
 - 禁止调用 Figma `/v1/images` 时省略 `use_absolute_bounds=true`(仅当 config `images.preserveEffectIds` 明示时才省略)
 - 禁止 `FIGMA_TOKEN` 无效时直接跳过图片下载或用 Figma S3 临时链接占位
 - 禁止调用任何 `mcp__plugin_figma_figma__*` 工具
 - 禁止跳过步骤 0.7 缓存初始化；禁止绕过 `.d2c-cache/{fileKey}/meta.json` 的 `lastModified` 校验直接读旧缓存
-- 禁止 SKILL 结束时不清理 `.d2c-tmp/screenshots/`
+- 禁止清理唯一根基准：须先按 §1.5 稳定另存并验证可读取，再清理 `.d2c-tmp/screenshots/`；保存失败保留原图及错误，不得声称清理/保存成功
 - 禁止把 `bg-` 节点的**父容器**当成切图源传给 `/v1/images` API：切图源 nodeId 必须是 `bg-` 节点自己
 - 禁止跳过 §4.4 curl 前的**强制前置自检 3 行**(切图源 nodeId / 切图源 name / 交叉验证前缀)
 - 禁止把 `bgc-` 节点切成 PNG(bgc- 永远只取节点自身的盒级 CSS 属性写父元素)
 - 禁止只取 `bgc-` 节点的 fills 而忽略 strokes/cornerRadius/effects
 - 禁止 bg 节点在 h5 产物里生成 DOM(`<div>` / `<img>` / inline style 都不行)：bg 只能通过父容器的独立 `.scss` / `.less` / `.css` 文件的 `background-image` 挂载
-- 禁止跳过步骤 6.0「主 agent 逐叶子 sub-block 单独视觉对比」
+- 禁止跳过各 owner 自身责任范围的 §4.8 自验与修复、§6.0 证据核对及 §6.1 接缝/整体预览；主 agent 默认不重验独立子区块内部。单 agent 从头全局复验仅用户主动要求时执行
 - 禁止 sub-agent 自己派发孙 sub-agent
 - 禁止 sub-agent 在子树扫描时递归到比"自己直接子层"更深的 sub-
 - 禁止合并阶段（§5）残留任何 `<__SUBSLOT__>` 标签

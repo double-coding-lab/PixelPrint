@@ -41,3 +41,7 @@ card: { width: rpx(331.5), height: rpx(141) },
 
 - rules/R21-node-id-coverage.md(欺诈动机来源)
 - rules/R13-unit-scale.md(rpx 口径)
+
+## 证据边界
+
+尺寸检查通过不证明节点实际可见；禁止隐藏/透明锚点、删除 node-id 或改成不可解析样式冒充还原。真实布局需要动态尺寸时保留依据与视觉检查，不能把静态检查跳过说成已验证。

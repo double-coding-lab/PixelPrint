@@ -196,21 +196,20 @@ grep -rn 'data-node-id="138:1830"' pages/Italo/
 
 ## 步骤 4:出新版本代码
 
-### 4.1 交给主 SKILL 的 sub-agent 流程
+### 4.1 按目标范围最小修复
 
-调 pp-d2c(h5)/ pp-d2c-rn(rn)主 SKILL 的**§步骤 4「sub-agent 实现单个 block」**规则,但只处理这一个 block:
+先读取当前 framework 对应主 SKILL 的「并行校验与修复收敛」约定，遵守其文件归属、检查版本、证据与收尾要求。
 
-- 输入:target.nodeId + 该节点的 figma REST JSON(从缓存或最新拉取)
-- 输出:一份新的 JSX + 样式代码(同套目录约定,写到 `.d2c-tmp/fix-partial-<nodeId>/`,不直接写用户代码)
-- 遵守主 SKILL 的所有前缀规则(§4.0 / §4.3)、图片处理(§4.4)、图层解析(§4.3)、单位换算(§4.5)、rn 分支还要跑 §5.4(rpx)/ §5.5(adapter)
+- 输入为 target.nodeId、该节点的真实 Figma JSON、当前源码、用户具体反馈及有效切图清单；先判断 CSS/属性等局部 patch 是否足以满足目标，保留正确结构、交互和其他区域。
+- 只有目标结构确需重生成时，才调用对应主 SKILL §步骤 4 的完整 block 流程。修改候选写入 `.d2c-tmp/fix-partial-<nodeId>/`，不提前覆盖用户代码；可复用目录结构的最小 patch 也保留候选 diff。
+- 遵守前缀、图片、图层解析和单位换算规则，RN 分支按主 SKILL §5.4 应用配置的 rpx 转换，再按 §5.5 应用 adapter；最小 patch 保留已有转换，不重复包装。能保留的资源不重复切图；涉及共享样式或相邻区域时先确定依赖与唯一写入 owner，不能并发覆盖。
 
-### 4.2 视觉验收(强制,复用主 SKILL §6.0)
+### 4.2 规则与视觉验收
 
-按主 SKILL §6.0 逐叶子对比:
-
-- 切 target 节点截图 → `.d2c-tmp/screenshots/fix-partial-<nodeId>-figma.png`
-- 渲染新出码 → 截图 → `.d2c-tmp/screenshots/fix-partial-<nodeId>-code.png`
-- 视觉打分:如果 diff 明显 → 回 §4.1 重出,不许直接替换
+- 按实际目标运行对应主 SKILL 的 `check-rules --block`（并绑定正确 root/cache/config），保存真实报告及退出码；若候选仅为 patch，需在包含现有目标依赖的完整临时 block 上检查，不能对空目录或残缺片段声称通过。
+- 复用有效 target 设计截图，取得当前候选的真实运行截图，按用户本轮目标与受影响布局比对；两图注明来源、版本、视口和覆盖范围。无法预览/查看时写“视觉未验证”，不凭读代码宣称通过。
+- 有明确差异时只修该差异，并复验受影响范围；同一问题无改善时转根因分析，不盲目重新生成整个 block。满足用户目标且相关检查通过即进入步骤 5，不自行追加优化。
+- 规则失败列出具体 rule/nodeId/expected/actual 和报告定位；疑似误判沿用主 SKILL 的证据门禁，未解决则保存候选并报告未完成，不能借隐藏锚点、无法解析样式或伪造通过绕过。
 
 ---
 
@@ -220,8 +219,8 @@ grep -rn 'data-node-id="138:1830"' pages/Italo/
 
 ### 5.1 分两种情况
 
-- **step 3 走 anchor / grep 定位到了单文件** → 用 Edit 工具直接 `Edit(file, oldStr, newStr)`
-  - oldStr = 该文件 [startLine, endLine] 的原文
+- **step 3 走 anchor / grep 精确定位** → 按候选 diff 逐文件应用目标 JSX 与关联样式，先核对各文件基线版本；发生变化先重读并重做候选，不覆盖他人修改。使用 Edit 工具 `Edit(file, oldStr, newStr)`
+  - oldStr = 该文件目标片段的当前原文（JSX 可按 anchor 范围，样式按实际选择器或 styleKey 定位）
   - newStr = 步骤 4 生成的新版本
 - **step 3 让用户选了一个组件目录** → 该目录整个替换
   - 备份到 `.d2c-cache/fix-partial-backup/<nodeId>-<timestamp>/`(留 3 份滚动)
@@ -239,6 +238,10 @@ grep -rn 'data-node-id="138:1830"' pages/Italo/
 老图如果被弃用 → 输出到"提示手动清理"清单,不自动删(避免误删)。
 
 ---
+
+### 5.4 替换后核对
+
+候选验收只对候选版本有效。替换实际源码后核对最终 diff，执行受影响的规则检查与实际预览；影响页面组合时检查接缝及整页 merge 门禁。结果与最终文件绑定，一致且通过即输出报告；发现回归则由同一 owner 定点修复，原先正确区域不反复重写。
 
 ## 步骤 6:输出修复报告
 

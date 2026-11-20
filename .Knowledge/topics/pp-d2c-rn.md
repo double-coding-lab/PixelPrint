@@ -1,6 +1,6 @@
 ---
 id: pp-d2c-rn
-revision: 4
+revision: 6
 summary: "RN D2C:Figma 还原为 RN + StyleSheet"
 primary: feature
 confidence: manual
@@ -254,3 +254,11 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 - h5 版 D2C 完整规则 → 见 [[pp-d2c]]
 - 通用 D2C 设计意图(如何写图层名 / Auto Layout 怎么用) → 见 `docs/PixelPrint-设计师图层规范.md`
 - 项目级 rn config 示例 → 见 `templates/pp-d2c.rn.config.json`
+
+## 并行校验与修复收敛
+
+- 按宿主实际能力真实委派；独立 block 可限额内并行，Rule-Scan 先于本 block 实现，父子按依赖调度。每块绑定 owner/nodeId/可写文件/输入与源码版本；同文件单 owner，共享入口、根样式、配置、总清单与合并由主 agent 写入。
+- owner 对固定快照做规则与真实视觉自验；只读检查可并行，资源/配置/源码变化使受影响证据失效。交付保留实际命令、退出码、完整报告与截图定位；owner 上报自身 QA，由主 agent 统一更新总清单。flat 回派修复后主 agent 重新展开受影响 block，再对最终文件执行 merge 门禁及整体预览。
+- 局部反馈先提取用户目标并最小 patch，复用有效资源；每次编辑对应明确差异或 violation。目标满足且必要检查通过即收尾；重复无进展时查映射、样式、单位与盒模型，有新证据再修，不盲目重生成或拿主观预算要求降级。
+- 失败逐项说明 rule/nodeId/expected/actual、文件与报告；工具故障区分网络/存储/缺文件/环境。疑似误判按既有证据门禁处理，失败未解决仍为失败；隐藏锚点、自造 data-baked 与无法解析样式均不能代替真实还原。
+- 完整目标根在出码前绑定并保存真实设计基准；owner 分区自验，主 agent 验接缝。实际运行截图通过宿主已有图片/附件能力展示，标注入口、版本、视口、覆盖范围；未读取查看图片、被截断或仅 RN Web 验证时如实限定结论，清理前保存稳定定位。

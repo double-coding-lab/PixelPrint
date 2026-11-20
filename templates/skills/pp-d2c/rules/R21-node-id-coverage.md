@@ -27,6 +27,8 @@
 
 ## 期望产物
 
+- node-id 挂在真实承载该节点视觉或交互的元素上，禁止隐藏、透明、零尺寸或占位锚点冒充覆盖。静态 ID 匹配不证明运行时可见，也不能用自造 data-baked 改变缓存真值。
+
 - 凡承载 Figma 语义、会渲染成 DOM 的节点，产物元素必须带 `data-node-id="<nodeId>"`
 - `.map()` 模板项：用**代表项（列表第一个同构兄弟 = variant a）**的 nodeId 挂在模板元素上；副本（variant b/c）已被 `_templateDup` 跳过，只校验代表项
 - 详见 SKILL.md §5.1.1 data-node-id 全覆盖铁律
