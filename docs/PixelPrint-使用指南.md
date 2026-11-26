@@ -383,9 +383,9 @@ pp-fix-partial 顶部导航栏                                        # 自然�
 
 **利用缓存不污染**:
 
-- hash 对比 target 子树 → 变了才 invalidate 该 nodeId 的缓存
-- 图片文件名带 fileKey 前缀 → 换稿子天然隔离
-- 缓存 mtime 超 7 天自动 TTL 作废
+- 纯代码修改复用有效设计事实，不重复请求 Figma
+- 确需设计更新时，由主任务按真实 CLI 校验并补取完整范围
+- 图片来源、清单和摘要匹配才复用，失败保留真实进度
 
 ### 剥调试属性 + 存锚点
 
@@ -450,7 +450,7 @@ RN 分支的核心机制:**内核用 6 大 RN 原生标签描述一切**(`View /
     "preserveEffectIds": []
   },
   "layers": { /* 12 类前缀映射,生产建议保持默认 */ },
-  "output": { "dir": "pages/" },      // rn 默认 "src/pages/"
+  "output": { "dir": "pages/" },      // H5 / RN 均默认 "pages/"
   "health": { "enabled": true, "blockOnError": true, /* ... */ },
   "slice": { "confirmBeforeContinue": true }  // skill v1.2.4: 步骤 2.6 切图完成后暂停等用户确认;
                                               // false 仅跳过无警告场景,sizeWarning 非空仍强制停;
@@ -565,21 +565,9 @@ Claude Code(读 pp-d2c/SKILL.md):
 
 ### 缓存分层与防污染
 
-```
-.d2c-cache/
-├── figma/<fileKey>-<nodeId>.json      # 节点子树 JSON + hash + mtime
-├── images/<fileKey>-<nodeId>-<idx>.png # 切图缓存
-├── anchors/<pageDirSlug>.json          # 由 pp-strip-nodeid 生成
-├── last-page.json                       # 主 SKILL 写,pp-fix-partial 读
-└── <fileKey>/{meta.json, bbox/*.json}
-```
+Figma CLI 的实际缓存位于 `.d2c-cache/<fileKey>/`，其中 `meta.json` 保存版本元数据，`nodes/` 保存节点数据，`images.json` 登记导出资源。`anchors/` 和 `last-page.json` 用于已有页面定位。节点文件名和图片位置以实际工具回执为准。
 
-**4 条防污染硬规则**:
-
-1. 所有缓存路径必带 `<fileKey>` 前缀 → 换稿子天然隔离
-2. 每次覆写不追加 → cache 是"当前真相"快照
-3. 单一写入源 → `last-page.json` 只主 SKILL 写,`anchors/` 只 `pp-strip-nodeid` 写,`pp-fix-partial` 只读
-4. hash 对比 + mtime TTL 双保险(7 天没跑就当过期)
+主任务统一更新设计缓存，子任务消费同一完整输入；不跨fileKey混用，不将浅层截断当作完整树。纯代码调整不重新取数；设计变化、缺失或用户明确更新时才补取，不能声称工具存在固定7天TTL。缺少成功记录不妨碍继续已保存且可定位的代码。
 
 ### 关键设计:SKILL 是 LLM 操作手册,不是可执行代码
 
@@ -786,3 +774,12 @@ export default function AirportBus() {
 ## License
 
 MIT © double-coding-lab
+
+
+## 服务端执行规则在线下的对应约定
+
+线下 Skill 已补齐首次生成/增量修改/失败续作/换肤分流、有效缓存和规则报告复用、主子并行、分批保存与失败交接，以及最终版本绑定的规则、视觉和交互验收。默认新页面是 `pages/home/index.jsx` 或 `index.tsx`，自定义配置和历史入口保留；旧项目重跑 init 会沿用已有目录配置，采用新默认需显式调整 output.dir。
+
+修改已有交互时，先保存真实运行基线，按用户行为要求验证，再在等价页面状态下比对修改前后外观；默认一次验收加最多两次有证据复验，未通过保留产物和具体缺口。没有真实浏览器/原生环境时明确未验证。
+
+共享规则位于分发的 `pp-d2c-reskin/EXECUTION-CONTRACT.md`，H5、RN、局部修复与换肤均先读取。数据库检查点、租约、自动故障重排、服务端专用工具及对象上传能力仍由宿主或服务提供，更新 Skill 不会自动获得这些能力。已有安装需要刷新 Skill 文件后才生效，普通 install 保留已有同名文件；不要将文档更新当作已发布到 npm。

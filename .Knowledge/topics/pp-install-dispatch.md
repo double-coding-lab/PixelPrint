@@ -1,6 +1,6 @@
 ---
 id: pp-install-dispatch
-revision: 0
+revision: 1
 summary: "install.js 分发 templates/skills 的黑名单与过滤"
 primary: policy
 confidence: inferred
@@ -68,3 +68,7 @@ tags: [module]
 - 禁止在 install.js 里为新 skill 建独立白名单(会破坏"目录即分发"约定,后续新增都要改代码)
 - 禁止用 `OPT_IN_ONLY` 兜底"用户可能不想要"的假设(需要选择性装的场景应改 framework 过滤或独立参数)
 - 禁止指望 install.js 自动装 skill 的运行时依赖(如 Python `Pillow`、`node-canvas`):脚本只复制文件,依赖由 SKILL.md "前置依赖"段自证 + 脚本头 try import 报错兜底
+
+## 共用执行契约分发
+
+`pp-d2c-reskin/EXECUTION-CONTRACT.md`随该通用Skill复制到两种宿主，H5/RN主Skill、局部修复和换肤从相对路径读取；RN初始化过滤H5主Skill后该契约仍存在。普通install保持同名文件不覆盖，init刷新当前分支Skill。新H5/RN输出根默认pages，显式CLI或已有配置优先，不自动迁移历史目录。

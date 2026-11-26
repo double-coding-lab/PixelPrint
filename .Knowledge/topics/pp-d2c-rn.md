@@ -1,6 +1,6 @@
 ---
 id: pp-d2c-rn
-revision: 6
+revision: 8
 summary: "RN D2C:Figma 还原为 RN + StyleSheet"
 primary: feature
 confidence: manual
@@ -49,7 +49,7 @@ tags: [module, config]
 
 - **与 h5 防线的关键差异**:R18 判定镜像(RN flex 默认 column,HORIZONTAL 必须显式 `flexDirection: 'row'`);R01 校验"fixed- 在根 View 直接子层 + absolute + zIndex≥100"(RN 无 position:fixed);R04/R09 校验退化正确性(首 stop 纯色 + assets.txt `[退化告警]` 行留痕,或 R09 引 LinearGradient);R23 无盒模型跳过分支(RN 恒 border-box,覆盖面更大);config 缺 `unit` 段直接 exit 2(禁止兜底默认 scale)。
 - **软防线**:步骤 3.5 Rule-Scan 先扫 R07/R10/R11/R13/R15 语义类规则出 `rule-hits.json` 作业指引;判决权在 check-rules。降级须落 fallback 占位 + assets.txt `[Rule-Scan 降级]` 记录,只有占位没有记录按捏造拦截。
-- **步骤 0.5.1 目录三态守卫(v1.1.2)**:slug 确定后 `ls -la` 探测目标 `output.dir/<slug>` 与 `assetsDir/<slug>`,存在且含实际业务文件即 hard stop 列清单交用户三选一(换路径/自处理/中止),禁 `rm -rf` 与备份覆盖通道,禁把新产物混入已有目录;rn 侧同批补齐步骤 0.5 询问输出路径(此前 rn 缺路径锁定)。
+- **步骤 0.5.1 目录三态守卫(v1.1.2)**:slug 确定后 `ls -la` 探测目标 `output.dir/<slug>` 与 `assetsDir/<slug>`,存在且含实际业务文件即 hard stop 列清单交用户三选一(换路径/自处理/中止),禁 `rm -rf` 与备份覆盖通道,禁把新产物混入已有目录;首次生成默认子目录home，告知路径后执行目录保护；持续修改沿用实际入口。
 - **前置切图(v1.1.0,步骤 2.6)**:主 agent 调 `pp-d2c-reskin` 的 `reskin-slice.mjs` 一次性切完全部 `img-`/`bg-` 节点(含裸词)落 `slice-manifest-<slug>.json`;退出码非 0 → hard stop,禁止改用 export-image 手工逐张绕过。切完按 `slice.confirmBeforeContinue`(config 缺失=默认 `true`)暂停等用户确认,`sizeWarning` 非空不受开关豁免一律必停;确认后 `figma.mjs confirm-slices` 翻 `confirmed:true`。sub-agent 只消费清单(RN 5 种引用形式),清单缺条目写 `[清单缺失]` 上报主 agent 补切,禁止自调 `export-image`。生成流程必产 manifest,IMG-reconcile 与 GATE-slice-confirm 两道门禁由此获得对账基准(check-rules 对无 manifest 的旧产物仍按 warning 跳过,属兼容通道,不适用于新生成流程)。
 - **回归测试**:`test/rules-rn/`(npm test 与 h5 套件串跑)。
 
@@ -258,7 +258,15 @@ Figma / h5 里的一些 CSS 特性在 RN 端无对应,rn SKILL 按下表退化�
 ## 并行校验与修复收敛
 
 - 按宿主实际能力真实委派；独立 block 可限额内并行，Rule-Scan 先于本 block 实现，父子按依赖调度。每块绑定 owner/nodeId/可写文件/输入与源码版本；同文件单 owner，共享入口、根样式、配置、总清单与合并由主 agent 写入。
-- owner 对固定快照做规则与真实视觉自验；只读检查可并行，资源/配置/源码变化使受影响证据失效。交付保留实际命令、退出码、完整报告与截图定位；owner 上报自身 QA，由主 agent 统一更新总清单。flat 回派修复后主 agent 重新展开受影响 block，再对最终文件执行 merge 门禁及整体预览。
+- owner对固定快照执行本区块真实规则自检并修复；源码交付、规则结果、视觉验证分别记录，视觉缺环境时保持未验证且可收取规则就绪源码进行组合；只读检查可并行，资源/配置/源码变化使受影响证据失效。交付保留实际命令、退出码、完整报告与截图定位；owner 上报自身 QA，由主 agent 统一更新总清单。flat 回派修复后主 agent 重新展开受影响 block，再对最终文件执行 merge 门禁及整体预览。
 - 局部反馈先提取用户目标并最小 patch，复用有效资源；每次编辑对应明确差异或 violation。目标满足且必要检查通过即收尾；重复无进展时查映射、样式、单位与盒模型，有新证据再修，不盲目重生成或拿主观预算要求降级。
 - 失败逐项说明 rule/nodeId/expected/actual、文件与报告；工具故障区分网络/存储/缺文件/环境。疑似误判按既有证据门禁处理，失败未解决仍为失败；隐藏锚点、自造 data-baked 与无法解析样式均不能代替真实还原。
 - 完整目标根在出码前绑定并保存真实设计基准；owner 分区自验，主 agent 验接缝。实际运行截图通过宿主已有图片/附件能力展示，标注入口、版本、视口、覆盖范围；未读取查看图片、被截断或仅 RN Web 验证时如实限定结论，清理前保存稳定定位。
+
+## 执行分流与增量验收
+
+- H5/RN、局部修复和换肤先读随包分发的`pp-d2c-reskin/EXECUTION-CONTRACT.md`；首次生成走完整门禁，代码增量先定位当前源码，复用有效缓存和报告，只检查受影响范围。首次默认pages/home，自定义根及历史入口保留。
+- 主任务委派后继续自有区域，组合前收齐依赖；UI owner使用真实区块路径和root做block检查，主任务只核验交付与版本并作最终merge，总清单单独维护。扫描分批保存真实进度，失败交回已有文件与下一步，继续先核验落盘事实，不重做完整流程。
+- 先保存再验收，结果绑定最终源码、配置、依赖、视口与动作；旧版本或同批写入前的检查无效且不扣有效验收机会。交互修改默认一轮加最多两轮有证据复验，普通继续沿用计数，达到边界时保留真实未通过状态。
+- 交互修改比较修改前后的真实运行基线，验证用户要求的点击、拖动中途切换和双向回环等可观测行为；未获浏览器/原生环境或未查看图像时明确未验证。硬规则门禁及RN原生验收边界保留。
+- 共用事实与线下能力边界见[执行与增量验收](../stock-docs/pp-d2c-原理_终稿.md#执行与增量验收)。

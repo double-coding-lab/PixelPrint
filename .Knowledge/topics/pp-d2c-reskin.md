@@ -1,6 +1,6 @@
 ---
 id: pp-d2c-reskin
-revision: 0
+revision: 1
 summary: "按前缀批量切换肤稿:基线模式与 standalone 模式的图片替换流程"
 primary: feature
 confidence: inferred
@@ -97,3 +97,7 @@ skill 内嵌 Figma REST 客户端,**不 spawn** `pp-d2c/bin/figma.mjs` 或其他
 ## 完整流程见 SKILL
 
 `templates/skills/pp-d2c-reskin/SKILL.md` 覆盖:基线识别 → dry-run 预览 → 逐套稿子拉子树 → 冲突消解 → 逐位导出 → 汇总(含产物写入时间戳)。
+
+## 已有页面换肤的交付
+
+用户要求应用主题时，实际修改图片映射和颜色值并保存，按本轮范围验收，保持未要求改变的结构、尺寸、文案与交互。按输入版本复用有效报告，只补切缺失或变动素材，不默认重派整页扫描。先读共享EXECUTION-CONTRACT.md，不能只给映射建议就宣称换肤完成；完整边界见[执行与增量验收](../stock-docs/pp-d2c-原理_终稿.md#执行与增量验收)。
