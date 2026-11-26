@@ -605,12 +605,12 @@ async function runInit(cliArgs = {}) {
   ], 'flat', cliArgs.mergeMode)
 
   // rn / react 分支的默认值分叉:
-  // - rn 项目走 require('./assets/xxx.png') 编译期路径,imageBaseUrl 为空,assetsDir 固定 assets/,代码在 src/pages/
+  // - rn 项目走 require('./assets/xxx.png') 编译期路径,imageBaseUrl 为空,assetsDir 固定 assets/,代码默认在 pages/home/
   // - react (h5) 项目走远程 URL, static/ + http://127... 是老约定
   const isRn = framework === 'rn'
   const defaultAssetsDir   = isRn ? 'assets/'    : 'static/'
   const defaultImageBaseUrl= isRn ? ''            : 'http://127.0.0.1:8080/'
-  const defaultOutputDir   = isRn ? 'src/pages/'  : 'pages/'
+  const defaultOutputDir   = 'pages/'
 
   // 图片输出目录 rn/react 都作为输入题:
   // rn 默认 assets/(项目根 assets),但各家 RN 项目目录组织不同(如 src/assets/、src/Images/<页面>/)

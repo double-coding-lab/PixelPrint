@@ -5,7 +5,7 @@ description: 根据 Figma 设计稿 URL 生成 React Native 页面代码与资�
 
 # pp-d2c-rn Skill
 
-> **当前版本**:v1.1.2
+> **当前版本**:v1.1.3
 
 ## 触发条件
 - 用户提供 Figma 设计稿 URL,且**项目 config `project.framework === 'rn'`**
@@ -38,11 +38,15 @@ description: 根据 Figma 设计稿 URL 生成 React Native 页面代码与资�
 
 > **单 agent 执行模式(v1.0.0,与 h5 v1.2.5 对齐)**:本次宿主无真实 sub-agent 能力时由主 agent **串行完成同等动作**——Rule-Scan(步骤 3.5)、逐 block 出码、每个 block 交付前 `check-rules --block`、合并后 `check-rules --merge`,一步不少。**禁止**以"平台没有 sub-agent"为由用占位文件、空 rule-hits、口头声明代替任何步骤——所有落盘契约(rule-hits.json / assets.txt / 证明块)在单 agent 模式下同样是硬性要求。
 
+## 执行分流与增量验收（必读）
+
+先读 [共用执行契约](../pp-d2c-reskin/EXECUTION-CONTRACT.md)，区分首次生成、失败续作、代码增量与换肤。本轮为已有页面的交互/样式修改时先读当前源码，按该契约做最小修改、修改前后保形和最终版本验收，不重走首次生成的路径询问、设计扫描及切图。首次生成仍执行本 Skill 的完整规则门禁。
+
 ## 并行校验与修复收敛（执行约定）
 
 ### 多 sub-agent 并发与文件归属
 
-- 主 agent 为每个 block 明确 `owner / nodeId / 可写文件 / 依赖 / 源码版本`。真实委派使用宿主工具；独立 block 可在宿主并发限额内并行，限额已满则等待已有任务，不把排队误报成“不支持 sub-agent”。同一 block 的 Rule-Scan 完成后才开始其 UI 实现；不同 block 的扫描与实现可流水并行。
+- 主 agent 为每个 block 明确 `owner / nodeId / 可写文件 / 依赖 / 源码版本`。真实委派使用宿主工具；独立 block 可在宿主并发限额内并行，主 agent 同时实现自己的区域并为在途区块留接口和占位；需要子产物或开始组合验收时才等待，限额已满则等待已有任务，不把排队误报成“不支持 sub-agent”。同一 block 的 Rule-Scan 完成后才开始其 UI 实现；不同 block 的扫描与实现可流水并行。
 - **同一文件同一时刻只有一个写入 owner**。区块 owner 只写自己的源码、`rule-hits.json`、`assets.txt` 和子槽交接；共享入口、根样式、全局字体、配置、执行总清单与最终合并只由主 agent 写入。新增共享需求先上报主 agent，不能抢写。父子 block 各有独立目录，父 owner 不写内层 owner 的实现。
 - 固定本次 fileKey/rootNodeId、设计基准、config、切图清单与缓存后再分发。读取可共享，缓存同路径的获取/更新由主 agent 去重协调；资源变化需通知依赖 owner，不能让多个 fetch/切图写入覆盖同一份校验输入。
 - 独立 owner 可同时执行各自 `check-rules --block` 和真实视觉自验。**同一源码快照上的只读规则检查与视觉检查也可并行**，源码修改期间不验收。源码版本使用宿主真实修订或内容哈希；共享依赖、config、缓存与切图清单也须绑定实际版本/哈希，不能自造修订接口。
@@ -313,27 +317,11 @@ node .claude/skills/pp-d2c-rn/bin/figma.mjs cache-check <fileKey>
 
 如需静态体检 rn 项目的图层规范,请手动调用 h5 版 `pp-doctor`(与本 SKILL 独立并列,前缀识别规则是等价的),或后续版本再引入 rn 专属 doctor。
 
-### 步骤 0.5.1:询问输出路径 + 目录三态守卫(v1.1.2,硬约束,不可跳过)
+### 步骤 0.5.1:锁定输出路径与目录三态守卫
 
-在读完 config、开始扫图层前,主 agent **必须**先问用户本次输出路径与图片路径,再对目标目录做三态探测。
+本节仅用于首次生成。用户已指定路径时采用用户值；否则默认代码为 `<output.dir>/home/`，图片默认为 `<images.assetsDir>/page/`，或沿用已锁定主题slug，图片slug独立于代码目录，告知完整路径后直接继续。新 RN 配置默认根为 `pages/`；已有自定义配置不自动迁移，已有页面继续或局部修改沿用实际入口。
 
-**询问模板**:
-
-```
-配置根:<projectRoot>
-config.output.dir       = <output.dir 原值>
-config.images.assetsDir = <images.assetsDir 原值>
-
-请指定本次生成路径:
-  1) 代码放到 <output.dir> 下哪个子目录? (默认 <default-slug>)
-  2) 图片放到 <images.assetsDir> 下哪个子目录? (默认 <default-slug>)
-
-直接回车 = 用默认值;也可 "同 1" 让图片子目录与代码子目录一致。
-```
-
-**默认 slug 生成**:Figma 稿子的 frame name 经内置脚本 slug 化(ASCII 保留 `[a-z0-9-]`、中文转 pinyin,连续 `-` 压一,首尾去 `-`;转空则用 `page-<nodeId-safe>` 兜底,`nodeId` 里 `:` 换 `_`)。
-
-**用户回答后立即锁定** `.d2c-tasks.md` 输出路径段(代码路径 / 图片路径 / slug 来源),此后不可变。
+主 agent 将 projectRoot、代码路径、图片路径及来源（默认 home / 用户指定 / 已有入口）写入 `.d2c-tasks.md` 输出路径段，子任务沿用同一约定。首次输出保留下面的目录保护，不覆盖无关已有业务。
 
 **目录三态守卫**——slug 确定后、切图 / 出码 / QA 任何写盘动作**之前**,主 agent **必须**用 `ls -la <projectRoot>/<output.dir>/<code-slug>/` 探测目标落盘路径,同样探测 `<projectRoot>/<images.assetsDir>/<asset-slug>/`。按三态处置:
 
@@ -356,7 +344,7 @@ config.images.assetsDir = <images.assetsDir 原值>
 - 禁止 `rm -rf <目标路径>` 或等价删除既有目录内容——**agent 无权删旧目录**,清理由用户在(b)分支自处理
 - 禁止"备份后覆盖"通道(如 `mv <目标> .d2c-trash/`)——不留后门,用户选的是"绝不允许 agent 删旧目录"
 - 禁止把新产物混入已有目录(哪怕文件名不冲突)——`components/` / `utils.ts` 等"看起来无关"的旧文件最常被误覆盖;三态检查按目录整体判定,不按文件名逐个判
-- 禁止跳过本节直接进入切图 / 出码(§6.0 忠实度证明块会自证本节判定与用户处置轨迹,缺失即不合格)
+- 首次生成禁止跳过本节直接进入切图 / 出码(§6.0 忠实度证明块会自证本节判定与用户处置轨迹,缺失即不合格)
 
 **取证背景**:用户实测事故——已有 `xxx/` 业务目录内部实现被 D2C 无感知替换,业务代码丢失。
 
@@ -395,7 +383,7 @@ node .claude/skills/pp-d2c-rn/bin/figma.mjs screenshot <fileKey> <rootNodeId> --
 **拉节点树**：
 
 ```bash
-node .claude/skills/pp-d2c-rn/bin/figma.mjs fetch-node <fileKey> <nodeId> --depth=2
+node .claude/skills/pp-d2c-rn/bin/figma.mjs fetch-node <fileKey> <nodeId>
 ```
 
 stdout 是 `{"ok":true,"data":{"cached":<bool>,"node":{...}}}`。`node` 就是目标节点的完整子孙树（含 `type` / `name` / `children` / `visible` / `absoluteBoundingBox` 等）。脚本已处理缓存查/写，LLM 不用管。
@@ -474,8 +462,8 @@ img-*   → 主 agent 处理，生成 <img>
 
 **清单规则**：
 - 每完成一项，立即将 `[ ]` 改为 `[x]`
-- 步骤 5 合并前，逐项检查清单，有 `[ ]` 未完成的不得进入合并
-- sub-agent 完成自己的 block 后，将对应清单项标为 `[x]`
+- 步骤 5 合并前核对实现与依赖交付项；源码缺失或区块规则失败先修复。视觉未验证及尚未开始的合并验收分别保留状态，不形成先预览整页才能合并的循环等待
+- sub-agent 保存自身 QA 并上报实际文件和证据，主 agent 核对后单独更新总清单 `[x]`
 
 产出：block 列表 + `.d2c-tasks.md` 文件。
 
@@ -792,8 +780,10 @@ sub-agent 拿到根节点后，**第一步**检查根节点自身的图层名前
 
 调脚本拿节点属性（含子树）：
 
+先从主 agent 已校验的完整根缓存按 nodeId 提取本 block 子树，保留真实完整属性与父布局定位，不能各自重新请求同一节点。只有确实缺失或已截断时，交由主 agent 补取：
+
 ```bash
-node .claude/skills/pp-d2c-rn/bin/figma.mjs fetch-node <fileKey> <nodeId> --depth=8
+node .claude/skills/pp-d2c-rn/bin/figma.mjs fetch-node <fileKey> <nodeId>
 ```
 
 `node` 里含图层树、以下几类字段必须读全（脚本自动查/写缓存）：
@@ -1431,7 +1421,7 @@ btnLogin: { flexDirection: 'row', paddingLeft: rpx(16), paddingRight: rpx(16), p
 
 **取值流程**：
 
-1. 用 `figma.mjs fetch-node <fileKey> <bgcNodeId>` 拿节点完整属性（脚本自动查/写缓存）
+1. 从有效完整根缓存读取 bgcNodeId 的完整属性；确实缺失时由主 agent 补取
 2. 按以下表逐项映射到父元素 CSS：
 
 | Figma 属性 | CSS 属性 | 说明 |
@@ -1482,7 +1472,7 @@ btnLogin: { flexDirection: 'row', paddingLeft: rpx(16), paddingRight: rpx(16), p
 
 **`bg-` 切图前的"CSS-able 自检"**：
 
-切 `bg-` 之前，sub-agent **必须**先用 `figma.mjs fetch-node <fileKey> <bgNodeId>` 拿该节点的 `fills` / `strokes` / `effects` / `cornerRadius`，然后判断**这个节点是不是其实更适合用 CSS 实现**（即应该改成 `bgc-`）。
+切 `bg-` 之前，sub-agent **必须**先从有效完整缓存读取该节点的 `fills` / `strokes` / `effects` / `cornerRadius`，然后判断**这个节点是不是其实更适合用 CSS 实现**（即应该改成 `bgc-`）。
 
 判断标准：
 
@@ -1506,7 +1496,7 @@ btnLogin: { flexDirection: 'row', paddingLeft: rpx(16), paddingRight: rpx(16), p
 
 **判定的实操步骤**：
 
-1. `figma.mjs fetch-node <fileKey> <bgNodeId>` 拿节点完整 JSON（脚本自动查/写缓存）
+1. 从有效完整根缓存读取 bgNodeId 的完整 JSON；缺失时由主 agent 补取
 2. 检查 `fills`：所有 fill 的 `type` 必须 ∈ `{SOLID, GRADIENT_LINEAR, GRADIENT_RADIAL}`，且无 IMAGE
 3. 检查 `strokes`：要么空，要么所有 stroke 的 `type` 是 SOLID
 4. 检查 `effects`：要么空，要么只有 1 个 DROP_SHADOW（INNER_SHADOW、LAYER_BLUR、BACKGROUND_BLUR 都让节点 CSS-unable）
@@ -1662,7 +1652,7 @@ btnLogin: { flexDirection: 'row', paddingLeft: rpx(16), paddingRight: rpx(16), p
 
 **top/bottom/left/right 的取值（依赖 Figma `constraints`）**：
 
-1. `figma.mjs fetch-node <fileKey> <fixedNodeId>` 拿节点属性，读 `node.constraints = {horizontal, vertical}`
+1. 从有效完整缓存按 fixedNodeId 读取节点属性，读 `node.constraints = {horizontal, vertical}`
 2. 按下表把 Figma 坐标换算成 CSS 定位（换算遵循步骤 4.5 单位换算规则）：
 
 | Figma constraint | CSS 写法 | 取值来源 |
@@ -2140,7 +2130,7 @@ figmaBase: 375   outputBase: 375   scale: 1   outputUnit: 无(RN 数值单位是
 - [ ] **未主动问用户技术决策（v0.3.8 新增）**：sub-agent 本轮跑完是否**没有向用户提任何 skill 已定死的技术决策问题**（切图/兜底/合并/尺寸/RN 特有退化等，见「问题边界」章节）？若遇 skill 未覆盖的边界情形，是否已按最接近规则兜底 + 在 `assets.txt` QA 段落写「[需人工核对]」告警，而**不是**打断用户提问？
 - [ ] **结构维度禁切核查（v0.3.9 新增）**：本 block 是否有任何节点被 sub-agent 决定"整体切图"？若有，其子树是否命中 §4.4.pre.b 任一禁切条件（≥2 可见 TEXT / ≥2 btn / ≥3 同构子节点）？命中即视为 sub-agent 交付不合格，必须回滚该节点，改走 §4.3 递归子层解析（RN 侧生成 `<View>` + `<Text>` + `<Pressable>` + `.map(...)` 结构）
 
-规则与视觉自验通过后，owner 在自身 `assets.txt` QA 记录“owner 自验通过”并上报；主 agent 核对证据与版本后统一更新 `.d2c-tasks.md` 对应项为 `[x]`。未验证/失败项保留未完成与报告，不能仅因代码已生成而勾选；owner 不并发写执行总清单。
+owner 在自身 `assets.txt` QA 分别记录源码交付、规则结果、视觉结果和输入/源码摘要后上报；主 agent 核对后独立更新总清单。源码完整且必要区块规则通过即可收取并组合，视觉缺环境时保持“未验证”，不能声称自验全部通过。实现或规则失败先由owner修复，已成功交付不要求主任务重新深入语义复验；owner不并发写总清单。
 
 ---
 
@@ -2151,7 +2141,7 @@ figmaBase: 375   outputBase: 375   scale: 1   outputUnit: 无(RN 数值单位是
 - 所有主 agent 直接处理节点
 - 背景节点
 
-有任何 `[ ]` 未完成，必须先补齐再合并，不得跳过。
+合并所需的源码和规则交付必须补齐；视觉环境缺失独立记录为未验证，不能伪造通过，也不阻止组合已就绪源码。最终交付仍明确未验证范围。
 
 等待所有 sub-agent 完成后，按 `merge.mode` 合并。
 
@@ -2679,7 +2669,7 @@ fi
 
 ```
 调整目标: <block 名>#<nodeId> 的 <属性名>,从 <原值> 改为 <新值>
-1. Figma bbox(必答): 该节点的 absoluteBoundingBox.{x,y,width,height} = ?(来自 fetch-node,不允许凭截图估)
+1. Figma bbox(必答): 该节点的 absoluteBoundingBox.{x,y,width,height} = ?(来自有效完整缓存或真实补取结果,不允许凭截图估)
 2. 父容器布局(必答): 父 Frame 的 layoutMode / primaryAxisAlignItems / counterAxisAlignItems / itemSpacing / padding* = ?
 3. 视觉幻觉排查(必答): "看起来错位"是不是子 TEXT 节点自己 textAlignHorizontal=CENTER,而容器本身靠左?或者子层某个 img/bg 带光晕导致视觉外扩?
 ```
@@ -2689,8 +2679,8 @@ fi
 | 自答情况 | 允许操作 |
 |---------|---------|
 | 3 行都能从 Figma JSON 事实回答 | 可改数值,新值必须等于"Figma 事实计算结果",不允许四舍五入或凑整 |
-| 第 1 行答不出(没拉过 fetch-node) | **禁止改**,先 `fetch-node <fileKey> <nodeId>` 拿真值 |
-| 第 2 行答不出(不知道父 layout) | **禁止改**,同上先 fetch |
+| 第 1 行答不出(缺少完整节点事实) | **禁止改**，先查有效完整缓存，缺失时由主 agent 补取真值 |
+| 第 2 行答不出(不知道父 layout) | **禁止改**，先查完整缓存中的父布局，缺失时定点补取 |
 | 第 3 行发现是文字居中幻觉 / 光晕外扩 | **禁止改容器 marginLeft**,应改文字节点 `textAlign` 或重切图去光晕 |
 | 无法从 Figma 事实推出新值,只是"看着舒服" | **禁止改**,写入 `## 待人工核对`,标明"视觉判断,需设计确认" |
 
@@ -2890,8 +2880,8 @@ QA 全部通过后,主 agent **必须**把本轮出码的元数据写到 `.d2c-c
   "figmaUrl": "<步骤 -1 用户传入的 figma URL 原文>",
   "fileKey": "<步骤 0.7 解析出的 fileKey>",
   "rootNodeId": "<步骤 -1 用户传入的 nodeId,注意冒号形式 138:1797>",
-  "outputDir": "<步骤 5 实际写入的组件目录,如 src/pages/Italo>",
-  "outputEntryFile": "<主入口文件,如 src/pages/Italo/index.tsx>",
+  "outputDir": "<步骤 5 实际写入的组件目录,如 pages/home>",
+  "outputEntryFile": "<主入口文件,如 pages/home/index.tsx>",
   "figmaTreeHash": "<对子树 REST JSON 求 shasum -a 1>",
   "generatedAt": "<ISO8601,如 2026-08-05T10:23:44Z>",
   "framework": "rn",

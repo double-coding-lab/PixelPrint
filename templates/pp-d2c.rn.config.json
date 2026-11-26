@@ -38,7 +38,7 @@
     "ignore": "x-"
   },
   "output": {
-    "dir": "src/pages/"
+    "dir": "pages/"
   },
   "health": {
     "enabled": false

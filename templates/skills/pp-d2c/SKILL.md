@@ -5,7 +5,7 @@ description: 根据 Figma 设计稿 URL 生成 React H5 页面代码与资源；
 
 # pp-d2c Skill
 
-> **当前版本**:v1.2.7
+> **当前版本**:v1.2.8
 
 ## 触发条件
 - 用户提供 Figma 设计稿 URL
@@ -35,11 +35,15 @@ description: 根据 Figma 设计稿 URL 生成 React H5 页面代码与资源；
 
 > 不得把自然语言当成自动执行的函数，也不得把真实委派一概当作隐喻；执行结果必须有实际工具与交付证据。
 
+## 执行分流与增量验收（必读）
+
+先读 [共用执行契约](../pp-d2c-reskin/EXECUTION-CONTRACT.md)，区分首次生成、失败续作、代码增量与换肤。本轮为已有页面的交互/样式修改时先读当前源码，按该契约做最小修改、修改前后保形和最终版本验收，不重走首次生成的路径询问、设计扫描及切图。首次生成仍执行本 Skill 的完整规则门禁。
+
 ## 并行校验与修复收敛（执行约定）
 
 ### 多 sub-agent 并发与文件归属
 
-- 主 agent 为每个 block 明确 `owner / nodeId / 可写文件 / 依赖 / 源码版本`。真实委派使用宿主工具；独立 block 可在宿主并发限额内并行，限额已满则等待已有任务，不把排队误报成“不支持 sub-agent”。同一 block 的 Rule-Scan 完成后才开始其 UI 实现；不同 block 的扫描与实现可流水并行。
+- 主 agent 为每个 block 明确 `owner / nodeId / 可写文件 / 依赖 / 源码版本`。真实委派使用宿主工具；独立 block 可在宿主并发限额内并行，主 agent 同时实现自己的区域并为在途区块留接口和占位；需要子产物或开始组合验收时才等待，限额已满则等待已有任务，不把排队误报成“不支持 sub-agent”。同一 block 的 Rule-Scan 完成后才开始其 UI 实现；不同 block 的扫描与实现可流水并行。
 - **同一文件同一时刻只有一个写入 owner**。区块 owner 只写自己的源码、`rule-hits.json`、`assets.txt` 和子槽交接；共享入口、根样式、全局字体、配置、执行总清单与最终合并只由主 agent 写入。新增共享需求先上报主 agent，不能抢写。父子 block 各有独立目录，父 owner 不写内层 owner 的实现。
 - 固定本次 fileKey/rootNodeId、设计基准、config、切图清单与缓存后再分发。读取可共享，缓存同路径的获取/更新由主 agent 去重协调；资源变化需通知依赖 owner，不能让多个 fetch/切图写入覆盖同一份校验输入。
 - 独立 owner 可同时执行各自 `check-rules --block` 和真实视觉自验。**同一源码快照上的只读规则检查与视觉检查也可并行**，源码修改期间不验收。源码版本使用宿主真实修订或内容哈希；共享依赖、config、缓存与切图清单也须绑定实际版本/哈希，不能自造修订接口。
@@ -218,49 +222,11 @@ Read("pp-d2c.config.json")
 
 ---
 
-### 步骤 0.5：询问输出路径（v1.1.0）
+### 步骤 0.5：锁定输出路径
 
-在读完 config、开始扫图层前,主 agent **必须**先问用户本次的输出路径:
+本节仅用于首次生成。用户已指定路径时采用用户值；否则默认代码为 `<output.dir>/home/`，图片默认为 `<images.assetsDir>/page/`，或沿用已锁定主题slug，图片slug独立于代码目录，告知完整路径后直接继续，不重复询问技术默认值。H5/RN 新配置的 `output.dir` 均为 `pages/`，已有自定义根目录保持。已有页面继续或局部修改沿用实际入口与图片目录。
 
-```
-配置根：<projectRoot>
-config.output.dir       = <output.dir 原值>
-config.images.assetsDir = <images.assetsDir 原值>
-
-请指定本次生成路径:
-  1) 代码放到 <output.dir> 下哪个子目录? (默认 <default-slug>)
-  2) 图片放到 <images.assetsDir> 下哪个子目录? (默认 <default-slug>)
-
-直接回车 = 用默认值; 也可 "同 1" 让图片子目录与代码子目录一致。
-```
-
-**默认 slug 生成规则**（按优先级尝试，第一次成功即用）:
-
-1. Figma 稿子的 **frame name** slug 化,通过内置脚本:
-   ```bash
-   node .claude/skills/pp-d2c/bin/slugify.mjs "<frame-name>" --fallback "<nodeId>"
-   ```
-   - ASCII 输入 → 保留 `[a-z0-9-]`, 其余替换为 `-`, 首尾去 `-`, lowercase, 连续 `-` 压成一个
-   - 中文 → 内置常用字 pinyin 表转换（覆盖 Figma 常见图层高频词, 未覆盖字直接丢弃）
-   - 转完 slug 空 or 仅含 `-` → 用规则 2 兜底
-2. `page-<nodeId-safe>` 兜底（`nodeId` 里 `:` 换 `_`;例 `211:31` → `page-211_31`）
-
-**用户回答后的处理**:
-
-- 用户显式指定 → 采用用户值,写入 `.d2c-tasks.md` "输出路径锁定"段
-- 用户回车 / 只答一个 → 未答项用默认 slug
-- 用户答 "同 1" (代码与图片同 slug) → 两者取同一值
-
-**`.d2c-tasks.md` 输出路径锁定段**（写在"大类锁定"段之前）:
-
-```markdown
-## 输出路径锁定（本次生成不可变）
-
-- projectRoot: <绝对路径>
-- 代码路径: <output.dir>/<code-slug>/         (例: pages/test-tmp/)
-- 图片路径: <images.assetsDir>/<asset-slug>/  (例: static/test-tmp/)
-- slug 来源: {frame-name-slug / page-nodeId / user-explicit / same-as-code}
-```
+在 `.d2c-tasks.md` 的“输出路径锁定”段记录 projectRoot、代码路径、图片路径及来源（默认 home / 用户指定 / 已有入口）。共享文件由主 agent 写，子任务不得另选目录。首次输出仍须通过下一节目录三态守卫；路径碰撞并不授权覆盖已有业务。
 
 ### 步骤 0.5.1:目录三态守卫(v1.2.7 / v1.1.2,硬约束,不可跳过)
 
@@ -274,7 +240,7 @@ slug 确定后、切图 / 出码 / QA 任何写盘动作**之前**,主 agent **�
 
 **用户三选一的处理**:
 
-- (a)换路径 → 回到步骤 0.5 重新问 slug,重跑本节三态探测
+- (a)换路径 → 回到步骤 0.5 采用用户选择的新路径,重跑本节三态探测
 - (b)自处理 → 用户回复"已处理"后重跑一次 `ls -la` 探测,状态变为"不存在"或"空"才继续;若仍非空一律再次 hard stop,禁止相信用户口头承诺
 - (c)中止 → 完整退出 D2C 流程,不写盘任何文件
 
@@ -285,7 +251,7 @@ slug 确定后、切图 / 出码 / QA 任何写盘动作**之前**,主 agent **�
 - 禁止 `rm -rf <目标路径>` 或等价删除既有目录内容——**agent 无权删旧目录**,清理由用户在(b)分支自处理
 - 禁止"备份后覆盖"通道(如 `mv <目标> .d2c-trash/`)——不留后门,用户选的是"绝不允许 agent 删旧目录"
 - 禁止把新产物混入已有目录(哪怕文件名不冲突)——`components/` / `utils.ts` 等"看起来无关"的旧文件最常被误覆盖;三态检查按目录整体判定,不按文件名逐个判
-- 禁止跳过本节直接进入切图 / 出码(§6.0 忠实度证明块会自证本节判定与用户处置轨迹,缺失即不合格)
+- 首次生成禁止跳过本节直接进入切图 / 出码(§6.0 忠实度证明块会自证本节判定与用户处置轨迹,缺失即不合格)
 
 **取证背景**:用户实测事故——已有 `xxx/` 业务目录内部实现被 D2C 无感知替换,业务代码丢失。文本约束不足以拦下,故正式列入硬约束。
 
@@ -372,7 +338,7 @@ node .claude/skills/pp-d2c/bin/figma.mjs screenshot <fileKey> <rootNodeId> --tag
 **拉节点树**：
 
 ```bash
-node .claude/skills/pp-d2c/bin/figma.mjs fetch-node <fileKey> <nodeId> --depth=2
+node .claude/skills/pp-d2c/bin/figma.mjs fetch-node <fileKey> <nodeId>
 ```
 
 stdout 是 `{"ok":true,"data":{"cached":<bool>,"node":{...}}}`。`node` 就是目标节点的完整子孙树（含 `type` / `name` / `children` / `visible` / `absoluteBoundingBox` 等）。脚本已处理缓存查/写，LLM 不用管。
@@ -451,8 +417,8 @@ img-*   → 主 agent 处理，生成 <img>
 
 **清单规则**：
 - 每完成一项，立即将 `[ ]` 改为 `[x]`
-- 步骤 5 合并前，逐项检查清单，有 `[ ]` 未完成的不得进入合并
-- sub-agent 完成自己的 block 后，将对应清单项标为 `[x]`
+- 步骤 5 合并前核对实现与依赖交付项；源码缺失或区块规则失败先修复。视觉未验证及尚未开始的合并验收分别保留状态，不形成先预览整页才能合并的循环等待
+- sub-agent 保存自身 QA 并上报实际文件和证据，主 agent 核对后单独更新总清单 `[x]`
 
 产出：block 列表 + `.d2c-tasks.md` 文件。
 
@@ -947,8 +913,10 @@ sub-agent 拿到根节点后，**第一步**检查根节点自身的图层名前
 
 调脚本拿节点属性（含子树）：
 
+先从主 agent 已校验的完整根缓存按 nodeId 提取本 block 子树，保留真实完整属性与父布局定位，不能各自重新请求同一节点。只有确实缺失或已截断时，交由主 agent 补取：
+
 ```bash
-node .claude/skills/pp-d2c/bin/figma.mjs fetch-node <fileKey> <nodeId> --depth=8
+node .claude/skills/pp-d2c/bin/figma.mjs fetch-node <fileKey> <nodeId>
 ```
 
 `node` 里含图层树、以下几类字段必须读全（脚本自动查/写缓存）：
@@ -1630,7 +1598,7 @@ $asset-prefix: '<imageBaseUrl 字面值><assetsDir 字面值>';  // ← 把 conf
 - [ ] **未主动问用户技术决策（v0.3.8）**：sub-agent 本轮跑完是否**没有向用户提任何 skill 已定死的技术决策问题**（切图/兜底/合并/尺寸/命名冲突等，见「问题边界」章节）？若遇 skill 未覆盖的边界情形，是否已按最接近规则兜底 + 在 `assets.txt` QA 段落写「[需人工核对]」告警，而**不是**打断用户提问？
 - [ ] **字色末位取值（v0.3.6 NAM025）**：产物里所有 TEXT 节点的字色，是否按 §4.1.1「TEXT 多层 fills 处理」取的末位可见 SOLID？
 
-规则与视觉自验通过后，owner 在自身 `assets.txt` QA 记录“owner 自验通过”并上报；主 agent 核对证据与版本后统一更新 `.d2c-tasks.md` 对应项为 `[x]`。未验证/失败项保留未完成与报告，不能仅因代码已生成而勾选；owner 不并发写执行总清单。
+owner 在自身 `assets.txt` QA 分别记录源码交付、规则结果、视觉结果和输入/源码摘要后上报；主 agent 核对后独立更新总清单。源码完整且必要区块规则通过即可收取并组合，视觉缺环境时保持“未验证”，不能声称自验全部通过。实现或规则失败先由owner修复，已成功交付不要求主任务重新深入语义复验；owner不并发写总清单。
 
 ---
 
@@ -1641,7 +1609,7 @@ $asset-prefix: '<imageBaseUrl 字面值><assetsDir 字面值>';  // ← 把 conf
 - 所有主 agent 直接处理节点
 - 背景节点
 
-有任何 `[ ]` 未完成，必须先补齐再合并，不得跳过。
+合并所需的源码和规则交付必须补齐；视觉环境缺失独立记录为未验证，不能伪造通过，也不阻止组合已就绪源码。最终交付仍明确未验证范围。
 
 等待所有 sub-agent 完成后，按 `merge.mode` 合并。
 

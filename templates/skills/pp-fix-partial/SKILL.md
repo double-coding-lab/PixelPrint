@@ -19,6 +19,12 @@ description: D2C 出码后的局部 UI 修复，仅重跑指定区块不重刷�
 
 ---
 
+## 本轮分流（先于下面的设计修复步骤）
+
+先读 [共用执行契约](../pp-d2c-reskin/EXECUTION-CONTRACT.md)。用户仅要求修改现有代码的点击、滑动、滚动、状态或样式，且未要求采用新稿时，直接从当前入口和相关源码定位，列明目标、保存修改前基线、最小 patch 并按契约验收；完成后直接输出本轮实际改动与验证结果；下面步骤 0–6 仅用于确需设计事实的节点修复，不再转回该流程要求Figma截图、target.nodeId或整块重生成。`last-page.json` 缺失时可用用户明确路径或唯一可确认的现有入口继续，缺少设计事实时只限定设计结论，不能强迫重新生成整页。
+
+继续失败任务先核对 `.d2c-tasks.md`、实际文件和已保存的报告，不要求先有一次整页成功记录。多个相关区块按依赖和唯一 owner 联动，不因数量退回整页流程。只有新设计事实、结构重建或明确的设计图层修复才执行下面的 Figma/cache 步骤；新请求的 fileKey 仍须和实际目标对应。
+
 ## 步骤 0:确定项目上下文
 
 ### 0.1 读 config
@@ -49,9 +55,9 @@ Read `.d2c-cache/last-page.json`,拿最近一次成功出码的元数据:
 }
 ```
 
-**文件不存在**:输出错误「未找到 `.d2c-cache/last-page.json`,请先跑一次 pp-d2c / pp-d2c-rn 主流程再回来做局部修复」,终止。
+**文件不存在**：先尝试用户明确的入口、`.d2c-tasks.md` 或唯一可确认的源码目标。仅缺少设计稿定位且本轮确需设计事实时才请求补充链接，不把缺少成功记录当作必须整页重做的理由。
 
-### 0.3 校验 config 与 last-page 一致
+### 0.3 存在 last-page 时校验配置一致
 
 - `config.project.framework === last-page.framework`?不一致 → warn「项目 framework 已切换,建议重跑整页而非局部修复」,给用户 y/n
 - `config.output.dir` 与 `last-page.outputDir` 前缀匹配?不匹配 → warn 同上
@@ -77,7 +83,7 @@ Read `.d2c-cache/last-page.json`,拿最近一次成功出码的元数据:
 
 ### 1.2 形态 B:无参
 
-- 调 figma.mjs 拉 last-page.rootNodeId 的**直接子节点**列表(只到一层子,不递归)
+- 优先读已保存的完整根缓存取得**直接子节点**列表；确实缺缓存时才由主 agent 补取
 - 输出候选清单:
 
   ```
@@ -93,7 +99,7 @@ Read `.d2c-cache/last-page.json`,拿最近一次成功出码的元数据:
 
 ### 1.3 形态 C:自然语言描述
 
-- 拉 last-page 整个子树 name 列表
+- 从有效完整缓存读取子树 name 列表；确实缺失时才补取
 - 对用户描述做 fuzzy match(忽略 sub-/block-/img- 等前缀),取 top 5
 - 输出候选让用户选(格式同 1.2)
 - 未命中 → 回退到形态 B 完整清单
@@ -104,38 +110,19 @@ Read `.d2c-cache/last-page.json`,拿最近一次成功出码的元数据:
 
 ### 2.1 缓存目录约定
 
-```
-.d2c-cache/
-├── figma/
-│   └── <fileKey>-<nodeId>.json         # figma 节点子树 REST 返回,带 { figmaTreeHash, mtime }
-├── images/
-│   └── <fileKey>-<nodeId>-<imgId>.png  # 切图缓存,与 figma 节点 hash 绑定
-├── anchors/
-│   └── <pageDir 相对 outputDir 的下划线名>.json   # 由 pp-strip-nodeid 生成的锚点档案
-└── last-page.json                       # 由主 SKILL 生成
-```
+实际 `figma.mjs` 使用 `.d2c-cache/<fileKey>/meta.json`、`nodes/<nodeId-safe>.json` 和 `images.json`；节点文件名以脚本返回及真实目录为准。图片输出路径以脚本回执/切图清单为准，不另造 `.d2c-cache/figma`、`images/<fileKey>-...` 两套缓存布局。
 
-**关键不变式**:
-- 所有缓存文件路径必带 `<fileKey>` 前缀 → 换 fileKey 天然隔离,不会跨稿子污染
-- 缓存作废三种触发:hash 变了 / mtime 超 7 天 / 用户跑 `pp-d2c clean-cache`
+`.d2c-cache/anchors/` 与 `last-page.json` 用来定位已有入口；后者仍由主 Skill 独占写入。缓存的完整性、设计来源、配置及素材摘要共同决定复用，不因存在一个 JSON 就认定所有资料有效。
 
-### 2.2 hash 对比
+### 2.2 设计输入核验与缓存复用
 
-调 `bin/figma.mjs fetch-node --file-key <fileKey> --node-id <nodeId>` 拉 target 最新子树 → 算子树 fingerprint hash(递归 SHA1 节点 id + name + style props + children hash):
+代码增量按前面的快速路径执行，不请求 Figma。需要设计事实时，主 agent 按实际 CLI 用 `cache-check <fileKey>` 校验一次，再使用 `fetch-node <fileKey> <nodeId>` 获取或复用完整缓存；参数以当前脚本帮助为准，不发明命名参数。子任务共享有效输入，不分别做网络检查。
 
-```
-[fix-partial] fetch target 138:1830 最新元数据...
-[fix-partial] 最新 hash: sha1:def456
-[fix-partial] 缓存 hash: sha1:abc123
-[fix-partial] hash 不一致 → invalidate 图片缓存,重新导出
-```
+设计版本变化、缓存缺失/截断或用户明确换稿时，补取受影响范围并重新判断相关规则、素材；文件版本及来源以脚本实际输出为准。缓存有效不代表已验证当前页面效果，源码、视觉和交互仍各自验收。不以反复拉取新子树来证明缓存命中。
 
-**hash 一致** → 用缓存(figma JSON + 图片 PNG 都跳过网络);
-**hash 不一致** → 删该 nodeId 对应的所有缓存文件,重拉。
+### 2.3 缓存更新边界
 
-### 2.3 mtime TTL
-
-打开缓存文件时:如果 `Date.now() - meta.mtime > 7 * 24 * 3600 * 1000` → 作废重拉。防止 figma 长期没动的稿子静默过期(hash 一致但 figma 侧其实已经删了那个节点的场景很少见,但兜底一下)。
+由现有 CLI 管理设计版本与完整性，不手工清空整个缓存。需要最新设计时先执行实际支持的版本检查；`figma.mjs` 没有 `--no-cache` 开关，不能透传后声称强制刷新，也不自动删除缓存。真实获取失败保留原数据和进度，说明其时效未知，不当作已更新的事实。
 
 ### 2.4 防污染硬规则
 
@@ -222,7 +209,7 @@ grep -rn 'data-node-id="138:1830"' pages/Italo/
 - **step 3 走 anchor / grep 精确定位** → 按候选 diff 逐文件应用目标 JSX 与关联样式，先核对各文件基线版本；发生变化先重读并重做候选，不覆盖他人修改。使用 Edit 工具 `Edit(file, oldStr, newStr)`
   - oldStr = 该文件目标片段的当前原文（JSX 可按 anchor 范围，样式按实际选择器或 styleKey 定位）
   - newStr = 步骤 4 生成的新版本
-- **step 3 让用户选了一个组件目录** → 该目录整个替换
+- **step 3 让用户选了一个组件目录且用户要求整块重建** → 核对基线后按候选 diff 替换授权文件；其他局部任务只应用必要 patch
   - 备份到 `.d2c-cache/fix-partial-backup/<nodeId>-<timestamp>/`(留 3 份滚动)
   - 用新版本覆写该组件目录的所有文件
 
@@ -265,7 +252,7 @@ grep -rn 'data-node-id="138:1830"' pages/Italo/
 | `[figmaUrl]` | 明确要修的 figma 节点 URL(fileKey 必须与 last-page 一致) |
 | `[目标描述]` | 自然语言 fuzzy match 子节点 name |
 | `--dry-run` | 只走完步骤 1-4,不动用户代码;输出 diff 给用户看 |
-| `--no-cache` | 强制忽略所有 `.d2c-cache/figma/*` 和 `images/*`,一切重拉 |
+| 最新设计检查 | 用主 Skill 的 `cache-check` 校验版本；不提供 `--no-cache` 脚本开关 |
 | `--force` | 跳过一致性校验(framework / outputDir 不匹配警告) |
 
 ---
@@ -273,15 +260,15 @@ grep -rn 'data-node-id="138:1830"' pages/Italo/
 ## 禁止项
 
 - 禁止跨 fileKey 修复:`user-url.fileKey !== last-page.fileKey` → 直接终止,不给"跨稿子拼接"的口子
-- 禁止跳过 hash 对比直接用缓存:每次 fix-partial 必须先 fetch target 最新 → 算 hash → 对比缓存
+- 缓存使用遵守本轮分流：代码增量复用已绑定事实，设计变化或缺失时真实校验和补取，不能拿过期或截断数据冒充完整输入
 - 禁止改动 target 范围外的代码:即使发现同页面其他块也有问题,不管;让用户显式再跑一次 fix-partial
 - 禁止改动 `.d2c-cache/last-page.json`:该文件是主 SKILL 独占写入
-- 禁止对没跑过主 SKILL 的项目直接使用:必须先有一次 pp-d2c/pp-d2c-rn 成功产出,才能局部修复
+- 当前源码必须真实存在并能确定修改范围；未完成整页生成也可继续已保存部分，不能伪造成功基线或覆盖无关文件
 - 禁止在 anchor 档案缺失且 data-node-id 已剥的项目里"猜"位置:让用户选具体目录,不做启发式硬替换
-- 禁止把 `sub-` 前缀的图层作为 target 时,只出内部代码不出 sub 组件外壳:target 是 sub- 就完整重新生成 sub 组件(目录 + 组件函数 + 样式);target 不是 sub- 就在最近的 sub 祖先里做局部 patch
+- 设计结构重建以sub为目标时保持完整组件外壳和依赖；代码增量保留已有外壳，只修改必要内容，不因sub前缀触发整块重生成
 - 禁止把整个 outputDir 备份到 git 追踪路径:备份只落 `.d2c-cache/fix-partial-backup/`,该目录已在 `.gitignore` 里(靠 `.d2c-cache/` 整体忽略)
 - 禁止在 config `project.framework` 与 last-page 不一致时静默继续:必须显式警告 + 等用户 y/n
-- 禁止把 `--no-cache` 当默认行为:缓存复用是本 skill 的核心价值,只有用户明确加 flag 才禁用
+- 禁止透传不存在的 `--no-cache` 参数或自行清空缓存；需要设计更新先做真实版本检查，强制重建超出现有工具能力时报告缺口
 
 ---
 
@@ -295,4 +282,4 @@ grep -rn 'data-node-id="138:1830"' pages/Italo/
 | 上线前清 `data-node-id` | `pp-strip-nodeid` |
 | 出码后想清缓存 | `npx @double-coding/pixel-print clean-cache` |
 
-**规则**:凡是「涉及≥ 2 个 sub-block」的修改,退回主 SKILL 重跑;本 skill 只做 1 个 target 节点的局部修复,不解决"多块联动"问题。
+**规则**：相关区块可在明确依赖与单 owner 写入边界内联动修改；整页重构才走主 Skill 的完整生成流程。
