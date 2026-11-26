@@ -783,3 +783,14 @@ MIT © double-coding-lab
 修改已有交互时，先保存真实运行基线，按用户行为要求验证，再在等价页面状态下比对修改前后外观；默认一次验收加最多两次有证据复验，未通过保留产物和具体缺口。没有真实浏览器/原生环境时明确未验证。
 
 共享规则位于分发的 `pp-d2c-reskin/EXECUTION-CONTRACT.md`，H5、RN、局部修复与换肤均先读取。数据库检查点、租约、自动故障重排、服务端专用工具及对象上传能力仍由宿主或服务提供，更新 Skill 不会自动获得这些能力。已有安装需要刷新 Skill 文件后才生效，普通 install 保留已有同名文件；不要将文档更新当作已发布到 npm。
+
+## npm 自动发布
+
+GitHub Actions 工作流为 `.github/workflows/publish.yml`。将 `package.json` 更新为未发布的正式版本，提交并推送代码，再推送同版本标签（例如 `v1.6.2`），即可触发发布。CI 核对标签与版本号，运行 H5/RN 全量回归，检查分发包包含共享执行契约，然后发布到 npm 的 `latest`。标签必须指向已经审查的发布提交；只推送普通分支不会发布。当前项目没有第三方 npm 运行或测试依赖，无需安装依赖即可运行回归。
+
+发布前只需完成以下一种授权配置：
+
+- 推荐在 npm 包设置的 Trusted Publisher 中选择 GitHub Actions，组织填写 `double-coding-lab`，仓库填写 `PixelPrint`，Workflow filename 填写 `publish.yml`，不设置 Environment，并允许直接 `npm publish`。工作流使用 GitHub 托管运行器、Node 24、npm 11 和 `id-token: write`，无需长期令牌。
+- 或在 GitHub 仓库 Actions secrets 中设置 `NPM_TOKEN`，使用对该包有发布权限且允许无人值守发布的有效 npm 令牌。不要提交令牌到仓库。
+
+授权缺失或过期会导致发布步骤失败，测试通过不代表 npm 已发布。完成授权后在 Actions 中重新运行失败工作流，无需删除或移动版本标签。成功后使用 `npm view @double-coding/pixel-print version --registry=https://registry.npmjs.org` 核对版本。npm 正式版本不可覆盖，后续变更需要提高版本号。Trusted Publishing 要求见 [npm 官方说明](https://docs.npmjs.com/trusted-publishers/)。

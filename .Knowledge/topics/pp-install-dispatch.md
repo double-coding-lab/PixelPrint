@@ -72,3 +72,7 @@ tags: [module]
 ## 共用执行契约分发
 
 `pp-d2c-reskin/EXECUTION-CONTRACT.md`随该通用Skill复制到两种宿主，H5/RN主Skill、局部修复和换肤从相对路径读取；RN初始化过滤H5主Skill后该契约仍存在。普通install保持同名文件不覆盖，init刷新当前分支Skill。新H5/RN输出根默认pages，显式CLI或已有配置优先，不自动迁移历史目录。
+
+## npm 版本发布
+
+`.github/workflows/publish.yml`由正式版本标签触发，先核对标签与package.json版本，再运行H5/RN回归和分发包检查，最后将相同压缩包以provenance发布至npm latest。普通分支推送不发布。使用npm Trusted Publisher授权GitHub仓库double-coding-lab/PixelPrint的publish.yml，或配置Actions secret NPM_TOKEN；不能将Git推送成功或测试通过当成npm发布成功。失败可在授权修复后重跑同一工作流，不移动标签。

@@ -1,0 +1,59 @@
+name: Publish npm
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Enable npm trusted publishing
+        run: npm install --global npm@11
+      - name: Check release version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (!/^\d+\.\d+\.\d+$/.test(pkg.version) || process.env.RELEASE_TAG !== `v${pkg.version}`) {
+            throw new Error('Release tag must match the stable package.json version');
+          }
+          if (pkg.name !== '@double-coding/pixel-print') throw new Error('Unexpected package name');
+          JS
+      - name: Run H5 and RN regression tests
+        run: npm test
+      - name: Pack and check distribution
+        run: |
+          npm pack --json > "$RUNNER_TEMP/package.json"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const [pkg] = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/package.json`, 'utf8'));
+          const paths = new Set(pkg.files.map(file => file.path));
+          for (const required of ['bin/install.js', 'templates/skills/pp-d2c-reskin/EXECUTION-CONTRACT.md']) {
+            if (!paths.has(required)) throw new Error(`Missing distribution file: ${required}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_ENV, `PACKAGE_TARBALL=${pkg.filename}\n`);
+          JS
+      - name: Publish to npm
+        run: npm publish "$PACKAGE_TARBALL" --access public --provenance --tag latest
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
