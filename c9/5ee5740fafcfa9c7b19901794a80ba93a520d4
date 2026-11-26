@@ -1,0 +1,19 @@
+package.json
+  s_a4e26e740c8ebc::t_da3f6953bdf018 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "c95ee5740fafcfa9c7b19901794a80ba93a520d4",
+  "prompts": {},
+  "sessions": {
+    "s_a4e26e740c8ebc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17c5d-a8a9-7e90-8b85-0ffe53c5e35f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
