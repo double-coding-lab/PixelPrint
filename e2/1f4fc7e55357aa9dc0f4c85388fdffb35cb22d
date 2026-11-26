@@ -1,0 +1,33 @@
+templates/skills/pp-d2c-reskin/SKILL.md
+  s_a4e26e740c8ebc::t_adbdf75c10c39e 17-20
+templates/skills/pp-d2c-reskin/EXECUTION-CONTRACT.md
+  s_a4e26e740c8ebc::t_adbdf75c10c39e 1-19,21-73
+bin/install.js
+  s_a4e26e740c8ebc::t_adbdf75c10c39e 608,613
+templates/pp-d2c.rn.config.json
+  s_a4e26e740c8ebc::t_adbdf75c10c39e 41
+templates/skills/pp-d2c/SKILL.md
+  s_a4e26e740c8ebc::t_77e7c71fabeaba 341,916-917,919
+  s_a4e26e740c8ebc::t_adbdf75c10c39e 38-41,46,225,229,243,254,421
+templates/skills/pp-d2c-rn/SKILL.md
+  s_a4e26e740c8ebc::t_adbdf75c10c39e 41-44,49,320,324,347,466,2883-2884
+  s_a4e26e740c8ebc::t_77e7c71fabeaba 386,783-784,786,1424,1475,1499,1655,2133,2144,2672,2682-2683
+templates/skills/pp-fix-partial/SKILL.md
+  s_a4e26e740c8ebc::t_adbdf75c10c39e 22-23,25-27,58,60,86,102,113,115,117,119,121,123,212,255,263,266,268,271,285
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "e21f4fc7e55357aa9dc0f4c85388fdffb35cb22d",
+  "prompts": {},
+  "sessions": {
+    "s_a4e26e740c8ebc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17c5d-a8a9-7e90-8b85-0ffe53c5e35f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
