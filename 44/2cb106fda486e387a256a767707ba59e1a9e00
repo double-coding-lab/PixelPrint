@@ -1,0 +1,19 @@
+test/rules/test-install-contract.mjs
+  s_a4e26e740c8ebc::t_3a6ce1b312572b 47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "442cb106fda486e387a256a767707ba59e1a9e00",
+  "prompts": {},
+  "sessions": {
+    "s_a4e26e740c8ebc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17c5d-a8a9-7e90-8b85-0ffe53c5e35f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
