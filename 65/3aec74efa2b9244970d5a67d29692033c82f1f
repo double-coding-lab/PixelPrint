@@ -1,0 +1,19 @@
+.Knowledge/topics/pp-d2c.md
+  s_e16f52fd1de115::t_8da0f5cf000361 3,447-451
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "653aec74efa2b9244970d5a67d29692033c82f1f",
+  "prompts": {},
+  "sessions": {
+    "s_e16f52fd1de115": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c7b0-40f3-7e81-a139-8f8d612ae806",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "lands <550947002@qq.com>"
+    }
+  }
+}
