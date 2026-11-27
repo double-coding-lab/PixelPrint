@@ -1767,7 +1767,7 @@ fi
 
 **轻量布局核对**：固定尺寸、填充剩余空间和内容自适应分别按设计语义实现；`100%`、`auto` 和 flex 均可使用。静态 R23 的显式 px 对账之外，应核对浏览器实际 border-box 尺寸及父子对齐，发现 flex 收缩、父级宽度丢失和文字偏移后定点修复，避免将所有尺寸写死。
 
-- 平台支持 `inspect_preview` 时，在既有截图中传入 `layoutChecks`，最多32项；`width`/`height` 是375视口下的 CSS 像素，`centerX`/`centerY` 与 `container` 联用，只对设计明确居中的内容断言。示例：`{"selector":"[data-node-id=\"1:148\"]","container":"[data-node-id=\"1:144\"]","centerX":true,"centerY":true}`。装饰光晕层与文字层分开定位。
+- 平台支持 `inspect_preview` 时，在既有截图中传入 `layoutChecks`，最多32项；`width`/`height` 是375视口下的 CSS 像素，`centerX`/`centerY` 与 `container` 联用，只对设计明确居中的内容断言。示例：`{"selector":"[data-node-id=\"1:148\"]","container":"[data-node-id=\"1:144\"]","centerX":true,"centerY":true}`。装饰光晕层与文字层分开定位；`overflow:true` 按需检查容器内容溢出，轮播、滚动和省略号等有意裁切不默认启用。
 - 平台首轮生成可从已有根节点缓存自动提取固定轴及居中文字约束；FILL/HUG、整体切图子孙及隐藏层保持原布局语义。自动检查有数量与覆盖边界，缺失/重复节点、截图截断和字体失败须说明，不能当作全页通过。
 - `layout.issues` 有实际偏差时，只修异常区域；`durationMs` 记录检查耗时。检查附着同次浏览器截图，无异常不新增模型请求、构建或截图。首次检查后最多两轮定点修复复验，仍未通过如实交付剩余项。
 - 最终整体截图、规则结果和局部证据绑定当前入口、源码修订及视口；修订变化后复查受影响范围。仅取得截图、编译通过或静态规则通过均不等于视觉通过。

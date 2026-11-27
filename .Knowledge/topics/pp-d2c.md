@@ -1,6 +1,6 @@
 ---
 id: pp-d2c
-revision: 7
+revision: 8
 summary: "H5 D2C 主流程:Figma 还原、前缀协议、check-rules 硬防线"
 primary: policy
 confidence: inferred
@@ -449,3 +449,5 @@ cat pp-d2c.config.json | grep -E "health\.enabled|images\.preserveEffectIds|laye
 
 - 合并后保留最终整体截图及接缝检查，复用未变区块的有效证据，仅异常、变更或缺证据范围补局部对比。固定尺寸、FILL/HUG和内容自适应各按设计语义实现，百分比/auto无需统一改成定宽。
 - 有浏览器能力时在既有截图中读取实际尺寸与内容相对容器的对齐；支持平台inspect_preview时使用有界layoutChecks及layout诊断，不新增固定模型轮次。缓存自动约束只覆盖平台首次H5生成的明确固定轴及居中文字；本地无该能力时报告未验证范围。工具缺失、字体失败或覆盖不足不作为视觉通过。
+
+- 轻量布局支持显式`overflow:true`：同次截图检查容器scrollWidth/scrollHeight相对client尺寸的溢出，并沿用有限修复及证据保留；轮播、滚动容器、装饰外扩和省略号不自动套用溢出断言。
